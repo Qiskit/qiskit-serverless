@@ -3,7 +3,6 @@
 from core.models import Job, Program
 from core.services.runners.abstract_runner import (
     RunnerError,
-    RunnerMayHaveRunError,
     RunnerRetryableError,
     AbstractRunner,
 )

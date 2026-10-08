@@ -19,7 +19,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerMayHaveRunError, RunnerRetryableError
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
@@ -97,14 +97,12 @@ class FleetsJobSubmitter:
 
         Raises:
             RunnerRetryableError: before any write, so the job stays QUEUED.
-            RunnerMayHaveRunError: after the FAILED status change, so the caller can stop submitting.
         """
         breaker = self.get_breaker(job.ce_region)
         if breaker.is_open:
             raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         start = time.monotonic()
         tracer = trace.get_tracer("scheduler.tracer")
-        may_have_run: RunnerMayHaveRunError | None = None
         with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
 
             runner = get_runner(job)
@@ -124,13 +122,6 @@ class FleetsJobSubmitter:
                 # and pauses submits to its region. Follow-up: fail it after a time limit.
                 breaker.record_failure()
                 raise
-            except RunnerMayHaveRunError as ex:
-                may_have_run = ex
-                logger.error(
-                    "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: the fleet may exist", job.id, ex
-                )
-                job.status = Job.FAILED
-                transition = self.transitions.to_failed
             except RunnerError as ex:
                 logger.error(
                     "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: submission error",
@@ -158,9 +149,6 @@ class FleetsJobSubmitter:
                 # written since the job is no longer in a state that transition applies to.
                 logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
-        if may_have_run:
-            breaker.record_failure()
-            raise may_have_run
         return job
 
 

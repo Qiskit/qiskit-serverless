@@ -34,10 +34,6 @@ class RunnerRetryableError(RunnerError):
     """A later try can work, for example after a 429, so the caller should not fail the row."""
 
 
-class RunnerMayHaveRunError(RunnerError):
-    """The engine may have performed the submit, so it must not be retried."""
-
-
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
@@ -99,8 +95,7 @@ class AbstractRunner(ABC):
 
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
-            RunnerRetryableError: If the engine surely did not do it, so the caller can try again later
-            RunnerMayHaveRunError: If the engine may have done it, so the caller must not try again
+            RunnerRetryableError: If a later try can work, so the caller can try again later
         """
         raise NotImplementedError
 

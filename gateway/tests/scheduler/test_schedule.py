@@ -17,7 +17,7 @@ from core.model_managers.job_events import JobEventContext
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError, RunnerMayHaveRunError, RunnerRetryableError
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
@@ -288,25 +288,6 @@ class TestScheduleApi(APITestCase):
         submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
         assert submitter.paused("us-east") is False
-
-    @patch("scheduler.schedule.get_runner")
-    @patch("scheduler.schedule.trace")
-    def test_fleets_submit_fails_a_job_that_may_have_run_and_counts_it_against_the_breaker(
-        self, mock_trace, mock_get_runner_client
-    ):
-        _open_breakers_after_one_failure()
-        mock_get_runner_client.return_value.submit.side_effect = RunnerMayHaveRunError("Gateway Timeout")
-        transitions = MagicMock()
-        job = MagicMock(ce_region="us-east")
-
-        submitter = FleetsJobSubmitter(transitions)
-
-        with pytest.raises(RunnerMayHaveRunError):
-            submitter.submit(job, MagicMock())
-
-        assert job.status == Job.FAILED
-        transitions.to_failed.assert_called_once()
-        assert submitter.paused("us-east") is True
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")

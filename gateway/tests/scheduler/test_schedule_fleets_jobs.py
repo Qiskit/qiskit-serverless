@@ -3,10 +3,8 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from core.models import Job
-from core.services.runners import RunnerMayHaveRunError, RunnerRetryableError
+from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
@@ -63,8 +61,7 @@ def test_add_queue_wait_time_metric_skips_filler_jobs():
     task.metrics.observe_queue_wait_time.assert_called_once()
 
 
-@pytest.mark.parametrize("error", [RunnerRetryableError("Too Many Requests"), RunnerMayHaveRunError("Timeout")])
-def test_a_code_engine_failure_skips_only_that_region_for_the_tick(error):
+def test_a_code_engine_failure_skips_only_that_region_for_the_tick():
     task = _make_task()
     failing = MagicMock(env_vars="{}", ce_region="us-east")
     same_region = MagicMock(env_vars="{}", ce_region="us-east")
@@ -72,7 +69,7 @@ def test_a_code_engine_failure_skips_only_that_region_for_the_tick(error):
 
     def submit(job, ctx):  # pylint: disable=unused-argument
         if job is failing:
-            raise error
+            raise RunnerRetryableError("Too Many Requests")
         return job
 
     with (

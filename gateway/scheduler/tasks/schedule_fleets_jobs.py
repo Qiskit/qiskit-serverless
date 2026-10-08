@@ -11,7 +11,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import RunnerMayHaveRunError, RunnerRetryableError
+from core.services.runners import RunnerRetryableError
 from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -76,9 +76,6 @@ class ScheduleFleetsJobs(SchedulerTask):
                 job = self.submitter.submit(job, ctx)
             except RunnerRetryableError as ex:
                 logger.warning("job_id=%s region=%s Job kept QUEUED: %s", job.id, job.ce_region, ex)
-                skipped_regions.add(job.ce_region)
-                continue
-            except RunnerMayHaveRunError:
                 skipped_regions.add(job.ce_region)
                 continue
 

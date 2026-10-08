@@ -25,7 +25,7 @@ from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
 from ibm_botocore.exceptions import ConnectionError as BotoConnectionError
 from ibm_botocore.exceptions import HTTPClientError as BotoHTTPClientError
-from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ProtocolError, ReadTimeoutError
+from urllib3.exceptions import MaxRetryError, ProtocolError, ReadTimeoutError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
@@ -33,7 +33,6 @@ from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import (
     AbstractRunner,
     RunnerError,
-    RunnerMayHaveRunError,
     RunnerRetryableError,
 )
 from core.ibm_cloud import get_ce_auth, get_cos_client
@@ -158,8 +157,7 @@ class FleetsRunner(AbstractRunner):
         """Submit the job as a Code Engine fleet: upload its files to COS, then create the fleet.
 
         Raises:
-            RunnerRetryableError: If Code Engine or COS surely did not do it, so a later try can work.
-            RunnerMayHaveRunError: If Code Engine may have created the fleet, so it must not be retried.
+            RunnerRetryableError: If Code Engine or COS failed in a way a later try can fix.
             RunnerError: If submission fails for any other reason.
         """
         paths = self._upload_to_cos()
@@ -268,20 +266,16 @@ class FleetsRunner(AbstractRunner):
             self.job.fleet_id = fleet_id
         except RunnerError:
             raise
+        # NOTE: a 5xx or a broken connection can come after Code Engine created the fleet, and the retry builds a
+        # new fleet name, so it can create a second fleet. Follow-up: a fleet name built from the job id.
         except ApiException as ex:
             status = ex.status or 0
-            if status == 429:
+            if status in (0, 429) or status >= 500:
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
-            if status == 0 or status >= 500:
-                raise RunnerMayHaveRunError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except MaxRetryError as ex:
-            if isinstance(ex.reason, ConnectTimeoutError):
-                raise RunnerRetryableError("Unable to connect to Code Engine", ex) from ex
-            raise RunnerMayHaveRunError("Code Engine request failed", ex) from ex
-        except (ReadTimeoutError, ProtocolError) as ex:
-            raise RunnerMayHaveRunError("Code Engine request failed", ex) from ex
+        except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
