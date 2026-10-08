@@ -32,7 +32,6 @@ def make_input(**overrides) -> RunFunctionInput:
         provider_name=None,
         arguments="{}",
         config_data=None,
-        compute_profile=None,
         function_size=None,
         channel=Channel.IBM_QUANTUM_PLATFORM,
         token="tok",
@@ -157,53 +156,6 @@ class TestRunFunctionUseCase:
 
         assert not Job.objects.exists()
 
-    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_sets_compute_profile_fk_from_explicit_request(self, user, ce_project, monkeypatch):
-        """An explicitly requested profile (already bare) is stored and resolves its FK row.
-
-        The use case no longer normalizes: ``RunFunctionInput.compute_profile`` is expected
-        to already be in canonical bare form, as it would arrive from the view.
-        """
-        make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
-
-        job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="24x120x1a100p"))
-
-        assert job.compute_profile == "24x120x1a100p"
-        assert job.compute_profile_fk == profile
-        # Sized by the deprecated compute_profile input; no size row applies.
-        assert job.size_source == Job.SIZE_SOURCE_COMPUTE_PROFILE
-        assert job.function_size is None
-
-    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_does_not_normalize_prefixed_request(self, user, ce_project):
-        """A prefixed value is used as-is and fails to resolve a FK.
-
-        Documents that normalization is now the view's responsibility, not the use case's:
-        the use case trusts ``RunFunctionInput.compute_profile`` to already be bare.
-        """
-        make_fleets_function(user, ce_project)
-        ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="gx3d-24x120x1a100p"))
-
-        assert not Job.objects.exists()
-
-    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_rejected_when_compute_profile_not_registered(self, user, ce_project):
-        """An unregistered profile is a misconfiguration: refuse the job, don't persist a null FK."""
-        make_fleets_function(user, ce_project)
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input())
-
-        assert not Job.objects.exists()
-
     def test_ray_job_leaves_compute_profile_fk_null(self, user):
         """The Ray path has no profile; the FK stays null and no registration is required."""
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
@@ -232,18 +184,6 @@ class TestRunFunctionUseCase:
         # different size mapping to the same profile stays distinguishable).
         assert job.size_source == Job.SIZE_SOURCE_REQUESTED
         assert job.function_size == size
-
-    def test_run_rejects_when_both_compute_profile_and_function_size(self, user, ce_project):
-        """Sending both a size and a profile is ambiguous and rejected before any Job is built."""
-        function = make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
-        FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
-
-        assert not Job.objects.exists()
 
     def test_run_rejects_unknown_function_size(self, user, ce_project):
         """A size the function does not declare is a 400; no Job is persisted."""
@@ -287,18 +227,3 @@ class TestRunFunctionUseCase:
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
-
-    def test_ray_job_rejects_when_both_compute_profile_and_function_size(self, user):
-        """Ambiguous sizing input is a 400 regardless of runner, even though Ray ignores both anyway.
-
-        The check runs before the Ray short-circuit deliberately: Ray should never receive
-        either of these, so a request that sends both is treated as a client mistake worth
-        surfacing rather than silently swallowed.
-        """
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
-
-        assert not Job.objects.exists()
