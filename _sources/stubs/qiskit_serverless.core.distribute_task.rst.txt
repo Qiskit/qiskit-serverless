@@ -1,6 +1,0 @@
-﻿qiskit\_serverless.core.distribute\_task
-========================================
-
-.. currentmodule:: qiskit_serverless.core
-
-.. autofunction:: distribute_task

@@ -1,6 +1,0 @@
-﻿qiskit\_serverless.core.put
-===========================
-
-.. currentmodule:: qiskit_serverless.core
-
-.. autofunction:: put

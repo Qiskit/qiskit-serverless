@@ -246,14 +246,6 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.Target.html">qiskit_serverless.core.Target</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -337,6 +329,74 @@ and a provider the caller has no functions under returns an empty list.</p>
 used to say the job “was running and has been stopped”. Code Engine accepts a
 cancel for a fleet that has already finished, so the old wording claimed more
 than the response supports.</p></li>
+</ul>
+<ul>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator and the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and
+<code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> helpers have been <strong>removed</strong>. They were deprecated in
+0.34.0 as thin wrappers around Ray’s native API, which must now be used
+directly. Functions that need in-function parallelism should <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">ray</span></code>
+and use Ray’s own decorators:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> -&gt; <a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html">ray.remote</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get</span></code> -&gt; <a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html">ray.get</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">put</span></code> -&gt; <a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.put.html">ray.put</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> -&gt; <a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.wait.html">ray.wait</a></p></li>
+</ul>
+<p>Before (using the removed Qiskit Serverless wrappers):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
+
+<span class="nd">@distribute_task</span><span class="p">()</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">distributed_transpilation</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">target_backend</span><span class="p">):</span>
+    <span class="o">...</span>  <span class="c1"># returns an ISA circuit</span>
+    <span class="k">return</span> <span class="n">isa_circuit</span>
+
+<span class="n">refs</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_transpilation</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
+<span class="n">isa_circuits</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">"results"</span><span class="p">:</span> <span class="n">isa_circuits</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>After (using Ray directly):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ray</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
+
+<span class="nd">@ray</span><span class="o">.</span><span class="n">remote</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">distributed_transpilation</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">target_backend</span><span class="p">):</span>
+    <span class="o">...</span>  <span class="c1"># returns an ISA circuit</span>
+    <span class="k">return</span> <span class="n">isa_circuit</span>
+
+<span class="n">refs</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_transpilation</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
+<span class="n">isa_circuits</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">"results"</span><span class="p">:</span> <span class="n">isa_circuits</span><span class="p">})</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function</span></code> decorator has been <strong>removed</strong>. It was
+deprecated in 0.30. Use the <code class="docutils literal notranslate"><span class="pre">upload</span></code> functionality of
+<code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessClient</span></code> instead.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless.core.remote</span></code>, a thin proxy around <a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html">ray.remote</a>, has
+been <strong>removed</strong>. Use <code class="docutils literal notranslate"><span class="pre">ray.remote</span></code> directly, as shown above.</p></li>
+</ul>
+<ul>
+<li><p>The OpenTelemetry spans that <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> injected around each
+distributed task have been removed along with it, including the
+<code class="docutils literal notranslate"><span class="pre">qs.meta.*</span></code>, <code class="docutils literal notranslate"><span class="pre">qs.resources.*</span></code> and per-circuit <code class="docutils literal notranslate"><span class="pre">qs.args.*</span></code> /
+<code class="docutils literal notranslate"><span class="pre">qs.kwargs.*</span></code> span attributes derived from <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> arguments.
+Gateway-side and scheduler-side tracing are unaffected, as are the
+client-side <code class="docutils literal notranslate"><span class="pre">job.*</span></code>, <code class="docutils literal notranslate"><span class="pre">function.*</span></code> and <code class="docutils literal notranslate"><span class="pre">files.*</span></code> spans.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">Target</span></code> and <code class="docutils literal notranslate"><span class="pre">CircuitMeta</span></code> dataclasses and the
+<code class="docutils literal notranslate"><span class="pre">fetch_execution_meta</span></code> helper, which existed only to support
+<code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> and its span attributes, have also been removed.</p>
+</li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless.core.tracing._trace_env_vars</span></code> has been removed; it was
+only used to propagate a <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> into <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> tasks.
+<code class="docutils literal notranslate"><span class="pre">get_tracer</span></code> and <code class="docutils literal notranslate"><span class="pre">setup_tracing</span></code> are unchanged: <code class="docutils literal notranslate"><span class="pre">setup_tracing</span></code> is
+still the Ray cluster’s <code class="docutils literal notranslate"><span class="pre">tracing-startup-hook</span></code>.</p></li>
 </ul>
 <ul>
 <li><p>Breaking change:

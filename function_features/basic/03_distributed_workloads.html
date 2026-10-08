@@ -247,14 +247,6 @@
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.Target.html">qiskit_serverless.core.Target</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -319,12 +311,12 @@
 <p>In this tutorial, we’ll explore how to run quantum workloads in parallel using Qiskit Serverless. The function defines a distributed task that transpiles a single circuit on a chosen backend; then the main body launches one task per circuit and gathers the results.</p>
 <p>Parallelism inside a Qiskit Function is provided by <a class="reference external" href="https://docs.ray.io/en/latest/ray-core/walkthrough.html">Ray</a>, which already powers the serverless compute cluster. You turn a regular Python function into a distributed task with the <code class="docutils literal notranslate"><span class="pre">`&#64;ray.remote</span></code> &lt;<a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html">https://docs.ray.io/en/latest/ray-core/api/doc/ray.remote.html</a>&gt;`__ decorator, launch it with <code class="docutils literal notranslate"><span class="pre">.remote(...)</span></code>, and collect the results with <code class="docutils literal notranslate"><span class="pre">`ray.get(...)</span></code> &lt;<a class="reference external" href="https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html">https://docs.ray.io/en/latest/ray-core/api/doc/ray.get.html</a>&gt;`__.</p>
 <blockquote>
-<div><p>ℹ If you have used the <code class="docutils literal notranslate"><span class="pre">&#64;distribute_task()</span></code> decorator and the <code class="docutils literal notranslate"><span class="pre">get()</span></code> helper in earlier versions of Qiskit Serverless, those are now deprecated in favor of calling Ray directly. See the migration note below.</p>
+<div><p>ℹ If you have used the <code class="docutils literal notranslate"><span class="pre">&#64;distribute_task()</span></code> decorator and the <code class="docutils literal notranslate"><span class="pre">get()</span></code> helper in earlier versions of Qiskit Serverless, those have been removed in favor of calling Ray directly. See the migration note below.</p>
 </div></blockquote>
 <section id="Prep-work">
 <h2>Prep work<a class="headerlink" href="#Prep-work" title="Permalink to this heading">¶</a></h2>
 <p>To utilize parallelism, the function we will write needs to have a method that can run independently from the main thread. Transpilation of a circuit can run independently from other transpilations so we will make it our parallel task.</p>
-<p>Because parallelism is powered by Ray, we <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">ray</span></code> inside the function. You do not need to declare <code class="docutils literal notranslate"><span class="pre">ray</span></code> as a function dependency—it is already provided by the Qiskit Serverless runtime image that executes your function. (If you also want to experiment with Ray locally, install the client’s Ray extra with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code>.)</p>
+<p>Because parallelism is powered by Ray, we <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">ray</span></code> inside the function. Ray is already provided by the Qiskit Serverless runtime image that executes your function. (If you also want to experiment with Ray locally, install the client’s Ray extra with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code>.)</p>
 <p>The function accepts:</p>
 <ul class="simple">
 <li><p>A list of circuits to run.</p></li>
