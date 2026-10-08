@@ -54,7 +54,9 @@ def build_workload_payload(job: Job) -> dict:
     are the times of the first RUNNING and the first terminal status events; ``ended_at`` is only looked up while the
     job is terminal, and stays None if a terminal job has no terminal event."""
     provider = job.program.provider
+    created_at = job.created
     ended_at = JobEvent.objects.first_terminal_at(job.id) if job.in_terminal_state() else None
+    running_at = JobEvent.objects.first_running_at(job.id)
     return {
         "function_id": str(job.id),
         "body": {
@@ -65,8 +67,8 @@ def build_workload_payload(job: Job) -> dict:
             "status": map_status(job.status),
             "compute_profile": job.compute_profile_id,
             "size": job.function_size.function_size.upper() if job.function_size else None,
-            "created_at": _iso(job.created),
-            "running_at": _iso(JobEvent.objects.first_running_at(job.id)),
+            "created_at": _iso(created_at),
+            "running_at": _iso(running_at),
             "ended_at": _iso(ended_at),
         },
     }
