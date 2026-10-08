@@ -473,9 +473,16 @@ RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-ea
 # Service credential and client timeout for mirroring Functions jobs to Runtime API workloads. The key is empty
 # unless the deployment provides it; the client only requires it while workloads.mirror.enabled is on. The timeout, in
 # seconds, bounds every HTTP request of a mirror call (the IAM token exchange and the PUT); the client always uses
-# it, whatever timeout the outbox passes to Sender.send (there it only chooses between raising and best effort).
+# it, whatever timeout the outbox passes to Sender.send. There timeout=0 hands the call to the shared best-effort pool
+# and returns at once (the request still takes up to this long, but in the background; if the pool is full the update
+# is dropped), and any other value makes the call in the caller's thread and raises on failure.
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 WORKLOADS_MIRROR_TIMEOUT = float(os.environ.get("WORKLOADS_MIRROR_TIMEOUT", "3"))
+
+# Shared per-process thread pool for best-effort work (core/services/best_effort_executor.py): how many threads it
+# has, and how many tasks may be submitted and unfinished before new ones are dropped.
+BEST_EFFORT_MAX_WORKERS = int(os.environ.get("BEST_EFFORT_MAX_WORKERS", "4"))
+BEST_EFFORT_MAX_PENDING = int(os.environ.get("BEST_EFFORT_MAX_PENDING", "100"))
 
 # IBM Cloud
 

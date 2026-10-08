@@ -162,7 +162,7 @@ def test_a_malformed_key_is_not_retryable(flag, put, authenticator):
     put.assert_not_called()
 
 
-def test_the_sender_delegates_to_the_client():
+def test_a_positive_timeout_calls_the_client_synchronously():
     client = MagicMock()
 
     WorkloadSender(client).send(PAYLOAD)
@@ -170,14 +170,32 @@ def test_the_sender_delegates_to_the_client():
     client.put_function.assert_called_once_with(PAYLOAD)
 
 
+def test_timeout_zero_hands_the_call_to_the_best_effort_pool_and_returns():
+    client = MagicMock()
+
+    with patch("core.clients.workload_sender.submit_best_effort") as submit:
+        WorkloadSender(client).send(PAYLOAD, timeout=0)
+
+    submit.assert_called_once()
+    client.put_function.assert_not_called()
+
+
 @pytest.mark.parametrize("failure", [RuntimeApiError("down", retryable=True), KeyError("body")])
-def test_timeout_zero_swallows_any_client_error(failure):
+def test_the_submitted_task_swallows_any_client_error(failure):
     client = MagicMock()
     client.put_function.side_effect = failure
 
-    WorkloadSender(client).send(PAYLOAD, timeout=0)
+    with patch("core.clients.workload_sender.submit_best_effort") as submit:
+        WorkloadSender(client).send(PAYLOAD, timeout=0)
+    task, *args = submit.call_args.args
+    task(*args)
 
     client.put_function.assert_called_once_with(PAYLOAD)
+
+
+def test_timeout_zero_never_raises_even_if_the_pool_does():
+    with patch("core.clients.workload_sender.submit_best_effort", side_effect=RuntimeError("pool gone")):
+        WorkloadSender(MagicMock()).send(PAYLOAD, timeout=0)
 
 
 def test_a_positive_timeout_lets_the_client_error_raise():
