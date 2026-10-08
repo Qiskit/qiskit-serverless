@@ -471,7 +471,9 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
 # Service credential and client timeout for mirroring Functions jobs to NTC workloads. The key is empty unless the
-# deployment provides it; the client only requires it while workloads.mirror.enabled is on.
+# deployment provides it; the client only requires it while workloads.mirror.enabled is on. The timeout, in
+# seconds, bounds every HTTP request of a mirror call (the IAM token exchange and the PUT); the client always uses
+# it, whatever timeout the outbox passes to Sender.send (there it only chooses between raising and best effort).
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 WORKLOADS_MIRROR_TIMEOUT = float(os.environ.get("WORKLOADS_MIRROR_TIMEOUT", "3"))
 

@@ -10,6 +10,8 @@ job has no value for.
 
 from datetime import datetime
 
+from django.utils.timezone import is_naive
+
 from core.models import Job
 
 # Six job states here, five on the NTC side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
@@ -34,7 +36,11 @@ def map_status(job_status: str) -> str:
 
 
 def _iso(value: datetime | None) -> str | None:
-    return value.isoformat() if value else None
+    if value is None:
+        return None
+    if is_naive(value):
+        raise ValueError(f"Datetime {value.isoformat()} has no timezone, NTC requires RFC 3339 with an offset")
+    return value.isoformat()
 
 
 def build_workload_payload(job: Job, status: str, ended_at: datetime | None) -> dict:

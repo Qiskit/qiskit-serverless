@@ -87,3 +87,8 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
     }
     with pytest.raises(ValueError):
         map_status("EXPLODED")
+
+
+def test_a_naive_datetime_is_rejected():
+    with pytest.raises(ValueError, match="timezone"):
+        build_workload_payload(_job(), Job.SUCCEEDED, datetime(2026, 10, 8, 10, 5, 0))

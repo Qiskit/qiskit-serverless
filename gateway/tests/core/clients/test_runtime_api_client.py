@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from ibm_cloud_sdk_core import ApiException
 
 from core.clients.runtime_api_client import RuntimeApiClient, RuntimeApiConfigError, RuntimeApiError
 from core.clients.workload_sender import WorkloadSender
@@ -33,13 +34,16 @@ def settings_ready_fixture(settings):
     settings.WORKLOADS_MIRROR_TIMEOUT = 3
 
 
-@pytest.fixture(name="put")
-def put_fixture():
-    with (
-        patch("core.clients.runtime_api_client.IAMAuthenticator") as authenticator,
-        patch("core.clients.runtime_api_client.requests.put") as put,
-    ):
+@pytest.fixture(name="authenticator")
+def authenticator_fixture():
+    with patch("core.clients.runtime_api_client.IAMAuthenticator") as authenticator:
         authenticator.return_value.token_manager.get_token.return_value = "iam-token"
+        yield authenticator
+
+
+@pytest.fixture(name="put")
+def put_fixture(authenticator):  # pylint: disable=unused-argument
+    with patch("core.clients.runtime_api_client.requests.put") as put:
         put.return_value = MagicMock(status_code=200)
         yield put
 
@@ -55,13 +59,20 @@ def test_sends_one_put_to_the_regional_host_with_a_bearer_token(flag, put):
     )
 
 
-def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, settings):
+def test_the_iam_token_exchange_uses_the_mirror_timeout(flag, put, authenticator):
+    RuntimeApiClient().put_function(PAYLOAD)
+
+    assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
+
+
+def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, authenticator, settings):
     flag["on"] = False
     settings.FUNCTIONS_OPERATOR_API_KEY = ""
 
     RuntimeApiClient().put_function(PAYLOAD)
 
     put.assert_not_called()
+    authenticator.assert_not_called()
 
 
 def test_flag_on_without_the_key_raises_a_config_error(flag, put, settings):
@@ -82,12 +93,21 @@ def test_202_is_a_success(flag, put):
 
 @pytest.mark.parametrize("status_code, retryable", [(400, False), (404, False), (429, True), (500, True)])
 def test_error_status_codes_say_whether_to_retry(flag, put, status_code, retryable):
-    put.return_value = MagicMock(status_code=status_code)
+    put.return_value = MagicMock(status_code=status_code, text="bad field")
 
     with pytest.raises(RuntimeApiError) as error:
         RuntimeApiClient().put_function(PAYLOAD)
 
     assert (error.value.status_code, error.value.retryable) == (status_code, retryable)
+
+
+def test_an_error_status_logs_the_start_of_the_response_body(flag, put, caplog):
+    put.return_value = MagicMock(status_code=400, text="field size is invalid")
+
+    with pytest.raises(RuntimeApiError):
+        RuntimeApiClient().put_function(PAYLOAD)
+
+    assert "field size is invalid" in caplog.text
 
 
 def test_network_failures_are_retryable(flag, put):
@@ -99,19 +119,36 @@ def test_network_failures_are_retryable(flag, put):
     assert error.value.retryable is True
 
 
-def test_iam_failures_are_retryable(flag, put):
-    with patch("core.clients.runtime_api_client.IAMAuthenticator") as authenticator:
-        authenticator.return_value.token_manager.get_token.side_effect = RuntimeError("iam down")
-        with pytest.raises(RuntimeApiError) as error:
-            RuntimeApiClient().put_function(PAYLOAD)
+def test_iam_failures_are_retryable(flag, put, authenticator):
+    authenticator.return_value.token_manager.get_token.side_effect = RuntimeError("iam down")
+
+    with pytest.raises(RuntimeApiError) as error:
+        RuntimeApiClient().put_function(PAYLOAD)
 
     assert error.value.retryable is True
+    put.assert_not_called()
 
 
-def test_an_explicit_timeout_reaches_requests(flag, put):
-    RuntimeApiClient().put_function(PAYLOAD, timeout=7)
+def test_an_iam_rejection_of_the_key_is_not_retryable(flag, put, authenticator):
+    authenticator.return_value.token_manager.get_token.side_effect = ApiException(401, message="unauthorized")
 
-    assert put.call_args.kwargs["timeout"] == 7
+    with pytest.raises(RuntimeApiConfigError) as error:
+        RuntimeApiClient().put_function(PAYLOAD)
+
+    assert error.value.retryable is False
+    assert "operator-key" not in str(error.value)
+    put.assert_not_called()
+
+
+def test_a_malformed_key_is_not_retryable(flag, put, authenticator):
+    authenticator.side_effect = ValueError("bad key")
+
+    with pytest.raises(RuntimeApiConfigError) as error:
+        RuntimeApiClient().put_function(PAYLOAD)
+
+    assert error.value.retryable is False
+    assert "operator-key" not in str(error.value)
+    put.assert_not_called()
 
 
 def test_the_sender_delegates_to_the_client():
@@ -119,14 +156,17 @@ def test_the_sender_delegates_to_the_client():
 
     WorkloadSender(client).send(PAYLOAD)
 
-    client.put_function.assert_called_once_with(PAYLOAD, timeout=5)
+    client.put_function.assert_called_once_with(PAYLOAD)
 
 
-def test_timeout_zero_swallows_a_client_error():
+@pytest.mark.parametrize("failure", [RuntimeApiError("down", retryable=True), KeyError("body")])
+def test_timeout_zero_swallows_any_client_error(failure):
     client = MagicMock()
-    client.put_function.side_effect = RuntimeApiError("down", retryable=True)
+    client.put_function.side_effect = failure
 
     WorkloadSender(client).send(PAYLOAD, timeout=0)
+
+    client.put_function.assert_called_once_with(PAYLOAD)
 
 
 def test_a_positive_timeout_lets_the_client_error_raise():
