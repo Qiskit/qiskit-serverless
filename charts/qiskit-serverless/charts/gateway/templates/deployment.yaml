@@ -125,6 +125,15 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          # Startup runs the migrations before the server listens. Liveness and readiness
+          # only start once this succeeds, so a long migration is not killed midway.
+          startupProbe:
+            httpGet:
+              path: /liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 120
           livenessProbe:
             httpGet:
               path: /liveness
@@ -426,6 +435,13 @@ spec:
             - name: http
               containerPort: {{ .Values.scheduler.port }}
               protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 120
           livenessProbe:
             httpGet:
               path: /liveness
