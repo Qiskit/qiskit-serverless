@@ -17,5 +17,5 @@ class RuntimeApiError(Exception):
 
 
 class RuntimeApiRetryableError(RuntimeApiError):
-    """The Runtime API call failed in a way that trying again later can fix: a 401, 403, 408, 429 or 5xx status, a network
-    error, or an IAM token failure that is not a rejected key."""
+    """The Runtime API call failed in a way that trying again later can fix: a 401, 403, 408, 429 or 5xx status, a
+    network error, or an IAM token failure that is not a rejected key."""
