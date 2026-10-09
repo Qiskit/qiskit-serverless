@@ -8,7 +8,7 @@ first and then ``RuntimeApiError``; a plain ``except RuntimeApiError`` catches e
 
 class RuntimeApiError(Exception):
     """The Runtime API call failed and trying again cannot help: the credential is missing, malformed or rejected by
-    IAM, or the Runtime API answered with a 4xx other than 408 or 429 (invalid payload, unknown instance).
+    IAM, or the Runtime API answered with a 4xx other than 401, 403, 408 or 429 (invalid payload, unknown instance).
     ``status_code`` is set when the error comes from a response."""
 
     def __init__(self, message: str, *, status_code: int | None = None):
@@ -17,5 +17,5 @@ class RuntimeApiError(Exception):
 
 
 class RuntimeApiRetryableError(RuntimeApiError):
-    """The Runtime API call failed in a way that trying again later can fix: a 408, 429 or 5xx status, a network
+    """The Runtime API call failed in a way that trying again later can fix: a 401, 403, 408, 429 or 5xx status, a network
     error, or an IAM token failure that is not a rejected key."""
