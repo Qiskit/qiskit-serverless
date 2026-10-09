@@ -733,7 +733,7 @@ class TestRetryWithBackoff:
 
 
 class TestWorkloadChannel:
-    """The workload channel is registered by default and drains only while the mirror is on."""
+    """The workload channel is registered by default."""
 
     def _task_with_workload_sender(self, sender):
         task = _make_task()
@@ -751,23 +751,12 @@ class TestWorkloadChannel:
         }
         return task
 
-    def test_rows_are_sent_and_deleted_while_the_mirror_is_on(self):
+    def test_rows_are_sent_and_deleted_whatever_the_mirror_flag_says(self):
         sender = _single_sender()
         task = self._task_with_workload_sender(sender)
-        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
         row = Outbox.objects.create(job=_make_job(), channel=OutboxChannel.WORKLOAD, payload={"function_id": "j"})
 
-        task.run()
+        task.run()  # the flag is off: a job that was mirrored still reports its final status
 
         sender.send.assert_called_once_with({"function_id": "j"})
         assert not Outbox.objects.filter(pk=row.pk).exists()
-
-    def test_rows_wait_untouched_while_the_mirror_is_off(self):
-        sender = _single_sender()
-        task = self._task_with_workload_sender(sender)
-        row = Outbox.objects.create(job=_make_job(), channel=OutboxChannel.WORKLOAD, payload={"function_id": "j"})
-
-        task.run()
-
-        sender.send.assert_not_called()
-        assert Outbox.objects.filter(pk=row.pk).exists()

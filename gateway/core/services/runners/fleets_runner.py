@@ -28,8 +28,8 @@ from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
-from core.config_key import ConfigKey
-from core.models import Job, CodeEngineProject, Config
+from core.domain.workload_payload import is_mirrored
+from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import (
     AbstractRunner,
     RunnerError,
@@ -147,9 +147,9 @@ class FleetsRunner(AbstractRunner):
         self._create_fleet(paths)
 
     def _functions_identifier(self) -> str:
-        """The job id for the container's ``QISKIT_FUNCTIONS_IDENTIFIER``, or empty (so it is left out) while the
-        ``workloads.header.enabled`` flag is off."""
-        return str(self.job.id) if Config.get_bool(ConfigKey.WORKLOADS_HEADER_ENABLED) else ""
+        """The job id for the container's ``QISKIT_FUNCTIONS_IDENTIFIER``, or empty (so it is left out) when the job
+        is not mirrored to the Runtime API."""
+        return str(self.job.id) if is_mirrored(self.job) else ""
 
     def _upload_to_cos(self) -> FleetJobPaths:
         """Upload the job's arguments and program to COS. No failure here can have created a fleet."""

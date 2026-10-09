@@ -24,6 +24,7 @@ from core.models import (
     JobConfig,
     JobEvent,
     Program,
+    WorkloadMirror,
 )
 
 pytestmark = pytest.mark.django_db
@@ -260,21 +261,32 @@ class TestWorkloadMirror:
         function_id, body = put_function.call_args.args
         assert function_id == str(job.id)
         assert body["status"] == "Queued"
+        assert WorkloadMirror.objects.filter(job=job).exists()
 
-    def test_nothing_is_sent_while_the_mirror_is_off(self, user, fleets_accessible, put_function):
-        RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+    def test_nothing_is_sent_or_recorded_while_the_mirror_is_off(self, user, fleets_accessible, put_function):
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
 
-    def test_a_ray_job_is_not_sent_even_without_instance(self, user, put_function):
+    def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
 
-        RunFunctionUseCase().execute(user, accessible, make_input())
+        RunFunctionUseCase().execute(user, accessible, make_input(instance=self.CRN))
 
         put_function.assert_not_called()
         assert Job.objects.count() == 1
+        assert not WorkloadMirror.objects.exists()
+
+    def test_a_fleets_job_without_instance_is_created_but_not_sent(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input())
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
 
     def test_the_job_is_not_created_if_the_runtime_api_does_not_take_it(self, user, fleets_accessible, put_function):
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
@@ -284,3 +296,4 @@ class TestWorkloadMirror:
             RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         assert not Job.objects.exists()
+        assert not WorkloadMirror.objects.exists()

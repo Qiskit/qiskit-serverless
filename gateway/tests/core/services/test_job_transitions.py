@@ -9,8 +9,17 @@ from django.contrib.auth.models import User
 
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.config_key import ConfigKey
-from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Outbox, OutboxChannel, Program, Provider
+from core.models import (
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobEvent,
+    Outbox,
+    OutboxChannel,
+    Program,
+    Provider,
+    WorkloadMirror,
+)
 from core.services.job_transitions import JobTransitionService
 
 pytestmark = pytest.mark.django_db
@@ -298,14 +307,11 @@ class TestBillingOutbox:
 
 
 class TestWorkloadOutbox:
-    """The final status of a job is stored for the Runtime API while the mirror is on."""
-
-    @pytest.fixture(autouse=True)
-    def mirror_on(self):
-        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+    """The final status of a mirrored job is stored for the Runtime API."""
 
     def test_a_terminal_transition_enqueues_the_envelope_in_the_same_transaction(self, service, user):
         job = _licensed_fleets_job(user, Job.RUNNING)
+        WorkloadMirror.objects.create(job=job)
 
         service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -315,34 +321,24 @@ class TestWorkloadOutbox:
         assert row.payload["body"]["status"] == "Failed"
         assert row.payload["body"]["ended_at"] is not None
 
-    def test_nothing_is_enqueued_while_the_mirror_is_off(self, service, user):
-        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "false")
+    def test_a_job_that_is_not_mirrored_enqueues_nothing(self, service, user):
         job = _licensed_fleets_job(user, Job.RUNNING)
 
         service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
 
-    def test_a_non_terminal_transition_and_a_filler_job_enqueue_nothing(self, service, user):
-        pending = _licensed_fleets_job(user, Job.PENDING)
-        filler = Job.objects.create(
-            author=user, runner=Program.FLEETS, filler=True, instance_crn=CRN, status=Job.RUNNING
-        )
+    def test_a_non_terminal_transition_enqueues_nothing(self, service, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        WorkloadMirror.objects.create(job=job)
 
-        service.pending_to_running(pending, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-        service.to_stopped(filler, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
-
-        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
-
-    def test_a_ray_job_enqueues_nothing(self, service, user):
-        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
-
-        service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
 
     def test_a_job_the_builder_rejects_is_logged_and_the_transition_still_happens(self, service, user, caplog):
         job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=CRN, status=Job.RUNNING)  # no program
+        WorkloadMirror.objects.create(job=job)
 
         with caplog.at_level(logging.ERROR, logger="core.JobTransitionService"):
             service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)

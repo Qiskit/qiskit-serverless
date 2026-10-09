@@ -12,7 +12,7 @@ The Runtime API replaces the whole row on every call, so ``body`` always carries
 ones the job has no value for.
 """
 
-from core.models import Job, JobEvent, Program
+from core.models import Job, JobEvent, Program, WorkloadMirror
 
 # Seven job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
 # running until it is STOPPED.
@@ -27,10 +27,14 @@ _STATUS = {
 }
 
 
+def can_be_mirrored(job: Job) -> bool:
+    """Only Fleets jobs with an instance CRN are mirrored to the Runtime API, and never a filler job."""
+    return job.runner == Program.FLEETS and not job.filler and bool(job.instance_crn)
+
+
 def is_mirrored(job: Job) -> bool:
-    """Only Fleets jobs are mirrored to the Runtime API, and never a filler job. A Fleets job always has the instance
-    CRN the Runtime API needs."""
-    return job.runner == Program.FLEETS and not job.filler
+    """The job was created in the Runtime API, so it owes it its later steps."""
+    return WorkloadMirror.objects.filter(job_id=job.id).exists()
 
 
 def build_workload_payload(job: Job) -> dict:

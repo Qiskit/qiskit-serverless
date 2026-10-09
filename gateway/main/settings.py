@@ -588,15 +588,9 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "workloads.mirror.enabled": {
         "default": "false",
         "type": "boolean",
-        "description": "Mirror every Functions job to the Runtime API as a workload: on creation (a failure rejects "
-        "the job) and on its terminal status (through the outbox). Turn it on only where "
-        "FUNCTIONS_OPERATOR_API_KEY is set.",
-    },
-    "workloads.header.enabled": {
-        "default": "false",
-        "type": "boolean",
-        "description": "Give Fleets job containers the QISKIT_FUNCTIONS_IDENTIFIER environment variable, set to the "
-        "id of the Functions job. It applies to the jobs submitted from then on.",
+        "description": "Mirror the Fleets jobs created from now on to the Runtime API as workloads (a failure rejects "
+        "the job). A mirrored job keeps reporting its final status and gets the QISKIT_FUNCTIONS_IDENTIFIER variable "
+        "whatever this flag says later. Turn it on only where FUNCTIONS_OPERATOR_API_KEY is set.",
     },
     "scheduler.outbox.workload.budget_ms": {
         "default": "3000",

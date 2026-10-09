@@ -18,7 +18,6 @@ class ConfigKey(Enum):
     OUTBOX_KAFKA_CHANNEL_RETRY_BASE_SECONDS = "scheduler.outbox.kafka.retry_base_seconds"
     OUTBOX_KAFKA_CHANNEL_RETRY_MAX_SECONDS = "scheduler.outbox.kafka.retry_max_seconds"
     WORKLOADS_MIRROR_ENABLED = "workloads.mirror.enabled"
-    WORKLOADS_HEADER_ENABLED = "workloads.header.enabled"
     OUTBOX_WORKLOAD_CHANNEL_BUDGET_MS = "scheduler.outbox.workload.budget_ms"
     OUTBOX_WORKLOAD_CHANNEL_BREAKER_FAILURES = "scheduler.outbox.workload.breaker_failures"
     OUTBOX_WORKLOAD_CHANNEL_BREAKER_PAUSE_SECONDS = "scheduler.outbox.workload.breaker_pause_seconds"

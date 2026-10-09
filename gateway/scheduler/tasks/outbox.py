@@ -10,7 +10,7 @@ import logging
 from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
-from core.models import Config, OutboxChannel
+from core.models import OutboxChannel
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -68,12 +68,6 @@ class OutboxTask(SchedulerTask):
             ),
         }
 
-    @staticmethod
-    def _is_enabled(channel: OutboxChannel) -> bool:
-        """The workload channel drains only while the mirror is on. Rows enqueued before it was turned off are
-        neither sent nor deleted, they wait until it is back on."""
-        return channel != OutboxChannel.WORKLOAD or Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED)
-
     def run(self):
         """Drain every channel, in turn, each within its own breaker and budget."""
         for channel_name, destination in self.channels.items():
@@ -83,8 +77,7 @@ class OutboxTask(SchedulerTask):
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping the outbox drain")
                 break
-            if self._is_enabled(channel_name):
-                destination.drain(channel_name)
+            destination.drain(channel_name)
 
         # Once every channel has drained, so the channels that share a destination report the same state, one
         # that a later channel opened during this very tick included.

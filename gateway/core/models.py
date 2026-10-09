@@ -880,6 +880,23 @@ class Outbox(models.Model):
         return f"<Outbox id={self.id} job={self.job_id} channel={self.channel}>"
 
 
+class WorkloadMirror(models.Model):
+    """A job that was created in the Runtime API as a workload (see core/domain/workload_payload.py). Only these jobs
+    get the later steps of the mirror: the Functions identifier in their container and the final status through the
+    outbox. The row is written in the transaction that creates the job, right after the Runtime API took it, so the
+    mirror flag only decides about new jobs and a job never ends up half mirrored if the flag changes. Deleting this
+    table is all it takes to retire the mirror once it stays on for good."""
+
+    job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"<WorkloadMirror job={self.job_id}>"
+
+
 class GroupMetadata(models.Model):
     """
     This model will store metadata from different resources for Group

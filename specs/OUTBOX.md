@@ -402,9 +402,10 @@ logic. It needs:
 The `workload` channel is an example of exactly this: it carries the final status of a job to the Runtime API
 (`PUT /functions/{function_id}`). `JobTransitionService` enqueues the envelope that `build_workload_payload` builds,
 in the transaction of the terminal transition, `WorkloadSender` sends it, and it has its own `Destination` and
-`scheduler.outbox.workload.*` keys. Only Fleets jobs that are not fillers are mirrored (a Fleets job always has its
-instance CRN). Both the enqueue and the drain are gated on `workloads.mirror.enabled`: with it off nothing is
-enqueued, and the rows already there wait untouched until it is on again. A job the builder rejects (it has no
-program) is logged and not enqueued, because retrying cannot fix it. Any other failure keeps
-the row and retries it with a growing wait, so a configuration problem on our side delays the mirror instead of
-losing it.
+`scheduler.outbox.workload.*` keys. Only a job that was created in the Runtime API gets this: when `RunFunctionUseCase`
+mirrors a new Fleets job (flag `workloads.mirror.enabled`, a filler or a job without instance CRN is never mirrored),
+it records the job in the `WorkloadMirror` table, and the enqueue (and the `QISKIT_FUNCTIONS_IDENTIFIER` variable of
+its container) depend on that row, not on the flag. So turning the flag off stops new jobs from being mirrored, and the
+jobs already mirrored still report their final status. A job the builder rejects (it has no program) is logged and not
+enqueued, because retrying cannot fix it. Any other failure keeps the row and retries it with a growing wait, so a
+configuration problem on our side delays the mirror instead of losing it.
