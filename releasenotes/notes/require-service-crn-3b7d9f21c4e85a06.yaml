@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    A request to the IBM Cloud and IBM Quantum Platform channels without the
+    ``Service-CRN`` header now fails with an authentication error that asks for
+    the header, instead of an internal server error.

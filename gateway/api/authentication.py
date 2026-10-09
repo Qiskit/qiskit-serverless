@@ -63,6 +63,12 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
+        # Every request to the IBM channels names its instance: the access check and the job it creates rely on it.
+        # Without this, a missing header would reach the Resource Controller as an empty id and end in a 500.
+        if crn is None and not public_access and channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
+            logger.warning("The Service-CRN header was not provided.")
+            raise exceptions.AuthenticationFailed("The Service-CRN header is required: send the CRN of your instance.")
+
         authentication_result = AuthenticationUseCase(
             channel=channel,
             authorization_token=authorization_token,
