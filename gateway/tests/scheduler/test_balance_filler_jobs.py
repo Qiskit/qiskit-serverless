@@ -16,6 +16,7 @@ from core.config_key import ConfigKey
 from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
 from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError, RunnerRetryableError
+from core.services.background_executor import get_background_executor
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS
@@ -583,3 +584,4 @@ def test_the_balancer_runs_after_the_fleets_status_update(settings):
         assert names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeResources")
     finally:
         scheduler_main.stop_http_server()
+        get_background_executor().shutdown()
