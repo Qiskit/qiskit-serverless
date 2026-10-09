@@ -15,6 +15,9 @@
 import pytest
 from django.core.cache import cache
 
+from core.config_key import ConfigKey
+from core.models import Config
+
 
 @pytest.fixture(autouse=True)
 def media_root_tmp(tmp_path, settings):
@@ -35,3 +38,14 @@ def clear_django_cache():
     otherwise leak a value cached by one test into the next.
     """
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def workloads_mirror_off(request):
+    """The use case that creates a job reads the workload mirror flag, so every test that uses the database starts with
+    its Config row there, off. A test that needs it on sets it with Config.set."""
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        Config.objects.get_or_create(
+            name=ConfigKey.WORKLOADS_MIRROR_ENABLED.value, defaults={"value": "false", "description": "test"}
+        )

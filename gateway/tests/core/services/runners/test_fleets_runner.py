@@ -33,6 +33,22 @@ from core.services.runners.fleets_runner import FleetsRunner
 _RUNNER_MOD = "core.services.runners.fleets_runner"
 
 
+@pytest.fixture(autouse=True)
+def job_not_mirrored():
+    """These tests do not use the database, so whether the job is mirrored is patched instead of looked up."""
+    with patch.object(fleets_runner_module, "is_mirrored", return_value=False) as is_mirrored:
+        yield is_mirrored
+
+
+def test_the_functions_identifier_is_the_job_id_only_for_a_mirrored_job(job_not_mirrored):
+    runner, _ = _make_runner()
+
+    assert runner._functions_identifier() == ""  # pylint: disable=protected-access
+
+    job_not_mirrored.return_value = True
+    assert runner._functions_identifier() == str(runner.job.id)  # pylint: disable=protected-access
+
+
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     """Build a FleetsRunner wired to mock Job and FleetHandler.
 
@@ -394,6 +410,21 @@ def test_submit_places_the_fleet_on_the_projects_subnet_pool():
 
     placements = mock_handler.submit_job.call_args.kwargs["network_placements"]
     assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
+
+
+def test_submit_gives_the_container_the_functions_identifier_only_for_a_mirrored_job(job_not_mirrored):
+    runner, mock_handler = _make_submit_runner()
+    with _patch_settings():
+        runner.submit()
+    names = {e["name"] for e in mock_handler.submit_job.call_args.kwargs["extra_fields"]["run_env_variables"]}
+    assert "QISKIT_FUNCTIONS_IDENTIFIER" not in names
+
+    job_not_mirrored.return_value = True
+    runner, mock_handler = _make_submit_runner()
+    with _patch_settings():
+        runner.submit()
+    env = {e["name"]: e["value"] for e in mock_handler.submit_job.call_args.kwargs["extra_fields"]["run_env_variables"]}
+    assert env["QISKIT_FUNCTIONS_IDENTIFIER"] == str(runner.job.id)
 
 
 def test_submit_fleet_name_is_vendor_function_and_job_id():

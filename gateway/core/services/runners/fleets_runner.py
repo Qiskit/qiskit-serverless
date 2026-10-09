@@ -28,6 +28,7 @@ from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
+from core.domain.workload_payload import is_mirrored
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import (
     AbstractRunner,
@@ -145,6 +146,11 @@ class FleetsRunner(AbstractRunner):
         paths = self._upload_to_cos()
         self._create_fleet(paths)
 
+    def _functions_identifier(self) -> str:
+        """The job id for the container's ``QISKIT_FUNCTIONS_IDENTIFIER``, or empty (so it is left out) when the job
+        is not mirrored to the Runtime API."""
+        return str(self.job.id) if is_mirrored(self.job) else ""
+
     def _upload_to_cos(self) -> FleetJobPaths:
         """Upload the job's arguments and program to COS. No failure here can have created a fleet."""
         try:
@@ -194,6 +200,9 @@ class FleetsRunner(AbstractRunner):
         Mounts two PDS volumes and sets up the dual-log wrapper (provider log = all output,
         user log = ``[public]`` filtered lines), reading the files _upload_to_cos put in COS.
         """
+        functions_identifier = (
+            self._functions_identifier()
+        )  # a database query: outside the try, a blip is not a RunnerError
         try:
             handler = self._get_handler()
 
@@ -224,7 +233,7 @@ class FleetsRunner(AbstractRunner):
             extra_fields.update(
                 {
                     "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
-                    "run_env_variables": build_run_env_variables(paths, stored_env_vars),
+                    "run_env_variables": build_run_env_variables(paths, stored_env_vars, functions_identifier),
                     "run_commands": ["python", paths.container_docker_entrypoint],
                 }
             )

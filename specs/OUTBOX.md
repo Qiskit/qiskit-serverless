@@ -1,13 +1,12 @@
 # Job outbox
 
 This document describes the transactional outbox that publishes best-effort messages
-to external systems in a deferred way. Today the only channels are `OutboxChannel.LICENSE_FEE`
+to external systems in a deferred way. Today the channels are `OutboxChannel.LICENSE_FEE`
 (`"billing_license_fee"`) and `OutboxChannel.JOB_USAGE` (`"billing_job_usage"`), the two Fleets job
-billing facts published to Kafka. The design is meant to stay generic: a later PR is expected
-to add a `workload` channel that mirrors job state to NTC's Runtime API, and it will not need
-any change to the table's structure or the drain task's logic, only a new `OutboxChannel`
-member, a new sender plus a builder that enqueues that channel's rows, and (since `choices=`
-below) a small migration (see "Adding a channel").
+billing facts published to Kafka, and `OutboxChannel.WORKLOAD` (`"workload"`), the final status of a mirrored
+job sent to the Runtime API. The design is meant to stay generic: adding the `workload` channel needed no change to
+the table's structure or the drain task's logic, only a new `OutboxChannel` member, a new sender plus a builder that
+enqueues that channel's rows, and (since `choices=` below) a small migration (see "Adding a channel").
 
 ## The problem it solves
 
@@ -35,8 +34,8 @@ A Fleets job produces two kinds of Kafka events:
   and dropped, and are not retried.
 - **Outbox**: events that cannot be lost. They are not sent from the scheduler. A JSON
   message is written to the `outbox` table, and the `OutboxTask` scheduler task picks
-  these rows up and sends them where they belong (Kafka today, later NTC workloads or
-  whatever comes next). If the target system is down, the send is retried once the
+  these rows up and sends them where they belong (Kafka for billing, the Runtime API for
+  workloads, or whatever comes next). If the target system is down, the send is retried once the
   row's wait is over (see "Retry with a growing wait").
 
 Four events in total:
@@ -352,7 +351,7 @@ channels together (`LICENSE_FEE` and `JOB_USAGE`), and there is no on/off switch
 channels are always active. A future channel that is not Kafka gets its own `Config` keys
 and its own `Destination` with its own `budget_key`, without touching these.
 
-Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, or
+Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, `workload`, or
 whatever channel a future PR adds), not by any billing-specific vocabulary:
 
 - `scheduler_outbox_sends_total{channel,outcome}`: one increment per send attempt,
@@ -399,7 +398,13 @@ logic. It needs:
    same `Destination` under its own key, and shares its sender, breakers and budget `Config` key (each channel still gets its own time window in every tick); one with a new sender builds
    a new `Destination`, with its own breakers.
 
-The `workload` channel, mirroring job state to NTC's Runtime API, is expected to be
-exactly this: one more `OutboxChannel` member, one more `Destination`, and one more registry entry,
-with its own `Config` keys if its thresholds or kill switch need to differ from the billing
-channels'.
+The `workload` channel is an example of exactly this: it carries the final status of a job to the Runtime API
+(`PUT /functions/{function_id}`). `JobTransitionService` enqueues the envelope that `build_workload_payload` builds,
+in the transaction of the terminal transition, `WorkloadSender` sends it, and it has its own `Destination` and
+`scheduler.outbox.workload.*` keys. Only a job that was created in the Runtime API gets this: when `RunFunctionUseCase`
+mirrors a new Fleets job (flag `workloads.mirror.enabled`, a filler or a job without instance CRN is never mirrored),
+it records the job in the `WorkloadMirror` table, and the enqueue (and the `QISKIT_FUNCTIONS_IDENTIFIER` variable of
+its container) depend on that row, not on the flag. So turning the flag off stops new jobs from being mirrored, and the
+jobs already mirrored still report their final status. A job the builder rejects (it has no program) is logged and not
+enqueued, because retrying cannot fix it. Any other failure keeps the row and retries it with a growing wait, so a
+configuration problem on our side delays the mirror instead of losing it.

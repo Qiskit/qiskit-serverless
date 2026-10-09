@@ -9,7 +9,17 @@ from django.contrib.auth.models import User
 
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Outbox, OutboxChannel, Program, Provider
+from core.models import (
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobEvent,
+    Outbox,
+    OutboxChannel,
+    Program,
+    Provider,
+    WorkloadMirror,
+)
 from core.services.job_transitions import JobTransitionService
 
 pytestmark = pytest.mark.django_db
@@ -294,6 +304,49 @@ class TestBillingOutbox:
         assert Job.objects.get(pk=job.pk).status == Job.PENDING
         assert JobEvent.objects.filter(job=job).count() == 0
         assert Outbox.objects.filter(job=job).count() == 0
+
+
+class TestWorkloadOutbox:
+    """The final status of a mirrored job is stored for the Runtime API."""
+
+    def test_a_terminal_transition_enqueues_the_envelope_in_the_same_transaction(self, service, user):
+        job = _licensed_fleets_job(user, Job.RUNNING)
+        WorkloadMirror.objects.create(job=job)
+
+        service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        row = Outbox.objects.get(job=job, channel=OutboxChannel.WORKLOAD)
+        assert row.region == "us-east"
+        assert row.payload["function_id"] == str(job.id)
+        assert row.payload["body"]["status"] == "Failed"
+        assert row.payload["body"]["ended_at"] is not None
+
+    def test_a_job_that_is_not_mirrored_enqueues_nothing(self, service, user):
+        job = _licensed_fleets_job(user, Job.RUNNING)
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+
+    def test_a_non_terminal_transition_enqueues_nothing(self, service, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        WorkloadMirror.objects.create(job=job)
+
+        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+
+    def test_a_job_the_builder_rejects_is_logged_and_the_transition_still_happens(self, service, user, caplog):
+        job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=CRN, status=Job.RUNNING)  # no program
+        WorkloadMirror.objects.create(job=job)
+
+        with caplog.at_level(logging.ERROR, logger="core.JobTransitionService"):
+            service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        job.refresh_from_db()
+        assert job.status == Job.FAILED
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+        assert "cannot be mirrored" in caplog.text
 
 
 class TestSender:

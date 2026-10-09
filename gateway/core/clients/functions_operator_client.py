@@ -13,6 +13,7 @@ One attempt per call and no internal retry: the caller decides what a failure me
 """
 
 import logging
+from functools import lru_cache
 
 import requests
 from django.conf import settings
@@ -76,3 +77,13 @@ class FunctionsOperatorClient:
         if transient:
             raise RuntimeApiRetryableError(message, status_code=response.status_code)
         raise RuntimeApiError(message, status_code=response.status_code)
+
+
+@lru_cache(maxsize=1)
+def get_functions_operator_client() -> FunctionsOperatorClient:
+    """The client of this process, built the first time it is asked for from ``FUNCTIONS_OPERATOR_API_KEY``. The
+    provider caches the IAM token and the client holds nothing else, so one instance is shared by every thread.
+    Raises RuntimeApiError if the key is empty or malformed (the next call tries again)."""
+    return FunctionsOperatorClient(
+        IamTokenProvider(settings.FUNCTIONS_OPERATOR_API_KEY, settings.IAM_IBM_CLOUD_BASE_URL)
+    )

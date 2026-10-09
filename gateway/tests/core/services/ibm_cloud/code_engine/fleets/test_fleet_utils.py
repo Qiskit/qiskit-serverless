@@ -257,6 +257,22 @@ def test_build_run_env_variables_drops_env_job_arguments():
     assert "KEEP" in names
 
 
+def test_build_run_env_variables_sets_functions_identifier_only_when_given():
+    """build_run_env_variables exposes the job id as QISKIT_FUNCTIONS_IDENTIFIER, and leaves it out when empty."""
+    with_id = {e["name"]: e["value"] for e in build_run_env_variables(_make_paths(), {}, job_id="job-123")}
+    without_id = {e["name"] for e in build_run_env_variables(_make_paths(), {})}
+
+    assert with_id["QISKIT_FUNCTIONS_IDENTIFIER"] == "job-123"
+    assert "QISKIT_FUNCTIONS_IDENTIFIER" not in without_id
+
+
+def test_build_run_env_variables_keeps_a_functions_identifier_of_the_function_when_there_is_no_job_id():
+    """Without a job id the variable is not touched, so one the function defined itself stays."""
+    result = build_run_env_variables(_make_paths(), {"QISKIT_FUNCTIONS_IDENTIFIER": "mine"})
+
+    assert {e["name"]: e["value"] for e in result}["QISKIT_FUNCTIONS_IDENTIFIER"] == "mine"
+
+
 def test_build_run_env_variables_with_private_log():
     """build_run_env_variables includes PRIVATE_LOG_PATH when container_private_log_path is set."""
     result = build_run_env_variables(

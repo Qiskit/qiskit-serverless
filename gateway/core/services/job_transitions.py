@@ -16,6 +16,7 @@ from django.db import transaction
 from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.domain.workload_payload import build_workload_payload, can_be_mirrored, is_mirrored
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -113,6 +114,7 @@ class JobTransitionService:
                 self._enqueue_job_usage(job, job_started_at, event.created)
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
+            self._enqueue_workload(job)
         return event
 
     def to_failed(
@@ -139,6 +141,7 @@ class JobTransitionService:
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
+            self._enqueue_workload(job)
         return event
 
     def _change_status(
@@ -194,6 +197,19 @@ class JobTransitionService:
 
         message = BillingEvents.build_license_fee(job, job_started_at)
         Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
+
+    def _enqueue_workload(self, job: Job) -> None:
+        """The final status of a mirrored job, to send it to the Runtime API. A job the payload builder rejects (it
+        has no program) is logged and skipped, not enqueued: trying again cannot fix it, and it must not roll back the
+        transition."""
+        if not (can_be_mirrored(job) and is_mirrored(job)):  # the first check saves the query for most jobs
+            return
+        try:
+            payload = build_workload_payload(job)
+        except ValueError as ex:
+            logger.error("job_id=%s cannot be mirrored as a workload, nothing is enqueued: %s", job.id, ex)
+            return
+        Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
