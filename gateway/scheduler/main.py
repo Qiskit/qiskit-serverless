@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import connection
 
 from core.models import Config
-from core.services.background_executor import BackgroundExecutor
+from core.services.background_executor import get_background_executor
 from core.services.job_transitions import JobTransitionService
 from scheduler.schedule import FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
@@ -42,7 +42,7 @@ class Main:
         Config.add_defaults()
 
         # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
-        BackgroundExecutor.init()
+        get_background_executor().init()
 
         # One service for every task that changes a job status, so the Kafka producers are created once
         transitions = JobTransitionService()
@@ -118,6 +118,6 @@ class Main:
                     time.sleep(1 - elapsed)
         finally:
             self.stop_http_server()
-            BackgroundExecutor.shutdown()
+            get_background_executor().shutdown()
 
         logger.info("Scheduler loop finished")

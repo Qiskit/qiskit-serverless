@@ -4,7 +4,7 @@ import logging
 
 from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
 from core.ibm_cloud.sender import Sender
-from core.services.background_executor import BackgroundExecutor
+from core.services.background_executor import get_background_executor
 
 logger = logging.getLogger("gateway.clients.workload_sender")
 
@@ -16,7 +16,7 @@ class WorkloadSender(Sender):
     With timeout=0 it hands the call to the background executor and returns at once: the request runs in the
     background, a failure is logged, and if the pool is full the update is dropped. The only thing ``send`` raises with
     timeout=0 is BackgroundExecutorNotInitializedError, a wiring bug: every process that sends must call
-    ``BackgroundExecutor.init()`` at startup."""
+    ``get_background_executor().init()`` at startup."""
 
     def __init__(self, client: ServiceFunctionalRoleClient | None = None) -> None:
         self._client = client or ServiceFunctionalRoleClient()
@@ -25,7 +25,7 @@ class WorkloadSender(Sender):
         if timeout > 0:
             self._client.put_function(payload)
             return
-        BackgroundExecutor.submit(self._deliver_in_background, payload)
+        get_background_executor().submit(self._deliver_in_background, payload)
 
     def _deliver_in_background(self, payload: dict) -> None:
         try:
