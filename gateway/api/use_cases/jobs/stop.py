@@ -1,6 +1,5 @@
 import json
 import logging
-import time
 from functools import partial
 from uuid import UUID
 
@@ -11,6 +10,7 @@ from core.models import Job, Program, RuntimeJob
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError
+from core.utils import retry_function
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -18,6 +18,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("api.StopJobUseCase")
 
+_CANCEL_ATTEMPTS = 2
 _CANCEL_DELAY_SECONDS = 1.0
 
 # Retry only a failure that came back fast, which is the rate limit this exists for. gunicorn gives
@@ -116,24 +117,21 @@ class StopJobUseCase:
         clears by itself, and a wrong API key is fixed outside this process. The same runner serves
         both attempts, so a Code Engine failure does not pay for a second IAM token.
         """
-        attempt = partial(
-            transitions.try_stop,
-            job,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.STOP_JOB,
-            runner=get_runner(job) if job.fleet_id else None,
+        return retry_function(
+            partial(
+                transitions.try_stop,
+                job,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.STOP_JOB,
+                runner=get_runner(job) if job.fleet_id else None,
+            ),
+            num_retries=_CANCEL_ATTEMPTS,
+            interval=_CANCEL_DELAY_SECONDS,
+            exceptions=[RunnerError],
+            error_message_level=logging.WARNING,
+            function_name=f"cancel fleet_id={job.fleet_id}",
+            retry_budget_seconds=_CANCEL_RETRY_BUDGET_SECONDS,
         )
-        started = time.monotonic()
-        try:
-            return attempt()
-        except RunnerError as ex:
-            if time.monotonic() - started > _CANCEL_RETRY_BUDGET_SECONDS:
-                logger.warning("Cancel of fleet_id=%s failed slowly, not retrying: %s", job.fleet_id, str(ex))
-                raise
-            logger.warning("Retrying cancel of fleet_id=%s: %s", job.fleet_id, str(ex))
-
-        time.sleep(_CANCEL_DELAY_SECONDS)
-        return attempt()
 
     def _cancel_runtime_job_entry(
         self,

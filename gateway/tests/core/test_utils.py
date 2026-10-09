@@ -10,16 +10,16 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Unit tests for core.utils.check_logs."""
+"""Unit tests for core.utils.check_logs and core.utils.retry_function."""
 
 import logging
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from django.conf import settings
 
 from core.models import Job
-from core.utils import check_logs
+from core.utils import check_logs, retry_function
 
 
 def _make_job(status=Job.RUNNING, job_id="test-job-id"):
@@ -80,3 +80,61 @@ def test_check_logs_warning_shows_mb_not_raw_bytes(caplog):
     # The value must be expressed in MB (float with one decimal place)
     expected_mb = f"{(max_bytes + 1) / (1024 ** 2):.1f} MB"
     assert expected_mb in message
+
+
+class TestRetryBudget:
+    """`retry_budget_seconds` stops a caller on a deadline from starting a try it cannot finish."""
+
+    @staticmethod
+    def _failing(times=10):
+        calls = {"n": 0}
+
+        def callback():
+            calls["n"] += 1
+            raise ValueError(f"attempt {calls['n']}")
+
+        return callback, calls
+
+    def test_without_a_budget_every_attempt_runs(self):
+        callback, calls = self._failing()
+
+        with patch("core.utils.time.sleep"):
+            with pytest.raises(ValueError):
+                retry_function(callback, num_retries=3, exceptions=[ValueError])
+
+        assert calls["n"] == 3
+
+    def test_a_spent_budget_raises_instead_of_retrying(self):
+        callback, calls = self._failing()
+
+        with (
+            patch("core.utils.time.sleep") as mock_sleep,
+            patch("core.utils.time.monotonic", side_effect=[0.0, 6.0]),
+        ):
+            with pytest.raises(ValueError, match="attempt 1"):
+                retry_function(callback, num_retries=3, exceptions=[ValueError], retry_budget_seconds=5.0)
+
+        assert calls["n"] == 1
+        mock_sleep.assert_not_called()
+
+    def test_a_budget_with_time_left_still_retries(self):
+        callback, calls = self._failing()
+
+        with (
+            patch("core.utils.time.sleep"),
+            patch("core.utils.time.monotonic", side_effect=[0.0, 1.0, 2.0]),
+        ):
+            with pytest.raises(ValueError):
+                retry_function(callback, num_retries=3, exceptions=[ValueError], retry_budget_seconds=5.0)
+
+        assert calls["n"] == 3
+
+    def test_the_budget_never_delays_the_original_error(self):
+        """An exception the caller did not list is raised before the budget is ever consulted."""
+        callback, calls = self._failing()
+
+        with patch("core.utils.time.monotonic", side_effect=[0.0]):
+            with pytest.raises(ValueError):
+                retry_function(callback, num_retries=3, exceptions=[KeyError], retry_budget_seconds=5.0)
+
+        assert calls["n"] == 1

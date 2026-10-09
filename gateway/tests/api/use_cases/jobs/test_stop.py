@@ -6,7 +6,12 @@ import pytest
 from django.contrib.auth.models import User
 
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
-from api.use_cases.jobs.stop import StopJobUseCase, _CANCEL_DELAY_SECONDS, _CANCEL_RETRY_BUDGET_SECONDS
+from api.use_cases.jobs.stop import (
+    StopJobUseCase,
+    _CANCEL_ATTEMPTS,
+    _CANCEL_DELAY_SECONDS,
+    _CANCEL_RETRY_BUDGET_SECONDS,
+)
 from core.ibm_cloud.clients import IAM_HTTP_TIMEOUT
 from core.ibm_cloud.code_engine.fleets.handler import _CANCEL_TIMEOUT_SECONDS
 from core.services.runners import RunnerError, RunnerRetryableError
@@ -30,9 +35,10 @@ def test_the_cancel_retry_fits_the_gunicorn_request_timeout():
     POST, so a cancel costs 4x connect, not connect+read."""
     worst_cancel = max(4 * _CANCEL_TIMEOUT_SECONDS[0], sum(_CANCEL_TIMEOUT_SECONDS))
     worst_attempt = sum(IAM_HTTP_TIMEOUT) + worst_cancel
+    waits = (_CANCEL_ATTEMPTS - 1) * _CANCEL_DELAY_SECONDS
 
-    # a second attempt only starts while the first is still inside the budget
-    assert _CANCEL_RETRY_BUDGET_SECONDS + _CANCEL_DELAY_SECONDS + worst_attempt < 25
+    # a later attempt only starts while the first is still inside the budget
+    assert _CANCEL_RETRY_BUDGET_SECONDS + waits + worst_attempt < 25
 
 
 class TestStopJobUseCase:
@@ -128,7 +134,7 @@ class TestStopFleetsJob:
 
         with (
             patch(_RUNNER, return_value=runner) as mock_get_runner,
-            patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
+            patch("core.utils.time.sleep") as mock_sleep,
         ):
             message = StopJobUseCase().execute(job.id, None, author)
 
@@ -149,8 +155,8 @@ class TestStopFleetsJob:
 
         with (
             patch(_RUNNER, return_value=runner),
-            patch("api.use_cases.jobs.stop.time.monotonic", side_effect=lambda: next(clock)),
-            patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
+            patch("core.utils.time.monotonic", side_effect=lambda: next(clock)),
+            patch("core.utils.time.sleep") as mock_sleep,
         ):
             with pytest.raises(EngineUnavailableException):
                 StopJobUseCase().execute(job.id, None, author)
@@ -166,7 +172,7 @@ class TestStopFleetsJob:
 
         with (
             patch(_RUNNER, return_value=runner),
-            patch("api.use_cases.jobs.stop.time.sleep"),
+            patch("core.utils.time.sleep"),
         ):
             with pytest.raises(EngineUnavailableException) as caught:
                 StopJobUseCase().execute(job.id, None, author)
@@ -182,7 +188,7 @@ class TestStopFleetsJob:
 
         with (
             patch(_RUNNER, return_value=runner),
-            patch("api.use_cases.jobs.stop.time.sleep"),
+            patch("core.utils.time.sleep"),
         ):
             with pytest.raises(EngineUnavailableException):
                 StopJobUseCase().execute(job.id, None, author)

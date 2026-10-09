@@ -620,7 +620,7 @@ class TestJobApi:
         runner.stop.side_effect = RunnerRetryableError("Code Engine rate limited the cancel")
         with (
             patch("api.use_cases.jobs.stop.get_runner", return_value=runner),
-            patch("api.use_cases.jobs.stop.time.sleep"),
+            patch("core.utils.time.sleep"),
         ):
             response = self.client.post(
                 reverse("v1:jobs-stop", args=[str(job.pk)]),
