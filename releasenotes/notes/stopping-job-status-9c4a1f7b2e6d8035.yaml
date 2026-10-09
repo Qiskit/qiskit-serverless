@@ -16,8 +16,8 @@ upgrade:
     its task had not started yet, and counts against the user's active and running job
     limits for that time, because its compute node is still held.
 
-    Stopping a Code Engine job retries once inside the request, and then fails with HTTP 503
-    when Code Engine still cannot be reached. The job keeps running and the request can be
+    Stopping a Code Engine job retries once inside the request when the first failure came back
+    fast, and then fails with HTTP 503 when Code Engine still cannot be reached. The job keeps running and the request can be
     retried.
 
     The scheduler, which stops a job on its 24h timeout and sheds filler jobs, gets one try per

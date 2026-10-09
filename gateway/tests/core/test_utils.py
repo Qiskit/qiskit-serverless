@@ -86,7 +86,7 @@ class TestRetryBudget:
     """`retry_budget_seconds` stops a caller on a deadline from starting a try it cannot finish."""
 
     @staticmethod
-    def _failing(times=10):
+    def _failing():
         calls = {"n": 0}
 
         def callback():

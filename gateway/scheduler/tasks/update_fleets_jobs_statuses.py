@@ -193,7 +193,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
         except RunnerError as ex:
             log = logger.error if first_cancel_refusal(job) else logger.debug
-            log("job_id=%s fleet_id=%s cancel refused, the job stays active: %s", job.id, job.fleet_id, str(ex))
+            log(
+                "job_id=%s fleet_id=%s cancel could not be sent, the job stays active: %s",
+                job.id,
+                job.fleet_id,
+                str(ex),
+            )
             return False
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))

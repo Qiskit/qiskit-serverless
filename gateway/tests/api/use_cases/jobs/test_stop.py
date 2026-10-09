@@ -31,9 +31,9 @@ def author():
 
 def test_the_cancel_retry_fits_the_gunicorn_request_timeout():
     """A request gets 25s (charts/.../gateway/values.yaml), and the runtime job cancels still run
-    after the fleet cancel. urllib3 retries a failed connect 4 times and does not retry a read on a
-    POST, so a cancel costs 4x connect, not connect+read."""
-    worst_cancel = max(4 * _CANCEL_TIMEOUT_SECONDS[0], sum(_CANCEL_TIMEOUT_SECONDS))
+    after the fleet cancel. urllib3 retries a failed connect 3 times and does not retry a read on a
+    POST, so the worst cancel is three failed connects, then a connect plus a read that times out."""
+    worst_cancel = 3 * _CANCEL_TIMEOUT_SECONDS[0] + sum(_CANCEL_TIMEOUT_SECONDS)
     worst_attempt = sum(IAM_HTTP_TIMEOUT) + worst_cancel
     waits = (_CANCEL_ATTEMPTS - 1) * _CANCEL_DELAY_SECONDS
 
@@ -122,12 +122,12 @@ class TestStopFleetsJob:
 
     @pytest.mark.parametrize(
         "error",
-        [RunnerRetryableError("Too Many Requests"), RunnerError("Forbidden")],
-        ids=["undeliverable", "refused"],
+        [RunnerRetryableError("Too Many Requests"), RunnerError("Unable to stop fleet [fleet-abc]")],
+        ids=["undeliverable", "unexpected-failure"],
     )
     def test_a_cancel_that_did_not_land_is_retried_inside_the_request(self, author, error):
-        """The API has its own gunicorn worker, so it can wait for a rate limit to clear. A 403 is
-        retried too: it is usually an expired IAM cache."""
+        """The API has its own gunicorn worker, so it can wait for a rate limit to clear. A plain
+        RunnerError is retried too, because a repeat cancel is safe."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
         runner = Mock()
         runner.stop.side_effect = [error, True]

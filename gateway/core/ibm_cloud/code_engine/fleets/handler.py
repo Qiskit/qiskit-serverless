@@ -58,7 +58,8 @@ _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 
 # (connect, read) seconds for the cancel. The generated client leaves urllib3's timeout at None, so
 # without this a read that never answers holds the caller for ever. urllib3 retries a failed connect
-# 4 times and does not retry a read on a POST, so the worst attempt is 4x connect, not connect+read.
+# 3 times and does not retry a read on a POST, so one call can cost 9s: three failed connects, then
+# a connect plus a read that times out.
 _CANCEL_TIMEOUT_SECONDS = (1, 5)
 
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code

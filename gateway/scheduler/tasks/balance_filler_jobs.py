@@ -340,10 +340,15 @@ class BalanceFillerJobs(SchedulerTask):
             return
         except RunnerError as ex:
             log = logger.error if first_cancel_refusal(job) else logger.debug
-            log("[BalanceFillerJobs] job_id=%s cancel refused, the filler job stays active: %s", job.id, str(ex))
+            log(
+                "[BalanceFillerJobs] job_id=%s fleet_id=%s cancel could not be sent, the filler stays active: %s",
+                job.id,
+                job.fleet_id,
+                str(ex),
+            )
             return
         except InvalidJobTransitionException:
-            logger.info("job_id=%s transition rejected, skipping the stop", job.id)
+            logger.info("[BalanceFillerJobs] job_id=%s transition rejected, skipping the stop", job.id)
             return
 
         # Terminal already, so the poller never sees this row and this is the only place to count it.

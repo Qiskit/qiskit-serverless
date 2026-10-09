@@ -23,7 +23,7 @@ _CANCEL_DELAY_SECONDS = 1.0
 
 # Retry only a failure that came back fast, which is the rate limit this exists for. gunicorn gives
 # the whole request 25s, and a cancel that fails slowly has already spent most of it, so a second
-# attempt would be killed mid-flight after the first one wrote STOPPING.
+# attempt would be killed mid-flight.
 _CANCEL_RETRY_BUDGET_SECONDS = 5.0
 
 
@@ -68,11 +68,11 @@ class StopJobUseCase:
             elif not self._try_stop_with_retries(transitions, job):
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
         except RunnerRetryableError as ex:
-            logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
+            logger.warning("job_id=%s fleet_id=%s could not cancel: %s", job.id, job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
         except RunnerError as ex:
             # An unusable Code Engine project, so retrying changes nothing until someone fixes it.
-            logger.error("Cannot cancel fleet_id=%s: %s", job.fleet_id, str(ex))
+            logger.error("job_id=%s fleet_id=%s cannot cancel: %s", job.id, job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped. Please contact support.") from ex
         except InvalidJobTransitionException:
             # Lost the race. STOPPING is not terminal, so re-read before naming it.
@@ -111,7 +111,8 @@ class StopJobUseCase:
                 self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
     def _try_stop_with_retries(self, transitions: JobTransitionService, job: Job) -> bool:
-        """Cancel the fleet, retrying once. Raises on the second failure.
+        """Cancel the fleet, retrying once. Raises on the second failure, or on the first one that
+        came back too slowly to leave room for another.
 
         Every failure is retried, not only the ones Code Engine did not answer, because a repeat
         cancel is safe. What it actually buys is a second go at a rate limit. The same runner serves

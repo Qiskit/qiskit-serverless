@@ -352,7 +352,7 @@ class TestToRunning:
 class TestStopJobIfTimeout:
     """Tests for stop_job_if_timeout()."""
 
-    def test_job_stopped_when_timeout_exceeded(self):
+    def test_a_timed_out_job_goes_to_stopping(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -362,7 +362,6 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=MagicMock()),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -371,19 +370,17 @@ class TestStopJobIfTimeout:
         # The cancel was accepted, so the poller confirms it from the task store on a later cycle.
         assert job.status == Job.STOPPING
 
-    def test_cancels_the_fleet_before_marking_stopped(self):
-        """The timeout must not just write STOPPED, it must cancel the Code Engine job too."""
+    def test_the_timeout_cancels_the_fleet_and_records_stopping(self):
+        """The timeout must cancel the Code Engine job, not just write a status."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        mock_runner = MagicMock()
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=mock_runner) as mock_get_runner,
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -399,14 +396,11 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        mock_runner = MagicMock()
-        mock_runner.stop.return_value = False
         task.transitions.try_stop.side_effect = lambda job, **kw: False
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
@@ -738,7 +732,11 @@ class TestStoppingJobs:
 
     @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
     def test_any_terminal_task_state_confirms_the_stop(self, task_state):
-        """A task that finished before the cancel landed is still the stop the user asked for."""
+        """A task that finished before the cancel landed is still the stop the user asked for.
+
+        The task store is COS, not the Code Engine API, so this read must never consult the breaker:
+        gate it and a STOPPING row could never reach STOPPED during a Code Engine outage.
+        """
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         runner = MagicMock()
@@ -750,20 +748,6 @@ class TestStoppingJobs:
         assert changed is True
         assert job.status == Job.STOPPED
         runner.stop.assert_not_called()
-
-    def test_confirming_a_stop_never_consults_the_breaker(self):
-        """The task store is COS, not the Code Engine API. Gate this read on the breaker and a
-        STOPPING row could never reach STOPPED during a Code Engine outage."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.STOPPING)
-        runner = MagicMock()
-        runner.status.return_value = Job.STOPPED
-
-        with patch(f"{_MOD}.get_runner", return_value=runner):
-            changed = task.update_job_status(job)
-
-        assert changed is True
-        assert job.status == Job.STOPPED
         task.canceller.paused.assert_not_called()
 
     def test_a_running_task_is_left_alone_and_no_cancel_is_sent(self):

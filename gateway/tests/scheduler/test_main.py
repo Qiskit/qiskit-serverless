@@ -49,10 +49,11 @@ class TestMain:
 
     def test_the_submitter_and_the_canceller_share_one_breaker_per_region(self):
         """A region that stopped answering is one fact, so a submit and a cancel count against one breaker."""
+        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
         submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
-        cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, UpdateFleetsJobsStatuses)]
+        cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
 
-        assert submitters and cancellers
+        assert submitters and len(cancellers) == len(sharing)
         assert len({id(s.breakers) for s in submitters} | {id(c.breakers) for c in cancellers}) == 1
 
     def test_run_executes_tasks(self):

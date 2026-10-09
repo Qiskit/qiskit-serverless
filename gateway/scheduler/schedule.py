@@ -184,7 +184,9 @@ class FleetsJobCanceller:
 
         Raises:
             RunnerRetryableError: While the region's breaker is open, or when the cancel did not land.
-            RunnerError: When the cancel never left this process, so the region learns nothing.
+            RunnerError: When the job's project is unusable, or the cancel never left this process.
+            InvalidJobTransitionException: When the cancel landed but the row had already left a
+                status STOPPING is reachable from.
         """
         if not job.fleet_id or not job.program_id:
             # Nothing is sent, so there is nothing for the breaker to learn

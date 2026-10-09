@@ -511,7 +511,7 @@ class TestFleetsJobCanceller:
         assert str(job.id) not in _REFUSED_CANCEL_WARNED
 
     def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
-        """False is Code Engine's own 404 or 409, so the region is answering."""
+        """False is Code Engine's own 404, so the region is answering."""
         _open_breakers_after_one_failure()
         canceller, _ = self._canceller(returns=False)
 
@@ -572,9 +572,9 @@ class TestFleetsJobCanceller:
         assert canceller.paused("us-east") is True
 
     def test_a_refused_cancel_leaves_the_breaker_closed(self):
-        """A request Code Engine refused says nothing about whether the region is answering."""
+        """A cancel that never left this process says nothing about whether the region is answering."""
         _open_breakers_after_one_failure()
-        canceller, _ = self._canceller(side_effect=RunnerError("Forbidden"))
+        canceller, _ = self._canceller(side_effect=RunnerError("Code Engine project 'p' is not active"))
 
         with pytest.raises(RunnerError):
             canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)

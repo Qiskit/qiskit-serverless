@@ -384,7 +384,7 @@ def test_stop_returns_true_when_the_cancel_was_accepted():
 
 
 def test_stop_returns_false_when_there_was_nothing_to_cancel():
-    """stop() reports False when Code Engine says the fleet is gone or already being cancelled.
+    """stop() reports False when Code Engine says the fleet is gone.
 
     It still sends the cancel, and it does not read the fleet status to decide. That pre-read is
     what stopped a fleet in an unrecognised status from being cancelled at all, so assert it is
@@ -428,9 +428,9 @@ def test_stop_asks_again_for_every_cancel_that_did_not_land(error):
     assert type(exc.value) is RunnerRetryableError
 
 
-def test_stop_retries_a_cancel_that_could_not_reach_code_engine():
+def test_stop_reports_an_unreachable_code_engine_as_retryable():
     """connect() and _get_handler() flatten every IAM failure into RunnerError, which would
-    otherwise reach the scheduler as "Code Engine refused it" and never open the breaker."""
+    otherwise reach the scheduler as a cancel it should not retry, and never open the breaker."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     runner._connected = False  # pylint: disable=protected-access
     runner._handler = None  # pylint: disable=protected-access
