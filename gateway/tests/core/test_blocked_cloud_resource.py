@@ -17,58 +17,67 @@ from django.test import TestCase
 
 from core.models import BlockedCloudResource
 
+_QUANTUM = BlockedCloudResource.Source.BLOCKED_ACCOUNT_PLANS
+_NON_QUANTUM = BlockedCloudResource.Source.BLOCKED_ACCOUNT_PLANS_NON_QUANTUM
+
 
 class TestBlockedCloudResource(TestCase):
     """Tests for BlockedCloudResource model."""
 
-    def test_inserting_same_triple_twice_raises_integrity_error(self):
-        """Unique constraint on (account, plan, subscription) prevents duplicate rows."""
+    def test_inserting_same_rule_twice_raises_integrity_error(self):
+        """The unique constraint over the scope and the source prevents duplicate rows."""
         BlockedCloudResource.objects.create(
-            account="acct-123",
-            plan="plan-456",
-            subscription="sub-789",
+            account="acct-123", plan="plan-456", subscription="sub-789", source=_QUANTUM
         )
 
         with self.assertRaises(IntegrityError):
             BlockedCloudResource.objects.create(
-                account="acct-123",
-                plan="plan-456",
-                subscription="sub-789",
+                account="acct-123", plan="plan-456", subscription="sub-789", source=_QUANTUM
             )
+
+    def test_inserting_same_rule_with_nulls_twice_raises_integrity_error(self):
+        """NULL counts as equal to NULL in the unique constraint, so an account-only rule cannot repeat."""
+        BlockedCloudResource.objects.create(account="acct-123", source=_QUANTUM)
+
+        with self.assertRaises(IntegrityError):
+            BlockedCloudResource.objects.create(account="acct-123", source=_QUANTUM)
+
+    def test_the_same_scope_from_each_source_both_persist(self):
+        """Each topic is its own source of rules."""
+        BlockedCloudResource.objects.create(account="acct-123", source=_QUANTUM)
+        BlockedCloudResource.objects.create(account="acct-123", source=_NON_QUANTUM)
+
+        assert BlockedCloudResource.objects.count() == 2
 
     def test_two_rows_differing_in_one_column_both_persist(self):
         """Constraint allows rows that differ in at least one scope column."""
-        row1 = BlockedCloudResource.objects.create(
-            account="acct-123",
-            plan="plan-456",
-            subscription="sub-789",
+        BlockedCloudResource.objects.create(
+            account="acct-123", plan="plan-456", subscription="sub-789", source=_QUANTUM
         )
-        row2 = BlockedCloudResource.objects.create(
-            account="acct-123",
-            plan="plan-456",
-            subscription="sub-999",  # Different subscription
+        BlockedCloudResource.objects.create(
+            account="acct-123", plan="plan-456", subscription="sub-999", source=_QUANTUM
         )
+        BlockedCloudResource.objects.create(account="acct-123", plan="plan-456", source=_QUANTUM)
 
-        assert BlockedCloudResource.objects.filter(id=row1.id).exists()
-        assert BlockedCloudResource.objects.filter(id=row2.id).exists()
-        assert BlockedCloudResource.objects.count() == 2
+        assert BlockedCloudResource.objects.count() == 3
 
     def test_row_with_only_account_set_persists(self):
         """Nullable columns allow account-only rules (narrower scope rules for future)."""
-        row = BlockedCloudResource.objects.create(
-            account="acct-123",
-            plan=None,
-            subscription=None,
-        )
+        row = BlockedCloudResource.objects.create(account="acct-123", source=_QUANTUM)
 
-        assert BlockedCloudResource.objects.filter(id=row.id).exists()
+        row.refresh_from_db()
         assert row.account == "acct-123"
         assert row.plan is None
         assert row.subscription is None
 
-    def test_makemigrations_check_no_missing_migrations(self):
-        """verify manage.py makemigrations --check reports no missing migration."""
-        # This is tested separately by the tox makemigrations check
-        # If this test runs, it means the migration was already created.
-        # Just verify the model exists and is usable.
-        assert BlockedCloudResource._meta.db_table == "api_blockedcloudresource"
+    def test_row_without_any_scope_raises_integrity_error(self):
+        """A rule must scope something: all three columns NULL would block nothing in particular."""
+        with self.assertRaises(IntegrityError):
+            BlockedCloudResource.objects.create(source=_QUANTUM)
+
+    def test_str_lists_the_scope_and_the_source(self):
+        row = BlockedCloudResource(account="acct-123", subscription="sub-789", source=_QUANTUM)
+
+        assert (
+            str(row) == "BlockedCloudResource(account=acct-123, subscription=sub-789, source=blocked-account-plans.v1)"
+        )

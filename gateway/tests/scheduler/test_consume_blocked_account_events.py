@@ -123,6 +123,24 @@ class TestConsumeBlockedAccountEventsEnabled:
         assert _sample(metrics, errors, region="eu-de", kind="commit") == 1
         assert _sample(metrics, errors, region="eu-de", kind="fatal") == 1
 
+    def test_the_lag_the_drain_measured_becomes_a_gauge(self, settings):
+        settings.EVENT_STREAMS_ENABLED = True
+        metrics = SchedulerMetrics(CollectorRegistry())
+
+        with patch(f"{_MOD}.KafkaRegionalConsumer", return_value=MagicMock()):
+            task = _task(metrics=metrics)
+
+        def drain(_should_stop, stats):
+            stats.lag[("us-east", "topic-a")] = 7
+            stats.lag[("eu-de", "topic-a")] = 0
+
+        task.consumer.drain.side_effect = drain
+        task.run()
+
+        lag = "scheduler_blocked_account_consumer_lag"
+        assert metrics.registry.get_sample_value(lag, {"region": "us-east", "topic": "topic-a"}) == 7
+        assert metrics.registry.get_sample_value(lag, {"region": "eu-de", "topic": "topic-a"}) == 0
+
     def test_metrics_are_reported_even_when_the_drain_raises(self, settings):
         """A transient failure is raised for the loop to record, but what the drain did before it still counts."""
         settings.EVENT_STREAMS_ENABLED = True

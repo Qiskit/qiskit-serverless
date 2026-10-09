@@ -13,8 +13,8 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
-from django.db.models import F
-from django.db.models.functions import Now
+from django.db.models import F, Value
+from django.db.models.functions import Coalesce, Now
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
@@ -510,7 +510,17 @@ class BlockedCloudResource(models.Model):
     row identity comes from id, never from a business column. The three columns
     are nullable so that narrower rule shapes (e.g., account-only) can be added
     later without a migration.
+
+    Each topic billing-service publishes the blocked set to is its own source of rules: a
+    resource is blocked while it has a row from any source, and a source's recovery only
+    removes that source's row.
     """
+
+    class Source(models.TextChoices):
+        """The blocked-set feed a rule came from: the topic name without its environment prefix."""
+
+        BLOCKED_ACCOUNT_PLANS = "blocked-account-plans.v1"
+        BLOCKED_ACCOUNT_PLANS_NON_QUANTUM = "blocked-account-plans-non-quantum.v1"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -519,13 +529,27 @@ class BlockedCloudResource(models.Model):
     account = models.CharField(max_length=255, null=True, blank=True, default=None)
     plan = models.CharField(max_length=255, null=True, blank=True, default=None)
     subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+    source = models.CharField(max_length=64, choices=Source.choices)
 
     class Meta:
         app_label = "api"
         constraints = [
+            # Over the coalesced columns rather than the columns themselves, so a NULL counts as
+            # equal to another NULL: a plain unique constraint lets (acc, NULL, NULL) repeat, and
+            # nulls_distinct=False is dropped altogether on SQLite and on PostgreSQL < 15.
+            # Empty strings are stored as NULL, so coalescing to "" conflates nothing.
             models.UniqueConstraint(
-                fields=["account", "plan", "subscription"],
+                Coalesce("account", Value("")),
+                Coalesce("plan", Value("")),
+                Coalesce("subscription", Value("")),
+                "source",
                 name="unique_blocked_resource",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(account__isnull=False)
+                | models.Q(plan__isnull=False)
+                | models.Q(subscription__isnull=False),
+                name="blocked_resource_has_a_scope",
             ),
         ]
 
@@ -537,7 +561,8 @@ class BlockedCloudResource(models.Model):
             parts.append(f"plan={self.plan}")
         if self.subscription:
             parts.append(f"subscription={self.subscription}")
-        return f"BlockedCloudResource({', '.join(parts)})" if parts else "BlockedCloudResource()"
+        parts.append(f"source={self.source}")
+        return f"BlockedCloudResource({', '.join(parts)})"
 
 
 class Job(models.Model):

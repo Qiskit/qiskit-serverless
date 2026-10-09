@@ -7,7 +7,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
-from confluent_kafka import KafkaError, KafkaException
+from confluent_kafka import OFFSET_INVALID, KafkaError, KafkaException, TopicPartition
 
 from core.ibm_cloud.event_streams.kafka_consumer import (
     MAX_MESSAGES_PER_REGION_PER_TICK,
@@ -187,7 +187,7 @@ class TestDrain:
         with patch(f"{_MOD}.Consumer", return_value=kafka):
             stats = _drain(_consumer(handler))
 
-        handler.assert_called_once_with({"account_id": "acc-1"}, "k1", "us-east")
+        handler.assert_called_once_with({"account_id": "acc-1"}, "k1", "us-east", "topic-a")
         assert stats.counts[("us-east", "handled")] == 1
 
     def test_drain_commits_the_next_offset_of_each_partition_asynchronously(self, settings):
@@ -273,7 +273,7 @@ class TestPayloads:
                 stats = _drain(_consumer(handler))
 
         assert "Invalid event, skipping it" in caplog.text
-        handler.assert_called_once_with({"account_id": "after"}, "acc-key", "us-east")
+        handler.assert_called_once_with({"account_id": "after"}, "acc-key", "us-east", "topic-a")
         assert _committed(kafka) == [("topic-a", 0, 6)]
         assert stats.counts[("us-east", "invalid")] == 1
 
@@ -311,7 +311,97 @@ class TestPayloads:
         with patch(f"{_MOD}.Consumer", return_value=kafka):
             _drain(_consumer(handler))
 
-        handler.assert_called_once_with({"account_id": "a"}, None, "us-east")
+        handler.assert_called_once_with({"account_id": "a"}, None, "us-east", "topic-a")
+
+    def test_the_handler_is_told_the_topic_of_each_message(self, settings):
+        _configure(settings)
+        handler = MagicMock()
+        kafka = _kafka([_message({"n": 1}, topic="topic-a"), _message({"n": 2}, topic="topic-b")])
+
+        with patch(f"{_MOD}.Consumer", return_value=kafka):
+            _drain(_consumer(handler))
+
+        assert [c.args[3] for c in handler.call_args_list] == ["topic-a", "topic-b"]
+
+
+def _assigned(kafka, positions: dict[tuple[str, int], int], high_watermarks: dict[tuple[str, int], int]) -> None:
+    """Have kafka hold the partitions in positions, at those positions, below those cached watermarks."""
+    partitions = [TopicPartition(topic, partition, offset) for (topic, partition), offset in positions.items()]
+    kafka.assignment.return_value = [TopicPartition(tp.topic, tp.partition) for tp in partitions]
+    kafka.position.return_value = partitions
+    kafka.get_watermark_offsets.side_effect = lambda tp, cached: (0, high_watermarks[(tp.topic, tp.partition)])
+
+
+class TestLag:
+    """The lag is read from what librdkafka has cached, so measuring it never waits on the broker."""
+
+    def test_the_lag_of_each_topic_is_summed_over_its_assigned_partitions(self, settings):
+        _configure(settings)
+        kafka = _kafka()
+        _assigned(
+            kafka,
+            positions={("topic-a", 0): 10, ("topic-a", 1): 5, ("topic-b", 0): 3},
+            high_watermarks={("topic-a", 0): 12, ("topic-a", 1): 9, ("topic-b", 0): 3},
+        )
+
+        with patch(f"{_MOD}.Consumer", return_value=kafka):
+            stats = _drain(_consumer())
+
+        assert stats.lag == {("us-east", "topic-a"): 6, ("us-east", "topic-b"): 0}
+        for call in kafka.get_watermark_offsets.call_args_list:
+            assert call.kwargs["cached"] is True
+
+    def test_every_topic_reports_zero_without_assigned_partitions(self, settings):
+        """So a topic whose partitions moved to another scheduler stops reporting its old lag here."""
+        _configure(settings)
+        kafka = _kafka()
+        _assigned(kafka, positions={}, high_watermarks={})
+
+        with patch(f"{_MOD}.Consumer", return_value=kafka):
+            stats = _drain(_consumer())
+
+        assert stats.lag == {("us-east", "topic-a"): 0, ("us-east", "topic-b"): 0}
+
+    def test_partitions_without_a_position_or_a_watermark_are_left_out(self, settings):
+        _configure(settings)
+        kafka = _kafka()
+        _assigned(
+            kafka,
+            positions={("topic-a", 0): OFFSET_INVALID, ("topic-a", 1): 4, ("topic-b", 0): 2},
+            high_watermarks={("topic-a", 0): 50, ("topic-a", 1): OFFSET_INVALID, ("topic-b", 0): 8},
+        )
+
+        with patch(f"{_MOD}.Consumer", return_value=kafka):
+            stats = _drain(_consumer())
+
+        assert stats.lag == {("us-east", "topic-a"): 0, ("us-east", "topic-b"): 6}
+
+    def test_positions_that_cannot_be_read_do_not_fail_the_drain(self, settings):
+        _configure(settings)
+        kafka = _kafka([_message({"account_id": "a"}, offset=1)])
+        kafka.position.side_effect = KafkaException(KafkaError(KafkaError._STATE))  # pylint: disable=protected-access
+
+        with patch(f"{_MOD}.Consumer", return_value=kafka):
+            stats = _drain(_consumer())
+
+        assert stats.counts[("us-east", "handled")] == 1
+        assert _committed(kafka) == [("topic-a", 0, 2)]
+        assert stats.lag == {("us-east", "topic-a"): 0, ("us-east", "topic-b"): 0}
+
+    def test_each_region_reports_its_own_lag(self, settings):
+        _configure(settings, bootstrap_servers="broker-main:9093", regions=_EU_DE)
+        main, eu = _kafka(), _kafka()
+        _assigned(main, positions={("topic-a", 0): 1}, high_watermarks={("topic-a", 0): 4})
+        _assigned(eu, positions={("topic-a", 0): 1}, high_watermarks={("topic-a", 0): 2})
+
+        def consumer_for(config):
+            return main if config["bootstrap.servers"] == "broker-main:9093" else eu
+
+        with patch(f"{_MOD}.Consumer", side_effect=consumer_for):
+            stats = _drain(_consumer())
+
+        assert stats.lag[("us-east", "topic-a")] == 3
+        assert stats.lag[("eu-de", "topic-a")] == 1
 
 
 class TestTransientFailures:
@@ -345,7 +435,7 @@ class TestTransientFailures:
         main = _kafka([_message({"region": "main"})])
         eu = _kafka([_message({"region": "eu"})])
 
-        def handler(payload, key, region):  # pylint: disable=unused-argument
+        def handler(payload, key, region, topic):  # pylint: disable=unused-argument
             if region == "us-east":
                 raise RuntimeError("db down")
 

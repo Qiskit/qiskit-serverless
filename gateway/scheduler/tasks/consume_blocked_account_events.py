@@ -6,6 +6,7 @@ from django.conf import settings
 
 from core.ibm_cloud.event_streams import kafka_consumer
 from core.ibm_cloud.event_streams.kafka_consumer import DrainStats, KafkaRegionalConsumer
+from core.models import BlockedCloudResource
 from core.services.blocked_account_events import handle_blocked_account_event
 
 from scheduler.kill_signal import KillSignal
@@ -30,11 +31,8 @@ _ERROR_KINDS = {
 
 
 def blocked_accounts_topics(environment: str) -> list[str]:
-    """The topics the blocked-account-plan events are published to."""
-    return [
-        f"quantum.{environment}.blocked-account-plans.v1",
-        f"quantum.{environment}.blocked-account-plans-non-quantum.v1",
-    ]
+    """The topics the blocked-account-plan events are published to, one per BlockedCloudResource source."""
+    return [f"quantum.{environment}.{source}" for source in BlockedCloudResource.Source]
 
 
 class ConsumeBlockedAccountEvents(SchedulerTask):
@@ -77,3 +75,5 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
                 self.metrics.increment_blocked_account_event(region, _EVENT_OUTCOMES[outcome], count)
             elif outcome in _ERROR_KINDS:
                 self.metrics.increment_blocked_account_consumer_error(region, _ERROR_KINDS[outcome], count)
+        for (region, topic), lag in stats.lag.items():
+            self.metrics.set_blocked_account_consumer_lag(region, topic, lag)
