@@ -69,7 +69,7 @@ class FunctionsOperatorClient:
             transient,
             response.text[:300],
         )
-        error_class = RuntimeApiRetryableError if transient else RuntimeApiError
-        raise error_class(
-            f"Unexpected status {response.status_code} for function {function_id}", status_code=response.status_code
-        )
+        message = f"Unexpected status {response.status_code} for function {function_id}"
+        if transient:
+            raise RuntimeApiRetryableError(message, status_code=response.status_code)
+        raise RuntimeApiError(message, status_code=response.status_code)
