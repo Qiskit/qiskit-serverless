@@ -109,9 +109,3 @@ class TestConfig:
         Config.set(ConfigKey.FILLER_SLOTS, "not-a-number")
 
         assert Config.get_int(ConfigKey.FILLER_SLOTS, default=7) == 7
-
-    def test_workloads_mirror_is_disabled_by_default(self):
-        """Test that the workload mirror stays off until an operator turns it on."""
-        Config.add_defaults()
-
-        assert Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED) is False

@@ -471,8 +471,7 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
 # Service credential for mirroring Functions jobs to Runtime API workloads. The key is empty unless the deployment
-# provides it; the client only requires it while workloads.mirror.enabled is on. The request timeout is the dynamic
-# config key workloads.mirror.timeout_ms.
+# provides it; the client raises on a call that needs it.
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 
 # IBM Cloud
@@ -538,18 +537,6 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "false",
         "type": "boolean",
         "description": "Enable external Runtime instances API for function-level access control.",
-    },
-    "workloads.mirror.enabled": {
-        "default": "false",
-        "type": "boolean",
-        "description": "Mirror Functions jobs to the Runtime API as workloads. When on, "
-        "FUNCTIONS_OPERATOR_API_KEY must be set or the client raises on every call.",
-    },
-    "workloads.mirror.timeout_ms": {
-        "default": "3000",
-        "type": "integer",
-        "description": "Timeout in milliseconds for each HTTP request of one workload mirror call, both the IAM token "
-        "exchange and the Runtime API request.",
     },
     "scheduler.filler.enabled": {
         "default": "false",

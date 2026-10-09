@@ -9,8 +9,6 @@ class ConfigKey(Enum):
     MAINTENANCE = "scheduler.maintenance"
     UPLOAD_FILE_VALID_MIME_TYPES = "gateway.upload_file.valid_mime_types"
     RUNTIME_INSTANCES_API_ENABLED = "gateway.runtime_instances_api.enabled"
-    WORKLOADS_MIRROR_ENABLED = "workloads.mirror.enabled"
-    WORKLOADS_MIRROR_TIMEOUT_MS = "workloads.mirror.timeout_ms"
     FILLER_ENABLED = "scheduler.filler.enabled"
     FILLER_FUNCTION = "scheduler.filler.function"
     FILLER_SLOTS = "scheduler.filler.slots"
