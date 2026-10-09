@@ -91,6 +91,15 @@ def test_a_transient_status_is_the_retryable_error(client, put, status_code):
     assert error.value.status_code == status_code
 
 
+def test_a_401_invalidates_the_token_that_was_sent_and_a_403_does_not(client, token_provider, put):
+    for status_code in (403, 401):
+        put.return_value = MagicMock(status_code=status_code, text="no")
+        with pytest.raises(RuntimeApiRetryableError):
+            client.put_function(FUNCTION_ID, BODY)
+
+    token_provider.invalidate.assert_called_once_with("iam-token")
+
+
 def test_an_error_status_logs_the_start_of_the_response_body(client, put, caplog):
     put.return_value = MagicMock(status_code=400, text="field size is invalid")
 

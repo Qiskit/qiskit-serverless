@@ -23,7 +23,8 @@ from core.domain.crn import regional_base_url
 
 logger = logging.getLogger("core.FunctionsOperatorClient")
 
-# 401 and 403 are retryable: the cached token may have been revoked or expired early, and a later call gets a new one.
+# 401 and 403 are retryable. A 401 drops the cached token, so the retry gets a new one. A 403 is a configuration
+# problem on our side (for example a missing role): it is retried so the workload is not lost while it gets fixed.
 _TRANSIENT_CLIENT_ERRORS = {401, 403, 408, 429}
 _DEFAULT_TIMEOUT = 3  # seconds
 
@@ -69,6 +70,8 @@ class FunctionsOperatorClient:
             transient,
             response.text[:300],
         )
+        if response.status_code == 401:
+            self._token_provider.invalidate(token)  # the cached token was rejected, the next attempt needs a new one
         message = f"Unexpected status {response.status_code} for function {function_id}"
         if transient:
             raise RuntimeApiRetryableError(message, status_code=response.status_code)

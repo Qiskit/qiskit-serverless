@@ -80,9 +80,9 @@ def test_any_other_failure_is_transient(authenticator, failure):
         IamTokenProvider("operator-key", IAM_URL).get_token()
 
 
-def _jwt():
+def _jwt(name="token"):
     now = int(time.time())
-    return jwt.encode({"iat": now, "exp": now + 3600}, "not-a-real-secret", algorithm="HS256")
+    return jwt.encode({"iat": now, "exp": now + 3600, "name": name}, "not-a-real-secret", algorithm="HS256")
 
 
 def test_a_failed_request_does_not_block_the_next_call():
@@ -100,6 +100,23 @@ def test_a_failed_request_does_not_block_the_next_call():
         assert provider.get_token() == token
 
     assert time.monotonic() - started < 5
+    assert request_token.call_count == 2
+
+
+def test_invalidate_makes_the_next_call_ask_iam_for_a_new_token_but_only_for_the_cached_one():
+    provider = IamTokenProvider("operator-key", IAM_URL)
+    first, second = _jwt("first"), _jwt("second")
+    with patch.object(
+        IAMTokenManager,
+        "request_token",
+        side_effect=[{"access_token": first, "expires_in": 3600}, {"access_token": second, "expires_in": 3600}],
+    ) as request_token:
+        assert provider.get_token() == first
+        provider.invalidate("some-older-token")
+        assert provider.get_token() == first
+        provider.invalidate(first)
+        assert provider.get_token() == second
+
     assert request_token.call_count == 2
 
 

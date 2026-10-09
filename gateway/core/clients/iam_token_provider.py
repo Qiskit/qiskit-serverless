@@ -55,6 +55,14 @@ class IamTokenProvider:
             logger.error("Could not get an IAM token: %s", type(exc).__name__)
             raise RuntimeApiRetryableError("Could not get an IAM token") from exc
 
+    def invalidate(self, token: str) -> None:
+        """Drop ``token`` from the cache, so the next ``get_token`` asks IAM for a new one. Use it when the API rejects
+        a token (401): the SDK would otherwise keep giving the same one until it is near expiry. It only acts if
+        ``token`` is still the cached one, so a late caller cannot discard the fresh token another thread just got."""
+        token_manager = self._authenticator.token_manager
+        if token_manager.access_token == token:
+            token_manager.expire_time = 0
+
     def _forget_failed_request(self) -> None:
         """The token manager marks a request as active while it asks IAM and only clears the mark after a success. After
         a failure every later call would then sleep for up to 60 s waiting for a request that is already over. Clear
