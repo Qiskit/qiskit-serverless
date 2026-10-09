@@ -235,12 +235,15 @@ class TestStopFleetsJob:
             return True
 
         runner.stop.side_effect = _win_the_race
-        with patch(_RUNNER, return_value=runner):
+        with patch(_RUNNER, return_value=runner), patch("core.utils.time.sleep") as mock_sleep:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is stopping." in message
         assert "terminal" not in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+        # A lost race is not a cancel failure, so it must not spend a retry
+        assert runner.stop.call_count == 1
+        mock_sleep.assert_not_called()
 
     def test_a_concurrent_stop_that_lost_to_stopped_reports_stopped(self, author):
         """The writer that beat us can be the scheduler timeout, which never cancels the runtime jobs,
