@@ -1,4 +1,4 @@
-"""Tests for ServiceFunctionalRoleClient. requests is mocked and the token provider is a stand-in."""
+"""Tests for FunctionsOperatorClient. requests is mocked and the token provider is a stand-in."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,7 +6,7 @@ import pytest
 import requests
 
 from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
-from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
+from core.clients.functions_operator_client import FunctionsOperatorClient
 
 FUNCTION_ID = "job-1"
 BODY = {"crn": "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::", "status": "Queued"}
@@ -27,12 +27,12 @@ def token_provider_fixture():
 
 @pytest.fixture(name="client")
 def client_fixture(token_provider):
-    return ServiceFunctionalRoleClient(token_provider)
+    return FunctionsOperatorClient(token_provider)
 
 
 @pytest.fixture(name="put")
 def put_fixture():
-    with patch("core.clients.service_functional_role_client.requests.put") as put:
+    with patch("core.clients.functions_operator_client.requests.put") as put:
         put.return_value = MagicMock(status_code=200)
         yield put
 
@@ -80,7 +80,7 @@ def test_a_4xx_status_is_a_permanent_rejection(client, put, status_code):
     assert error.value.status_code == status_code
 
 
-@pytest.mark.parametrize("status_code", [408, 429, 500])
+@pytest.mark.parametrize("status_code", [401, 403, 408, 429, 500])
 def test_a_transient_status_is_the_retryable_error(client, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="try later")
 
@@ -105,3 +105,23 @@ def test_network_failures_are_transient(client, put):
 
     with pytest.raises(RuntimeApiRetryableError):
         client.put_function(FUNCTION_ID, BODY)
+
+
+@pytest.mark.parametrize("crn", [None, ""])
+def test_a_body_without_crn_is_a_permanent_error_and_nothing_is_sent(client, token_provider, put, crn):
+    with pytest.raises(RuntimeApiError) as error:
+        client.put_function(FUNCTION_ID, {**BODY, "crn": crn})
+
+    assert not isinstance(error.value, RuntimeApiRetryableError)
+    token_provider.get_token.assert_not_called()
+    put.assert_not_called()
+
+
+def test_the_token_never_reaches_the_logs_or_the_error(client, put, caplog):
+    put.return_value = MagicMock(status_code=500, text="boom")
+
+    with pytest.raises(RuntimeApiRetryableError) as error:
+        client.put_function(FUNCTION_ID, BODY)
+
+    assert "iam-token" not in caplog.text
+    assert "iam-token" not in str(error.value)

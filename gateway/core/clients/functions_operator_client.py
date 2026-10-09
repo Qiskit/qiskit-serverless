@@ -21,13 +21,14 @@ from core.clients.iam_token_provider import IamTokenProvider
 from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
 from core.domain.crn import regional_base_url
 
-logger = logging.getLogger("gateway.clients.service_functional_role")
+logger = logging.getLogger("core.FunctionsOperatorClient")
 
-_TRANSIENT_CLIENT_ERRORS = {408, 429}
+# 401 and 403 are retryable: the cached token may have been revoked or expired early, and a later call gets a new one.
+_TRANSIENT_CLIENT_ERRORS = {401, 403, 408, 429}
 _DEFAULT_TIMEOUT = 3  # seconds
 
 
-class ServiceFunctionalRoleClient:
+class FunctionsOperatorClient:
     """Sends the ``function_id`` and ``body`` of the envelope built by
     ``core.domain.workload_payload.build_workload_payload``. It holds no state besides the token provider, so one
     instance can be shared by every thread of the process."""
@@ -39,10 +40,12 @@ class ServiceFunctionalRoleClient:
         """Replace the function ``function_id`` on the Runtime API with ``body``. Returns when it applied it (200) or
         ignored it because the function was already terminal (202). ``timeout`` is in seconds, greater than zero, and
         bounds the PUT; the request for the token has the timeout of the token provider. Raises RuntimeApiError for a
-        permanent failure and RuntimeApiRetryableError for a transient one, token errors included."""
-        base_url = regional_base_url(
-            settings.RUNTIME_API_BASE_URL, body.get("crn"), settings.RUNTIME_API_DEFAULT_REGION
-        )
+        permanent failure (a body without ``crn`` among them) and RuntimeApiRetryableError for a transient one, token
+        errors included."""
+        crn = body.get("crn")
+        if not crn:
+            raise RuntimeApiError(f"function_id={function_id} has no crn, the region cannot be chosen")
+        base_url = regional_base_url(settings.RUNTIME_API_BASE_URL, crn, settings.RUNTIME_API_DEFAULT_REGION)
         token = self._token_provider.get_token()
 
         try:
