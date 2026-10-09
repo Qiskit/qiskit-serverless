@@ -1,0 +1,34 @@
+---
+features:
+  - |
+    ``qiskit-fermions==0.2.0`` is now pre-baked in the Fleets selector and Ray
+    runner images, and is advertised by
+    ``GET /api/v1/dependencies-versions``, so Qiskit Functions can request it as
+    an additional dependency.
+  - |
+    The Fleets selector image now ships the CUDA runtime libraries
+    ``gpu4pyscf`` loads at import (the ``nvidia-cublas-cu12``,
+    ``nvidia-cuda-nvrtc-cu12``, ``nvidia-cuda-runtime-cu12``,
+    ``nvidia-cufft-cu12``, ``nvidia-curand-cu12``, ``nvidia-cusolver-cu12``,
+    ``nvidia-cusparse-cu12`` and ``nvidia-nvjitlink-cu12`` wheels) and registers
+    them with the dynamic loader. GPU chemistry functions no longer have to
+    install those wheels themselves or run their own ``ldconfig`` step.
+upgrade:
+  - |
+    ``qiskit-fermions==0.2.0`` requires ``qiskit~=2.5.0``, so the ``qiskit``
+    version resolved into the runner images is now held to the 2.5 line.
+    Functions that relied on an earlier ``qiskit`` in the image should review
+    the Qiskit 2.3-2.5 release notes for API changes.
+  - |
+    The Fleets selector image is substantially larger: the CUDA wheels add
+    roughly 1.7 GB compressed and 2.6 GB installed. Fleets pulls the image per
+    job, so expect longer cold starts for Fleets jobs that run on it.
+fixes:
+  - |
+    Fixed GPU chemistry functions silently running on the CPU in the Fleets
+    selector image. ``gpu4pyscf`` ``dlopen``\s a family of CUDA shared objects at
+    import but does not declare the wheels that carry them, and none of them were
+    present in the image, so ``import gpu4pyscf`` failed and functions fell back
+    to the CPU while the job still reported success. The image now installs those
+    libraries, and its build asserts that every one of the sonames resolves, so
+    the failure cannot silently return.
