@@ -23,7 +23,13 @@ from core.services.storage import get_logs_storage
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
-from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share, execute_ray_job
+from scheduler.schedule import (
+    CodeEngineBreakers,
+    FleetsJobCanceller,
+    FleetsJobSubmitter,
+    get_jobs_to_schedule_fair_share,
+    execute_ray_job,
+)
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
 from tests.utils import TestUtils
@@ -447,3 +453,77 @@ def test_fleets_submit_defaults_to_the_schedule_jobs_context():
         FleetsJobSubmitter(transitions).submit(mock_job, None)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
+
+
+@pytest.mark.django_db
+class TestFleetsJobCanceller:
+    """The scheduler's cancel: one try, and the region's breaker decides when to try again."""
+
+    @staticmethod
+    def _canceller(side_effect=None, returns=True, breakers=None):
+        transitions = MagicMock()
+        if side_effect is not None:
+            transitions.try_stop.side_effect = side_effect
+        else:
+            transitions.try_stop.return_value = returns
+        return FleetsJobCanceller(transitions, breakers), transitions
+
+    def test_a_cancel_that_landed_returns_what_try_stop_returned(self):
+        canceller, transitions = self._canceller(returns=True)
+        job = MagicMock(ce_region="us-east")
+
+        assert canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS) is True
+        assert canceller.paused("us-east") is False
+        transitions.try_stop.assert_called_once()
+
+    def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
+        """False is Code Engine's own 404 or 409, so the region is answering."""
+        _open_breakers_after_one_failure()
+        canceller, _ = self._canceller(returns=False)
+
+        assert canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS) is False
+        assert canceller.paused("us-east") is False
+
+    def test_an_undeliverable_cancel_counts_against_the_region_breaker(self):
+        _open_breakers_after_one_failure()
+        canceller, _ = self._canceller(side_effect=RunnerRetryableError("Too Many Requests"))
+
+        with pytest.raises(RunnerRetryableError):
+            canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert canceller.paused("us-east") is True
+
+    def test_a_refused_cancel_leaves_the_breaker_closed(self):
+        """A request Code Engine refused says nothing about whether the region is answering."""
+        _open_breakers_after_one_failure()
+        canceller, _ = self._canceller(side_effect=RunnerError("Forbidden"))
+
+        with pytest.raises(RunnerError):
+            canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert canceller.paused("us-east") is False
+
+    def test_an_open_breaker_sends_no_cancel(self):
+        _open_breakers_after_one_failure()
+        canceller, transitions = self._canceller(side_effect=RunnerRetryableError("Too Many Requests"))
+
+        for _ in range(2):
+            with pytest.raises(RunnerRetryableError):
+                canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
+
+        transitions.try_stop.assert_called_once()
+
+    def test_a_failed_cancel_pauses_the_submit_in_the_same_region_only(self):
+        """A region answers the same way to both, so one breaker holds the fact for the whole region."""
+        _open_breakers_after_one_failure()
+        breakers = CodeEngineBreakers()
+        canceller, transitions = self._canceller(
+            side_effect=RunnerRetryableError("Too Many Requests"), breakers=breakers
+        )
+        submitter = FleetsJobSubmitter(transitions, breakers)
+
+        with pytest.raises(RunnerRetryableError):
+            canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert submitter.paused("us-east") is True
+        assert submitter.paused("eu-de") is False

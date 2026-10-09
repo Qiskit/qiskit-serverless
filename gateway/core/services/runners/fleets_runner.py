@@ -65,6 +65,11 @@ _WARNED_FLEETS_LIMIT = 10_000
 _FLEET_NAME_SEGMENT_MAX = 12
 
 
+def _is_retryable_ce_status(status: int) -> bool:
+    """A Code Engine status a later try can get past: no answer at all, rate limited, or a server error."""
+    return status in (0, 429) or status >= 500
+
+
 def _fleet_name_segment(value: str) -> str:
     """Reduce *value* to what a Code Engine fleet name accepts.
 
@@ -172,7 +177,7 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"COS error: {code}", ex) from ex
         except ApiException as ex:
             status = ex.status or 0
-            if status in (0, 429) or status >= 500:
+            if _is_retryable_ce_status(status):
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error(
                 "CE API error before submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason
@@ -254,7 +259,7 @@ class FleetsRunner(AbstractRunner):
             raise
         except ApiException as ex:
             status = ex.status or 0
-            if status in (0, 429) or status >= 500:
+            if _is_retryable_ce_status(status):
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
@@ -456,7 +461,8 @@ class FleetsRunner(AbstractRunner):
             cancel for a fleet that has finished.
 
         Raises:
-            RunnerError: If the cancel could not be delivered.
+            RunnerRetryableError: If Code Engine did not answer, so a later try can work.
+            RunnerError: If Code Engine refused the cancel.
         """
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
@@ -472,21 +478,24 @@ class FleetsRunner(AbstractRunner):
         handler = self._get_handler()
 
         try:
-            # No retry on a 429: every caller already retries on its own cycle or answers 503, and
-            # sleeping here would stall the single-threaded scheduler.
             cancelled = handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
             if cancelled:
                 logger.info("Cancelled fleet [%s]", self.job.fleet_id)
             return cancelled
 
         except ApiException as ex:
-            logger.error(
-                "CE API error stopping fleet [%s]: status=%s reason=%s",
-                self.job.fleet_id,
-                ex.status,
-                ex.reason,
-            )
+            status = ex.status or 0
+            # Safe to send again, unlike a submit: a cancel already in flight answers 409.
+            if _is_retryable_ce_status(status):
+                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.error("CE API error stopping fleet [%s]: status=%s reason=%s", self.job.fleet_id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
+        except MaxRetryError as ex:
+            if isinstance(ex.reason, NameResolutionError):
+                raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except (ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to stop fleet [%s]: %s", self.job.fleet_id, ex)
             raise RunnerError(f"Unable to stop fleet [{self.job.fleet_id}]", ex) from ex

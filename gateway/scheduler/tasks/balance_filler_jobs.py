@@ -17,7 +17,7 @@ from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import FleetsJobSubmitter
+from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -44,11 +44,13 @@ class BalanceFillerJobs(SchedulerTask):
         metrics: SchedulerMetrics,
         transitions: JobTransitionService | None = None,
         submitter: FleetsJobSubmitter | None = None,
+        canceller: FleetsJobCanceller | None = None,
     ):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
         self.submitter = submitter or FleetsJobSubmitter(self.transitions)
+        self.canceller = canceller or FleetsJobCanceller(self.transitions)
         self._retry_loops = 0
 
     def run(self):
@@ -322,14 +324,21 @@ class BalanceFillerJobs(SchedulerTask):
 
     def _stop_one_filler_job(self, job: Job) -> None:
         """Cancel the fleet and write STOPPING, or STOPPED when there was nothing to cancel."""
+        if self.canceller.paused(job.ce_region):
+            # the region's breaker decides when to try again
+            return
         try:
-            if self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP):
+            if self.canceller.cancel(job, context=JobEventContext.FILLER_STOP):
                 # STOPPING: the status poller counts it when it writes the terminal status.
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
             self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
+        except RunnerRetryableError as ex:
+            # Nothing is written, so the next cycle asks again.
+            logger.warning("[BalanceFillerJobs] job_id=%s filler job cancel not delivered: %s", job.id, str(ex))
+            return
         except RunnerError as ex:
-            # Left RUNNING: a status change here would claim a cancel that never left. Retried next cycle.
+            # Left active: a status change here would claim a cancel that never left.
             logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
             return
         except InvalidJobTransitionException:

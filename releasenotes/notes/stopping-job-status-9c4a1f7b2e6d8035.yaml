@@ -16,7 +16,13 @@ upgrade:
     its task had not started yet, and counts against the user's active and running job
     limits for that time, because its compute node is still held.
 
-    Stopping a Code Engine job can now fail with HTTP 503 when Code Engine cannot be
-    reached. The job keeps running and the request can be retried.
+    Stopping a Code Engine job retries once inside the request, and then fails with HTTP 503
+    when Code Engine still cannot be reached. The job keeps running and the request can be
+    retried.
+
+    The scheduler, which stops a job on its 24h timeout and sheds filler jobs, gets one try per
+    tick instead: a cancel Code Engine did not answer writes nothing and is sent again on a later
+    tick. After a few failures in a row the scheduler pauses its calls to that Code Engine region
+    for ``scheduler.fleets.breaker_pause_seconds``, which it shares with Fleets job submits.
 
     To roll this change back, clear any ``STOPPING`` rows first, or they can never leave that status.

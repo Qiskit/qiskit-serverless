@@ -9,10 +9,11 @@ from django.conf import settings
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, FleetsRunner
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.kill_signal import KillSignal
+from scheduler.schedule import FleetsJobCanceller
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -21,19 +22,28 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 # A cancel reaches the task store in about 30s, or about 150s if the task had not started.
 _STOPPING_DEADLINE_SECONDS = 300
 
-# Give up on an undeliverable cancel after this long and warn about a possible orphan.
-RETRY_AFTER_SECONDS = 60
+# Jobs whose cancel Code Engine refused. The timeout check runs once a second for as long as the job
+# is active, so without this one misconfigured project logs an error per job per second. The
+# scheduler is a single long-lived process, and a restart asks again. Bounded for the same reason as
+# FleetsRunner._UNRESOLVED_WARNED.
+_REFUSED_CANCEL_WARNED: set[str] = set()
+_REFUSED_CANCEL_LIMIT = 10_000
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
     """Update status of Fleets (Code Engine) jobs."""
 
     def __init__(
-        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+        self,
+        kill_signal: KillSignal,
+        metrics: SchedulerMetrics,
+        transitions: JobTransitionService | None = None,
+        canceller: FleetsJobCanceller | None = None,
     ):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
+        self.canceller = canceller or FleetsJobCanceller(self.transitions)
 
     def update_job_status(self, job: Job) -> bool:
         """Update status of one Fleets job. Returns True if status changed."""
@@ -176,35 +186,50 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created
         endtime = reference_time + timedelta(hours=timeout)
-        now = datetime.now(tz=endtime.tzinfo)
-        if now < endtime:
+        if datetime.now(tz=endtime.tzinfo) < endtime:
+            return False
+
+        if self.canceller.paused(job.ce_region):
+            # the region's breaker decides when to try again
             return False
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
         try:
-            if self.transitions.try_stop(
-                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
-            ):
-                return True
+            cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerError as ex:
-            if now < endtime + timedelta(seconds=RETRY_AFTER_SECONDS):
-                # Leave the row alone and retry next tick. A rate limit clears; writing STOPPED now
-                # would strand the fleet.
-                logger.warning("job_id=%s cancel not delivered on timeout, retrying: %s", job.id, str(ex))
-                return False
-            logger.error(
-                "job_id=%s cancel still failing after %ss, writing STOPPED. Possible orphan fleet_id=%s: %s",
-                job.id,
-                RETRY_AFTER_SECONDS,
-                job.fleet_id,
-                str(ex),
-            )
+            # Nothing is written: STOPPED here would claim a stop that never happened and strand
+            # the fleet. The job is picked up again on a later tick.
+            self._warn_cancel_failed(job, ex)
+            return False
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
             return False
 
-        self.to_terminal(job, Job.STOPPED)
+        if not cancelled:
+            self.to_terminal(job, Job.STOPPED)
         return True
+
+    @staticmethod
+    def _warn_cancel_failed(job: Job, ex: RunnerError) -> None:
+        """Report a cancel that did not land on the timeout.
+
+        One Code Engine did not answer is a warning every tick, because the next tick usually gets
+        through. One it refused is an error logged once per job, because it repeats for as long as
+        the job lives.
+        """
+        if isinstance(ex, RunnerRetryableError):
+            logger.warning("job_id=%s cancel not delivered on timeout: %s", job.id, str(ex))
+            return
+
+        message = "job_id=%s fleet_id=%s cancel refused on timeout, the job stays active: %s"
+        args = (job.id, job.fleet_id, str(ex))
+        if str(job.id) in _REFUSED_CANCEL_WARNED:
+            logger.debug(message, *args)
+            return
+        if len(_REFUSED_CANCEL_WARNED) >= _REFUSED_CANCEL_LIMIT:
+            _REFUSED_CANCEL_WARNED.clear()
+        _REFUSED_CANCEL_WARNED.add(str(job.id))
+        logger.error(message, *args)
 
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
         """Increment terminal jobs counter. `requested` means something asked this job to stop."""

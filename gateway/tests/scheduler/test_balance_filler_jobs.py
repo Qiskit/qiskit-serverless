@@ -552,6 +552,22 @@ def test_the_occupancy_series_go_away_when_the_feature_is_off(filler_program):
     task.metrics.clear_filler_profile_jobs.assert_called_once()
 
 
+def _stuck_filler_job(filler_program, *, fleet_id):
+    """A running filler job on the protected profile, with the feature's slots set to zero so the
+    balancer sheds it."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id=fleet_id,
+    )
+    Config.set(ConfigKey.FILLER_SLOTS, "0")
+    return job
+
+
 def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     """A failed cancel leaves the job active so the next loop retries it."""
     job = TestUtils.create_job(
@@ -576,6 +592,43 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
 
     job.refresh_from_db()
     assert job.status == Job.RUNNING
+
+
+def test_an_undeliverable_cancel_keeps_the_filler_job_active(filler_program):
+    """One try per cycle: nothing is written, so the next cycle asks again."""
+    job = _stuck_filler_job(filler_program, fleet_id="fleet-429")
+    task = _make_task()
+
+    with (
+        patch.object(task.submitter, "submit"),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(_RUNNER) as runner,
+    ):
+        runner.return_value.stop.side_effect = RunnerRetryableError("Too Many Requests")
+        task.run()
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING
+
+
+def test_a_paused_region_sends_no_filler_cancel(filler_program):
+    """The breaker is shared with the submit, so a region that stopped answering stops the shedding too."""
+    job = _stuck_filler_job(filler_program, fleet_id="fleet-paused")
+    task = _make_task()
+    task.canceller = MagicMock()
+    task.canceller.paused.return_value = True
+
+    with (
+        patch.object(task.submitter, "submit"),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(_RUNNER) as runner,
+    ):
+        task.run()
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING
+    runner.return_value.stop.assert_not_called()
+    task.canceller.cancel.assert_not_called()
 
 
 def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_program):

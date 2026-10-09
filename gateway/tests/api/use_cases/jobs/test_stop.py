@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.use_cases.jobs.stop import StopJobUseCase
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventOrigin
 from core.models import Job, JobEvent, Program
 
@@ -116,6 +116,57 @@ class TestStopFleetsJob:
 
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert JobEvent.objects.filter(job=job).count() == 0
+
+    def test_a_cancel_code_engine_did_not_answer_is_retried_inside_the_request(self, author):
+        """The API has its own gunicorn worker, so it can wait for a rate limit to clear. The
+        scheduler cannot, which is why it gets one try instead."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+        runner.stop.side_effect = [RunnerRetryableError("Too Many Requests"), True]
+
+        with (
+            patch(_RUNNER, return_value=runner),
+            patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
+        ):
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job is stopping." in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+        assert runner.stop.call_count == 2
+        mock_sleep.assert_called_once_with(1.0)
+
+    def test_a_cancel_that_never_gets_through_fails_the_request(self, author):
+        """Two attempts, then 503, so the request cannot outlive the 25s gunicorn timeout."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+        runner.stop.side_effect = RunnerRetryableError("Too Many Requests")
+
+        with (
+            patch(_RUNNER, return_value=runner),
+            patch("api.use_cases.jobs.stop.time.sleep"),
+        ):
+            with pytest.raises(EngineUnavailableException):
+                StopJobUseCase().execute(job.id, None, author)
+
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+        assert runner.stop.call_count == 2
+        assert JobEvent.objects.filter(job=job).count() == 0
+
+    def test_a_refused_cancel_is_not_retried(self, author):
+        """A request Code Engine refused will be refused again, so the user is answered at once."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+        runner.stop.side_effect = RunnerError("Forbidden")
+
+        with (
+            patch(_RUNNER, return_value=runner),
+            patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
+        ):
+            with pytest.raises(EngineUnavailableException):
+                StopJobUseCase().execute(job.id, None, author)
+
+        assert runner.stop.call_count == 1
+        mock_sleep.assert_not_called()
 
     def test_a_second_stop_sends_no_cancel_and_writes_no_event(self, author):
         """Already stopping: no cancel is sent and no event is written."""

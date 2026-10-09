@@ -62,11 +62,13 @@ def build_fleets_circuit_breaker() -> CircuitBreaker:
     return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
 
-class FleetsJobSubmitter:
-    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
+class CodeEngineBreakers:
+    """One circuit breaker per Code Engine region, shared by every scheduler call to that region.
 
-    def __init__(self, transitions: JobTransitionService):
-        self.transitions = transitions
+    A region answers the same way to a submit and to a cancel, so both count against one breaker.
+    """
+
+    def __init__(self) -> None:
         self.breakers: dict[str | None, CircuitBreaker] = {}
 
     def get_breaker(self, region: str | None) -> CircuitBreaker:
@@ -78,6 +80,18 @@ class FleetsJobSubmitter:
     def paused(self, region: str | None) -> bool:
         """Whether the breaker of this region is open."""
         return self.get_breaker(region).is_open
+
+
+class FleetsJobSubmitter:
+    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
+
+    def __init__(self, transitions: JobTransitionService, breakers: CodeEngineBreakers | None = None):
+        self.transitions = transitions
+        self.breakers = breakers or CodeEngineBreakers()
+
+    def paused(self, region: str | None) -> bool:
+        """Whether the breaker of this region is open."""
+        return self.breakers.paused(region)
 
     def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
         """Submits a Fleets (Code Engine) job and persists the result.
@@ -98,7 +112,7 @@ class FleetsJobSubmitter:
         Raises:
             RunnerRetryableError: before any write, so the job stays QUEUED.
         """
-        breaker = self.get_breaker(job.ce_region)
+        breaker = self.breakers.get_breaker(job.ce_region)
         if breaker.is_open:
             raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         start = time.monotonic()
@@ -148,6 +162,41 @@ class FleetsJobSubmitter:
                 logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
         return job
+
+
+class FleetsJobCanceller:
+    """Cancels Fleets jobs in Code Engine behind the same per-region breakers the submitter uses."""
+
+    def __init__(self, transitions: JobTransitionService, breakers: CodeEngineBreakers | None = None):
+        self.transitions = transitions
+        self.breakers = breakers or CodeEngineBreakers()
+
+    def paused(self, region: str | None) -> bool:
+        """Whether the breaker of this region is open."""
+        return self.breakers.paused(region)
+
+    def cancel(self, job: Job, *, context: JobEventContext) -> bool:
+        """Cancel a job's fleet and record STOPPING. ``False`` when there was nothing to cancel.
+
+        One try per tick: a cancel Code Engine did not answer writes nothing, and a later tick asks again.
+
+        Raises:
+            RunnerRetryableError: While the region's breaker is open, or when Code Engine did not answer.
+            RunnerError: When Code Engine refused the cancel, so the caller owes no terminal status.
+        """
+        breaker = self.breakers.get_breaker(job.ce_region)
+        if breaker.is_open:
+            raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
+        try:
+            cancelled = self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
+        except RunnerRetryableError:
+            # NOTE: a job whose cancel always fails stays RUNNING and holds its slot.
+            # Follow-up: end it after a time limit.
+            breaker.record_failure()
+            raise
+        # False is Code Engine's own 404 or 409, so it answered and this counts as a success
+        breaker.record_success()
+        return cancelled
 
 
 def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:

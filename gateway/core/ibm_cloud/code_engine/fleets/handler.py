@@ -56,6 +56,11 @@ _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 # Literal JSON key in the cancel_fleet body (a plain dict bypasses the model's attribute_map).
 _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 
+# (connect, read) seconds for the cancel. The generated client leaves urllib3's timeout at None, so
+# without this a Code Engine read that never answers holds the caller for ever: the scheduler loop is
+# single-threaded and the gateway has 2 worker processes.
+_CANCEL_TIMEOUT_SECONDS = (3, 5)
+
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
 # rather than on the bare 409, so an unrelated conflict still surfaces instead of being read as
 # "nothing to cancel".
@@ -393,6 +398,7 @@ class FleetHandler:
             ValueError: If identifier is a name that cannot be resolved, or if the cancel never
                 left the process. A ValueError from the model refusing a 2xx body is swallowed
                 instead, because that one means the cancel landed.
+            ReadTimeoutError: If Code Engine did not answer within ``_CANCEL_TIMEOUT_SECONDS``.
             ApiException: If the cancel could not be delivered, so the caller can retry. Also if
                 delete_fleet fails with an error other than 404.
             AssertionError: If waiting is enabled and the fleet never reaches terminal before timeout.
@@ -405,6 +411,7 @@ class FleetHandler:
                 project_id=self.project_id,
                 id=fleet_id,
                 body={_CANCEL_PROCESSING_TASKS_KEY: cancel_processing_tasks},
+                _request_timeout=_CANCEL_TIMEOUT_SECONDS,
             )
         except ApiException as exc:
             # A non-2xx is raised by the transport before the body is deserialized into the model,

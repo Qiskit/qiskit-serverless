@@ -388,13 +388,43 @@ def test_stop_returns_false_when_there_was_nothing_to_cancel():
     mock_handler.get_job_status.assert_not_called()
 
 
-def test_stop_raises_runner_error_when_the_cancel_could_not_be_sent():
-    """A Code Engine error means the cancel was not delivered, so the caller can retry."""
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (ApiException(status=429, reason="Too Many Requests"), RunnerRetryableError),
+        (ApiException(status=503, reason="Service Unavailable"), RunnerRetryableError),
+        (ApiException(status=502, reason="Bad Gateway"), RunnerRetryableError),
+        (ApiException(status=0, reason="no answer"), RunnerRetryableError),
+        (ApiException(status=403, reason="Forbidden"), RunnerError),
+        (ApiException(status=400, reason="Bad Request"), RunnerError),
+        (MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")), RunnerRetryableError),
+        (MaxRetryError(None, "/", reason=ProtocolError()), RunnerRetryableError),
+        (ReadTimeoutError(endpoint_url="/"), RunnerRetryableError),
+    ],
+)
+def test_stop_tells_a_cancel_to_try_again_from_one_code_engine_refused(error, expected):
+    """0, 502 and 504 are safe to retry for a cancel, unlike for a submit: a cancel already in
+    flight answers 409, so the same cancel cannot do anything twice."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.cancel_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+    mock_handler.cancel_job.side_effect = error
 
-    with pytest.raises(RunnerError, match="Code Engine API error"):
+    with pytest.raises(RunnerError) as exc:
         runner.stop()
+
+    assert type(exc.value) is expected
+
+
+def test_stop_refuses_a_cancel_whose_code_engine_host_does_not_resolve():
+    """A region that does not resolve is a wrong CE project, not an outage, so a later try cannot fix it."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.cancel_job.side_effect = MaxRetryError(
+        None, "/", reason=NameResolutionError("api.wrong.codeengine.cloud.ibm.com", None, "not found")
+    )
+
+    with pytest.raises(RunnerError) as exc:
+        runner.stop()
+
+    assert type(exc.value) is RunnerError
 
 
 def test_submit_sets_fleet_id_with_cos():
