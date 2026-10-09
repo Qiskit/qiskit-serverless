@@ -16,7 +16,7 @@ from core.models import Job, JobEvent
 
 # Seven job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
 # running until it is STOPPED.
-_RUNTIME_API_STATUS = {
+_STATUS = {
     Job.QUEUED: "Queued",
     Job.PENDING: "Queued",
     Job.RUNNING: "Running",
@@ -27,20 +27,12 @@ _RUNTIME_API_STATUS = {
 }
 
 
-def map_status(job_status: str) -> str:
-    """Translate a ``Job`` status into the Runtime API vocabulary. Raises ValueError for a status it does not know."""
-    try:
-        return _RUNTIME_API_STATUS[job_status]
-    except KeyError as exc:
-        raise ValueError(f"No Runtime API status for job status {job_status!r}") from exc
-
-
 def build_workload_payload(job: Job) -> dict:
     """Build the envelope for ``job`` from its current state and its event history. ``running_at`` and ``ended_at``
     are the times of the first RUNNING and the first terminal status events; ``ended_at`` is only looked up while the
     job is terminal, and stays None if a terminal job has no terminal event. Raises ValueError if the job has no
     ``instance_crn``, because the Runtime API needs it to choose the region and to know whose job it is. A job always
-    has its program, so ``job.program`` is read without checking."""
+    has its program, so ``job.program`` is read without checking. A status without a mapping raises KeyError."""
     if not job.instance_crn:
         raise ValueError(f"Job {job.id} has no instance_crn")
     provider = job.program.provider
@@ -54,7 +46,7 @@ def build_workload_payload(job: Job) -> dict:
             "provider": provider.name if provider else None,
             "crn": job.instance_crn,
             "user_id": job.author.username,
-            "status": map_status(job.status),
+            "status": _STATUS[job.status],
             "compute_profile": job.compute_profile_id,
             "size": job.function_size.function_size.upper() if job.function_size else None,
             "created_at": created_at.isoformat() if created_at else None,

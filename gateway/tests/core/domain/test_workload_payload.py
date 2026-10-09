@@ -4,7 +4,7 @@ import json
 import pytest
 from django.contrib.auth.models import User
 
-from core.domain.workload_payload import build_workload_payload, map_status
+from core.domain.workload_payload import build_workload_payload
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Program, Provider
 
@@ -133,6 +133,6 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
         "FAILED": "Failed",
         "STOPPED": "Cancelled",
     }
-    assert {status: map_status(status) for status in expected} == expected
-    with pytest.raises(ValueError):
-        map_status("EXPLODED")
+    assert {status: build_workload_payload(_simple_job(status))["body"]["status"] for status in expected} == expected
+    with pytest.raises(KeyError):
+        build_workload_payload(_simple_job("EXPLODED"))
