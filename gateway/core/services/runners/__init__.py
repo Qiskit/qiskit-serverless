@@ -1,7 +1,11 @@
 """Abstract runner for job execution."""
 
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError, AbstractRunner
+from core.services.runners.abstract_runner import (
+    RunnerError,
+    RunnerRetryableError,
+    AbstractRunner,
+)
 
 from core.services.runners.fleets_runner import FleetsRunner
 from core.services.runners.ray_runner import RayRunner

@@ -15,7 +15,7 @@ from prometheus_client import CollectorRegistry
 from core.config_key import ConfigKey
 from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
 from core.model_managers.job_events import JobEventContext
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS
@@ -67,7 +67,7 @@ def _run(task, times=1):
     the returned call counts are the totals across all of them.
     """
     with (
-        patch(f"{_MOD}.execute_fleets_job", side_effect=_fake_submit) as submit,
+        patch.object(task.submitter, "submit", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
         patch(f"{_MOD}.get_runner") as runner,
     ):
@@ -76,8 +76,8 @@ def _run(task, times=1):
     return submit, arguments, runner
 
 
-def _fake_submit(job, ctx, transitions, context=None):  # pylint: disable=unused-argument
-    """Stand in for execute_fleets_job: mark the job PENDING as a real submit would."""
+def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
+    """Stand in for FleetsJobSubmitter.submit: mark the job PENDING as a real submit would."""
     job.update_fields({"status": Job.PENDING})
     return job
 
@@ -492,7 +492,7 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.execute_fleets_job"),
+        patch.object(task.submitter, "submit"),
         patch(f"{_MOD}.get_arguments_storage"),
         patch(f"{_MOD}.get_runner") as runner,
     ):
@@ -508,7 +508,7 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.execute_fleets_job"),
+        patch.object(task.submitter, "submit"),
         patch(f"{_MOD}.get_arguments_storage", side_effect=ValueError("no bucket")) as arguments,
         patch(f"{_MOD}.get_runner"),
     ):
@@ -525,12 +525,39 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     assert Job.objects.filter(filler=True).count() == 0
 
 
+def test_no_filler_job_is_created_while_its_region_is_paused(filler_program):
+    task = _make_task()
+    task.submitter = MagicMock()
+    task.submitter.paused.return_value = True
+
+    submit, arguments, _ = _run(task)
+
+    submit.assert_not_called()
+    arguments.assert_not_called()
+    assert Job.objects.filter(filler=True).count() == 0
+    task.submitter.paused.assert_called_with(filler_program.code_engine_project.region)
+
+
+def test_an_unavailable_submit_fails_the_row_without_the_retry_delay(filler_program):
+    task = _make_task()
+
+    with (
+        patch.object(task.submitter, "submit", side_effect=RunnerRetryableError("Too Many Requests")),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(f"{_MOD}.get_runner"),
+    ):
+        task.run()
+
+    assert Job.objects.get(filler=True).status == Job.FAILED
+    assert task._retry_loops == 0  # pylint: disable=protected-access
+
+
 def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program):
     """A row that was saved but never submitted is discarded in the same loop."""
     task = _make_task()
 
     with (
-        patch(f"{_MOD}.execute_fleets_job", side_effect=ValueError("no runner")),
+        patch.object(task.submitter, "submit", side_effect=ValueError("no runner")),
         patch(f"{_MOD}.get_arguments_storage"),
         patch(f"{_MOD}.get_runner"),
     ):

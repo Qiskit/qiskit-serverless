@@ -14,11 +14,13 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
+from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError
+from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
@@ -55,69 +57,97 @@ def execute_ray_job(job: Job) -> Job:
     return job
 
 
-def execute_fleets_job(
-    job: Job, ctx, transitions: JobTransitionService, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS
-) -> Job:
-    """Submits a Fleets (Code Engine) job and persists the result.
+def build_fleets_circuit_breaker() -> CircuitBreaker:
+    """A fresh circuit breaker for one Code Engine region, with the thresholds of the Fleets Config entries."""
+    return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
-    Wraps submission under the scheduler.handle trace span propagated from the
-    job's env_vars, times the operation, and calls save_direct to bypass
-    optimistic-locking validation (see Job.save_direct for rationale).
 
-    Args:
-        job: job to execute
-        ctx: OpenTelemetry context extracted from job env_vars
-        transitions: service that changes the job status (and owes what the status change owes)
-        context: JobEvent context to record for the status change. Defaults to
-            SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
-            filler-jobs balancer passes FILLER_SUBMIT.
+class FleetsJobSubmitter:
+    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
 
-    Returns:
-        job with updated status (PENDING on success, FAILED on error)
-    """
-    start = time.monotonic()
-    tracer = trace.get_tracer("scheduler.tracer")
-    with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
+    def __init__(self, transitions: JobTransitionService):
+        self.transitions = transitions
+        self.breakers: dict[str | None, CircuitBreaker] = {}
 
-        runner = get_runner(job)
-        try:
-            # Fleets runner set only fleet_id
-            runner.submit()
-            job.status = Job.PENDING
-            transition = transitions.queued_to_pending
-            logger.info(
-                "[execute_fleets_job] job_id=%s Execute job (%.2fs) set as PENDING",
-                job.id,
-                time.monotonic() - start,
-            )
-        except RunnerError as ex:
-            logger.error(
-                "[execute_fleets_job] job_id=%s error=%s Job set as FAILED: submission error",
-                job.id,
-                ex,
-            )
-            job.status = Job.FAILED
-            transition = transitions.to_failed
+    def get_breaker(self, region: str | None) -> CircuitBreaker:
+        """The circuit breaker for this region (null included), built the first time it is asked for."""
+        if region not in self.breakers:
+            self.breakers[region] = build_fleets_circuit_breaker()
+        return self.breakers[region]
 
-        span.set_attribute("job.status", job.status)
+    def paused(self, region: str | None) -> bool:
+        """Whether the breaker of this region is open."""
+        return self.get_breaker(region).is_open
 
-        # Env vars have been forwarded to Code Engine; wipe them from the DB now.
-        job.env_vars = "{}"
-        try:
-            transition(
-                job,
-                origin=JobEventOrigin.SCHEDULER,
-                context=context,
-                job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
-            )
-        except InvalidJobTransitionException as ex:
-            # Lost the race: something else (e.g. a user-initiated stop) already moved this
-            # job to a terminal status while it was being submitted. The in-memory job.status
-            # set above is returned as-is; the caller reads it, but the DB row was never
-            # written since the job is no longer in a state that transition applies to.
-            logger.warning("[execute_fleets_job] job_id=%s already in a terminal status: %s", job.id, str(ex))
+    def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
+        """Submits a Fleets (Code Engine) job and persists the result.
 
-    return job
+        Wraps submission under the scheduler.submit trace span propagated from the
+        job's env_vars, and writes the status change through the transition service.
+
+        Args:
+            job: job to execute
+            ctx: OpenTelemetry context extracted from job env_vars
+            context: JobEvent context to record for the status change. Defaults to
+                SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
+                filler-jobs balancer passes FILLER_SUBMIT.
+
+        Returns:
+            job with updated status (PENDING on success, FAILED on error)
+
+        Raises:
+            RunnerRetryableError: before any write, so the job stays QUEUED.
+        """
+        breaker = self.get_breaker(job.ce_region)
+        if breaker.is_open:
+            raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
+        start = time.monotonic()
+        tracer = trace.get_tracer("scheduler.tracer")
+        with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
+
+            runner = get_runner(job)
+            try:
+                # Fleets runner set only fleet_id
+                runner.submit()
+                breaker.record_success()
+                job.status = Job.PENDING
+                transition = self.transitions.queued_to_pending
+                logger.info(
+                    "[FleetsJobSubmitter] job_id=%s Execute job (%.2fs) set as PENDING",
+                    job.id,
+                    time.monotonic() - start,
+                )
+            except RunnerRetryableError:
+                breaker.record_failure()
+                raise
+            except RunnerError as ex:
+                logger.error(
+                    "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: submission error",
+                    job.id,
+                    ex,
+                )
+                job.status = Job.FAILED
+                transition = self.transitions.to_failed
+
+            span.set_attribute("job.status", job.status)
+
+            # Env vars have been forwarded to Code Engine; wipe them from the DB now.
+            job.env_vars = "{}"
+            try:
+                transition(
+                    job,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=context,
+                    job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
+                )
+            except InvalidJobTransitionException as ex:
+                # Lost the race: something else (e.g. a user-initiated stop) already moved this
+                # job to a terminal status while it was being submitted. The in-memory job.status
+                # set above is returned as-is; the caller reads it, but the DB row was never
+                # written since the job is no longer in a state that transition applies to.
+                logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
+
+        return job
 
 
 def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:

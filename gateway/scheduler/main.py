@@ -8,6 +8,7 @@ from django.db import connection
 
 from core.models import Config
 from core.services.job_transitions import JobTransitionService
+from scheduler.schedule import FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -41,18 +42,20 @@ class Main:
 
         # One service for every task that changes a job status, so the Kafka producers are created once
         transitions = JobTransitionService()
+        # one submitter, so every task that submits Fleets jobs shares its circuit breaker
+        submitter = FleetsJobSubmitter(transitions)
 
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
             # submit jobs, status change from QUEUED to PENDING/FAILED
             ScheduleRayJobs(self.kill_signal, self.metrics),
-            ScheduleFleetsJobs(self.kill_signal, self.metrics, transitions),
+            ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
             UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions),
             # after the status updates, so it sees this tick's freshest terminal jobs
             OutboxTask(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
-            BalanceFillerJobs(self.kill_signal, self.metrics, transitions),
+            BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter),
             FreeResources(self.kill_signal, self.metrics),  # Ray only
         ]
 
