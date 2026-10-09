@@ -7,9 +7,10 @@ rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-d
 
 import logging
 
+from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
-from core.models import OutboxChannel
+from core.models import Config, OutboxChannel
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -24,6 +25,13 @@ def build_kafka_circuit_breaker() -> CircuitBreaker:
     """A fresh circuit breaker for the Kafka channels, with the thresholds of their Config entries."""
     return CircuitBreaker(
         ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS
+    )
+
+
+def build_workload_circuit_breaker() -> CircuitBreaker:
+    """A fresh circuit breaker for the workload channel, with the thresholds of its Config entries."""
+    return CircuitBreaker(
+        ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BREAKER_FAILURES, ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BREAKER_PAUSE_SECONDS
     )
 
 
@@ -49,7 +57,22 @@ class OutboxTask(SchedulerTask):
         self.channels: dict[OutboxChannel, Destination] = {
             OutboxChannel.LICENSE_FEE: kafka,
             OutboxChannel.JOB_USAGE: kafka,
+            OutboxChannel.WORKLOAD: Destination(
+                sender=WorkloadSender(),
+                breaker_factory=build_workload_circuit_breaker,
+                budget_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BUDGET_MS,
+                retry_base_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_BASE_SECONDS,
+                retry_max_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_MAX_SECONDS,
+                metrics=metrics,
+                kill_signal=kill_signal,
+            ),
         }
+
+    @staticmethod
+    def _is_enabled(channel: OutboxChannel) -> bool:
+        """The workload channel drains only while the mirror is on. Rows enqueued before it was turned off are
+        neither sent nor deleted, they wait until it is back on."""
+        return channel != OutboxChannel.WORKLOAD or Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED)
 
     def run(self):
         """Drain every channel, in turn, each within its own breaker and budget."""
@@ -60,7 +83,8 @@ class OutboxTask(SchedulerTask):
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping the outbox drain")
                 break
-            destination.drain(channel_name)
+            if self._is_enabled(channel_name):
+                destination.drain(channel_name)
 
         # Once every channel has drained, so the channels that share a destination report the same state, one
         # that a later channel opened during this very tick included.

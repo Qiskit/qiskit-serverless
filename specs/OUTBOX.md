@@ -399,7 +399,11 @@ logic. It needs:
    same `Destination` under its own key, and shares its sender, breakers and budget `Config` key (each channel still gets its own time window in every tick); one with a new sender builds
    a new `Destination`, with its own breakers.
 
-The `workload` channel, mirroring job state to NTC's Runtime API, is expected to be
-exactly this: one more `OutboxChannel` member, one more `Destination`, and one more registry entry,
-with its own `Config` keys if its thresholds or kill switch need to differ from the billing
-channels'.
+The `workload` channel is an example of exactly this: it carries the final status of a job to the Runtime API
+(`PUT /functions/{function_id}`). `JobTransitionService` enqueues the envelope that `build_workload_payload` builds,
+in the transaction of the terminal transition, `WorkloadSender` sends it, and it has its own `Destination` and
+`scheduler.outbox.workload.*` keys. Both the enqueue and the drain are gated on `workloads.mirror.enabled`: with it
+off nothing is enqueued, and the rows already there wait untouched until it is on again. A job the builder rejects
+(no instance CRN or no program) is logged and not enqueued, because retrying cannot fix it. Any other failure keeps
+the row and retries it with a growing wait, so a configuration problem on our side delays the mirror instead of
+losing it.

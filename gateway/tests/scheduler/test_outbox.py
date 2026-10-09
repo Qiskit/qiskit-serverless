@@ -8,13 +8,14 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
 from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
 from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
-from scheduler.tasks.outbox import OutboxTask, build_kafka_circuit_breaker
+from scheduler.tasks.outbox import OutboxTask, build_kafka_circuit_breaker, build_workload_circuit_breaker
 from scheduler.tasks.outbox_destination import Destination
 
 pytestmark = pytest.mark.django_db
@@ -129,38 +130,38 @@ class TestFailureHandling:
 class TestBreakerIsolationBetweenChannels:
     def test_one_channel_failing_does_not_stop_another_from_draining_the_same_tick(self):
         billing_sender = _sender(delivers=lambda pk: False)
-        workload_sender = _sender()
+        other_sender = _sender()
         task = _make_task()
         task.channels = {
             OutboxChannel.JOB_USAGE: _kafka_destination(task, billing_sender),
-            "workload": _kafka_destination(task, workload_sender),
+            "other": _kafka_destination(task, other_sender),
         }
         billing_row = _make_row()  # channel=OutboxChannel.USAGE, will fail
-        workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
+        other_row = Outbox.objects.create(job=_make_job(), channel="other", payload={})
 
         task.run()
 
         assert Outbox.objects.filter(pk=billing_row.pk).exists()  # failed, kept for retry
-        assert not Outbox.objects.filter(pk=workload_row.pk).exists()  # succeeded, deleted
+        assert not Outbox.objects.filter(pk=other_row.pk).exists()  # succeeded, deleted
 
     def test_an_open_breaker_on_one_channel_does_not_skip_another_channel(self):
         billing_sender = _sender(delivers=lambda pk: False)
-        workload_sender = _sender()
+        other_sender = _sender()
         task = _make_task()
         task.channels = {
             OutboxChannel.JOB_USAGE: _kafka_destination(task, billing_sender),
-            "workload": _kafka_destination(task, workload_sender),
+            "other": _kafka_destination(task, other_sender),
         }
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         _make_row()  # trips the usage breaker on this first run()
         task.run()
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
-        workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
+        other_row = Outbox.objects.create(job=_make_job(), channel="other", payload={})
         task.run()  # billing breaker open and skipped; workload must still be attempted
 
-        workload_sender.send_batch.assert_called_once()
-        assert not Outbox.objects.filter(pk=workload_row.pk).exists()
+        other_sender.send_batch.assert_called_once()
+        assert not Outbox.objects.filter(pk=other_row.pk).exists()
 
 
 class TestSharedBreakerAcrossChannelsWithTheSameDestination:
@@ -729,3 +730,44 @@ class TestRetryWithBackoff:
 
         assert not Outbox.objects.filter(pk=good_row.pk).exists()
         assert Outbox.objects.filter(pk__in=[r.pk for r in bad_rows]).count() == 3
+
+
+class TestWorkloadChannel:
+    """The workload channel is registered by default and drains only while the mirror is on."""
+
+    def _task_with_workload_sender(self, sender):
+        task = _make_task()
+        assert isinstance(task.channels[OutboxChannel.WORKLOAD].sender, WorkloadSender)
+        task.channels = {
+            OutboxChannel.WORKLOAD: Destination(
+                metrics=task.metrics,
+                kill_signal=task.kill_signal,
+                sender=sender,
+                breaker_factory=build_workload_circuit_breaker,
+                budget_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BUDGET_MS,
+                retry_base_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_BASE_SECONDS,
+                retry_max_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_MAX_SECONDS,
+            )
+        }
+        return task
+
+    def test_rows_are_sent_and_deleted_while_the_mirror_is_on(self):
+        sender = _single_sender()
+        task = self._task_with_workload_sender(sender)
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        row = Outbox.objects.create(job=_make_job(), channel=OutboxChannel.WORKLOAD, payload={"function_id": "j"})
+
+        task.run()
+
+        sender.send.assert_called_once_with({"function_id": "j"})
+        assert not Outbox.objects.filter(pk=row.pk).exists()
+
+    def test_rows_wait_untouched_while_the_mirror_is_off(self):
+        sender = _single_sender()
+        task = self._task_with_workload_sender(sender)
+        row = Outbox.objects.create(job=_make_job(), channel=OutboxChannel.WORKLOAD, payload={"function_id": "j"})
+
+        task.run()
+
+        sender.send.assert_not_called()
+        assert Outbox.objects.filter(pk=row.pk).exists()

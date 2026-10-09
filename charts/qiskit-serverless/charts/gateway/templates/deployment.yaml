@@ -446,6 +446,10 @@ spec:
           env:
             - name: SITE_HOST
               value: {{ .Values.scheduler.siteHost | quote }}
+            - name: IAM_IBM_CLOUD_BASE_URL
+              value: {{ .Values.application.auth.token.iamUrl | quote }}
+            - name: RUNTIME_API_BASE_URL
+              value: {{ .Values.application.runtimeApi.url | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY

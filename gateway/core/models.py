@@ -805,11 +805,13 @@ class JobEvent(models.Model):
 
 
 class OutboxChannel(StrEnum):
-    """The channels a row in the Outbox table can be sent on: both billing facts published via
-    Kafka today. See Outbox.channel below for what adding a member here costs."""
+    """The channels a row in the Outbox table can be sent on: the two billing facts published via Kafka, and
+    the final status of a job mirrored to the Runtime API. See Outbox.channel below for what adding a member
+    here costs."""
 
     LICENSE_FEE = "billing_license_fee"
     JOB_USAGE = "billing_job_usage"
+    WORKLOAD = "workload"
 
 
 class Outbox(models.Model):
