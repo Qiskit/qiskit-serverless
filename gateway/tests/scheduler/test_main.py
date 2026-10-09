@@ -65,6 +65,33 @@ class TestMain:
         assert called == True
         assert task.run.call_count == 1
 
+    def test_every_task_is_closed_once_the_loop_finishes(self):
+        """So the Kafka consumers leave their groups instead of holding partitions after shutdown."""
+
+        def stop_loop():
+            self.scheduler_main.kill_signal.received = True
+
+        first = MagicMock()
+        first.run.side_effect = stop_loop
+        second = MagicMock()
+
+        self.scheduler_main.tasks = [first, second]
+        self.scheduler_main.run()
+
+        first.close.assert_called_once()
+        second.close.assert_called_once()
+
+    def test_a_task_that_fails_to_close_does_not_keep_the_others_open(self):
+        failing = MagicMock()
+        failing.close.side_effect = RuntimeError("close failed")
+        other = MagicMock()
+        self.scheduler_main.kill_signal.received = True
+
+        self.scheduler_main.tasks = [failing, other]
+        self.scheduler_main.run()
+
+        other.close.assert_called_once()
+
     def test_task_fails(self):
         """When a task raises, metrics.increase_task_error should be called."""
         failing_task = MagicMock()

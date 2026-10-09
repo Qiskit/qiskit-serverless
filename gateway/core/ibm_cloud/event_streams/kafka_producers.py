@@ -25,6 +25,7 @@ from confluent_kafka import Producer
 from django.conf import settings
 
 from core.domain.crn import Crn
+from .regions import region_configs, sasl_config
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_client")
 
@@ -36,33 +37,18 @@ class UnroutableRegionError(RuntimeError):
 
 class KafkaProducers:
     """
-    Configured from Django settings (main/settings.py) per region:
-      settings.ENVIRONMENT:                     "production" or "staging"
-
-      settings.EVENT_STREAMS_BOOTSTRAP_SERVERS: comma-separated broker list (main region)
-      settings.EVENT_STREAMS_API_KEY:           SASL/PLAIN password (main region)
-      settings.EVENT_STREAMS_USER:              SASL/PLAIN username
-      settings.EVENT_STREAMS_REGIONS:           {region: {bootstrap_servers, api_key, user}}
-        for additional regions, discovered from suffixed environment variables at settings import time
-      settings.EVENT_STREAMS_MAIN_REGION:       main region (default: us-east)
+    One producer per region in regions.region_configs(); see that module for the settings involved.
+    The topic is namespaced by settings.ENVIRONMENT ("production" or "staging").
     """
 
     def __init__(self) -> None:
         environment = settings.ENVIRONMENT
+        self._main_region = settings.EVENT_STREAMS_MAIN_REGION
         self._producers: dict[str, Producer] = {}
 
-        main_region = settings.EVENT_STREAMS_MAIN_REGION
-        logger.info("Registering main region producer: region=%s", main_region)
-        self._producers[main_region] = self._create_producer(
-            settings.EVENT_STREAMS_BOOTSTRAP_SERVERS, settings.EVENT_STREAMS_API_KEY, settings.EVENT_STREAMS_USER
-        )
-        self._main_region = main_region
-
-        for region, config in settings.EVENT_STREAMS_REGIONS.items():
-            logger.info("Registering regional producer: region=%s", region)
-            self._producers[region] = self._create_producer(
-                config["bootstrap_servers"], config["api_key"], config["user"]
-            )
+        for region, config in region_configs().items():
+            logger.info("Registering producer: region=%s", region)
+            self._producers[region] = self._create_producer(config)
 
         self.topic = f"quantum.{environment}.function-usage.v1"
 
@@ -70,19 +56,15 @@ class KafkaProducers:
         logger.info(
             "Event Streams producers initialized: regions=%s (main=%s)",
             regions,
-            main_region,
+            self._main_region,
         )
 
     @staticmethod
-    def _create_producer(bootstrap_servers: str, api_key: str, user: str = "token") -> Producer:
-        """Create and return a Kafka producer with the given credentials."""
+    def _create_producer(config: dict[str, str]) -> Producer:
+        """Create and return a Kafka producer for one region's config."""
         return Producer(
             {
-                "bootstrap.servers": bootstrap_servers,
-                "security.protocol": "SASL_SSL",
-                "sasl.mechanisms": "PLAIN",
-                "sasl.username": user,
-                "sasl.password": api_key,
+                **sasl_config(config),
                 "enable.idempotence": True,
                 "acks": "all",
                 # How long librdkafka keeps trying to deliver a message after produce(); the default is 5 min.

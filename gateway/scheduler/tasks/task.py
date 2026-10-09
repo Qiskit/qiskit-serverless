@@ -14,3 +14,6 @@ class SchedulerTask(ABC):
     @abstractmethod
     def run(self):
         """Execute one scheduler cycle for this task."""
+
+    def close(self):
+        """Release whatever the task holds, once the scheduler loop has finished. Nothing by default."""
