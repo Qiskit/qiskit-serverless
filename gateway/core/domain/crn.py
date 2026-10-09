@@ -13,6 +13,7 @@
 """The one place that reads the fields of an instance CRN (Cloud Resource Name)."""
 
 from dataclasses import dataclass
+from urllib.parse import urlparse, urlunparse
 
 ACCOUNT_PREFIX = "a/"
 
@@ -42,3 +43,16 @@ class Crn:
             return None
         account = parts[_ACCOUNT_INDEX].removeprefix(ACCOUNT_PREFIX) or None
         return cls(region=parts[_REGION_INDEX], account=account)
+
+
+def regional_base_url(base_url: str, instance_crn: str | None, default_region: str) -> str:
+    """Return the Runtime API base URL for the region encoded in ``instance_crn``.
+
+    The default region is served by the bare host; any other region is reached through a ``{region}.`` host
+    prefix. A CRN whose region cannot be parsed falls back to ``base_url`` unchanged.
+    """
+    crn = Crn.parse(instance_crn)
+    if crn is None or crn.region == default_region:
+        return base_url
+    parsed = urlparse(base_url)
+    return urlunparse(parsed._replace(netloc=f"{crn.region}.{parsed.netloc}"))

@@ -470,6 +470,10 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
+# API key of the service credential that holds the functions operator role, used to call the Runtime API as a service
+# (core/clients/functions_operator_client.py).
+FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
+
 # IBM Cloud
 
 IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
