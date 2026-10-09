@@ -186,7 +186,7 @@ class FleetsJobCanceller:
             RunnerRetryableError: While the region's breaker is open, or when the cancel did not land.
             RunnerError: When the cancel never left this process, so the region learns nothing.
         """
-        if not job.fleet_id:
+        if not job.fleet_id or not job.program_id:
             # Nothing is sent, so there is nothing for the breaker to learn
             return False
 
@@ -197,6 +197,10 @@ class FleetsJobCanceller:
             cancelled = self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
         except RunnerRetryableError:
             breaker.record_failure()
+            raise
+        except InvalidJobTransitionException:
+            # The cancel landed, so the region answered. What the row did next is not its business.
+            breaker.record_success()
             raise
         breaker.record_success()
         _REFUSED_CANCEL_WARNED.discard(str(job.id))

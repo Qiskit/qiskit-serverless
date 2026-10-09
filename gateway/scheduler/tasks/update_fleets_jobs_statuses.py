@@ -56,7 +56,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # status() raises on configuration and data problems, never on a job that failed: a
             # deleted program, an inactive project, an unconfigured bucket, a bad COS secret.
             logger.error(
-                "job_id=%s user_id=%s error=%s Error getting status, leaving it unchanged",
+                "job_id=%s user_id=%s error=%s Could not read the status, treating it as unknown",
                 job.id,
                 job.author.id,
                 str(ex),
@@ -189,7 +189,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerRetryableError as ex:
             # Nothing is written: STOPPED here would claim a stop that never happened.
-            logger.warning("job_id=%s cancel not delivered on timeout: %s", job.id, str(ex))
+            logger.warning("job_id=%s fleet_id=%s cancel not delivered on timeout: %s", job.id, job.fleet_id, str(ex))
             return False
         except RunnerError as ex:
             log = logger.error if first_cancel_refusal(job) else logger.debug

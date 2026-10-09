@@ -113,9 +113,10 @@ class StopJobUseCase:
     def _try_stop_with_retries(self, transitions: JobTransitionService, job: Job) -> bool:
         """Cancel the fleet, retrying once. Raises on the second failure.
 
-        Every failure is retried, not only the ones Code Engine did not answer: an expired IAM cache
-        clears by itself, and a wrong API key is fixed outside this process. The same runner serves
-        both attempts, so a Code Engine failure does not pay for a second IAM token.
+        Every failure is retried, not only the ones Code Engine did not answer, because a repeat
+        cancel is safe. What it actually buys is a second go at a rate limit. The same runner serves
+        both attempts, so no second IAM token is fetched, which also means a 403 from an expired
+        token gets the same token again and cannot clear until the next request.
         """
         return retry_function(
             partial(

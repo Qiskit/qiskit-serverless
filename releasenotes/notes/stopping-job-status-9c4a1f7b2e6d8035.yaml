@@ -27,6 +27,6 @@ upgrade:
 
     A cancellation Code Engine refuses outright, or one whose Code Engine project has been
     deactivated, is retried but never written away as stopped. The job keeps running and keeps its
-    slot until the cause is fixed, and the refusal is logged once per job with its fleet id.
+    slot until the cause is fixed, and the failure is logged with its fleet id.
 
     To roll this change back, clear any ``STOPPING`` rows first, or they can never leave that status.

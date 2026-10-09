@@ -518,7 +518,10 @@ class TestFleetsJobCanceller:
         assert canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS) is False
         assert canceller.paused("us-east") is False
 
-    def test_a_job_with_no_fleet_teaches_the_breaker_nothing(self):
+    @pytest.mark.parametrize(
+        "nothing_to_send", [{"fleet_id": None}, {"program_id": None}], ids=["no-fleet", "no-program"]
+    )
+    def test_a_job_with_nothing_to_send_teaches_the_breaker_nothing(self, nothing_to_send):
         """No call is made, so this must not count as the region answering and clear the streak."""
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
@@ -526,17 +529,38 @@ class TestFleetsJobCanceller:
         canceller, transitions = self._canceller(
             side_effect=RunnerRetryableError("Too Many Requests"), breakers=breakers
         )
-        job = MagicMock(ce_region="us-east", fleet_id="fleet-1")
-        no_fleet = MagicMock(ce_region="us-east", fleet_id=None)
+        job = MagicMock(ce_region="us-east", fleet_id="fleet-1", program_id=7)
+        skipped = MagicMock(**{"ce_region": "us-east", "fleet_id": "fleet-2", "program_id": 7, **nothing_to_send})
 
         with pytest.raises(RunnerRetryableError):
             canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
-        assert canceller.cancel(no_fleet, context=JobEventContext.UPDATE_JOB_STATUS) is False
+        assert canceller.cancel(skipped, context=JobEventContext.UPDATE_JOB_STATUS) is False
         with pytest.raises(RunnerRetryableError):
             canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert canceller.paused("us-east") is True
         assert transitions.try_stop.call_count == 2
+
+    def test_a_cancel_that_landed_and_lost_the_race_counts_as_an_answer(self):
+        """try_stop sends the cancel before it opens the transaction, so Code Engine answered even
+        though the row moved underneath. Counting nothing would leave a working region's streak up."""
+        Config.add_defaults()
+        Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
+        transitions = MagicMock()
+        canceller = FleetsJobCanceller(transitions, CodeEngineBreakers())
+        job = MagicMock(ce_region="us-east", fleet_id="fleet-1", program_id=7)
+
+        for error in (
+            RunnerRetryableError("Too Many Requests"),
+            InvalidJobTransitionException("STOPPED -> STOPPING"),
+            RunnerRetryableError("Too Many Requests"),
+        ):
+            transitions.try_stop.side_effect = error
+            with pytest.raises(type(error)):
+                canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        # two failures, but the landed cancel between them broke the streak
+        assert canceller.paused("us-east") is False
 
     def test_an_undeliverable_cancel_counts_against_the_region_breaker(self):
         _open_breakers_after_one_failure()

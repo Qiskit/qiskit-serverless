@@ -334,7 +334,9 @@ class BalanceFillerJobs(SchedulerTask):
             self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except RunnerRetryableError as ex:
             # Left active: a status change here would claim a cancel that never left.
-            logger.warning("[BalanceFillerJobs] job_id=%s cancel not delivered: %s", job.id, str(ex))
+            logger.warning(
+                "[BalanceFillerJobs] job_id=%s fleet_id=%s cancel not delivered: %s", job.id, job.fleet_id, str(ex)
+            )
             return
         except RunnerError as ex:
             log = logger.error if first_cancel_refusal(job) else logger.debug
