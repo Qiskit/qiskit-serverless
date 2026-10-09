@@ -1,0 +1,32 @@
+---
+features:
+  - |
+    Cancelling a job that runs on IBM Cloud Code Engine now reports a new ``STOPPING``
+    status, shown by the client SDK as ``CANCELING``, until Code Engine confirms the job
+    really stopped. Before, the job was reported as stopped straight away while its
+    compute node was still being released. Sub-status and error reporting keep working
+    while a job is stopping.
+upgrade:
+  - |
+    The scheduler is what completes a Code Engine cancellation, so it must be running for
+    a cancelled job to reach ``STOPPED``. A cancellation that is never confirmed is
+    stopped anyway after 5 minutes.
+
+    A cancelled job stays in ``STOPPING`` for about 30 seconds, or about 150 seconds when
+    its task had not started yet, and counts against the user's active and running job
+    limits for that time, because its compute node is still held.
+
+    Stopping a Code Engine job retries once inside the request when the first failure came back
+    fast, and then fails with HTTP 503 when Code Engine still cannot be reached. The job keeps running and the request can be
+    retried.
+
+    The scheduler, which stops a job on its 24h timeout and sheds filler jobs, gets one try per
+    tick instead: a cancel that did not land writes nothing and is sent again on a later tick. After
+    a few failures in a row the scheduler pauses that Code Engine region for
+    ``scheduler.fleets.breaker_pause_seconds``, which it shares with Fleets job submits.
+
+    A cancellation Code Engine refuses outright, or one whose Code Engine project has been
+    deactivated, is retried but never written away as stopped. The job keeps running and keeps its
+    slot until the cause is fixed, and the failure is logged with its fleet id.
+
+    To roll this change back, clear any ``STOPPING`` rows first, or they can never leave that status.

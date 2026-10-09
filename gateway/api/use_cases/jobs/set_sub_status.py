@@ -42,8 +42,6 @@ class SetJobSubStatusUseCase:
         if not can_update_sub_status:
             raise JobNotFoundException(str(job_id))
 
-        # update sub status in QUEUE + PENDING + RUNNING is allowed
-        # we accept that we could have SET_SUB_STATUS events before RUNNING
         # The status filter is the guard, so this stays a conditional UPDATE rather
         # than going through save_direct. updated is set by hand for the same reason
         # save_direct sets it: a queryset UPDATE does not fire auto_now.

@@ -307,6 +307,7 @@ The use case receives a fully-typed, clean dataclass — no raw dicts, no HTTP c
 | `ValidationError` (DRF) | 400 |
 | `ActiveJobLimitExceeded` | 429 |
 | `RuntimeFunctionsException` | 401 |
+| `EngineUnavailableException` | 503 |
 | Any other `Exception` | 500 |
 
 The view never catches exceptions. It lets them reach `@endpoint_handle_exceptions`.

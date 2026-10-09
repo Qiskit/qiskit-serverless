@@ -25,6 +25,10 @@ from scheduler.tasks.circuit_breaker import CircuitBreaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
+# Jobs whose cancel was refused, so first_cancel_refusal reports each one once.
+_REFUSED_CANCEL_WARNED: set[str] = set()
+_REFUSED_CANCEL_LIMIT = 10_000
+
 
 def execute_ray_job(job: Job) -> Job:
     """Executes a Ray job.
@@ -62,11 +66,10 @@ def build_fleets_circuit_breaker() -> CircuitBreaker:
     return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
 
-class FleetsJobSubmitter:
-    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
+class CodeEngineBreakers:
+    """One circuit breaker per Code Engine region, shared by every scheduler call to that region."""
 
-    def __init__(self, transitions: JobTransitionService):
-        self.transitions = transitions
+    def __init__(self) -> None:
         self.breakers: dict[str | None, CircuitBreaker] = {}
 
     def get_breaker(self, region: str | None) -> CircuitBreaker:
@@ -78,6 +81,18 @@ class FleetsJobSubmitter:
     def paused(self, region: str | None) -> bool:
         """Whether the breaker of this region is open."""
         return self.get_breaker(region).is_open
+
+
+class FleetsJobSubmitter:
+    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
+
+    def __init__(self, transitions: JobTransitionService, breakers: CodeEngineBreakers | None = None):
+        self.transitions = transitions
+        self.breakers = breakers or CodeEngineBreakers()
+
+    def paused(self, region: str | None) -> bool:
+        """Whether the breaker of this region is open."""
+        return self.breakers.paused(region)
 
     def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
         """Submits a Fleets (Code Engine) job and persists the result.
@@ -98,7 +113,7 @@ class FleetsJobSubmitter:
         Raises:
             RunnerRetryableError: before any write, so the job stays QUEUED.
         """
-        breaker = self.get_breaker(job.ce_region)
+        breaker = self.breakers.get_breaker(job.ce_region)
         if breaker.is_open:
             raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         start = time.monotonic()
@@ -148,6 +163,64 @@ class FleetsJobSubmitter:
                 logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
 
         return job
+
+
+class FleetsJobCanceller:
+    """Cancels Fleets jobs in Code Engine behind the same per-region breakers the submitter uses."""
+
+    def __init__(self, transitions: JobTransitionService, breakers: CodeEngineBreakers | None = None):
+        self.transitions = transitions
+        self.breakers = breakers or CodeEngineBreakers()
+
+    def paused(self, region: str | None) -> bool:
+        """Whether the breaker of this region is open."""
+        return self.breakers.paused(region)
+
+    def cancel(self, job: Job, *, context: JobEventContext) -> bool:
+        """Cancel a job's fleet and record STOPPING. ``False`` when there is nothing to cancel.
+
+        One try per tick: a cancel that did not land writes nothing, and a later tick asks again.
+        The breaker only learns from a call that reached Code Engine.
+
+        Raises:
+            RunnerRetryableError: While the region's breaker is open, or when the cancel did not land.
+            RunnerError: When the job's project is unusable, or the cancel never left this process.
+            InvalidJobTransitionException: When the cancel landed but the row had already left a
+                status STOPPING is reachable from.
+        """
+        if not job.fleet_id or not job.program_id:
+            # Nothing is sent, so there is nothing for the breaker to learn
+            return False
+
+        breaker = self.breakers.get_breaker(job.ce_region)
+        if breaker.is_open:
+            raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
+        try:
+            cancelled = self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
+        except RunnerRetryableError:
+            breaker.record_failure()
+            raise
+        except InvalidJobTransitionException:
+            # The cancel landed, so the region answered. What the row did next is not its business.
+            breaker.record_success()
+            raise
+        breaker.record_success()
+        _REFUSED_CANCEL_WARNED.discard(str(job.id))
+        return cancelled
+
+
+def first_cancel_refusal(job: Job) -> bool:
+    """True the first time this job's cancel is refused.
+
+    Both scheduler callers ask again every tick for as long as the job is active, so they report the
+    first refusal and drop to debug after it.
+    """
+    if str(job.id) in _REFUSED_CANCEL_WARNED:
+        return False
+    if len(_REFUSED_CANCEL_WARNED) >= _REFUSED_CANCEL_LIMIT:
+        _REFUSED_CANCEL_WARNED.clear()
+    _REFUSED_CANCEL_WARNED.add(str(job.id))
+    return True
 
 
 def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:

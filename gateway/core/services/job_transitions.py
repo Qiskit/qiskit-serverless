@@ -20,6 +20,7 @@ from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
+from core.services.runners import get_runner, AbstractRunner
 
 logger = logging.getLogger("core.JobTransitionService")
 
@@ -53,9 +54,10 @@ class JobTransitionService:
     # Valid next status per current status
     VALID_TRANSITIONS: dict[str, set[str]] = {
         # valid next state for non-terminal states
-        Job.QUEUED: {Job.PENDING, Job.FAILED, Job.STOPPED},
-        Job.PENDING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.RUNNING},
-        Job.RUNNING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED},
+        Job.QUEUED: {Job.PENDING, Job.FAILED, Job.STOPPED, Job.STOPPING},
+        Job.PENDING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING, Job.RUNNING},
+        Job.RUNNING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING},
+        Job.STOPPING: {Job.STOPPED},
         # terminal states have no next valid state
         Job.SUCCEEDED: set(),
         Job.FAILED: set(),
@@ -88,6 +90,39 @@ class JobTransitionService:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
         self._send_job_in_progress(job, job_started=False)
+
+    def try_stop(
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        runner: AbstractRunner | None = None,
+    ) -> bool:
+        """Cancel the fleet and record STOPPING. Fleets only, and the cancel runs before the transaction.
+
+        Args:
+            runner: Reuse this runner instead of building one, so a retrying caller fetches the IAM
+                token once.
+
+        Returns:
+            ``True`` when STOPPING was written, ``False`` when the fleet is gone and the caller owes
+            a terminal status.
+
+        Raises:
+            ValueError: If the job is not a Fleets job.
+            RunnerError: If the cancel could not be delivered.
+            InvalidJobTransitionException: If the row left a status STOPPING is reachable from.
+        """
+        if job.runner != Program.FLEETS:
+            raise ValueError(f"Job {job.id}: try_stop is for Fleets jobs, got runner={job.runner}")
+        if not job.fleet_id:
+            return False
+        if not (runner or get_runner(job)).stop():
+            return False
+        with transaction.atomic():
+            self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
+        return True
 
     def to_terminal(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None

@@ -277,7 +277,6 @@ class FleetsRunner(AbstractRunner):
         ("succeeded", Job.SUCCEEDED),
         ("failed", Job.FAILED),
         ("canceled", Job.STOPPED),
-        ("canceling", Job.STOPPED),
         ("running", Job.RUNNING),
         ("pending", Job.PENDING),
     )
@@ -451,18 +450,33 @@ class FleetsRunner(AbstractRunner):
         recognise could not be cancelled at all.
 
         Returns:
-            ``True`` if Code Engine accepted the request, ``False`` if there was nothing left to
-            cancel because the fleet is gone or is already being cancelled. ``True`` does not say
-            the job was running: Code Engine also accepts a cancel for a fleet that has finished.
+            ``True`` if a cancel is in flight, so a terminal task state is still to come. ``False``
+            when nothing will ever report one, because the fleet is gone or its program is deleted.
+            ``True`` does not say the job was running: Code Engine also accepts a cancel for a fleet
+            that has finished.
 
         Raises:
-            RunnerError: If the cancel could not be delivered, so the caller can retry.
+            RunnerRetryableError: For every Code Engine and IAM failure, so a later try can work.
+            RunnerError: When the job's project is unusable, or the cancel never left this process.
         """
-        self._ensure_connected()
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
-        handler = self._get_handler()
+        if not self.job.program:
+            # Nothing will ever cancel this fleet or confirm it stopped, so the caller must end the row.
+            logger.warning("Cannot cancel fleet [%s]: its program has been deleted", self.job.fleet_id)
+            return False
+
+        # Outside the try below, so a project an operator can put back stays a plain RunnerError and
+        # does not feed the region's breaker. Answering False would strand a fleet holding its node.
+        self._project = self._get_project()
+
+        try:
+            self._ensure_connected()
+            handler = self._get_handler()
+        except RunnerError as ex:
+            # connect() and _get_handler() flatten every IAM and client failure into RunnerError.
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
 
         try:
             cancelled = handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
@@ -471,13 +485,11 @@ class FleetsRunner(AbstractRunner):
             return cancelled
 
         except ApiException as ex:
-            logger.error(
-                "CE API error stopping fleet [%s]: status=%s reason=%s",
-                self.job.fleet_id,
-                ex.status,
-                ex.reason,
-            )
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
+            # Every answer is retryable, 400 and 403 included: a repeat cancel is safe because one
+            # already in flight answers 409, which a submit cannot say.
+            raise RunnerRetryableError(f"Code Engine API error {ex.status}: {ex.reason}", ex) from ex
+        except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to stop fleet [%s]: %s", self.job.fleet_id, ex)
             raise RunnerError(f"Unable to stop fleet [{self.job.fleet_id}]", ex) from ex
@@ -525,13 +537,11 @@ class FleetsRunner(AbstractRunner):
         return project
 
     def _get_handler(self) -> FleetHandler:
-        """Return the :class:`FleetHandler`, creating it lazily on first use.
+        """Return the :class:`FleetHandler`, creating it lazily and caching it on this runner.
 
-        Token refresh is handled transparently: ``FleetHandler`` sets a
-        ``refresh_api_key_hook`` on the swagger ``Configuration`` so the
-        IAM bearer token is fetched fresh before every API request via
-        ``IBMCloudClientProvider.auth.token`` (which calls
-        ``IAMAuthenticator.token_manager.get_token()`` and auto-renews).
+        The token is read once, when the client is built, and nothing refreshes it: the swagger
+        ``Configuration.refresh_api_key_hook`` is never set. A runner lives for one request or one
+        scheduler tick, so reuse it to pay the IAM fetch once rather than once per call.
 
         Returns:
             Initialized :class:`FleetHandler`.

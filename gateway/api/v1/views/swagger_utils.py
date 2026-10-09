@@ -21,11 +21,13 @@ def error_schema(example_msg: str, description: str = "Error response"):
 
 
 def standard_error_responses(
+    *,
     bad_request_example: str | None = None,
     forbidden_example: str | None = None,
     not_found_example: str | None = None,
     conflict_example: str | None = None,
     unauthorized_example: str | None = None,
+    service_unavailable_example: str | None = None,
 ):
     """
     Utility to generate standard error documentation
@@ -41,4 +43,8 @@ def standard_error_responses(
         responses[status.HTTP_404_NOT_FOUND] = error_schema(not_found_example, "Resource not found.")
     if conflict_example:
         responses[status.HTTP_409_CONFLICT] = error_schema(conflict_example, "Conflict.")
+    if service_unavailable_example:
+        responses[status.HTTP_503_SERVICE_UNAVAILABLE] = error_schema(
+            service_unavailable_example, "Engine unavailable."
+        )
     return responses
