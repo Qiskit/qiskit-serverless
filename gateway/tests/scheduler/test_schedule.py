@@ -19,7 +19,7 @@ from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import RunnerError, RunnerRetryableError
+from core.services.runners import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
 from scheduler.kill_signal import KillSignal
@@ -27,9 +27,10 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import (
     _REFUSED_CANCEL_WARNED,
-    CodeEngineBreakers,
     first_cancel_refusal,
     FleetsJobCanceller,
+    FleetsBreakers,
+    FleetsFleetDeleter,
     FleetsJobSubmitter,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
@@ -581,7 +582,7 @@ class TestFleetsJobCanceller:
         """No call is made, so this must not count as the region answering and clear the streak."""
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
-        breakers = CodeEngineBreakers()
+        breakers = FleetsBreakers()
         canceller, transitions = self._canceller(
             side_effect=RunnerRetryableError("Too Many Requests"), breakers=breakers
         )
@@ -603,7 +604,7 @@ class TestFleetsJobCanceller:
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
         transitions = MagicMock()
-        canceller = FleetsJobCanceller(transitions, CodeEngineBreakers())
+        canceller = FleetsJobCanceller(transitions, FleetsBreakers())
         job = MagicMock(ce_region="us-east", fleet_id="fleet-1", program_id=7)
 
         for error in (
@@ -650,7 +651,7 @@ class TestFleetsJobCanceller:
     def test_a_failed_cancel_pauses_the_submit_in_the_same_region_only(self):
         """A region answers the same way to both, so one breaker holds the fact for the whole region."""
         _open_breakers_after_one_failure()
-        breakers = CodeEngineBreakers()
+        breakers = FleetsBreakers()
         canceller, transitions = self._canceller(
             side_effect=RunnerRetryableError("Too Many Requests"), breakers=breakers
         )
@@ -661,3 +662,129 @@ class TestFleetsJobCanceller:
 
         assert submitter.paused("us-east") is True
         assert submitter.paused("eu-de") is False
+
+
+@pytest.mark.django_db
+@patch("scheduler.schedule.get_runner")
+@patch("scheduler.schedule.trace")
+def test_a_clean_delete_cycle_does_not_clear_the_cos_failures(mock_trace, mock_get_runner_client):
+    """Deletes never touch COS, so a working delete must not say COS is working."""
+    Config.add_defaults()
+    Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "5")
+    breakers = FleetsBreakers()
+    submitter = FleetsJobSubmitter(MagicMock(), breakers)
+    deleter = FleetsFleetDeleter(breakers)
+    mock_get_runner_client.return_value.submit.side_effect = CosRetryableError("SlowDown")
+
+    for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
+        with pytest.raises(CosRetryableError):
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+        deleter.record_cycle("us-east", code_engine_answered=True)
+
+    assert submitter.paused("us-east") is True
+
+
+@pytest.mark.django_db
+@patch("scheduler.schedule.get_runner")
+@patch("scheduler.schedule.trace")
+def test_a_cos_outage_pauses_submits_and_leaves_the_deletes_alone(mock_trace, mock_get_runner_client):
+    _open_breakers_after_one_failure()
+    breakers = FleetsBreakers()
+    submitter = FleetsJobSubmitter(MagicMock(), breakers)
+    deleter = FleetsFleetDeleter(breakers)
+    mock_get_runner_client.return_value.submit.side_effect = CosRetryableError("SlowDown")
+
+    with pytest.raises(CosRetryableError):
+        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+
+    assert submitter.paused("us-east") is True
+    assert deleter.paused("us-east") is False
+
+
+@pytest.mark.django_db
+def test_a_failed_delete_cycle_pauses_the_submits_of_that_region():
+    """Both paths call Code Engine, so either one's failure is evidence about it."""
+    _open_breakers_after_one_failure()
+    breakers = FleetsBreakers()
+    submitter = FleetsJobSubmitter(MagicMock(), breakers)
+
+    FleetsFleetDeleter(breakers).record_cycle("us-east", code_engine_answered=False)
+
+    assert submitter.paused("us-east") is True
+    assert submitter.paused("eu-de") is False
+
+
+@pytest.mark.django_db
+@patch("scheduler.schedule.get_runner")
+@patch("scheduler.schedule.trace")
+def test_a_clean_delete_cycle_clears_a_code_engine_failure_the_submit_recorded(mock_trace, mock_get_runner_client):
+    Config.add_defaults()
+    Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
+    breakers = FleetsBreakers()
+    submitter = FleetsJobSubmitter(MagicMock(), breakers)
+    deleter = FleetsFleetDeleter(breakers)
+    mock_get_runner_client.return_value.submit.side_effect = RunnerRetryableError("Service Unavailable")
+
+    with pytest.raises(RunnerRetryableError):
+        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+    deleter.record_cycle("us-east", code_engine_answered=True)
+    with pytest.raises(RunnerRetryableError):
+        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+
+    assert submitter.paused("us-east") is False
+
+
+@pytest.mark.django_db
+def test_delete_refuses_while_the_breaker_of_that_region_is_open():
+    _open_breakers_after_one_failure()
+    deleter = FleetsFleetDeleter(FleetsBreakers())
+    deleter.record_cycle("us-east", code_engine_answered=False)
+
+    assert deleter.paused("us-east") is True
+
+    job = MagicMock(ce_region="us-east")
+    with patch("scheduler.schedule.get_runner") as get_runner:
+        with pytest.raises(RunnerRetryableError):
+            deleter.delete(job)
+        get_runner.assert_not_called()
+
+        job.ce_region = "eu-de"
+        get_runner.return_value.free_resources.return_value = True
+        assert deleter.delete(job) is True
+
+
+@pytest.mark.django_db
+def test_delete_works_again_after_the_breaker_pause_expires():
+    _open_breakers_after_one_failure()
+    Config.set(ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS, "60")
+    deleter = FleetsFleetDeleter(FleetsBreakers())
+    job = MagicMock(ce_region="us-east")
+
+    with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1000.0):
+        deleter.record_cycle("us-east", code_engine_answered=False)
+        assert deleter.paused("us-east") is True
+
+    with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1061.0):
+        assert deleter.paused("us-east") is False
+        with patch("scheduler.schedule.get_runner") as get_runner:
+            get_runner.return_value.free_resources.return_value = True
+            assert deleter.delete(job) is True
+
+
+@pytest.mark.django_db
+@patch("scheduler.schedule.get_runner")
+@patch("scheduler.schedule.trace")
+def test_the_submitter_and_the_deleter_share_one_breaker_registry(mock_trace, mock_get_runner_client):
+    """Both paths call the same region, so a failure on either one pauses both."""
+    _open_breakers_after_one_failure()
+    breakers = FleetsBreakers()
+    submitter = FleetsJobSubmitter(MagicMock(), breakers)
+    deleter = FleetsFleetDeleter(breakers)
+    mock_get_runner_client.return_value.submit.side_effect = RunnerRetryableError("Too Many Requests")
+
+    with pytest.raises(RunnerRetryableError):
+        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+    deleter.record_cycle("eu-de", code_engine_answered=False)
+
+    assert deleter.paused("us-east") is True
+    assert submitter.paused("eu-de") is True
