@@ -17,18 +17,23 @@ import logging
 import os
 import re
 import tarfile
-import time
-from datetime import datetime, timezone
 from io import BytesIO
 
 from django.conf import settings
 from django.template.loader import get_template
 from ibm_botocore.exceptions import ClientError
+from ibm_botocore.exceptions import ConnectionError as BotoConnectionError
+from ibm_botocore.exceptions import HTTPClientError as BotoHTTPClientError
+from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError, ReadTimeoutError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
 from core.models import Job, CodeEngineProject
-from core.services.runners.abstract_runner import AbstractRunner, RunnerError
+from core.services.runners.abstract_runner import (
+    AbstractRunner,
+    RunnerError,
+    RunnerRetryableError,
+)
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -54,27 +59,10 @@ _UNRESOLVED_WARNED: set[str] = set()
 _WARNED_FLEETS_LIMIT = 10_000
 
 
-# Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. The API client
-# does not declare a length ceiling, so we assume the 63 characters usual for its resource
-# names and spend all of it: a three character prefix, three segments, a fourteen character
-# timestamp and four hyphens land exactly on 63 at fourteen characters per segment. Fourteen
-# is also what "160x1792x8h100" needs, so the scarce GPU profile this was built for survives
-# whole; a third fractional digit in the timestamp would clip it.
-_FLEET_NAME_SEGMENT_MAX = 14
-
-
-def _fleet_name_timestamp() -> str:
-    """Return the current UTC time as ``YYMMDDHHMMSShh``, hundredths of a second last.
-
-    Readable at a glance in the Code Engine console, unlike Unix seconds, and precise enough
-    that two runs of the same function by the same user on the same profile get different
-    names in practice.
-
-    Returns:
-        Fourteen digits.
-    """
-    now = datetime.now(timezone.utc)
-    return f"{now:%y%m%d%H%M%S}{now.microsecond // 10000:02d}"
+# Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. On staging it accepted 64
+# characters and refused 70 as TOOLONG. Two segments of twelve, the 36 character job id and two hyphens
+# make at most 62.
+_FLEET_NAME_SEGMENT_MAX = 12
 
 
 def _fleet_name_segment(value: str) -> str:
@@ -95,29 +83,6 @@ def _fleet_name_segment(value: str) -> str:
     """
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:_FLEET_NAME_SEGMENT_MAX].strip("-") or "unknown"
-
-
-def _retry_on_rate_limit(fn, retries=3, delays=(0.5, 1.0, 2.0)):
-    """Call *fn* with retries on HTTP 429 (Too Many Requests).
-
-    Args:
-        fn: Zero-argument callable to execute.
-        retries: Maximum number of retry attempts.
-        delays: Sleep durations between attempts.
-
-    Returns:
-        The return value of *fn*.
-    """
-    for attempt in range(retries + 1):
-        try:
-            return fn()
-        except ApiException as exc:
-            if exc.status != 429 or attempt >= retries:
-                raise
-            delay = delays[min(attempt, len(delays) - 1)]
-            logger.warning("Rate limited (429), retrying in %.1fs (attempt %d/%d)", delay, attempt + 1, retries)
-            time.sleep(delay)
-    return None
 
 
 class FleetsRunner(AbstractRunner):
@@ -171,15 +136,63 @@ class FleetsRunner(AbstractRunner):
         return self.job.fleet_id is not None
 
     def submit(self) -> None:
-        """Submit the job as a Code Engine fleet.
-
-        When COS is configured, mounts two PDS volumes and sets up the
-        dual-log wrapper (provider log = all output, user log = ``[public]``
-        filtered lines). Arguments and artifact files are uploaded to COS
-        before the fleet is created.
+        """Submit the job as a Code Engine fleet: upload its files to COS, then create the fleet.
 
         Raises:
-            RunnerError: If submission fails.
+            RunnerRetryableError: If Code Engine or COS failed in a way a later try can fix.
+            RunnerError: If submission fails for any other reason.
+        """
+        paths = self._upload_to_cos()
+        self._create_fleet(paths)
+
+    def _upload_to_cos(self) -> FleetJobPaths:
+        """Upload the job's arguments and program to COS. No failure here can have created a fleet."""
+        try:
+            if not self._project:
+                self._project = self._get_project()
+            if not self._is_cos_configured():
+                raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
+            paths = build_job_paths(self.job)
+            self._upload_program_to_cos(paths)
+            logger.info(
+                "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
+                self.job.id,
+                paths.cos_user_log_key,
+                paths.cos_provider_log_key,
+            )
+            return paths
+        except RunnerError:
+            raise
+        except ClientError as ex:
+            code = ex.response.get("Error", {}).get("Code")
+            status = ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            if status in (429, 500, 502, 503, 504) or code in ("SlowDown", "RequestTimeout", "Throttling"):
+                raise RunnerRetryableError(f"COS error: {code}", ex) from ex
+            logger.error("COS error submitting job_id=[%s]: %s", self.job.id, ex)
+            raise RunnerError(f"COS error: {code}", ex) from ex
+        except ApiException as ex:
+            status = ex.status or 0
+            if status in (0, 429) or status >= 500:
+                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.error(
+                "CE API error before submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason
+            )
+            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
+        except MaxRetryError as ex:
+            if isinstance(ex.reason, NameResolutionError):
+                raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except (BotoConnectionError, BotoHTTPClientError, ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError("Unable to reach COS or Code Engine", ex) from ex
+        except Exception as ex:
+            logger.error("Failed to upload job_id=[%s] to COS: %s", self.job.id, ex)
+            raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
+
+    def _create_fleet(self, paths: FleetJobPaths) -> None:
+        """Create the job's Code Engine fleet.
+
+        Mounts two PDS volumes and sets up the dual-log wrapper (provider log = all output,
+        user log = ``[public]`` filtered lines), reading the files _upload_to_cos put in COS.
         """
         try:
             handler = self._get_handler()
@@ -207,44 +220,27 @@ class FleetsRunner(AbstractRunner):
             if scale_gpu:
                 extra_fields["scale_gpu"] = scale_gpu
 
-            if self._is_cos_configured():
-                paths = build_job_paths(self.job)
+            stored_env_vars = decrypt_env_vars(json.loads(self.job.env_vars))
+            extra_fields.update(
+                {
+                    "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
+                    "run_env_variables": build_run_env_variables(paths, stored_env_vars),
+                    "run_commands": ["python", paths.container_docker_entrypoint],
+                }
+            )
 
-                run_volume_mounts = build_run_volume_mounts_for_job(paths, self._project)
-                stored_env_vars = json.loads(self.job.env_vars)
-                stored_env_vars = decrypt_env_vars(stored_env_vars)
-                run_env_variables = build_run_env_variables(paths, stored_env_vars, str(self.job.id))
-                extra_fields.update(
-                    {
-                        "run_volume_mounts": run_volume_mounts,
-                        "run_env_variables": run_env_variables,
-                        "run_commands": ["python", paths.container_docker_entrypoint],
-                    }
-                )
-                _retry_on_rate_limit(lambda: self._upload_program_to_cos(paths))
-                logger.info(
-                    "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
-                    self.job.id,
-                    paths.cos_user_log_key,
-                    paths.cos_provider_log_key,
-                )
-            else:
-                raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
-
-            fleet = _retry_on_rate_limit(
-                lambda: handler.submit_job(
-                    name=fleet_name,
-                    image_reference=self._get_image(),
-                    image_secret=settings.CE_ICR_PULL_SECRET,
-                    network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
-                    scale_cpu_limit=cpu_limit,
-                    scale_memory_limit=memory_limit,
-                    scale_max_instances=self._get_max_instances(),
-                    scale_retry_limit=0,
-                    tasks_specification={"indices": "0"},
-                    tasks_state_store={"persistent_data_store": self._project.pds_name_state},
-                    extra_fields=extra_fields or None,
-                )
+            fleet = handler.submit_job(
+                name=fleet_name,
+                image_reference=self._get_image(),
+                image_secret=settings.CE_ICR_PULL_SECRET,
+                network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
+                scale_cpu_limit=cpu_limit,
+                scale_memory_limit=memory_limit,
+                scale_max_instances=self._get_max_instances(),
+                scale_retry_limit=0,
+                tasks_specification={"indices": "0"},
+                tasks_state_store={"persistent_data_store": self._project.pds_name_state},
+                extra_fields=extra_fields or None,
             )
 
             fleet_dict = fleet.to_dict() if hasattr(fleet, "to_dict") else dict(fleet)
@@ -254,17 +250,20 @@ class FleetsRunner(AbstractRunner):
 
             logger.info("Submitted job_id=[%s] as fleet [%s]", self.job.id, fleet_id)
             self.job.fleet_id = fleet_id
-
-        except ApiException as ex:
-            logger.error(
-                "CE API error submitting job_id=[%s]: status=%s reason=%s",
-                self.job.id,
-                ex.status,
-                ex.reason,
-            )
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
         except RunnerError:
             raise
+        except ApiException as ex:
+            status = ex.status or 0
+            if status in (0, 429) or status >= 500:
+                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
+            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
+        except MaxRetryError as ex:
+            if isinstance(ex.reason, NameResolutionError):
+                raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except (ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
@@ -329,7 +328,7 @@ class FleetsRunner(AbstractRunner):
                     # state alone does not prove the task exited zero. Log the whole
                     # key to keep that answerable from production logs. Taking any
                     # terminal key is only correct because a job runs a single task
-                    # (tasks_specification indices "0" in submit()).
+                    # (tasks_specification indices "0" in _create_fleet()).
                     logger.info("Fleet [%s] reached %s from key %s", self.job.fleet_id, status, found[state])
                 else:
                     logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
@@ -786,28 +785,19 @@ class FleetsRunner(AbstractRunner):
         return settings.FLEETS_DEFAULT_IMAGE
 
     def _build_fleet_name(self) -> str:
-        """Build the Code Engine fleet name for this job.
+        """Build the Code Engine fleet name for this job, as ``{vendor}-{function}-{job id}``.
 
-        Shaped as ``{job|fil}-{function}-{compute profile}-{username}-{YYMMDDHHMMSShh}`` so a
-        fleet can be read at a glance in Code Engine: what it runs, on which profile, for whom
-        and when. Both prefixes are three characters so every segment gets the same budget
-        either way, and each segment is sanitized and truncated by :func:`_fleet_name_segment`.
-
-        The timestamp is what separates two runs of the same function by the same user on the
-        same profile, so it is not decoration. It is still not an identifier: ``job.fleet_id``,
-        assigned by Code Engine, remains what the gateway stores and queries.
+        The same job always gets the same name, so a create that is retried after Code Engine already made the
+        fleet is refused as a name conflict instead of making a second fleet. The vendor is the provider's name,
+        or ``custom`` for a function with no provider.
 
         Returns:
             The fleet name.
         """
-        prefix = "fil" if self.job.filler else "job"
+        provider = self.job.program.provider
+        vendor = _fleet_name_segment(provider.name if provider else "custom")
         function = _fleet_name_segment(self.job.program.title)
-        # Unlike the title and the username, the compute profile is nullable, and submit() runs on
-        # settings.DEFAULT_COMPUTE_PROFILE when it is unset (see _parse_compute_profile). Name the
-        # fleet after the profile it actually runs on rather than after the empty value.
-        profile = _fleet_name_segment(self.job.compute_profile_id or settings.DEFAULT_COMPUTE_PROFILE)
-        username = _fleet_name_segment(self.job.author.username)
-        return f"{prefix}-{function}-{profile}-{username}-{_fleet_name_timestamp()}"
+        return f"{vendor}-{function}-{self.job.id}"
 
     def _parse_compute_profile(self) -> tuple[str, str, dict | None]:
         """Parse compute_profile into (cpu, memory, gpu).

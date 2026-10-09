@@ -19,6 +19,7 @@ COS sub-manager tests live in test_job_cos_unit.py.
 
 # pylint: disable=redefined-outer-name
 
+import json
 import logging
 from unittest.mock import MagicMock, patch
 
@@ -151,6 +152,52 @@ def test_submit_job_raises_and_logs_api_exception(mock_fleets_api_cls, project_i
     assert str(project_id) in caplog.text
     assert "403" in caplog.text
     assert "Forbidden" in caplog.text
+
+
+def _name_conflict() -> ApiException:
+    exc = ApiException(status=409, reason="Conflict")
+    exc.body = '{"errors": [{"code": "fleet_resource_name_conflict"}]}'
+    return exc
+
+
+def _fleets_page(fleets, next_start=None):
+    body = {"fleets": fleets, **({"next": {"start": next_start}} if next_start else {})}
+    return MagicMock(data=json.dumps(body).encode())
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_submit_job_returns_the_existing_fleet_on_a_name_conflict(mock_fleets_api_cls, project_id, base_payload):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.create_fleet.side_effect = _name_conflict()
+    mock_fleets_api.list_fleets.side_effect = [
+        _fleets_page([{"id": "other", "name": "other"}], next_start="page-2"),
+        _fleets_page([{"id": "existing", "name": base_payload["name"]}]),
+    ]
+
+    assert handler.submit_job(**base_payload) == {"id": "existing"}
+    assert mock_fleets_api.list_fleets.call_args.kwargs["start"] == "page-2"
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_submit_job_raises_a_name_conflict_the_lookup_cannot_resolve(mock_fleets_api_cls, project_id, base_payload):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.create_fleet.side_effect = _name_conflict()
+    mock_fleets_api.list_fleets.return_value = _fleets_page([])
+
+    with pytest.raises(ApiException):
+        handler.submit_job(**base_payload)
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_submit_job_raises_the_lookup_error_after_a_name_conflict(mock_fleets_api_cls, project_id, base_payload):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.create_fleet.side_effect = _name_conflict()
+    mock_fleets_api.list_fleets.side_effect = ApiException(status=503, reason="Service Unavailable")
+
+    with pytest.raises(ApiException) as exc:
+        handler.submit_job(**base_payload)
+
+    assert exc.value.status == 503
 
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")

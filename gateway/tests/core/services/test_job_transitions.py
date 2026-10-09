@@ -367,13 +367,14 @@ class TestBestEffortEvents:
         )
 
         sender.send.assert_called_once()
+        assert sender.send.call_args.kwargs == {"timeout": 0}
         data = sender.send.call_args[0][0]["data"]
         assert data["job_started"] is True
         assert data["job_completed"] is False
 
     def test_job_started_is_sent_after_the_status_is_written(self, service, sender, fleets_job):
         seen = []
-        sender.send.side_effect = lambda payload: seen.append(Job.objects.get(pk=fleets_job.pk).status)
+        sender.send.side_effect = lambda payload, timeout: seen.append(Job.objects.get(pk=fleets_job.pk).status)
 
         service.pending_to_running(
             fleets_job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
@@ -414,6 +415,7 @@ class TestBestEffortEvents:
         service.running_to_running(fleets_job)
 
         sender.send.assert_called_once()
+        assert sender.send.call_args.kwargs == {"timeout": 0}
         data = sender.send.call_args[0][0]["data"]
         assert data["job_started"] is False
         assert data["job_completed"] is False

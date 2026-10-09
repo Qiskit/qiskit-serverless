@@ -93,31 +93,19 @@ class TestCircuitBreaker:
             assert breaker.is_open is False  # t=110, now past the shortened 5s pause
 
 
-class TestHalfOpenAfterThePause:
-    @staticmethod
-    def _open_and_wait_out_the_pause(threshold):
+class TestAfterThePause:
+    def test_it_takes_a_whole_new_failure_streak_to_open_again(self):
         clock = [100.0]
-        breaker = _breaker(threshold)
+        breaker = _breaker(threshold=3)
         with patch(f"{_MOD}.time.monotonic", side_effect=lambda: clock[0]):
-            for _ in range(threshold):
+            for _ in range(3):
                 breaker.record_failure()
             assert breaker.is_open is True
             clock[0] = 200.0
-            assert breaker.is_open is False  # pause elapsed
-        return breaker, clock
+            assert breaker.is_open is False  # the pause elapsed
 
-    def test_a_single_failure_after_the_pause_opens_it_again(self):
-        breaker, clock = self._open_and_wait_out_the_pause(threshold=3)
-
-        with patch(f"{_MOD}.time.monotonic", side_effect=lambda: clock[0]):
+            breaker.record_failure()
+            breaker.record_failure()
+            assert breaker.is_open is False  # one failure short of a new streak
             breaker.record_failure()
             assert breaker.is_open is True
-
-    def test_a_success_after_the_pause_clears_the_streak(self):
-        breaker, clock = self._open_and_wait_out_the_pause(threshold=3)
-
-        with patch(f"{_MOD}.time.monotonic", side_effect=lambda: clock[0]):
-            breaker.record_success()
-            breaker.record_failure()
-            breaker.record_failure()
-            assert breaker.is_open is False

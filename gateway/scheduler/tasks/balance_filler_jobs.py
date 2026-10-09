@@ -12,12 +12,12 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import execute_fleets_job
+from scheduler.schedule import FleetsJobSubmitter
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -39,11 +39,16 @@ class BalanceFillerJobs(SchedulerTask):
     """
 
     def __init__(
-        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+        self,
+        kill_signal: KillSignal,
+        metrics: SchedulerMetrics,
+        transitions: JobTransitionService | None = None,
+        submitter: FleetsJobSubmitter | None = None,
     ):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
+        self.submitter = submitter or FleetsJobSubmitter(self.transitions)
         self._retry_loops = 0
 
     def run(self):
@@ -227,14 +232,18 @@ class BalanceFillerJobs(SchedulerTask):
         if self._retry_loops > 0:
             self._retry_loops -= 1
             return
-        # A shutdown is not a failure of the work, so it buys no delay.
-        if self.kill_signal.received:
+        # a shutdown or a paused region buys no delay
+        if self.kill_signal.received or self.submitter.paused(program.code_engine_project.region):
             return
-        if not self._submit_filler_job(program):
-            self._retry_loops = RETRY_AFTER_LOOPS
+        try:
+            if not self._submit_filler_job(program):
+                self._retry_loops = RETRY_AFTER_LOOPS
+        except RunnerRetryableError:
+            # no fleet was created, and the region's breaker decides when to try again
+            pass
 
     def _submit_filler_job(self, program: Program) -> bool:
-        """Create and submit one filler job. True when it reached PENDING."""
+        """Create and submit one filler job. True when it reached PENDING. Raises when its region is unavailable."""
         project = program.code_engine_project
         job = Job(
             program=program,
@@ -266,17 +275,20 @@ class BalanceFillerJobs(SchedulerTask):
             return False
 
         try:
-            job = execute_fleets_job(
+            job = self.submitter.submit(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
-                self.transitions,
                 context=JobEventContext.FILLER_SUBMIT,
             )
         except DB_EXCEPTIONS:
             raise
+        except RunnerRetryableError as ex:
+            self._mark_failed(job)
+            self._log_creation_failed(ex)
+            raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
-                # It raised before runner.submit(), so no fleet exists and this row is
+                # It raised before any write, so no fleet exists and this row is
                 # already unreachable. _discard_unsubmitted_filler_jobs is the net for
                 # the cases no except block sees.
                 self._mark_failed(job)
@@ -286,14 +298,14 @@ class BalanceFillerJobs(SchedulerTask):
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
         logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        # Not reaching PENDING means execute_fleets_job swallowed a RunnerError.
+        # Not reaching PENDING means submit() swallowed a RunnerError.
         return submitted
 
     def _log_creation_failed(self, ex: Exception) -> None:
         """Report a failed creation.
 
         Caught here rather than by the scheduler's generic handler, which would log a
-        traceback once a second. RETRY_AFTER_LOOPS already limits this to one a minute.
+        traceback once a second. RETRY_AFTER_LOOPS, or the region's breaker, limits how often it happens.
         """
         logger.error("[BalanceFillerJobs] could not create filler job: %s", str(ex))
         self.metrics.increment_filler_jobs_created("failed")

@@ -1,11 +1,11 @@
-from qiskit_serverless import distribute_task, get
+import ray
 
 
-@distribute_task()
+@ray.remote
 def ultimate():
     return 42
 
 
-result = get([ultimate() for _ in range(10)])
+result = ray.get([ultimate.remote() for _ in range(10)])
 
 print(result)

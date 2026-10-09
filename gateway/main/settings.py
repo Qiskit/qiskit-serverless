@@ -560,14 +560,37 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Time budget per scheduler loop tick for each Kafka outbox channel, in milliseconds.",
     },
     "scheduler.outbox.kafka.breaker_failures": {
-        "default": "5",
+        "default": "3",
         "type": "integer",
         "description": "Consecutive send failures before the Kafka outbox circuit breaker opens.",
     },
     "scheduler.outbox.kafka.breaker_pause_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "How long the Kafka outbox circuit breaker stays open once tripped. Once it closes, a whole "
+        "new streak of failures is needed to open it again.",
+    },
+    "scheduler.outbox.kafka.retry_base_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "Seconds a Kafka outbox row waits after its first failed send. The wait doubles with every "
+        "further failure, up to retry_max_seconds, and is never less than one second.",
+    },
+    "scheduler.outbox.kafka.retry_max_seconds": {
+        "default": "600",
+        "type": "integer",
+        "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
+    },
+    "scheduler.fleets.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
+        "timeouts) before the scheduler stops submitting Fleets jobs to that region.",
+    },
+    "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the Kafka outbox circuit breaker stays open once tripped.",
+        "description": "How long the scheduler stops submitting Fleets jobs to a region once its breaker trips.",
     },
 }
 
