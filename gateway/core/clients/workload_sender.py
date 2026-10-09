@@ -10,4 +10,8 @@ class WorkloadSender(Sender):
     is looked up on every send, so a missing or malformed key fails the send instead of the scheduler boot."""
 
     def send(self, payload: dict, timeout: float = 3) -> None:
+        """``timeout`` (seconds, greater than zero) bounds the PUT. The ``timeout=0`` of the contract, to hand over
+        without waiting, is not supported by an HTTP call and raises ValueError."""
+        if timeout <= 0:
+            raise ValueError("WorkloadSender needs a timeout greater than zero")
         get_functions_operator_client().put_function(payload["function_id"], payload["body"], timeout=timeout)

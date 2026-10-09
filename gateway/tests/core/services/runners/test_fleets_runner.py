@@ -412,6 +412,21 @@ def test_submit_places_the_fleet_on_the_projects_subnet_pool():
     assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
 
 
+def test_submit_gives_the_container_the_functions_identifier_only_for_a_mirrored_job(job_not_mirrored):
+    runner, mock_handler = _make_submit_runner()
+    with _patch_settings():
+        runner.submit()
+    names = {e["name"] for e in mock_handler.submit_job.call_args.kwargs["extra_fields"]["run_env_variables"]}
+    assert "QISKIT_FUNCTIONS_IDENTIFIER" not in names
+
+    job_not_mirrored.return_value = True
+    runner, mock_handler = _make_submit_runner()
+    with _patch_settings():
+        runner.submit()
+    env = {e["name"]: e["value"] for e in mock_handler.submit_job.call_args.kwargs["extra_fields"]["run_env_variables"]}
+    assert env["QISKIT_FUNCTIONS_IDENTIFIER"] == str(runner.job.id)
+
+
 def test_submit_fleet_name_is_vendor_function_and_job_id():
     runner, mock_handler = _make_submit_runner()
     runner.job.id = "1b2c3d4e-0000-4000-8000-000000000001"

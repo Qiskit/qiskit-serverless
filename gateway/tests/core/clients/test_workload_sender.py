@@ -25,6 +25,14 @@ def test_sends_the_stored_envelope_with_the_given_timeout():
     get_client.return_value.put_function.assert_called_once_with("job-1", PAYLOAD["body"], timeout=2)
 
 
+def test_a_timeout_that_is_not_greater_than_zero_is_refused():
+    with patch("core.clients.workload_sender.get_functions_operator_client") as get_client:
+        with pytest.raises(ValueError):
+            WorkloadSender().send(PAYLOAD, timeout=0)
+
+    get_client.return_value.put_function.assert_not_called()
+
+
 def test_a_client_error_reaches_the_outbox():
     with patch("core.clients.workload_sender.get_functions_operator_client") as get_client:
         get_client.return_value.put_function.side_effect = RuntimeApiError("rejected")

@@ -200,6 +200,9 @@ class FleetsRunner(AbstractRunner):
         Mounts two PDS volumes and sets up the dual-log wrapper (provider log = all output,
         user log = ``[public]`` filtered lines), reading the files _upload_to_cos put in COS.
         """
+        functions_identifier = (
+            self._functions_identifier()
+        )  # a database query: outside the try, a blip is not a RunnerError
         try:
             handler = self._get_handler()
 
@@ -230,7 +233,7 @@ class FleetsRunner(AbstractRunner):
             extra_fields.update(
                 {
                     "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
-                    "run_env_variables": build_run_env_variables(paths, stored_env_vars, self._functions_identifier()),
+                    "run_env_variables": build_run_env_variables(paths, stored_env_vars, functions_identifier),
                     "run_commands": ["python", paths.container_docker_entrypoint],
                 }
             )

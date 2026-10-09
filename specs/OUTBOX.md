@@ -1,13 +1,12 @@
 # Job outbox
 
 This document describes the transactional outbox that publishes best-effort messages
-to external systems in a deferred way. Today the only channels are `OutboxChannel.LICENSE_FEE`
+to external systems in a deferred way. Today the channels are `OutboxChannel.LICENSE_FEE`
 (`"billing_license_fee"`) and `OutboxChannel.JOB_USAGE` (`"billing_job_usage"`), the two Fleets job
-billing facts published to Kafka. The design is meant to stay generic: a later PR is expected
-to add a `workload` channel that mirrors job state to NTC's Runtime API, and it will not need
-any change to the table's structure or the drain task's logic, only a new `OutboxChannel`
-member, a new sender plus a builder that enqueues that channel's rows, and (since `choices=`
-below) a small migration (see "Adding a channel").
+billing facts published to Kafka, and `OutboxChannel.WORKLOAD` (`"workload"`), the final status of a mirrored
+job sent to the Runtime API. The design is meant to stay generic: adding the `workload` channel needed no change to
+the table's structure or the drain task's logic, only a new `OutboxChannel` member, a new sender plus a builder that
+enqueues that channel's rows, and (since `choices=` below) a small migration (see "Adding a channel").
 
 ## The problem it solves
 
@@ -35,8 +34,8 @@ A Fleets job produces two kinds of Kafka events:
   and dropped, and are not retried.
 - **Outbox**: events that cannot be lost. They are not sent from the scheduler. A JSON
   message is written to the `outbox` table, and the `OutboxTask` scheduler task picks
-  these rows up and sends them where they belong (Kafka today, later NTC workloads or
-  whatever comes next). If the target system is down, the send is retried once the
+  these rows up and sends them where they belong (Kafka for billing, the Runtime API for
+  workloads, or whatever comes next). If the target system is down, the send is retried once the
   row's wait is over (see "Retry with a growing wait").
 
 Four events in total:
@@ -352,7 +351,7 @@ channels together (`LICENSE_FEE` and `JOB_USAGE`), and there is no on/off switch
 channels are always active. A future channel that is not Kafka gets its own `Config` keys
 and its own `Destination` with its own `budget_key`, without touching these.
 
-Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, or
+Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, `workload`, or
 whatever channel a future PR adds), not by any billing-specific vocabulary:
 
 - `scheduler_outbox_sends_total{channel,outcome}`: one increment per send attempt,

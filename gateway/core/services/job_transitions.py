@@ -16,7 +16,7 @@ from django.db import transaction
 from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.domain.workload_payload import build_workload_payload, is_mirrored
+from core.domain.workload_payload import build_workload_payload, can_be_mirrored, is_mirrored
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -202,7 +202,7 @@ class JobTransitionService:
         """The final status of a mirrored job, to send it to the Runtime API. A job the payload builder rejects (it
         has no program) is logged and skipped, not enqueued: trying again cannot fix it, and it must not roll back the
         transition."""
-        if not is_mirrored(job):
+        if not (can_be_mirrored(job) and is_mirrored(job)):  # the first check saves the query for most jobs
             return
         try:
             payload = build_workload_payload(job)
