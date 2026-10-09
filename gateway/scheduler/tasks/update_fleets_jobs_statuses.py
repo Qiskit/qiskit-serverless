@@ -193,7 +193,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
+        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).select_related(
+            "author", "program__provider", "program__code_engine_project", "function_size", "config"
+        )
         for job in jobs:
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping status update cycle")

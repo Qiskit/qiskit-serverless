@@ -40,7 +40,7 @@ class JobsProviderListUseCase:
             filters.functions = function_titles
 
         queryset, total = Job.objects.user_jobs_page(user=None, filters=filters)
-        return list(queryset), total
+        return list(queryset.select_related("program")), total
 
     @staticmethod
     def _owned_function_titles(user, provider) -> Set[str]:

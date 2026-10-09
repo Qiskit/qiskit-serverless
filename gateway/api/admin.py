@@ -125,6 +125,7 @@ class ProviderAdmin(admin.ModelAdmin):
 
     search_fields = ["name", "code_engine_project__project_name"]
     list_display = ["name", "code_engine_project"]
+    list_select_related = ["code_engine_project"]
     filter_horizontal = ["admin_groups"]
 
 
@@ -391,7 +392,7 @@ class ProgramAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
-            .select_related("default_size")
+            .select_related("default_size", "provider", "author")
             .annotate(declared_sizes_count=Count("function_sizes"))
         )
 
@@ -978,6 +979,7 @@ class JobEventAdmin(admin.ModelAdmin):
     """JobEventAdmin."""
 
     list_display = ("created", "job", "event_type", "origin", "context")
+    list_select_related = ["job"]
     date_hierarchy = "created"
 
 

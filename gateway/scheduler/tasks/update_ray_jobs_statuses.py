@@ -174,7 +174,11 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         ray_counter = 0
         gpu_counter = 0
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES).exclude(runner=Program.FLEETS)
+        jobs = (
+            Job.objects.filter(status__in=Job.RUNNING_STATUSES)
+            .exclude(runner=Program.FLEETS)
+            .select_related("author", "program__provider", "compute_resource", "config")
+        )
         for job in jobs:
             if self.kill_signal.received:
                 return

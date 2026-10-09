@@ -7,7 +7,7 @@ from api.use_cases.programs.list import ListFunctionsUseCase
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.models import Program, Provider, PLATFORM_PERMISSION_READ
+from core.models import ComputeProfile, FunctionSize, Program, Provider, PLATFORM_PERMISSION_READ
 from tests.utils import create_function_access_result
 
 pytestmark = pytest.mark.django_db
@@ -109,3 +109,29 @@ class TestListFunctionsUseCase:
         result = ListFunctionsUseCase().execute(user, accessible, "catalog", provider="my-provider")
 
         assert result == []
+
+    def test_related_objects_are_loaded_without_extra_queries(self, user, provider, django_assert_num_queries):
+        profile = ComputeProfile.objects.create(compute_profile_id="8x32", cpu="8", memory="32")
+        for index in range(3):
+            program = Program.objects.create(title=f"fn-{index}", author=user, provider=provider)
+            FunctionSize.objects.create(function=program, function_size="small", compute_profile=profile)
+        accessible = FunctionAccessResult(
+            use_legacy_authorization=False,
+            functions=[
+                FunctionAccessEntry(
+                    provider_name="my-provider",
+                    function_title=f"fn-{index}",
+                    permissions={PLATFORM_PERMISSION_READ},
+                    business_model=BusinessModel.SUBSIDIZED,
+                )
+                for index in range(3)
+            ],
+        )
+
+        result = ListFunctionsUseCase().execute(user, accessible, "catalog")
+
+        assert len(result) == 3
+        with django_assert_num_queries(0):
+            for function in result:
+                _ = function.provider.name
+                _ = [size.function_size for size in function.function_sizes.all()]

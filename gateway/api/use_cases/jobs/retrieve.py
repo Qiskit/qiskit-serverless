@@ -36,7 +36,7 @@ class JobRetrieveUseCase:
         Returns:
             Job: job found
         """
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(str(job_id))
 
