@@ -25,12 +25,30 @@ from urllib3.exceptions import MaxRetryError, NameResolutionError, NewConnection
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.models import Job, Program
+from core.config_key import ConfigKey
+from core.models import Config, Job, Program
 from core.services.runners.abstract_runner import RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
+
+
+@pytest.fixture(autouse=True)
+def header_flag_off():
+    """These tests do not use the database, so the ``workloads.header.enabled`` flag is patched instead of read."""
+    with patch.object(Config, "get_bool", return_value=False) as get_bool:
+        yield get_bool
+
+
+def test_the_functions_identifier_is_the_job_id_only_while_the_header_flag_is_on(header_flag_off):
+    runner, _ = _make_runner()
+
+    assert runner._functions_identifier() == ""  # pylint: disable=protected-access
+
+    header_flag_off.return_value = True
+    assert runner._functions_identifier() == str(runner.job.id)  # pylint: disable=protected-access
+    header_flag_off.assert_called_with(ConfigKey.WORKLOADS_HEADER_ENABLED)
 
 
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:

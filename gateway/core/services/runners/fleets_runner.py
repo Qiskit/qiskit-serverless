@@ -28,7 +28,8 @@ from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
-from core.models import Job, CodeEngineProject
+from core.config_key import ConfigKey
+from core.models import Job, CodeEngineProject, Config
 from core.services.runners.abstract_runner import (
     AbstractRunner,
     RunnerError,
@@ -145,6 +146,11 @@ class FleetsRunner(AbstractRunner):
         paths = self._upload_to_cos()
         self._create_fleet(paths)
 
+    def _functions_identifier(self) -> str:
+        """The job id for the container's ``QISKIT_FUNCTIONS_IDENTIFIER``, or empty (so it is left out) while the
+        ``workloads.header.enabled`` flag is off."""
+        return str(self.job.id) if Config.get_bool(ConfigKey.WORKLOADS_HEADER_ENABLED) else ""
+
     def _upload_to_cos(self) -> FleetJobPaths:
         """Upload the job's arguments and program to COS. No failure here can have created a fleet."""
         try:
@@ -224,7 +230,7 @@ class FleetsRunner(AbstractRunner):
             extra_fields.update(
                 {
                     "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
-                    "run_env_variables": build_run_env_variables(paths, stored_env_vars),
+                    "run_env_variables": build_run_env_variables(paths, stored_env_vars, self._functions_identifier()),
                     "run_commands": ["python", paths.container_docker_entrypoint],
                 }
             )

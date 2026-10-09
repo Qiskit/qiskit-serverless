@@ -241,39 +241,46 @@ class TestWorkloadMirror:
             yield get_client.return_value.put_function
 
     @pytest.fixture
-    def accessible(self, user):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+    def fleets_accessible(self, user, ce_project, monkeypatch):
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
         return FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-    def test_the_job_is_sent_to_the_runtime_api_when_it_is_created(self, user, accessible, put_function):
+    def test_a_fleets_job_is_sent_to_the_runtime_api_when_it_is_created(self, user, fleets_accessible, put_function):
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
 
-        job = RunFunctionUseCase().execute(user, accessible, make_input(instance=self.CRN))
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         put_function.assert_called_once()
         function_id, body = put_function.call_args.args
         assert function_id == str(job.id)
         assert body["status"] == "Queued"
 
-    def test_nothing_is_sent_while_the_mirror_is_off(self, user, accessible, put_function):
-        RunFunctionUseCase().execute(user, accessible, make_input(instance=self.CRN))
+    def test_nothing_is_sent_while_the_mirror_is_off(self, user, fleets_accessible, put_function):
+        RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         put_function.assert_not_called()
 
-    def test_the_job_is_not_created_if_the_runtime_api_does_not_take_it(self, user, accessible, put_function):
+    def test_a_ray_job_is_not_sent_even_without_instance(self, user, put_function):
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        RunFunctionUseCase().execute(user, accessible, make_input())
+
+        put_function.assert_not_called()
+        assert Job.objects.count() == 1
+
+    def test_the_job_is_not_created_if_the_runtime_api_does_not_take_it(self, user, fleets_accessible, put_function):
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
         put_function.side_effect = RuntimeApiRetryableError("down")
 
         with pytest.raises(RuntimeApiRetryableError):
-            RunFunctionUseCase().execute(user, accessible, make_input(instance=self.CRN))
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
-        assert not Job.objects.exists()
-
-    def test_a_job_without_instance_is_not_created_while_the_mirror_is_on(self, user, accessible, put_function):
-        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
-
-        with pytest.raises(ValueError, match="instance_crn"):
-            RunFunctionUseCase().execute(user, accessible, make_input())
-
-        put_function.assert_not_called()
         assert not Job.objects.exists()

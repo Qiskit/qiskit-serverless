@@ -592,6 +592,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "the job) and on its terminal status (through the outbox). Turn it on only where "
         "FUNCTIONS_OPERATOR_API_KEY is set.",
     },
+    "workloads.header.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Give Fleets job containers the QISKIT_FUNCTIONS_IDENTIFIER environment variable, set to the "
+        "id of the Functions job. It applies to the jobs submitted from then on.",
+    },
     "scheduler.outbox.workload.budget_ms": {
         "default": "3000",
         "type": "integer",

@@ -19,7 +19,7 @@ from core.clients.functions_operator_client import get_functions_operator_client
 from core.config_key import ConfigKey
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.domain.workload_payload import build_workload_payload
+from core.domain.workload_payload import build_workload_payload, is_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
     Config,
@@ -122,10 +122,10 @@ def _get_runner_config(
 
 
 def _mirror_new_job(job: Job) -> None:
-    """Send the new job to the Runtime API as a workload while the mirror is on. It runs inside the transaction of the
-    creation on purpose: if the Runtime API does not take the job, it is not created. A job the builder rejects (no
-    instance CRN) breaks the transaction the same way."""
-    if Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
+    """Send the new job to the Runtime API as a workload while the mirror is on, if it is a Fleets job. It runs inside
+    the transaction of the creation on purpose: if the Runtime API does not take the job, it is not created. A job the
+    builder rejects breaks the transaction the same way."""
+    if is_mirrored(job) and Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
         payload = build_workload_payload(job)
         get_functions_operator_client().put_function(payload["function_id"], payload["body"])
 

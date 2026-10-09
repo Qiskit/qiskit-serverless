@@ -334,8 +334,15 @@ class TestWorkloadOutbox:
 
         assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
 
+    def test_a_ray_job_enqueues_nothing(self, service, user):
+        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
+
+        service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+
     def test_a_job_the_builder_rejects_is_logged_and_the_transition_still_happens(self, service, user, caplog):
-        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)  # no CRN, no program
+        job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=CRN, status=Job.RUNNING)  # no program
 
         with caplog.at_level(logging.ERROR, logger="core.JobTransitionService"):
             service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)

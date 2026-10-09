@@ -165,6 +165,7 @@ def build_run_volume_mounts(
 def build_run_env_variables(
     paths: FleetJobPaths,
     stored_env_vars: dict[str, str | None],
+    job_id: str = "",
 ) -> list[dict[str, str]]:
     """Build the complete environment variable list for the Fleets container.
 
@@ -176,6 +177,7 @@ def build_run_env_variables(
     Args:
         paths: Pre-computed paths for the job (from :func:`build_job_paths`).
         stored_env_vars: Decrypted env vars dict from ``job.env_vars``.
+        job_id: Id of the Functions job (omitted when empty), exposed as ``QISKIT_FUNCTIONS_IDENTIFIER``.
 
     Returns:
         List of env var dicts in Code Engine format
@@ -212,6 +214,7 @@ def build_run_env_variables(
             "LOG_FLUSH_INTERVAL_SECONDS": str(flush_interval),
             "LOG_SIZE_LIMIT_BYTES": str(getattr(settings, "FUNCTIONS_LOGS_SIZE_LIMIT", 52428800)),
             "QISKIT_IBM_PRIVATE_ENDPOINT": "true",
+            "QISKIT_FUNCTIONS_IDENTIFIER": job_id,
         }
     )
     if paths.container_private_log_path is not None:
