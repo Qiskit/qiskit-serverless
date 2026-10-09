@@ -470,8 +470,7 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
-# Service credential for mirroring Functions jobs to Runtime API workloads. The key is empty unless the deployment
-# provides it; the client raises on a call that needs it.
+# Service credential to connect to to Runtime API workloads.
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 
 # IBM Cloud
