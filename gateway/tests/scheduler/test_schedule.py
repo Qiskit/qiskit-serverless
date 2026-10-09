@@ -1,6 +1,5 @@
 """Tests scheduling."""
 
-import logging
 import uuid
 from collections import deque
 from unittest.mock import MagicMock, patch
@@ -27,7 +26,7 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.schedule import (
     _REFUSED_CANCEL_WARNED,
     CodeEngineBreakers,
-    log_cancel_failure,
+    first_cancel_refusal,
     FleetsJobCanceller,
     FleetsJobSubmitter,
     get_jobs_to_schedule_fair_share,
@@ -458,10 +457,8 @@ def test_fleets_submit_defaults_to_the_schedule_jobs_context():
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
 
 
-class TestLogCancelFailure:
-    """One cancel failure per tick for as long as the job is active, so the volume is the point."""
-
-    _LOG = logging.getLogger("scheduler.schedule")
+class TestFirstCancelRefusal:
+    """Both scheduler callers ask again every tick, so a refusal must report once, not once a second."""
 
     @pytest.fixture(autouse=True)
     def _clear_warned(self):
@@ -469,29 +466,15 @@ class TestLogCancelFailure:
         yield
         _REFUSED_CANCEL_WARNED.clear()
 
-    def test_a_cancel_the_region_did_not_answer_warns_every_tick(self, caplog):
-        job = MagicMock(id="job-undeliverable", fleet_id="fleet-1")
+    def test_only_the_first_refusal_reports(self):
+        job = MagicMock(id="job-refused")
 
-        with caplog.at_level(logging.DEBUG, logger="scheduler.schedule"):
-            for _ in range(3):
-                log_cancel_failure(self._LOG, job, RunnerRetryableError("Too Many Requests"))
-
-        assert [r.levelno for r in caplog.records] == [logging.WARNING] * 3
-
-    def test_a_refused_cancel_is_reported_once_and_names_the_fleet(self, caplog):
-        job = MagicMock(id="job-refused", fleet_id="fleet-2")
-
-        with caplog.at_level(logging.DEBUG, logger="scheduler.schedule"):
-            for _ in range(3):
-                log_cancel_failure(self._LOG, job, RunnerError("Forbidden"))
-
-        assert [r.levelno for r in caplog.records] == [logging.ERROR, logging.DEBUG, logging.DEBUG]
-        assert "fleet-2" in caplog.records[0].getMessage()
+        assert [first_cancel_refusal(job) for _ in range(3)] == [True, False, False]
 
     def test_the_warned_set_is_bounded(self):
         with patch("scheduler.schedule._REFUSED_CANCEL_LIMIT", 2):
             for index in range(3):
-                log_cancel_failure(self._LOG, MagicMock(id=f"job-{index}", fleet_id="f"), RunnerError("Forbidden"))
+                first_cancel_refusal(MagicMock(id=f"job-{index}"))
 
         assert len(_REFUSED_CANCEL_WARNED) == 1
 
@@ -516,6 +499,16 @@ class TestFleetsJobCanceller:
         assert canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS) is True
         assert canceller.paused("us-east") is False
         transitions.try_stop.assert_called_once()
+
+    def test_a_cancel_that_lands_lets_a_later_refusal_report_again(self):
+        """Without the discard the set only ever grows, and a job that recovers stays silenced."""
+        canceller, _ = self._canceller(returns=True)
+        job = MagicMock(ce_region="us-east")
+        _REFUSED_CANCEL_WARNED.add(str(job.id))
+
+        canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert str(job.id) not in _REFUSED_CANCEL_WARNED
 
     def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
         """False is Code Engine's own 404 or 409, so the region is answering."""

@@ -6,7 +6,7 @@ import pytest
 from django.contrib.auth.models import User
 
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
-from api.use_cases.jobs.stop import StopJobUseCase, _CANCEL_DELAYS
+from api.use_cases.jobs.stop import StopJobUseCase, _CANCEL_DELAY_SECONDS, _CANCEL_RETRY_BUDGET_SECONDS
 from core.ibm_cloud.clients import IAM_HTTP_TIMEOUT
 from core.ibm_cloud.code_engine.fleets.handler import _CANCEL_TIMEOUT_SECONDS
 from core.services.runners import RunnerError, RunnerRetryableError
@@ -25,13 +25,14 @@ def author():
 
 
 def test_the_cancel_retry_fits_the_gunicorn_request_timeout():
-    """A request gets 25s (charts/.../gateway/values.yaml). One runner serves every attempt, so the
-    IAM token is fetched once. urllib3 retries a failed connect 4 times and does not retry a read on
-    a POST, so a cancel costs 4x connect, not connect+read."""
-    attempts = len(_CANCEL_DELAYS) + 1
+    """A request gets 25s (charts/.../gateway/values.yaml), and the runtime job cancels still run
+    after the fleet cancel. urllib3 retries a failed connect 4 times and does not retry a read on a
+    POST, so a cancel costs 4x connect, not connect+read."""
     worst_cancel = max(4 * _CANCEL_TIMEOUT_SECONDS[0], sum(_CANCEL_TIMEOUT_SECONDS))
+    worst_attempt = sum(IAM_HTTP_TIMEOUT) + worst_cancel
 
-    assert sum(IAM_HTTP_TIMEOUT) + worst_cancel * attempts + sum(_CANCEL_DELAYS) < 25
+    # a second attempt only starts while the first is still inside the budget
+    assert _CANCEL_RETRY_BUDGET_SECONDS + _CANCEL_DELAY_SECONDS + worst_attempt < 25
 
 
 class TestStopJobUseCase:
@@ -113,27 +114,20 @@ class TestStopFleetsJob:
         assert Job.objects.get(pk=job.pk).status == Job.STOPPED
         mock_get_runner.assert_not_called()
 
-    def test_a_cancel_that_cannot_be_delivered_fails_the_request(self, author):
-        """The job stays RUNNING so the user can retry. A STOPPING row would claim a cancel we never sent."""
+    @pytest.mark.parametrize(
+        "error",
+        [RunnerRetryableError("Too Many Requests"), RunnerError("Forbidden")],
+        ids=["undeliverable", "refused"],
+    )
+    def test_a_cancel_that_did_not_land_is_retried_inside_the_request(self, author, error):
+        """The API has its own gunicorn worker, so it can wait for a rate limit to clear. A 403 is
+        retried too: it is usually an expired IAM cache."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
         runner = Mock()
-        runner.stop.side_effect = RunnerError("Code Engine rate limited the cancel")
-
-        with patch(_RUNNER, return_value=runner):
-            with pytest.raises(EngineUnavailableException):
-                StopJobUseCase().execute(job.id, None, author)
-
-        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
-        assert JobEvent.objects.filter(job=job).count() == 0
-
-    def test_a_cancel_code_engine_did_not_answer_is_retried_inside_the_request(self, author):
-        """The API has its own gunicorn worker, so it can wait for a rate limit to clear."""
-        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
-        runner = Mock()
-        runner.stop.side_effect = [RunnerRetryableError("Too Many Requests"), True]
+        runner.stop.side_effect = [error, True]
 
         with (
-            patch(_RUNNER, return_value=runner),
+            patch(_RUNNER, return_value=runner) as mock_get_runner,
             patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
         ):
             message = StopJobUseCase().execute(job.id, None, author)
@@ -141,7 +135,44 @@ class TestStopFleetsJob:
         assert "Job is stopping." in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
         assert runner.stop.call_count == 2
-        mock_sleep.assert_called_once_with(1.0)
+        mock_sleep.assert_called_once_with(_CANCEL_DELAY_SECONDS)
+        # one runner for both attempts, so a Code Engine failure does not pay for a second IAM token
+        mock_get_runner.assert_called_once_with(job)
+
+    def test_a_cancel_that_failed_slowly_is_not_retried(self, author):
+        """A slow failure has already eaten the request budget, so a second attempt would be killed
+        mid-flight. The fast failures this retry exists for come back in milliseconds."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+        runner.stop.side_effect = RunnerRetryableError("read timed out")
+        clock = iter([0.0, _CANCEL_RETRY_BUDGET_SECONDS + 1])
+
+        with (
+            patch(_RUNNER, return_value=runner),
+            patch("api.use_cases.jobs.stop.time.monotonic", side_effect=lambda: next(clock)),
+            patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
+        ):
+            with pytest.raises(EngineUnavailableException):
+                StopJobUseCase().execute(job.id, None, author)
+
+        assert runner.stop.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_an_unusable_project_does_not_tell_the_user_to_retry(self, author):
+        """No retry fixes a project an operator deactivated, so the message must not suggest one."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+        runner = Mock()
+        runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active")
+
+        with (
+            patch(_RUNNER, return_value=runner),
+            patch("api.use_cases.jobs.stop.time.sleep"),
+        ):
+            with pytest.raises(EngineUnavailableException) as caught:
+                StopJobUseCase().execute(job.id, None, author)
+
+        assert "please retry" not in str(caught.value).lower()
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
 
     def test_a_cancel_that_never_gets_through_fails_the_request(self, author):
         """Two attempts, then 503."""
@@ -159,24 +190,6 @@ class TestStopFleetsJob:
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert runner.stop.call_count == 2
         assert JobEvent.objects.filter(job=job).count() == 0
-
-    def test_a_refused_cancel_is_retried_too(self, author):
-        """A 403 is often an expired IAM cache, and a wrong API key gets replaced outside this
-        process, so the request tries again rather than answering on the first refusal."""
-        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
-        runner = Mock()
-        runner.stop.side_effect = [RunnerError("Forbidden"), True]
-
-        with (
-            patch(_RUNNER, return_value=runner) as mock_get_runner,
-            patch("api.use_cases.jobs.stop.time.sleep"),
-        ):
-            message = StopJobUseCase().execute(job.id, None, author)
-
-        assert "Job is stopping." in message
-        assert runner.stop.call_count == 2
-        # One runner for both attempts, so the IAM token is fetched once
-        mock_get_runner.assert_called_once_with(job)
 
     def test_a_second_stop_sends_no_cancel_and_writes_no_event(self, author):
         """Already stopping: no cancel is sent and no event is written."""

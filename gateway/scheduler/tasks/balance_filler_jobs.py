@@ -17,7 +17,7 @@ from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter, log_cancel_failure
+from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter, first_cancel_refusal
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -332,9 +332,13 @@ class BalanceFillerJobs(SchedulerTask):
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
             self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
-        except RunnerError as ex:
+        except RunnerRetryableError as ex:
             # Left active: a status change here would claim a cancel that never left.
-            log_cancel_failure(logger, job, ex, prefix="[BalanceFillerJobs] ")
+            logger.warning("[BalanceFillerJobs] job_id=%s cancel not delivered: %s", job.id, str(ex))
+            return
+        except RunnerError as ex:
+            log = logger.error if first_cancel_refusal(job) else logger.debug
+            log("[BalanceFillerJobs] job_id=%s cancel refused, the filler job stays active: %s", job.id, str(ex))
             return
         except InvalidJobTransitionException:
             logger.info("job_id=%s transition rejected, skipping the stop", job.id)

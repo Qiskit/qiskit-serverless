@@ -17,7 +17,7 @@ from core.services.storage.result_storage_ray import RayResultStorage
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.services.runners import RunnerError
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
 from tests.utils import TestUtils
@@ -617,8 +617,11 @@ class TestJobApi:
         Job.objects.filter(pk=job.pk).update(runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
 
         runner = MagicMock()
-        runner.stop.side_effect = RunnerError("Code Engine rate limited the cancel")
-        with patch("core.services.job_transitions.get_runner", return_value=runner):
+        runner.stop.side_effect = RunnerRetryableError("Code Engine rate limited the cancel")
+        with (
+            patch("api.use_cases.jobs.stop.get_runner", return_value=runner),
+            patch("api.use_cases.jobs.stop.time.sleep"),
+        ):
             response = self.client.post(
                 reverse("v1:jobs-stop", args=[str(job.pk)]),
                 format="json",

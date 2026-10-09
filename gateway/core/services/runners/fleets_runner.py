@@ -456,9 +456,8 @@ class FleetsRunner(AbstractRunner):
             that has finished.
 
         Raises:
-            RunnerRetryableError: For every Code Engine and IAM failure, and for a project an
-                operator can put back. A later try can get past all of them.
-            RunnerError: Only when the cancel never left this process.
+            RunnerRetryableError: For every Code Engine and IAM failure, so a later try can work.
+            RunnerError: When the job's project is unusable, or the cancel never left this process.
         """
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
@@ -468,8 +467,8 @@ class FleetsRunner(AbstractRunner):
             logger.warning("Cannot cancel fleet [%s]: its program has been deleted", self.job.fleet_id)
             return False
 
-        # An unassigned or inactive project is something an operator puts back, so this is raised
-        # rather than answered False: a terminal status would strand a fleet still holding its node.
+        # Outside the try below, so a project an operator can put back stays a plain RunnerError and
+        # does not feed the region's breaker. Answering False would strand a fleet holding its node.
         self._project = self._get_project()
 
         try:
@@ -486,13 +485,10 @@ class FleetsRunner(AbstractRunner):
             return cancelled
 
         except ApiException as ex:
-            # Every answer is worth asking again, a 400 or a 403 included: the request, the IAM cache
-            # or the API key behind them is something that gets fixed, and sending the same cancel
-            # twice is safe because one already in flight answers 409. A submit cannot say that, so
-            # it keeps a permanent class and fails the job instead.
+            # Every answer is retryable, 400 and 403 included: a repeat cancel is safe because one
+            # already in flight answers 409, which a submit cannot say.
             raise RunnerRetryableError(f"Code Engine API error {ex.status}: {ex.reason}", ex) from ex
         except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
-            # A bad region in the CE project reaches here too, and an operator fixes that as well.
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to stop fleet [%s]: %s", self.job.fleet_id, ex)

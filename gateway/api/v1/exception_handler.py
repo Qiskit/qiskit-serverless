@@ -77,7 +77,6 @@ def endpoint_handle_exceptions(view_func: Callable):
                 {"message": error.message},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-
         except InvalidAccessException as error:
             return Response(
                 {"message": error.message},

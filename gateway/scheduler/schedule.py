@@ -25,7 +25,7 @@ from scheduler.tasks.circuit_breaker import CircuitBreaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
-# Jobs whose cancel Code Engine refused, so log_cancel_failure reports each one once.
+# Jobs whose cancel was refused, so first_cancel_refusal reports each one once.
 _REFUSED_CANCEL_WARNED: set[str] = set()
 _REFUSED_CANCEL_LIMIT = 10_000
 
@@ -199,29 +199,22 @@ class FleetsJobCanceller:
             breaker.record_failure()
             raise
         breaker.record_success()
+        _REFUSED_CANCEL_WARNED.discard(str(job.id))
         return cancelled
 
 
-def log_cancel_failure(log: logging.Logger, job: Job, ex: RunnerError, *, prefix: str = "") -> None:
-    """Report a cancel that did not land.
+def first_cancel_refusal(job: Job) -> bool:
+    """True the first time this job's cancel is refused.
 
-    One the region did not answer is a warning every tick, because a later tick usually gets
-    through. One it refused is an error on the first tick and debug after, because the caller keeps
-    asking for as long as the job is active.
+    Both scheduler callers ask again every tick for as long as the job is active, so they report the
+    first refusal and drop to debug after it.
     """
-    if isinstance(ex, RunnerRetryableError):
-        log.warning("%sjob_id=%s cancel not delivered: %s", prefix, job.id, str(ex))
-        return
-
-    message = "%sjob_id=%s fleet_id=%s cancel refused, the job stays active: %s"
-    args = (prefix, job.id, job.fleet_id, str(ex))
     if str(job.id) in _REFUSED_CANCEL_WARNED:
-        log.debug(message, *args)
-        return
+        return False
     if len(_REFUSED_CANCEL_WARNED) >= _REFUSED_CANCEL_LIMIT:
         _REFUSED_CANCEL_WARNED.clear()
     _REFUSED_CANCEL_WARNED.add(str(job.id))
-    log.error(message, *args)
+    return True
 
 
 def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:

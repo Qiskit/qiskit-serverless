@@ -9,11 +9,11 @@ from django.conf import settings
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, FleetsRunner
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, log_cancel_failure
+from scheduler.schedule import FleetsJobCanceller, first_cancel_refusal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -179,18 +179,21 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created
         endtime = reference_time + timedelta(hours=timeout)
-        if datetime.now(tz=endtime.tzinfo) < endtime:
-            return False
-
-        if self.canceller.paused(job.ce_region):
+        # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
+        # breaker from logging one line per timed-out job per tick.
+        if datetime.now(tz=endtime.tzinfo) < endtime or self.canceller.paused(job.ce_region):
             return False
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author.id, timeout)
         try:
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
-        except RunnerError as ex:
+        except RunnerRetryableError as ex:
             # Nothing is written: STOPPED here would claim a stop that never happened.
-            log_cancel_failure(logger, job, ex)
+            logger.warning("job_id=%s cancel not delivered on timeout: %s", job.id, str(ex))
+            return False
+        except RunnerError as ex:
+            log = logger.error if first_cancel_refusal(job) else logger.debug
+            log("job_id=%s fleet_id=%s cancel refused, the job stays active: %s", job.id, job.fleet_id, str(ex))
             return False
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
@@ -234,7 +237,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
+        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).select_related(
+            "author", "program__code_engine_project", "program__provider"
+        )
         for job in jobs:
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping status update cycle")

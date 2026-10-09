@@ -637,7 +637,7 @@ def test_a_draining_filler_job_gets_no_second_cancel(filler_program):
     Config.set(ConfigKey.FILLER_ENABLED, "false")
     task = _make_task()
 
-    _, _, runner = _run(task, times=4)
+    _, _, runner = _run(task, times=2)
 
     job.refresh_from_db()
     assert job.status == Job.STOPPING

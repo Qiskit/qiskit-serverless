@@ -538,7 +538,7 @@ class TestRun:
             patch.object(task, "update_job_status", side_effect=fake_update),
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
@@ -556,7 +556,7 @@ class TestRun:
             patch(f"{_MOD}.logger") as mock_logger,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
@@ -592,7 +592,7 @@ class TestEventStreamsIntegration:
             patch.object(task, "update_job_status", return_value=True) as mock_update_status,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
 
             # Simulate update_job_status raising for job1 (publish failure) but succeeding for job2
@@ -751,11 +751,10 @@ class TestStoppingJobs:
         assert job.status == Job.STOPPED
         runner.stop.assert_not_called()
 
-    def test_a_stopping_job_is_still_confirmed_while_its_region_is_paused(self):
-        """The task store is COS, not the Code Engine API, so the breaker must not gate this task.
-        Gate it and a STOPPING row could never reach STOPPED during a Code Engine outage."""
+    def test_confirming_a_stop_never_consults_the_breaker(self):
+        """The task store is COS, not the Code Engine API. Gate this read on the breaker and a
+        STOPPING row could never reach STOPPED during a Code Engine outage."""
         task = _make_task()
-        task.canceller.paused.return_value = True
         job = _make_fleets_job(status=Job.STOPPING)
         runner = MagicMock()
         runner.status.return_value = Job.STOPPED
@@ -765,6 +764,7 @@ class TestStoppingJobs:
 
         assert changed is True
         assert job.status == Job.STOPPED
+        task.canceller.paused.assert_not_called()
 
     def test_a_running_task_is_left_alone_and_no_cancel_is_sent(self):
         """Whoever asked for the stop already sent the cancel. The poller only observes."""

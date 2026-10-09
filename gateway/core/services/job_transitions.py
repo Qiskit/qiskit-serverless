@@ -102,8 +102,8 @@ class JobTransitionService:
         """Cancel the fleet and record STOPPING. Fleets only, and the cancel runs before the transaction.
 
         Args:
-            runner: Reuse this runner instead of building one. A caller that retries passes the same
-                runner every time, so the IAM token is fetched once instead of once per attempt.
+            runner: Reuse this runner instead of building one, so a retrying caller fetches the IAM
+                token once.
 
         Returns:
             ``True`` when STOPPING was written, ``False`` when the fleet is gone and the caller owes

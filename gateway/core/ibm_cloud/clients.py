@@ -56,6 +56,9 @@ CODE_ENGINE_URL_TEMPLATE = "https://api.{region}.codeengine.cloud.ibm.com/v2"
 
 DEFAULT_REGION = "us-south"
 
+# (connect, read) seconds for an IAM token fetch.
+IAM_HTTP_TIMEOUT = (3, 5)
+
 logger = logging.getLogger("gateway.ibm_cloud.clients_provider")
 
 
@@ -117,10 +120,6 @@ class AuthState:
         return self.authenticator.token_manager.get_token()
 
 
-# (connect, read) seconds for an IAM token fetch.
-IAM_HTTP_TIMEOUT = (3, 5)
-
-
 @dataclass
 class ClientCache:
     """Per-credential COS client cache."""
@@ -169,8 +168,7 @@ class IBMCloudClientProvider:
         )
 
         authenticator = IAMAuthenticator(api_key, url=self.config.iam_url)
-        # The SDK defaults to 60s, which a single-threaded scheduler tick and a 25s gunicorn request
-        # both outlive. Every Code Engine and COS client is built through here.
+        # The SDK defaults to 60s, which outlives both a scheduler tick and a 25s gunicorn request.
         authenticator.token_manager.http_config = {"timeout": IAM_HTTP_TIMEOUT}
 
         # Fetch a token once at init time to validate credentials and extract

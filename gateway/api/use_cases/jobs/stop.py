@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from functools import partial
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -9,7 +10,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 from core.models import Job, Program, RuntimeJob
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -17,10 +18,12 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("api.StopJobUseCase")
 
-# One retry. The API has its own worker, so unlike the scheduler it can wait for a rate limit to
-# clear, and gunicorn gives the whole request 25s. One runner serves both attempts, so the worst
-# case is the IAM fetch once plus one cancel per attempt. test_stop.py pins the arithmetic.
-_CANCEL_DELAYS = (1.0,)
+_CANCEL_DELAY_SECONDS = 1.0
+
+# Retry only a failure that came back fast, which is the rate limit this exists for. gunicorn gives
+# the whole request 25s, and a cancel that fails slowly has already spent most of it, so a second
+# attempt would be killed mid-flight after the first one wrote STOPPING.
+_CANCEL_RETRY_BUDGET_SECONDS = 5.0
 
 
 class StopJobUseCase:
@@ -63,9 +66,13 @@ class StopJobUseCase:
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
             elif not self._try_stop_with_retries(transitions, job):
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
-        except RunnerError as ex:
+        except RunnerRetryableError as ex:
             logger.warning("Could not cancel fleet_id=%s: %s", job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
+        except RunnerError as ex:
+            # An unusable Code Engine project, so retrying changes nothing until someone fixes it.
+            logger.error("Cannot cancel fleet_id=%s: %s", job.fleet_id, str(ex))
+            raise EngineUnavailableException("Job could not be stopped. Please contact support.") from ex
         except InvalidJobTransitionException:
             # Lost the race. STOPPING is not terminal, so re-read before naming it.
             job.refresh_from_db(fields=["status"])
@@ -103,22 +110,30 @@ class StopJobUseCase:
                 self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
     def _try_stop_with_retries(self, transitions: JobTransitionService, job: Job) -> bool:
-        """Cancel the fleet, retrying once. Raises on the last attempt.
+        """Cancel the fleet, retrying once. Raises on the second failure.
 
         Every failure is retried, not only the ones Code Engine did not answer: an expired IAM cache
-        clears by itself, and a wrong API key is fixed outside this process. One runner for both
-        attempts, so the IAM token is fetched once.
+        clears by itself, and a wrong API key is fixed outside this process. The same runner serves
+        both attempts, so a Code Engine failure does not pay for a second IAM token.
         """
-        runner = get_runner(job) if job.fleet_id else None
-        for delay in _CANCEL_DELAYS:
-            try:
-                return transitions.try_stop(
-                    job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, runner=runner
-                )
-            except RunnerError as ex:
-                logger.warning("Retrying cancel of fleet_id=%s in %.2fs: %s", job.fleet_id, delay, str(ex))
-                time.sleep(delay)
-        return transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, runner=runner)
+        attempt = partial(
+            transitions.try_stop,
+            job,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            runner=get_runner(job) if job.fleet_id else None,
+        )
+        started = time.monotonic()
+        try:
+            return attempt()
+        except RunnerError as ex:
+            if time.monotonic() - started > _CANCEL_RETRY_BUDGET_SECONDS:
+                logger.warning("Cancel of fleet_id=%s failed slowly, not retrying: %s", job.fleet_id, str(ex))
+                raise
+            logger.warning("Retrying cancel of fleet_id=%s: %s", job.fleet_id, str(ex))
+
+        time.sleep(_CANCEL_DELAY_SECONDS)
+        return attempt()
 
     def _cancel_runtime_job_entry(
         self,
