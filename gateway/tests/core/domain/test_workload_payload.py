@@ -96,6 +96,15 @@ def test_a_job_without_instance_crn_is_rejected():
             build_workload_payload(_simple_job(Job.QUEUED, instance_crn=crn))
 
 
+def test_a_job_whose_program_was_deleted_is_rejected():
+    job = _simple_job(Job.RUNNING)
+    job.program.delete()
+    job.refresh_from_db()
+
+    with pytest.raises(ValueError, match="no program"):
+        build_workload_payload(job)
+
+
 def test_running_at_and_ended_at_are_the_first_running_and_the_first_terminal_event():
     job = _simple_job(Job.FAILED)
     first_running = _add_status_event(job, Job.RUNNING)
