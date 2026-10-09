@@ -1,4 +1,4 @@
-"""Tests for ServiceFunctionalRoleClient and WorkloadSender. requests and the IAM authenticator are mocked."""
+"""Tests for ServiceFunctionalRoleClient. requests and the IAM authenticator are mocked."""
 
 from unittest.mock import MagicMock, patch
 
@@ -8,9 +8,7 @@ from ibm_cloud_sdk_core import ApiException
 
 from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
 from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
-from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
-from core.services.background_executor import BackgroundExecutorNotInitializedError, get_background_executor
 
 PAYLOAD = {
     "function_id": "job-1",
@@ -198,51 +196,3 @@ def test_a_malformed_key_is_a_permanent_error(flag, put, authenticator):
     assert not isinstance(error.value, RuntimeApiRetryableError)
     assert "operator-key" not in str(error.value)
     put.assert_not_called()
-
-
-def test_a_positive_timeout_calls_the_client_synchronously():
-    client = MagicMock()
-
-    WorkloadSender(client).send(PAYLOAD)
-
-    client.put_function.assert_called_once_with(PAYLOAD)
-
-
-def test_timeout_zero_hands_the_call_to_the_background_executor_and_returns():
-    client = MagicMock()
-
-    with patch("core.clients.workload_sender.get_background_executor") as getter:
-        submit = getter.return_value.submit
-        WorkloadSender(client).send(PAYLOAD, timeout=0)
-
-    submit.assert_called_once()
-    client.put_function.assert_not_called()
-
-
-@pytest.mark.parametrize("failure", [RuntimeApiError("down"), KeyError("body")])
-def test_the_submitted_task_swallows_any_client_error(failure):
-    client = MagicMock()
-    client.put_function.side_effect = failure
-
-    with patch("core.clients.workload_sender.get_background_executor") as getter:
-        submit = getter.return_value.submit
-        WorkloadSender(client).send(PAYLOAD, timeout=0)
-    task, *args = submit.call_args.args
-    task(*args)
-
-    client.put_function.assert_called_once_with(PAYLOAD)
-
-
-def test_a_missing_init_is_a_loud_error_even_with_timeout_zero():
-    get_background_executor().shutdown()
-
-    with pytest.raises(BackgroundExecutorNotInitializedError):
-        WorkloadSender(MagicMock()).send(PAYLOAD, timeout=0)
-
-
-def test_a_positive_timeout_lets_the_client_error_raise():
-    client = MagicMock()
-    client.put_function.side_effect = RuntimeApiError("down")
-
-    with pytest.raises(RuntimeApiError):
-        WorkloadSender(client).send(PAYLOAD, timeout=2)

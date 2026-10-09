@@ -5,8 +5,8 @@ exactly what the Runtime API receives. The builder reads the job's events (``run
 them), so it needs the database. Build it right after the status change, inside the same transaction:
 ``JobTransitionService._change_status`` (``core/services/job_transitions.py``) adds the status event before it
 updates the job row, both in one transaction, so both are visible there. The result can then be stored as-is (for
-example in ``Outbox.payload``) and sent later by ``core.clients.workload_sender.WorkloadSender``. A terminal job with
-no terminal event gets ``ended_at=None``.
+example in ``Outbox.payload``) and sent later with ``ServiceFunctionalRoleClient.put_function``
+(``core/clients/service_functional_role_client.py``). A terminal job with no terminal event gets ``ended_at=None``.
 
 The Runtime API replaces the whole row on every call, so ``body`` always carries all ten keys, with ``None`` for the
 ones the job has no value for.

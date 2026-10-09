@@ -475,12 +475,6 @@ RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-ea
 # config key workloads.mirror.timeout_ms.
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 
-# Shared per-process thread pool for background work (core/services/background_executor.py): how many threads it
-# has, and how many tasks may be submitted and unfinished before new ones are dropped. At interpreter exit queued
-# tasks are skipped and only running ones finish (about 2 x workloads.mirror.timeout_ms each).
-BACKGROUND_EXECUTOR_MAX_WORKERS = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_WORKERS", "4"))
-BACKGROUND_EXECUTOR_MAX_PENDING = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_PENDING", "100"))
-
 # IBM Cloud
 
 IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
