@@ -189,6 +189,18 @@ def test_submit_job_raises_a_name_conflict_the_lookup_cannot_resolve(mock_fleets
 
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_submit_job_raises_the_lookup_error_after_a_name_conflict(mock_fleets_api_cls, project_id, base_payload):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.create_fleet.side_effect = _name_conflict()
+    mock_fleets_api.list_fleets.side_effect = ApiException(status=503, reason="Service Unavailable")
+
+    with pytest.raises(ApiException) as exc:
+        handler.submit_job(**base_payload)
+
+    assert exc.value.status == 503
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
 def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, base_payload):
     """submit_job accepts extra_fields built from fleet_utils builder functions."""
     handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)

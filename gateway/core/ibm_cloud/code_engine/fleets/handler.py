@@ -80,7 +80,7 @@ def _is_already_canceled(exc: ApiException) -> bool:
     return _ALREADY_CANCELED_CODE in str(getattr(exc, "body", "") or "")
 
 
-def is_name_conflict(exc: ApiException) -> bool:
+def _is_name_conflict(exc: ApiException) -> bool:
     """Return True if a create was refused because a fleet with that name already exists."""
     return exc.status == 409 and _NAME_CONFLICT_CODE in str(getattr(exc, "body", "") or "")
 
@@ -167,11 +167,16 @@ class FleetHandler:
             created = self._fleets_api.create_fleet(project_id=self.project_id, body=body)
             return created
         except ApiException as exc:
-            if is_name_conflict(exc):
-                fleet_id = self.find_fleet_id(name)
+            if _is_name_conflict(exc):
+                try:
+                    fleet_id = self.find_fleet_id(name)
+                except Exception:
+                    logger.warning("Fleet named %s already exists, but looking up its id failed", name)
+                    raise
                 if fleet_id:
                     logger.info("Fleet [%s] named %s already exists, using it", fleet_id, name)
                     return {"id": fleet_id}
+                logger.error("Fleet named %s already exists, but no fleet with that name was found", name)
             logger.error(
                 "create_fleet failed: project_id=%s status=%s reason=%s",
                 self.project_id,

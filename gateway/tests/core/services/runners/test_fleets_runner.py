@@ -433,14 +433,16 @@ def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
     assert runner.job.fleet_id == "existing-fleet"
 
 
-def test_submit_retries_a_name_conflict_the_lookup_could_not_resolve():
+def test_submit_fails_a_name_conflict_the_lookup_could_not_resolve():
     runner, mock_handler = _make_submit_runner()
     mock_handler.submit_job.side_effect = ApiException(status=409, reason="Conflict")
     mock_handler.submit_job.side_effect.body = '{"errors": [{"code": "fleet_resource_name_conflict"}]}'
 
     with _patch_settings():
-        with pytest.raises(RunnerRetryableError):
+        with pytest.raises(RunnerError) as exc:
             runner.submit()
+
+    assert type(exc.value) is RunnerError
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():

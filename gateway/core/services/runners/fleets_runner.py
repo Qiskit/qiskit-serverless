@@ -36,7 +36,7 @@ from core.services.runners.abstract_runner import (
 )
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
-from core.ibm_cloud.code_engine.fleets.handler import FleetHandler, is_name_conflict
+from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
@@ -254,7 +254,7 @@ class FleetsRunner(AbstractRunner):
             raise
         except ApiException as ex:
             status = ex.status or 0
-            if status in (0, 429) or status >= 500 or is_name_conflict(ex):
+            if status in (0, 429) or status >= 500:
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
