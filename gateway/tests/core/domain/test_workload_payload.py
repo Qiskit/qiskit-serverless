@@ -1,12 +1,10 @@
 """Tests for the workload payload builder. It reads the job's events, so it needs the database."""
 
 import json
-from datetime import datetime
-
 import pytest
 from django.contrib.auth.models import User
 
-from core.domain.workload_payload import _iso, build_workload_payload, map_status
+from core.domain.workload_payload import build_workload_payload, map_status
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Program, Provider
 
@@ -138,8 +136,3 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
     assert {status: map_status(status) for status in expected} == expected
     with pytest.raises(ValueError):
         map_status("EXPLODED")
-
-
-def test_a_naive_datetime_is_rejected():
-    with pytest.raises(ValueError, match="timezone"):
-        _iso(datetime(2026, 10, 8, 10, 5, 0))

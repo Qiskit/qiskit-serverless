@@ -12,10 +12,6 @@ The Runtime API replaces the whole row on every call, so ``body`` always carries
 ones the job has no value for.
 """
 
-from datetime import datetime
-
-from django.utils.timezone import is_naive
-
 from core.models import Job, JobEvent
 
 # Seven job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
@@ -37,16 +33,6 @@ def map_status(job_status: str) -> str:
         return _RUNTIME_API_STATUS[job_status]
     except KeyError as exc:
         raise ValueError(f"No Runtime API status for job status {job_status!r}") from exc
-
-
-def _iso(value: datetime | None) -> str | None:
-    if value is None:
-        return None
-    if is_naive(value):
-        raise ValueError(
-            f"Datetime {value.isoformat()} has no timezone, the Runtime API requires RFC 3339 with an offset"
-        )
-    return value.isoformat()
 
 
 def build_workload_payload(job: Job) -> dict:
@@ -71,8 +57,8 @@ def build_workload_payload(job: Job) -> dict:
             "status": map_status(job.status),
             "compute_profile": job.compute_profile_id,
             "size": job.function_size.function_size.upper() if job.function_size else None,
-            "created_at": _iso(created_at),
-            "running_at": _iso(running_at),
-            "ended_at": _iso(ended_at),
+            "created_at": created_at.isoformat() if created_at else None,
+            "running_at": running_at.isoformat() if running_at else None,
+            "ended_at": ended_at.isoformat() if ended_at else None,
         },
     }

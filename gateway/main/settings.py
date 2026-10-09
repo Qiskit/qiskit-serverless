@@ -471,8 +471,7 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
 # API key of the service credential that holds the functions operator role, used to call the Runtime API as a service
-# (core/clients/functions_operator_client.py). Empty unless the deployment provides it; IamTokenProvider raises when it
-# is built with an empty key.
+# (core/clients/functions_operator_client.py).
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
 
 # IBM Cloud
