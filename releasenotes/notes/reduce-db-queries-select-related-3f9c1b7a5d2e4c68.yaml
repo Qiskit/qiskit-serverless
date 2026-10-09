@@ -1,0 +1,9 @@
+---
+other:
+  - |
+    The gateway now loads related objects in the same database query instead of
+    one query per row. The job list, provider job list, function list and
+    program jobs endpoints, the Fleets and Ray status loops and the fair-share
+    job selection of the scheduler, and the Providers, Job events and Programs
+    pages of the backoffice no longer make extra queries that grow with the
+    number of rows. Responses are unchanged.

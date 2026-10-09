@@ -26,7 +26,7 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str, user: AbstractUser) -> str:
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(job_id)
 

@@ -34,7 +34,7 @@ class SetJobSubStatusUseCase:
             JobNotFoundException: If the job does not exist or access is denied.
             ForbiddenError: If the job is not in RUNNING status.
         """
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(str(job_id))
 

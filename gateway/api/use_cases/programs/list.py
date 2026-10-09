@@ -48,4 +48,4 @@ class ListFunctionsUseCase:
         if provider:
             queryset = queryset.filter(provider__name=provider)
 
-        return list(queryset)
+        return list(queryset.select_related("provider", "default_size").prefetch_related("function_sizes"))

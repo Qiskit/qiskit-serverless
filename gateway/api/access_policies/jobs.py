@@ -48,7 +48,7 @@ class JobAccessPolicies:
         if job is None:
             raise ValueError("job cannot be None")
 
-        if user.id == job.author.id:
+        if user.id == job.author_id:
             return True
 
         has_access = False
@@ -79,7 +79,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "[can_read_result] job_id=%s user_id=%s | no access to read result",
@@ -101,7 +101,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        if user.id == job.author.id:
+        if user.id == job.author_id:
             return True
 
         logger.warning(
@@ -160,7 +160,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "[can_save_result] job_id=%s user_id=%s | no access to save result",
@@ -183,7 +183,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "[can_manage_runtime_jobs] job_id=%s user_id=%s | no access to manage runtime jobs",
@@ -205,7 +205,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "[can_update_sub_status] job_id=%s user_id=%s | no access to update sub_status",
@@ -227,7 +227,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "User [%s] has no access create events for the job [%s].",
@@ -249,7 +249,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        if user.id == job.author.id:
+        if user.id == job.author_id:
             return True
 
         logger.warning(
@@ -302,7 +302,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "[can_stop] job_id=%s user_id=%s | no access to stop job",

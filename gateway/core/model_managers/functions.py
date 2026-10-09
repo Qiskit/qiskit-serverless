@@ -102,7 +102,7 @@ class FunctionsQuerySet(QuerySet):
         """
 
         queryset = self.user_functions(author).filter(title=function_title)
-        return queryset.first()
+        return queryset.select_related("provider", "default_size").first()
 
     def get_function(
         self,
@@ -125,7 +125,7 @@ class FunctionsQuerySet(QuerySet):
         if provider_name:
             queryset = queryset.provider_functions(provider_name)
 
-        return queryset.first()
+        return queryset.select_related("provider", "default_size").first()
 
     def get_function_by_permission(  # pylint: disable=too-many-positional-arguments
         self,
