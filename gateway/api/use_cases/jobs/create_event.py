@@ -54,8 +54,6 @@ class CreateJobEventUseCase:
         if not can_create_events:
             raise JobNotFoundException(str(job_id))
 
-        # so we accept that we might have events before RUNNING
-
         if job.status not in Job.ACTIVE_STATUSES:
             raise InvalidAccessException("You can create events on active jobs only")
 

@@ -9,11 +9,11 @@ from django.conf import settings
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
+from core.services.runners import get_runner, RunnerError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller
+from scheduler.schedule import FleetsJobCanceller, log_cancel_failure
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -21,13 +21,6 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 
 # A cancel reaches the task store in about 30s, or about 150s if the task had not started.
 _STOPPING_DEADLINE_SECONDS = 300
-
-# Jobs whose cancel Code Engine refused. The timeout check runs once a second for as long as the job
-# is active, so without this one misconfigured project logs an error per job per second. The
-# scheduler is a single long-lived process, and a restart asks again. Bounded for the same reason as
-# FleetsRunner._UNRESOLVED_WARNED.
-_REFUSED_CANCEL_WARNED: set[str] = set()
-_REFUSED_CANCEL_LIMIT = 10_000
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -190,16 +183,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
 
         if self.canceller.paused(job.ce_region):
-            # the region's breaker decides when to try again
             return False
 
-        logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
+        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author.id, timeout)
         try:
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerError as ex:
-            # Nothing is written: STOPPED here would claim a stop that never happened and strand
-            # the fleet. The job is picked up again on a later tick.
-            self._warn_cancel_failed(job, ex)
+            # Nothing is written: STOPPED here would claim a stop that never happened.
+            log_cancel_failure(logger, job, ex)
             return False
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
@@ -209,34 +200,10 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.to_terminal(job, Job.STOPPED)
         return True
 
-    @staticmethod
-    def _warn_cancel_failed(job: Job, ex: RunnerError) -> None:
-        """Report a cancel that did not land on the timeout.
-
-        One Code Engine did not answer is a warning every tick, because the next tick usually gets
-        through. One it refused is an error logged once per job, because it repeats for as long as
-        the job lives.
-        """
-        if isinstance(ex, RunnerRetryableError):
-            logger.warning("job_id=%s cancel not delivered on timeout: %s", job.id, str(ex))
-            return
-
-        message = "job_id=%s fleet_id=%s cancel refused on timeout, the job stays active: %s"
-        args = (job.id, job.fleet_id, str(ex))
-        if str(job.id) in _REFUSED_CANCEL_WARNED:
-            logger.debug(message, *args)
-            return
-        if len(_REFUSED_CANCEL_WARNED) >= _REFUSED_CANCEL_LIMIT:
-            _REFUSED_CANCEL_WARNED.clear()
-        _REFUSED_CANCEL_WARNED.add(str(job.id))
-        logger.error(message, *args)
-
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
         """Increment terminal jobs counter. `requested` means something asked this job to stop."""
         if job.filler:
-            # A filler runs continuously, so it never counts as user demand. Its own two counters
-            # split the only distinction that matters: something asked it to stop, or it exited by
-            # itself.
+            # A filler never counts as user demand, so it has its own two counters.
             if requested:
                 self.metrics.increment_filler_jobs_stopped()
             else:

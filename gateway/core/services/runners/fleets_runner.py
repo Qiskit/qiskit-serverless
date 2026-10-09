@@ -65,11 +65,6 @@ _WARNED_FLEETS_LIMIT = 10_000
 _FLEET_NAME_SEGMENT_MAX = 12
 
 
-def _is_retryable_ce_status(status: int) -> bool:
-    """A Code Engine status a later try can get past: no answer at all, rate limited, or a server error."""
-    return status in (0, 429) or status >= 500
-
-
 def _fleet_name_segment(value: str) -> str:
     """Reduce *value* to what a Code Engine fleet name accepts.
 
@@ -177,7 +172,7 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"COS error: {code}", ex) from ex
         except ApiException as ex:
             status = ex.status or 0
-            if _is_retryable_ce_status(status):
+            if status in (0, 429) or status >= 500:
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error(
                 "CE API error before submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason
@@ -259,7 +254,7 @@ class FleetsRunner(AbstractRunner):
             raise
         except ApiException as ex:
             status = ex.status or 0
-            if _is_retryable_ce_status(status):
+            if status in (0, 429) or status >= 500:
                 raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
             logger.error("CE API error submitting job_id=[%s]: status=%s reason=%s", self.job.id, status, ex.reason)
             raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
@@ -456,26 +451,33 @@ class FleetsRunner(AbstractRunner):
 
         Returns:
             ``True`` if a cancel is in flight, so a terminal task state is still to come. ``False``
-            when nothing will ever report one, either because the fleet is gone or because its project
-            cannot be resolved. ``True`` does not say the job was running: Code Engine also accepts a
-            cancel for a fleet that has finished.
+            when nothing will ever report one, because the fleet is gone or its program is deleted.
+            ``True`` does not say the job was running: Code Engine also accepts a cancel for a fleet
+            that has finished.
 
         Raises:
-            RunnerRetryableError: If Code Engine did not answer, so a later try can work.
-            RunnerError: If Code Engine refused the cancel.
+            RunnerRetryableError: For every Code Engine and IAM failure, and for a project an
+                operator can put back. A later try can get past all of them.
+            RunnerError: Only when the cancel never left this process.
         """
         if not self.job.fleet_id:
             raise RunnerError("Job has no fleet_id assigned")
 
-        try:
-            self._project = self._get_project()
-        except RunnerError as ex:
-            # Resolved before connecting, so this answers False rather than a transient failure.
-            logger.warning("Cannot cancel fleet [%s]: %s", self.job.fleet_id, str(ex))
+        if not self.job.program:
+            # Nothing will ever cancel this fleet or confirm it stopped, so the caller must end the row.
+            logger.warning("Cannot cancel fleet [%s]: its program has been deleted", self.job.fleet_id)
             return False
 
-        self._ensure_connected()
-        handler = self._get_handler()
+        # An unassigned or inactive project is something an operator puts back, so this is raised
+        # rather than answered False: a terminal status would strand a fleet still holding its node.
+        self._project = self._get_project()
+
+        try:
+            self._ensure_connected()
+            handler = self._get_handler()
+        except RunnerError as ex:
+            # connect() and _get_handler() flatten every IAM and client failure into RunnerError.
+            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
 
         try:
             cancelled = handler.cancel_job(self.job.fleet_id, wait=False, delete=False)
@@ -484,17 +486,13 @@ class FleetsRunner(AbstractRunner):
             return cancelled
 
         except ApiException as ex:
-            status = ex.status or 0
-            # Safe to send again, unlike a submit: a cancel already in flight answers 409.
-            if _is_retryable_ce_status(status):
-                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
-            logger.error("CE API error stopping fleet [%s]: status=%s reason=%s", self.job.fleet_id, status, ex.reason)
-            raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
-        except MaxRetryError as ex:
-            if isinstance(ex.reason, NameResolutionError):
-                raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
-            raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
-        except (ReadTimeoutError, ProtocolError) as ex:
+            # Every answer is worth asking again, a 400 or a 403 included: the request, the IAM cache
+            # or the API key behind them is something that gets fixed, and sending the same cancel
+            # twice is safe because one already in flight answers 409. A submit cannot say that, so
+            # it keeps a permanent class and fails the job instead.
+            raise RunnerRetryableError(f"Code Engine API error {ex.status}: {ex.reason}", ex) from ex
+        except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
+            # A bad region in the CE project reaches here too, and an operator fixes that as well.
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except Exception as ex:
             logger.error("Failed to stop fleet [%s]: %s", self.job.fleet_id, ex)
@@ -543,13 +541,11 @@ class FleetsRunner(AbstractRunner):
         return project
 
     def _get_handler(self) -> FleetHandler:
-        """Return the :class:`FleetHandler`, creating it lazily on first use.
+        """Return the :class:`FleetHandler`, creating it lazily and caching it on this runner.
 
-        Token refresh is handled transparently: ``FleetHandler`` sets a
-        ``refresh_api_key_hook`` on the swagger ``Configuration`` so the
-        IAM bearer token is fetched fresh before every API request via
-        ``IBMCloudClientProvider.auth.token`` (which calls
-        ``IAMAuthenticator.token_manager.get_token()`` and auto-renews).
+        The token is read once, when the client is built, and nothing refreshes it: the swagger
+        ``Configuration.refresh_api_key_hook`` is never set. A runner lives for one request or one
+        scheduler tick, so reuse it to pay the IAM fetch once rather than once per call.
 
         Returns:
             Initialized :class:`FleetHandler`.

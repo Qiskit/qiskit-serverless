@@ -17,7 +17,7 @@ from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter
+from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter, log_cancel_failure
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -325,7 +325,6 @@ class BalanceFillerJobs(SchedulerTask):
     def _stop_one_filler_job(self, job: Job) -> None:
         """Cancel the fleet and write STOPPING, or STOPPED when there was nothing to cancel."""
         if self.canceller.paused(job.ce_region):
-            # the region's breaker decides when to try again
             return
         try:
             if self.canceller.cancel(job, context=JobEventContext.FILLER_STOP):
@@ -333,13 +332,9 @@ class BalanceFillerJobs(SchedulerTask):
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
             self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
-        except RunnerRetryableError as ex:
-            # Nothing is written, so the next cycle asks again.
-            logger.warning("[BalanceFillerJobs] job_id=%s filler job cancel not delivered: %s", job.id, str(ex))
-            return
         except RunnerError as ex:
             # Left active: a status change here would claim a cancel that never left.
-            logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
+            log_cancel_failure(logger, job, ex, prefix="[BalanceFillerJobs] ")
             return
         except InvalidJobTransitionException:
             logger.info("job_id=%s transition rejected, skipping the stop", job.id)

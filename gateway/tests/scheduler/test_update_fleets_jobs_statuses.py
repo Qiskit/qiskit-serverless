@@ -40,8 +40,7 @@ def _make_transitions():
 
 
 def _make_canceller(transitions):
-    """A canceller with a closed breaker that calls straight through to try_stop. The breaker itself
-    is covered by TestFleetsJobCanceller in tests/scheduler/test_schedule.py."""
+    """A canceller with a closed breaker that calls straight through to try_stop."""
     canceller = MagicMock()
     canceller.paused.return_value = False
     canceller.cancel.side_effect = lambda job, *, context: transitions.try_stop(
@@ -417,8 +416,12 @@ class TestStopJobIfTimeout:
 
     @pytest.mark.parametrize(
         "error",
-        [RunnerRetryableError("Too Many Requests"), RunnerError("Forbidden")],
-        ids=["undeliverable", "refused"],
+        [
+            RunnerRetryableError("Too Many Requests"),
+            RunnerError("Forbidden"),
+            InvalidJobTransitionException("invalid transition STOPPED -> STOPPING"),
+        ],
+        ids=["undeliverable", "refused", "lost-the-race"],
     )
     def test_a_cancel_that_did_not_land_leaves_the_job_alone(self, error):
         """Writing STOPPED on a cancel that never landed would claim a stop that never happened and

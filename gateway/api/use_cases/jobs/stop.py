@@ -9,7 +9,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 from core.models import Job, Program, RuntimeJob
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerRetryableError
+from core.services.runners import get_runner, RunnerError
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
@@ -18,8 +18,8 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 logger = logging.getLogger("api.StopJobUseCase")
 
 # One retry. The API has its own worker, so unlike the scheduler it can wait for a rate limit to
-# clear, but gunicorn gives the whole request 25s: a cancel costs up to 8s (handler's connect+read),
-# so two attempts and a 1s wait is 17s, and a third would not fit.
+# clear, and gunicorn gives the whole request 25s. One runner serves both attempts, so the worst
+# case is the IAM fetch once plus one cancel per attempt. test_stop.py pins the arithmetic.
 _CANCEL_DELAYS = (1.0,)
 
 
@@ -45,8 +45,10 @@ class StopJobUseCase:
         self.stopped_sessions = []
 
         if job.status == Job.STOPPING:
-            # Already stopping: no second cancel to send.
+            # No second cancel to send, but the runtime jobs may still be running: a stop the
+            # scheduler started cancels the fleet and nothing else.
             self.status_messages.append("Job is already stopping.")
+            self._cancel_runtime_jobs(job, service_str)
             return " ".join(self.status_messages)
 
         if job.in_terminal_state():
@@ -74,6 +76,15 @@ class StopJobUseCase:
         # A successful transition leaves the new status on the instance, so the row names itself.
         self.status_messages.append("Job is stopping." if job.status == Job.STOPPING else "Job has been stopped.")
 
+        self._cancel_runtime_jobs(job, service_str)
+
+        if job.runner == Program.RAY:
+            self._stop_ray_job_if_active(job)
+
+        return " ".join(self.status_messages)
+
+    def _cancel_runtime_jobs(self, job: Job, service_str: str) -> None:
+        """Cancel the Qiskit Runtime jobs this job started, if the caller sent a service."""
         # Unit tests send a None directly, but the client sends a serialized None
         service = None
         if service_str:
@@ -91,20 +102,23 @@ class StopJobUseCase:
             for runtime_job_entry in runtime_jobs:
                 self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
-        if job.runner == Program.RAY:
-            self._stop_ray_job_if_active(job)
-
-        return " ".join(self.status_messages)
-
     def _try_stop_with_retries(self, transitions: JobTransitionService, job: Job) -> bool:
-        """Cancel the fleet, retrying while Code Engine does not answer. Raises on the last attempt."""
+        """Cancel the fleet, retrying once. Raises on the last attempt.
+
+        Every failure is retried, not only the ones Code Engine did not answer: an expired IAM cache
+        clears by itself, and a wrong API key is fixed outside this process. One runner for both
+        attempts, so the IAM token is fetched once.
+        """
+        runner = get_runner(job) if job.fleet_id else None
         for delay in _CANCEL_DELAYS:
             try:
-                return transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
-            except RunnerRetryableError as ex:
+                return transitions.try_stop(
+                    job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, runner=runner
+                )
+            except RunnerError as ex:
                 logger.warning("Retrying cancel of fleet_id=%s in %.2fs: %s", job.fleet_id, delay, str(ex))
                 time.sleep(delay)
-        return transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        return transitions.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB, runner=runner)
 
     def _cancel_runtime_job_entry(
         self,
@@ -155,8 +169,5 @@ class StopJobUseCase:
                 else:
                     self.status_messages.append("Serverless job was already stopping or no longer running.")
             except RunnerError:
-                if job.compute_resource:
-                    logger.warning("Serverless job was not accessible from: %s", job.compute_resource)
-                else:
-                    logger.warning("Serverless job was not accessible: fleet_id=%s", job.fleet_id)
+                logger.warning("job_id=%s Serverless job was not accessible from: %s", job.id, job.compute_resource)
                 self.status_messages.append("Serverless job was not accessible.")

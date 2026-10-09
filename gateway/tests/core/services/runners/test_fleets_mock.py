@@ -45,17 +45,15 @@ def _load_fleets_mock():
 def test_mock_cancel_job_reports_the_cancel_as_delivered():
     """The mock's cancel must return True, matching the real ``cancel_job``.
 
-    Nothing else in the suite catches this. ``install_mocks()`` replaces ``cancel_job`` wholesale,
-    both scheduler callers ignore what ``stop()`` returns, and the stop endpoint writes ``STOPPED``
-    before it calls the runner. So a falsy return would surface only as the local stack telling a
-    user their job was "already stopping or no longer running" after a cancel that worked.
+    Nothing else in the suite catches this: ``install_mocks()`` replaces ``cancel_job`` wholesale,
+    and every caller reads ``False`` as "the fleet is gone", so a falsy return would write STOPPED
+    on the local stack for a cancel that worked.
     """
     fleets_mock = _load_fleets_mock()
 
     handler = MagicMock()
     handler.project_id = "test-project-id"
     s3 = MagicMock()
-    s3.head_object.side_effect = Exception("NoSuchKey")
 
     with (
         patch.object(fleets_mock, "_get_mock_s3", return_value=s3),

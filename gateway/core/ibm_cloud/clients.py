@@ -117,6 +117,10 @@ class AuthState:
         return self.authenticator.token_manager.get_token()
 
 
+# (connect, read) seconds for an IAM token fetch.
+IAM_HTTP_TIMEOUT = (3, 5)
+
+
 @dataclass
 class ClientCache:
     """Per-credential COS client cache."""
@@ -165,6 +169,9 @@ class IBMCloudClientProvider:
         )
 
         authenticator = IAMAuthenticator(api_key, url=self.config.iam_url)
+        # The SDK defaults to 60s, which a single-threaded scheduler tick and a 25s gunicorn request
+        # both outlive. Every Code Engine and COS client is built through here.
+        authenticator.token_manager.http_config = {"timeout": IAM_HTTP_TIMEOUT}
 
         # Fetch a token once at init time to validate credentials and extract
         # iam_id / account_id from the JWT payload. Subsequent accesses to

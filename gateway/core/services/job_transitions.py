@@ -20,7 +20,7 @@ from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
-from core.services.runners import get_runner
+from core.services.runners import get_runner, AbstractRunner
 
 logger = logging.getLogger("core.JobTransitionService")
 
@@ -91,12 +91,23 @@ class JobTransitionService:
         best effort in-progress event is sent."""
         self._send_job_in_progress(job, job_started=False)
 
-    def try_stop(self, job: Job, *, origin: JobEventOrigin, context: JobEventContext) -> bool:
+    def try_stop(
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        runner: AbstractRunner | None = None,
+    ) -> bool:
         """Cancel the fleet and record STOPPING. Fleets only, and the cancel runs before the transaction.
 
+        Args:
+            runner: Reuse this runner instead of building one. A caller that retries passes the same
+                runner every time, so the IAM token is fetched once instead of once per attempt.
+
         Returns:
-            ``True`` when STOPPING was written, ``False`` when there was nothing to cancel and the
-            caller owes a terminal status.
+            ``True`` when STOPPING was written, ``False`` when the fleet is gone and the caller owes
+            a terminal status.
 
         Raises:
             ValueError: If the job is not a Fleets job.
@@ -107,7 +118,7 @@ class JobTransitionService:
             raise ValueError(f"Job {job.id}: try_stop is for Fleets jobs, got runner={job.runner}")
         if not job.fleet_id:
             return False
-        if not get_runner(job).stop():
+        if not (runner or get_runner(job)).stop():
             return False
         with transaction.atomic():
             self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)

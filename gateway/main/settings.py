@@ -585,12 +585,13 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "5",
         "type": "integer",
         "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
-        "timeouts) before the scheduler stops calling Code Engine in that region.",
+        "timeouts) before the scheduler stops submitting and cancelling Fleets jobs in that region.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the scheduler stops calling Code Engine in a region once its breaker trips.",
+        "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
+        "breaker trips.",
     },
 }
 

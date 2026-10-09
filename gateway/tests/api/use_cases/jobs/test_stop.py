@@ -6,12 +6,15 @@ import pytest
 from django.contrib.auth.models import User
 
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
-from api.use_cases.jobs.stop import StopJobUseCase
+from api.use_cases.jobs.stop import StopJobUseCase, _CANCEL_DELAYS
+from core.ibm_cloud.clients import IAM_HTTP_TIMEOUT
+from core.ibm_cloud.code_engine.fleets.handler import _CANCEL_TIMEOUT_SECONDS
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventOrigin
 from core.models import Job, JobEvent, Program
 
-_RUNNER = "core.services.job_transitions.get_runner"
+# the use case builds the runner and hands it to try_stop, so one runner serves both attempts
+_RUNNER = "api.use_cases.jobs.stop.get_runner"
 
 pytestmark = pytest.mark.django_db
 
@@ -19,6 +22,16 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture()
 def author():
     return User.objects.create_user(username="stop-use-case-author")
+
+
+def test_the_cancel_retry_fits_the_gunicorn_request_timeout():
+    """A request gets 25s (charts/.../gateway/values.yaml). One runner serves every attempt, so the
+    IAM token is fetched once. urllib3 retries a failed connect 4 times and does not retry a read on
+    a POST, so a cancel costs 4x connect, not connect+read."""
+    attempts = len(_CANCEL_DELAYS) + 1
+    worst_cancel = max(4 * _CANCEL_TIMEOUT_SECONDS[0], sum(_CANCEL_TIMEOUT_SECONDS))
+
+    assert sum(IAM_HTTP_TIMEOUT) + worst_cancel * attempts + sum(_CANCEL_DELAYS) < 25
 
 
 class TestStopJobUseCase:
@@ -69,18 +82,14 @@ class TestStopFleetsJob:
         runner = Mock()
         runner.stop.return_value = True
 
-        with (
-            patch(_RUNNER, return_value=runner) as mock_get_runner,
-            patch("api.use_cases.jobs.stop.get_runner") as mock_ray_runner,
-        ):
+        with patch(_RUNNER, return_value=runner) as mock_get_runner:
             message = StopJobUseCase().execute(job.id, None, author)
 
         assert "Job is stopping." in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
         mock_get_runner.assert_called_once_with(job)
+        # Once, not twice: the Ray cleanup must not send a second cancel for a Fleets job.
         runner.stop.assert_called_once_with()
-        # The Ray cleanup must not run for Fleets, or an accepted cancel is sent to Code Engine twice.
-        mock_ray_runner.assert_not_called()
 
     def test_a_fleet_that_is_gone_goes_straight_to_stopped(self, author):
         """Nothing will ever confirm a stop once Code Engine says the fleet is gone, so do not wait."""
@@ -118,8 +127,7 @@ class TestStopFleetsJob:
         assert JobEvent.objects.filter(job=job).count() == 0
 
     def test_a_cancel_code_engine_did_not_answer_is_retried_inside_the_request(self, author):
-        """The API has its own gunicorn worker, so it can wait for a rate limit to clear. The
-        scheduler cannot, which is why it gets one try instead."""
+        """The API has its own gunicorn worker, so it can wait for a rate limit to clear."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
         runner = Mock()
         runner.stop.side_effect = [RunnerRetryableError("Too Many Requests"), True]
@@ -136,7 +144,7 @@ class TestStopFleetsJob:
         mock_sleep.assert_called_once_with(1.0)
 
     def test_a_cancel_that_never_gets_through_fails_the_request(self, author):
-        """Two attempts, then 503, so the request cannot outlive the 25s gunicorn timeout."""
+        """Two attempts, then 503."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
         runner = Mock()
         runner.stop.side_effect = RunnerRetryableError("Too Many Requests")
@@ -152,21 +160,23 @@ class TestStopFleetsJob:
         assert runner.stop.call_count == 2
         assert JobEvent.objects.filter(job=job).count() == 0
 
-    def test_a_refused_cancel_is_not_retried(self, author):
-        """A request Code Engine refused will be refused again, so the user is answered at once."""
+    def test_a_refused_cancel_is_retried_too(self, author):
+        """A 403 is often an expired IAM cache, and a wrong API key gets replaced outside this
+        process, so the request tries again rather than answering on the first refusal."""
         job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
         runner = Mock()
-        runner.stop.side_effect = RunnerError("Forbidden")
+        runner.stop.side_effect = [RunnerError("Forbidden"), True]
 
         with (
-            patch(_RUNNER, return_value=runner),
-            patch("api.use_cases.jobs.stop.time.sleep") as mock_sleep,
+            patch(_RUNNER, return_value=runner) as mock_get_runner,
+            patch("api.use_cases.jobs.stop.time.sleep"),
         ):
-            with pytest.raises(EngineUnavailableException):
-                StopJobUseCase().execute(job.id, None, author)
+            message = StopJobUseCase().execute(job.id, None, author)
 
-        assert runner.stop.call_count == 1
-        mock_sleep.assert_not_called()
+        assert "Job is stopping." in message
+        assert runner.stop.call_count == 2
+        # One runner for both attempts, so the IAM token is fetched once
+        mock_get_runner.assert_called_once_with(job)
 
     def test_a_second_stop_sends_no_cancel_and_writes_no_event(self, author):
         """Already stopping: no cancel is sent and no event is written."""
@@ -178,6 +188,19 @@ class TestStopFleetsJob:
         assert "Job is already stopping." in message
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
         assert JobEvent.objects.filter(job=job).count() == 0
+        mock_get_runner.assert_not_called()
+
+    def test_a_second_stop_still_cancels_the_runtime_jobs(self, author):
+        """A stop the scheduler started cancels the fleet and nothing else, so a user's stop on a
+        STOPPING row is the only thing that reaches their runtime jobs."""
+        job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")
+
+        with patch(_RUNNER) as mock_get_runner:
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job is already stopping." in message
+        # only _cancel_runtime_jobs says this, so it is what proves the path was taken
+        assert "QiskitRuntimeService not found, cannot stop runtime jobs." in message
         mock_get_runner.assert_not_called()
 
     def test_a_concurrent_stop_reports_stopping_not_terminal(self, author):

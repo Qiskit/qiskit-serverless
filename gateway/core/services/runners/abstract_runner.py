@@ -134,7 +134,7 @@ class AbstractRunner(ABC):
         Automatically connects if not connected.
 
         Returns:
-            True if a stop is in flight, False when nothing will ever confirm one.
+            True if a stop is in flight, False when the job is already gone.
 
         Raises:
             RunnerError: If unable to stop the job

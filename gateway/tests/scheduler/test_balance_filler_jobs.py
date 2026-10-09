@@ -570,16 +570,7 @@ def _stuck_filler_job(filler_program, *, fleet_id):
 
 def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
     """A failed cancel leaves the job active so the next loop retries it."""
-    job = TestUtils.create_job(
-        author=_AUTHOR,
-        program=filler_program,
-        status=Job.RUNNING,
-        runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
-        filler=True,
-        fleet_id="fleet-stuck",
-    )
-    Config.set(ConfigKey.FILLER_SLOTS, "0")
+    job = _stuck_filler_job(filler_program, fleet_id="fleet-stuck")
     task = _make_task()
 
     with (
@@ -629,6 +620,28 @@ def test_a_paused_region_sends_no_filler_cancel(filler_program):
     assert job.status == Job.RUNNING
     runner.return_value.stop.assert_not_called()
     task.canceller.cancel.assert_not_called()
+
+
+def test_a_draining_filler_job_gets_no_second_cancel(filler_program):
+    """The drain and stale paths pass unfiltered lists, so without the STOPPING guard a filler that
+    is already draining is cancelled again every tick and the 409 is swallowed."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.STOPPING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-draining",
+    )
+    Config.set(ConfigKey.FILLER_ENABLED, "false")
+    task = _make_task()
+
+    _, _, runner = _run(task, times=4)
+
+    job.refresh_from_db()
+    assert job.status == Job.STOPPING
+    runner.return_value.stop.assert_not_called()
 
 
 def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_program):

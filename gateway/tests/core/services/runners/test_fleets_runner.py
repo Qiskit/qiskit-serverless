@@ -337,26 +337,38 @@ class TestCosStatusDetection:
         assert runner.status() is None
 
 
+def test_stop_returns_false_when_the_program_is_deleted():
+    """Nothing can cancel this fleet or confirm it stopped, so the caller must end the row."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner.job.program = None
+
+    assert runner.stop() is False
+    mock_handler.cancel_job.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "break_it",
     [
-        lambda job: setattr(job, "program", None),
         lambda job: setattr(job.program, "code_engine_project", None),
         lambda job: setattr(job.program.code_engine_project, "active", False),
     ],
-    ids=["program-deleted", "no-project", "project-inactive"],
+    ids=["no-project", "project-inactive"],
 )
-def test_stop_returns_false_when_the_project_cannot_be_resolved(break_it):
-    """No cancel can be sent for a fleet whose project is unknown, and status() cannot confirm one
-    either, so the caller must write a terminal status instead of retrying for ever.
+def test_stop_raises_when_the_project_can_be_put_back(break_it):
+    """An operator can assign or re-activate the project, so this must not become a terminal status:
+    that would strand a fleet still holding its node. Not retryable either, or one deactivated
+    project would open its whole region's breaker and pause everyone else's submits.
 
-    Goes through the real stop() on purpose. Injecting the error into a mocked runner hides whether
-    stop() reports it as unrecoverable, which is the thing every caller branches on.
+    Goes through the real stop() on purpose. Injecting the error into a mocked runner hides which
+    type it reports, which is the thing every caller branches on.
     """
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     break_it(runner.job)
 
-    assert runner.stop() is False
+    with pytest.raises(RunnerError) as exc:
+        runner.stop()
+
+    assert type(exc.value) is RunnerError
     mock_handler.cancel_job.assert_not_called()
 
 
@@ -389,42 +401,46 @@ def test_stop_returns_false_when_there_was_nothing_to_cancel():
 
 
 @pytest.mark.parametrize(
-    "error, expected",
+    "error",
     [
-        (ApiException(status=429, reason="Too Many Requests"), RunnerRetryableError),
-        (ApiException(status=503, reason="Service Unavailable"), RunnerRetryableError),
-        (ApiException(status=502, reason="Bad Gateway"), RunnerRetryableError),
-        (ApiException(status=0, reason="no answer"), RunnerRetryableError),
-        (ApiException(status=403, reason="Forbidden"), RunnerError),
-        (ApiException(status=400, reason="Bad Request"), RunnerError),
-        (MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")), RunnerRetryableError),
-        (MaxRetryError(None, "/", reason=ProtocolError()), RunnerRetryableError),
-        (ReadTimeoutError(endpoint_url="/"), RunnerRetryableError),
+        ApiException(status=429, reason="Too Many Requests"),
+        ApiException(status=503, reason="Service Unavailable"),
+        ApiException(status=0, reason="no answer"),
+        ApiException(status=403, reason="Forbidden"),
+        ApiException(status=400, reason="Bad Request"),
+        MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")),
+        MaxRetryError(None, "/", reason=NameResolutionError("api.wrong.example.com", None, "not found")),
+        MaxRetryError(None, "/", reason=ProtocolError()),
+        ReadTimeoutError(endpoint_url="/"),
     ],
+    ids=["429", "503", "no-answer", "403", "400", "refused", "bad-dns", "protocol", "read-timeout"],
 )
-def test_stop_tells_a_cancel_to_try_again_from_one_code_engine_refused(error, expected):
-    """0, 502 and 504 are safe to retry for a cancel, unlike for a submit: a cancel already in
-    flight answers 409, so the same cancel cannot do anything twice."""
+def test_stop_asks_again_for_every_cancel_that_did_not_land(error):
+    """A 400, a 403 and a bad region are all something that gets fixed, and sending the same cancel
+    twice is safe because one already in flight answers 409. A submit cannot say that, which is why
+    it keeps a permanent class and fails the job instead."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     mock_handler.cancel_job.side_effect = error
 
     with pytest.raises(RunnerError) as exc:
         runner.stop()
 
-    assert type(exc.value) is expected
+    assert type(exc.value) is RunnerRetryableError
 
 
-def test_stop_refuses_a_cancel_whose_code_engine_host_does_not_resolve():
-    """A region that does not resolve is a wrong CE project, not an outage, so a later try cannot fix it."""
+def test_stop_retries_a_cancel_that_could_not_reach_code_engine():
+    """connect() and _get_handler() flatten every IAM failure into RunnerError, which would
+    otherwise reach the scheduler as "Code Engine refused it" and never open the breaker."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.cancel_job.side_effect = MaxRetryError(
-        None, "/", reason=NameResolutionError("api.wrong.codeengine.cloud.ibm.com", None, "not found")
-    )
+    runner._connected = False  # pylint: disable=protected-access
+    runner._handler = None  # pylint: disable=protected-access
 
-    with pytest.raises(RunnerError) as exc:
-        runner.stop()
+    with patch(f"{_RUNNER_MOD}.get_ce_auth", side_effect=RunnerError("IAM is down")):
+        with pytest.raises(RunnerError) as exc:
+            runner.stop()
 
-    assert type(exc.value) is RunnerError
+    assert type(exc.value) is RunnerRetryableError
+    mock_handler.cancel_job.assert_not_called()
 
 
 def test_submit_sets_fleet_id_with_cos():

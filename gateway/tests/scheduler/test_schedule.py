@@ -1,5 +1,6 @@
 """Tests scheduling."""
 
+import logging
 import uuid
 from collections import deque
 from unittest.mock import MagicMock, patch
@@ -24,7 +25,9 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import (
+    _REFUSED_CANCEL_WARNED,
     CodeEngineBreakers,
+    log_cancel_failure,
     FleetsJobCanceller,
     FleetsJobSubmitter,
     get_jobs_to_schedule_fair_share,
@@ -453,6 +456,44 @@ def test_fleets_submit_defaults_to_the_schedule_jobs_context():
         FleetsJobSubmitter(transitions).submit(mock_job, None)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
+
+
+class TestLogCancelFailure:
+    """One cancel failure per tick for as long as the job is active, so the volume is the point."""
+
+    _LOG = logging.getLogger("scheduler.schedule")
+
+    @pytest.fixture(autouse=True)
+    def _clear_warned(self):
+        _REFUSED_CANCEL_WARNED.clear()
+        yield
+        _REFUSED_CANCEL_WARNED.clear()
+
+    def test_a_cancel_the_region_did_not_answer_warns_every_tick(self, caplog):
+        job = MagicMock(id="job-undeliverable", fleet_id="fleet-1")
+
+        with caplog.at_level(logging.DEBUG, logger="scheduler.schedule"):
+            for _ in range(3):
+                log_cancel_failure(self._LOG, job, RunnerRetryableError("Too Many Requests"))
+
+        assert [r.levelno for r in caplog.records] == [logging.WARNING] * 3
+
+    def test_a_refused_cancel_is_reported_once_and_names_the_fleet(self, caplog):
+        job = MagicMock(id="job-refused", fleet_id="fleet-2")
+
+        with caplog.at_level(logging.DEBUG, logger="scheduler.schedule"):
+            for _ in range(3):
+                log_cancel_failure(self._LOG, job, RunnerError("Forbidden"))
+
+        assert [r.levelno for r in caplog.records] == [logging.ERROR, logging.DEBUG, logging.DEBUG]
+        assert "fleet-2" in caplog.records[0].getMessage()
+
+    def test_the_warned_set_is_bounded(self):
+        with patch("scheduler.schedule._REFUSED_CANCEL_LIMIT", 2):
+            for index in range(3):
+                log_cancel_failure(self._LOG, MagicMock(id=f"job-{index}", fleet_id="f"), RunnerError("Forbidden"))
+
+        assert len(_REFUSED_CANCEL_WARNED) == 1
 
 
 @pytest.mark.django_db
