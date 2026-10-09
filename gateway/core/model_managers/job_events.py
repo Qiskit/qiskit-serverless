@@ -100,6 +100,19 @@ class JobEventQuerySet(QuerySet):
         )
         return event.created if event else None
 
+    def first_terminal_at(self, job_id: uuid.UUID):
+        """When this job first reached a terminal status, from its own event history.
+        Returns None if it never did.
+        """
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        event = (
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status__in=Job.TERMINAL_STATUSES)
+            .order_by("created")
+            .first()
+        )
+        return event.created if event else None
+
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,
         job_id: uuid.UUID,
