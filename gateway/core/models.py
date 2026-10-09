@@ -650,6 +650,11 @@ class Job(models.Model):
         blank=True,
         help_text="When the fleet delete was accepted",
     )
+    finished_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the job reached a terminal status. Unlike updated, a later write never moves it",
+    )
     result = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
@@ -748,7 +753,7 @@ class Job(models.Model):
             models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
             # Backs the retention scan in FreeFleetsResources.
             models.Index(
-                fields=["updated"],
+                fields=["finished_at"],
                 condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False),
                 name="job_fleet_undeleted_idx",
             ),

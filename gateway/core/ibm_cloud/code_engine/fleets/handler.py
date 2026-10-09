@@ -454,12 +454,16 @@ class FleetHandler:
 
         return cancel_sent
 
-    def delete_job(self, identifier: str) -> None:
+    def delete_job(self, identifier: str) -> bool:
         """
         Delete a fleet ("job") by name or UUID without attempting a cancel.
 
         Args:
             identifier: Fleet UUID or fleet name.
+
+        Returns:
+            ``True`` when this project held the fleet, ``False`` on a 404. A 404 means it is gone, or
+            that it never lived in this project, and the two are not distinguishable here.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved.
@@ -469,10 +473,12 @@ class FleetHandler:
         fleet_id = self._resolve_fleet_id(identifier)
         try:
             self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
+            return True
         except ApiException as exc:
             if exc.status != 404:
                 raise
             logger.info("Fleet [%s] is already gone", fleet_id)
+            return False
 
     def _wait_until_state(
         self,

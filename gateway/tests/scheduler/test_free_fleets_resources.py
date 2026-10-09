@@ -13,7 +13,7 @@ from core.services.runners import RunnerRetryableError
 from scheduler.tasks.free_fleets_resources import (
     FreeFleetsResources,
     MAX_ATTEMPTS_PER_FLEET,
-    MAX_DELETES_PER_CYCLE,
+    DEFAULT_MAX_DELETES_PER_CYCLE,
 )
 from tests.utils import TestUtils
 
@@ -49,7 +49,7 @@ def fleets_program():
 
 
 def _terminal_job(program, *, age_hours, fleet_id="fleet-1", **kwargs):
-    """A terminal Fleets job whose last write was `age_hours` ago."""
+    """A terminal Fleets job that finished `age_hours` ago."""
     kwargs.setdefault("ce_project_name", program.code_engine_project.project_name)
     job = TestUtils.create_job(
         author=program.author,
@@ -57,10 +57,10 @@ def _terminal_job(program, *, age_hours, fleet_id="fleet-1", **kwargs):
         status=Job.SUCCEEDED,
         runner=Program.FLEETS,
         fleet_id=fleet_id,
+        finished_at=timezone.now() - timedelta(hours=age_hours),
         **kwargs,
     )
-    # A queryset update skips auto_now, which is the only way to age the row.
-    Job.objects.filter(pk=job.id).update(updated=timezone.now() - timedelta(hours=age_hours))
+    job.refresh_from_db()
     return job
 
 
@@ -222,12 +222,12 @@ def test_a_cycle_that_stopped_on_a_rate_limit_is_a_failure(fleets_program):
 
 
 def test_deletes_at_most_one_batch_per_cycle(fleets_program):
-    for index in range(MAX_DELETES_PER_CYCLE + 1):
+    for index in range(DEFAULT_MAX_DELETES_PER_CYCLE + 1):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id=f"fleet-{index}")
 
     free_resources = _run(_make_task())
 
-    assert free_resources.call_count == MAX_DELETES_PER_CYCLE
+    assert free_resources.call_count == DEFAULT_MAX_DELETES_PER_CYCLE
 
 
 def test_a_failed_region_does_not_stop_the_other_regions(fleets_program):
@@ -245,22 +245,22 @@ def test_a_failed_region_does_not_stop_the_other_regions(fleets_program):
 
 def test_a_paused_region_does_not_fill_the_batch(fleets_program):
     """A paused region's backlog used to take all 20 slots, so no other region was ever cleaned."""
-    for n in range(MAX_DELETES_PER_CYCLE):
+    for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 10, fleet_id=f"stuck-{n}", ce_region="us-east")
     healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
     task = _make_task()
     for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
-        task.deleter.record_cycle("us-east", code_engine_answered=False)
+        task.deleter.record_failed_cycle("us-east")
 
     _run(task)
 
     healthy.refresh_from_db()
     assert healthy.fleet_deleted_at is not None
-    assert Job.objects.held_fleets().filter(ce_region="us-east").count() == MAX_DELETES_PER_CYCLE
+    assert Job.objects.held_fleets().filter(ce_region="us-east").count() == DEFAULT_MAX_DELETES_PER_CYCLE
 
 
-def test_a_clean_cycle_keeps_the_failure_streak_consecutive(fleets_program):
-    """Four failures, one clean cycle, four more failures: the breaker must still be closed."""
+def test_a_clean_cycle_does_not_clear_the_delete_failures(fleets_program):
+    """A delete that worked says nothing about the submit path, so it must not reset the shared streak."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, ce_region="us-east")
     task = _make_task()
     threshold = Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)
@@ -268,10 +268,24 @@ def test_a_clean_cycle_keeps_the_failure_streak_consecutive(fleets_program):
     for _ in range(threshold - 1):
         _run(task, error=RunnerRetryableError("unavailable"))
     _run(task, deleted=False)
-    for _ in range(threshold - 1):
-        _run(task, error=RunnerRetryableError("unavailable"))
-
     assert task.deleter.paused("us-east") is False
+
+    _run(task, error=RunnerRetryableError("unavailable"))
+
+    assert task.deleter.paused("us-east") is True
+
+
+def test_the_cap_is_off_at_zero_percent(fleets_program):
+    """0 would floor the threshold to 0, putting every project over quota and deleting fresh fleets."""
+    _force_at(quota=2, percent=0)
+    job = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-1")
+    _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
+
+    free_resources = _run(_make_task())
+
+    free_resources.assert_not_called()
+    job.refresh_from_db()
+    assert job.fleet_deleted_at is None
 
 
 def test_the_cap_is_off_at_a_hundred_percent(fleets_program):
@@ -325,10 +339,10 @@ def test_the_forced_delete_stops_once_the_project_is_back_under_the_quota(fleets
         _terminal_job(fleets_program, age_hours=1, fleet_id=f"fleet-{n}")
     task = _make_task()
 
-    with patch(f"{_TASK_MOD}.MAX_DELETES_PER_CYCLE", 1):
-        _run(task)
-        _run(task)
-        free_resources = _run(task)
+    Config.set(ConfigKey.FLEETS_CLEANUP_MAX_DELETES, "1")
+    _run(task)
+    _run(task)
+    free_resources = _run(task)
 
     free_resources.assert_not_called()
     assert Job.objects.held_fleets().count() == 1

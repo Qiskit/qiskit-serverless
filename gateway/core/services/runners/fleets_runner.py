@@ -511,8 +511,7 @@ class FleetsRunner(AbstractRunner):
         Raises:
             RunnerRetryableError: If a later try can work, so the caller can try again later
         """
-        if not self.job.fleet_id:
-            logger.debug("No fleet_id to delete for job_id=[%s]", self.job.id)
+        if not self._may_delete_fleet():
             return False
 
         try:
@@ -523,7 +522,7 @@ class FleetsRunner(AbstractRunner):
 
         try:
             self._ensure_connected()
-            self._get_handler().delete_job(self.job.fleet_id)
+            deleted = self._get_handler().delete_job(self.job.fleet_id)
         except RunnerError as ex:
             raise RunnerRetryableError(f"Unable to reach Code Engine: {ex}", ex) from ex
         except ApiException as ex:
@@ -548,7 +547,33 @@ class FleetsRunner(AbstractRunner):
             logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
             return False
 
-        logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
+        if deleted:
+            logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
+        else:
+            logger.warning(
+                "Fleet [%s] of job_id=[%s] was not in project [%s]. It is gone, or it lives in another "
+                "project and still holds a slot there",
+                self.job.fleet_id,
+                self.job.id,
+                self._project.project_name if self._project else "unassigned",
+            )
+        return True
+
+    def _may_delete_fleet(self) -> bool:
+        """Whether this job has a fleet we are allowed to delete."""
+        if not self.job.fleet_id:
+            logger.debug("No fleet_id to delete for job_id=[%s]", self.job.id)
+            return False
+
+        if self.job.status not in Job.TERMINAL_STATUSES:
+            logger.error(
+                "Refusing to delete fleet [%s] of job_id=[%s]: the job is %s, deleting it would kill the job",
+                self.job.fleet_id,
+                self.job.id,
+                self.job.status,
+            )
+            return False
+
         return True
 
     def _execution_project(self) -> CodeEngineProject:

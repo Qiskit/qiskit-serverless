@@ -213,7 +213,10 @@ class JobTransitionService:
             raise InvalidJobTransitionException(f"Job {job.id}: invalid transition {current_status} -> {status}")
 
         event = JobEvent.objects.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
-        job.update_fields({"status": status, **(job_fields or {})})
+        fields = {"status": status, **(job_fields or {})}
+        if status in Job.TERMINAL_STATUSES:
+            fields.setdefault("finished_at", event.created)
+        job.update_fields(fields)
         return event
 
     @staticmethod

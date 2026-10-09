@@ -2,6 +2,19 @@
 
 from django.conf import settings
 from django.db import migrations, models
+from django.db.models import F
+
+
+def backfill_finished_at(apps, schema_editor):
+    """Give the fleets we already hold an end time, or the retention window would never select them."""
+    Job = apps.get_model("api", "Job")
+    Job.objects.filter(
+        runner="fleets",
+        fleet_id__isnull=False,
+        fleet_deleted_at__isnull=True,
+        finished_at__isnull=True,
+        status__in=["SUCCEEDED", "FAILED", "STOPPED"],
+    ).update(finished_at=F("updated"))
 
 
 class Migration(migrations.Migration):
@@ -17,11 +30,21 @@ class Migration(migrations.Migration):
             name="fleet_deleted_at",
             field=models.DateTimeField(blank=True, help_text="When the fleet delete was accepted", null=True),
         ),
+        migrations.AddField(
+            model_name="job",
+            name="finished_at",
+            field=models.DateTimeField(
+                blank=True,
+                help_text="When the job reached a terminal status. Unlike updated, a later write never moves it",
+                null=True,
+            ),
+        ),
+        migrations.RunPython(backfill_finished_at, migrations.RunPython.noop),
         migrations.AddIndex(
             model_name="job",
             index=models.Index(
                 condition=models.Q(("fleet_deleted_at__isnull", True), ("fleet_id__isnull", False)),
-                fields=["updated"],
+                fields=["finished_at"],
                 name="job_fleet_undeleted_idx",
             ),
         ),

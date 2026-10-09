@@ -27,7 +27,7 @@ from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.models import Job, Program
+from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
 from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
@@ -50,6 +50,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_job.fleet_id = fleet_id
     mock_job.filler = False
     mock_job.ce_project_name = None
+    mock_job.status = Job.SUCCEEDED
     mock_job.program.title = "my-function"
     mock_job.author.username = "IBMid-1000000000"
     mock_job.SUCCEEDED = "SUCCEEDED"
@@ -524,6 +525,26 @@ def test_free_resources_raises_unavailable_when_the_request_failed(error):
 
     with pytest.raises(RunnerRetryableError):
         runner.free_resources()
+
+
+def test_free_resources_refuses_a_job_that_is_not_terminal():
+    """Deleting the fleet of a running job kills it, so the runner refuses whatever the caller asks."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner.job.status = Job.RUNNING
+
+    assert runner.free_resources() is False
+    mock_handler.delete_job.assert_not_called()
+
+
+def test_free_resources_warns_when_the_project_did_not_hold_the_fleet():
+    """A 404 may mean the fleet lives in another project, where it still holds a slot."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.return_value = False
+
+    with patch(f"{_RUNNER_MOD}.logger") as mock_logger:
+        assert runner.free_resources() is True
+
+    assert mock_logger.warning.called
 
 
 def test_free_resources_gives_up_when_the_code_engine_host_does_not_resolve():
@@ -1429,6 +1450,39 @@ class TestExecutionProject:
         assert get_ce_auth.call_args.args[1] == "us-east"
         assert handler_cls.call_args.kwargs["project_id"] == "old-id"
         handler_cls.return_value.delete_job.assert_called_once_with("fleet-123")
+
+    @staticmethod
+    def _duplicate_of(project, *, project_id, **kwargs):
+        """A second row with the same project_name. TestUtils gets-or-creates by name, so it cannot."""
+        fields = {
+            field.name: getattr(project, field.name)
+            for field in CodeEngineProject._meta.fields  # pylint: disable=protected-access
+            if field.name not in ("id", "created", "updated")
+        }
+        return CodeEngineProject.objects.create(**{**fields, "project_id": project_id, **kwargs})
+
+    def test_prefers_the_active_project_when_two_share_a_name(self):
+        """project_name has no unique constraint and sync_ce_project leaves stale rows behind."""
+        dead = TestUtils.get_or_create_ce_project(
+            project_name="twice", project_id="dead-id", cos_bucket_user_data_name="b7", active=False
+        )
+        alive = self._duplicate_of(dead, project_id="alive-id", active=True)
+        job = self._job(self._program(alive), ce_project_name="twice")
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "alive-id"
+
+    def test_narrows_by_region_when_two_projects_share_a_name(self):
+        in_us = TestUtils.get_or_create_ce_project(
+            project_name="shared", project_id="us-id", cos_bucket_user_data_name="b8", region="us-east"
+        )
+        self._duplicate_of(in_us, project_id="eu-id", region="eu-de")
+        job = self._job(self._program(in_us), ce_project_name="shared", ce_region="eu-de")
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "eu-id"
 
     def test_free_resources_sends_nothing_for_an_unknown_project(self):
         project = TestUtils.get_or_create_ce_project(

@@ -304,8 +304,12 @@ def _mock_delete_job(self, identifier):  # pylint: disable=unused-argument
     Args:
         self: The FleetHandler instance.
         identifier: The fleet ID to delete.
+
+    Returns:
+        ``True``, the way a real delete reports that the project held the fleet.
     """
     logger.info("Mock: pretending to delete fleet [%s] in project [%s]", identifier, self.project_id)
+    return True
 
 
 def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argument

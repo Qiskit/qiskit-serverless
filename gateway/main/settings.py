@@ -608,6 +608,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Once a Code Engine project holds this much of scheduler.fleets.quota_per_project, its "
         "oldest terminal fleets are deleted whatever the retention window says. 100 turns this off.",
     },
+    "scheduler.fleets.cleanup.max_deletes_per_cycle": {
+        "default": "20",
+        "type": "integer",
+        "description": "How many fleets one cleanup cycle deletes. The scheduler loop is about a second, so "
+        "this is also the delete rate against one Code Engine project.",
+    },
     "scheduler.fleets.quota_per_project": {
         "default": "1000",
         "type": "integer",

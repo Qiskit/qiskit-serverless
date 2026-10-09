@@ -20,6 +20,7 @@ class ConfigKey(Enum):
     FLEETS_CLEANUP_ENABLED = "scheduler.fleets.cleanup.enabled"
     FLEETS_CLEANUP_RETENTION_HOURS = "scheduler.fleets.cleanup.retention_hours"
     FLEETS_CLEANUP_FORCE_AT_PERCENT = "scheduler.fleets.cleanup.force_at_percent"
+    FLEETS_CLEANUP_MAX_DELETES = "scheduler.fleets.cleanup.max_deletes_per_cycle"
     FLEETS_QUOTA_PER_PROJECT = "scheduler.fleets.quota_per_project"
     FLEETS_BREAKER_FAILURES = "scheduler.fleets.breaker_failures"
     FLEETS_BREAKER_PAUSE_SECONDS = "scheduler.fleets.breaker_pause_seconds"

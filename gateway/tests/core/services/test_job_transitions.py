@@ -71,6 +71,19 @@ class TestTransition:
         assert job.status == Job.RUNNING
         assert job.sub_status == "mapping"
 
+    def test_stamps_finished_at_on_a_terminal_status_only(self, service):
+        author = User.objects.create_user(username="finished-at-author")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+
+        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        job.refresh_from_db()
+        assert job.finished_at is None
+
+        event = service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        job.refresh_from_db()
+        assert job.finished_at == event.created
+
     def test_creates_the_status_change_event(self, service):
         author = User.objects.create_user(username="change-status-author-2")
         job = Job.objects.create(author=author, status=Job.RUNNING)
