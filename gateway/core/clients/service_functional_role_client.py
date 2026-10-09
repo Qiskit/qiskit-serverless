@@ -32,7 +32,8 @@ _DEFAULT_TIMEOUT_MS = 3000
 
 
 class ServiceFunctionalRoleClient:
-    """Sends the envelope built by ``core.domain.workload_payload.build_workload_payload``.
+    """Sends the ``function_id`` and ``body`` of the envelope built by
+    ``core.domain.workload_payload.build_workload_payload``.
 
     Create one instance per process and keep it: each instance has its own IAM token manager and cache, so building
     one per request would ask IAM for a new token every time."""
@@ -71,17 +72,16 @@ class ServiceFunctionalRoleClient:
             logger.error("Could not get an IAM token: %s", type(exc).__name__)
             raise RuntimeApiRetryableError("Could not get an IAM token") from exc
 
-    def put_function(self, payload: dict) -> None:
-        """Send ``payload`` to the Runtime API. Returns when it applied it (200) or ignored it because the function was
-        already terminal (202). Does nothing at all while ``workloads.mirror.enabled`` is off. Raises
-        RuntimeApiError for a permanent failure (including FUNCTIONS_OPERATOR_API_KEY empty while it is on) and
-        RuntimeApiRetryableError for a transient one."""
+    def put_function(self, function_id: str, body: dict) -> None:
+        """Replace the function ``function_id`` on the Runtime API with ``body``. Returns when it applied it (200) or
+        ignored it because the function was already terminal (202). Does nothing at all while
+        ``workloads.mirror.enabled`` is off. Raises RuntimeApiError for a permanent failure (including
+        FUNCTIONS_OPERATOR_API_KEY empty while it is on) and RuntimeApiRetryableError for a transient one."""
         if not Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
             return
         if not settings.FUNCTIONS_OPERATOR_API_KEY:
             raise RuntimeApiError("FUNCTIONS_OPERATOR_API_KEY is not set")
 
-        function_id, body = payload["function_id"], payload["body"]
         base_url = regional_base_url(
             settings.RUNTIME_API_BASE_URL, body.get("crn"), settings.RUNTIME_API_DEFAULT_REGION
         )

@@ -10,10 +10,8 @@ from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryable
 from core.clients.service_functional_role_client import ServiceFunctionalRoleClient
 from core.config_key import ConfigKey
 
-PAYLOAD = {
-    "function_id": "job-1",
-    "body": {"crn": "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::", "status": "Queued"},
-}
+FUNCTION_ID = "job-1"
+BODY = {"crn": "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::", "status": "Queued"}
 
 
 @pytest.fixture(name="flag")
@@ -54,28 +52,28 @@ def put_fixture(authenticator):  # pylint: disable=unused-argument
 
 
 def test_sends_one_put_to_the_regional_host_with_a_bearer_token(flag, put):
-    ServiceFunctionalRoleClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     put.assert_called_once_with(
         "https://eu-de.quantum.test.cloud.ibm.com/api/v1/functions/job-1",
-        json=PAYLOAD["body"],
+        json=BODY,
         headers={"Authorization": "Bearer iam-token"},
         timeout=3,
     )
 
 
 def test_the_iam_token_exchange_uses_the_mirror_timeout(flag, put, authenticator):
-    ServiceFunctionalRoleClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
 
 
 def test_the_timeout_is_read_on_every_call(flag, put, authenticator):
     client = ServiceFunctionalRoleClient()
-    client.put_function(PAYLOAD)
+    client.put_function(FUNCTION_ID, BODY)
 
     flag["timeout_ms"] = 7000
-    client.put_function(PAYLOAD)
+    client.put_function(FUNCTION_ID, BODY)
 
     assert authenticator.return_value.token_manager.http_config == {"timeout": 7}
     assert put.call_args.kwargs["timeout"] == 7
@@ -84,7 +82,7 @@ def test_the_timeout_is_read_on_every_call(flag, put, authenticator):
 def test_a_zero_timeout_falls_back_to_the_default(flag, put, authenticator, caplog):
     flag["timeout_ms"] = 0
 
-    ServiceFunctionalRoleClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert put.call_args.kwargs["timeout"] == 3
     assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
@@ -95,7 +93,7 @@ def test_flag_off_sends_nothing_and_does_not_need_the_key(flag, put, authenticat
     flag["on"] = False
     settings.FUNCTIONS_OPERATOR_API_KEY = ""
 
-    ServiceFunctionalRoleClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     put.assert_not_called()
     authenticator.assert_not_called()
@@ -105,7 +103,7 @@ def test_flag_on_without_the_key_is_a_permanent_error(flag, put, settings):
     settings.FUNCTIONS_OPERATOR_API_KEY = ""
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert not isinstance(error.value, RuntimeApiRetryableError)
     put.assert_not_called()
@@ -114,7 +112,7 @@ def test_flag_on_without_the_key_is_a_permanent_error(flag, put, settings):
 def test_202_is_a_success(flag, put):
     put.return_value = MagicMock(status_code=202)
 
-    ServiceFunctionalRoleClient().put_function(PAYLOAD)
+    ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
 
 @pytest.mark.parametrize("status_code", [400, 404])
@@ -122,7 +120,7 @@ def test_a_4xx_status_is_a_permanent_rejection(flag, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="bad field")
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert not isinstance(error.value, RuntimeApiRetryableError)
     assert error.value.status_code == status_code
@@ -133,7 +131,7 @@ def test_a_transient_status_is_the_retryable_error(flag, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="try later")
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert isinstance(error.value, RuntimeApiRetryableError)
     assert error.value.status_code == status_code
@@ -143,7 +141,7 @@ def test_an_error_status_logs_the_start_of_the_response_body(flag, put, caplog):
     put.return_value = MagicMock(status_code=400, text="field size is invalid")
 
     with pytest.raises(RuntimeApiError):
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert "field size is invalid" in caplog.text
 
@@ -152,7 +150,7 @@ def test_network_failures_are_transient(flag, put):
     put.side_effect = requests.ConnectionError("boom")
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert isinstance(error.value, RuntimeApiRetryableError)
 
@@ -161,7 +159,7 @@ def test_iam_failures_are_transient(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = RuntimeError("iam down")
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert isinstance(error.value, RuntimeApiRetryableError)
     put.assert_not_called()
@@ -171,7 +169,7 @@ def test_an_iam_rejection_of_the_key_is_a_permanent_error(flag, put, authenticat
     authenticator.return_value.token_manager.get_token.side_effect = ApiException(401, message="unauthorized")
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert not isinstance(error.value, RuntimeApiRetryableError)
     assert "operator-key" not in str(error.value)
@@ -182,7 +180,7 @@ def test_a_non_json_iam_response_is_transient(flag, put, authenticator):
     authenticator.return_value.token_manager.get_token.side_effect = requests.exceptions.JSONDecodeError("bad", "", 0)
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert isinstance(error.value, RuntimeApiRetryableError)
 
@@ -191,7 +189,7 @@ def test_a_malformed_key_is_a_permanent_error(flag, put, authenticator):
     authenticator.side_effect = ValueError("bad key")
 
     with pytest.raises(RuntimeApiError) as error:
-        ServiceFunctionalRoleClient().put_function(PAYLOAD)
+        ServiceFunctionalRoleClient().put_function(FUNCTION_ID, BODY)
 
     assert not isinstance(error.value, RuntimeApiRetryableError)
     assert "operator-key" not in str(error.value)
