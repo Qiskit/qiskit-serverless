@@ -6,6 +6,10 @@ features:
     really stopped. Before, the job was reported as stopped straight away while its
     compute node was still being released. Sub-status and error reporting keep working
     while a job is stopping.
+
+    A job that finishes while it is stopping reports what it really did. Cancel a job that
+    had already succeeded and it ends as ``SUCCEEDED`` with its result, and one that had
+    already failed ends as ``FAILED`` with its error, instead of both reporting as stopped.
 upgrade:
   - |
     The scheduler is what completes a Code Engine cancellation, so it must be running for

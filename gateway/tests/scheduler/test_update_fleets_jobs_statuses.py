@@ -731,24 +731,33 @@ class TestStoppingJobs:
     """A STOPPING job is driven to STOPPED by the scheduler, never by the stop request."""
 
     @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
-    def test_any_terminal_task_state_confirms_the_stop(self, task_state):
-        """A task that finished before the cancel landed is still the stop the user asked for.
+    def test_the_task_stores_terminal_status_wins_over_the_stop(self, task_state):
+        """A job that finished before its cancel landed really did finish. Writing STOPPED instead
+        would lose a succeeded job's result and hide a failed one's error.
 
         The task store is COS, not the Code Engine API, so this read must never consult the breaker:
-        gate it and a STOPPING row could never reach STOPPED during a Code Engine outage.
+        gate it and a STOPPING row could never reach a terminal status during a Code Engine outage.
         """
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         runner = MagicMock()
         runner.status.return_value = task_state
+        running_event = MagicMock()
+        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
 
-        with patch(f"{_MOD}.get_runner", return_value=runner):
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
             changed = task.update_job_status(job)
 
         assert changed is True
-        assert job.status == Job.STOPPED
+        assert job.status == task_state
         runner.stop.assert_not_called()
         task.canceller.paused.assert_not_called()
+        # a job that really succeeded gets its duration recorded, like one nobody tried to cancel
+        assert task.metrics.observe_job_execution_duration.called is (task_state == Job.SUCCEEDED)
 
     def test_a_running_task_is_left_alone_and_no_cancel_is_sent(self):
         """Whoever asked for the stop already sent the cancel. The poller only observes."""

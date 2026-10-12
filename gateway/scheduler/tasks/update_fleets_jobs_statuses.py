@@ -106,10 +106,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def confirm_stop(self, job: Job, new_status: str | None) -> bool:
         """End a STOPPING job once the task store reports any terminal task state, or on the deadline.
 
+        The task store wins over the stop request. A job that finished before its cancel landed
+        really did finish, and writing STOPPED would lose its result or hide its error.
+
         No cancel is sent from here: whoever asked for the stop already sent it.
         """
         if new_status in Job.TERMINAL_STATUSES:
             logger.info("job_id=%s stop confirmed, task store reported %s", job.id, new_status)
+            final_status = new_status
         else:
             # The earliest STOPPING event, not the latest event of any kind: a job still reporting
             # sub_status would otherwise push its own deadline out for ever.
@@ -123,7 +127,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.author.id,
                 _STOPPING_DEADLINE_SECONDS,
             )
-        self.to_terminal(job, Job.STOPPED)
+            final_status = Job.STOPPED
+
+        self.to_terminal(job, final_status)
+        if final_status == Job.SUCCEEDED:
+            self._record_execution_duration(job)
         return True
 
     def to_terminal(self, job: Job, new_status: str) -> None:

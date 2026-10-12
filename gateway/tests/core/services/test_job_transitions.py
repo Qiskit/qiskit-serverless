@@ -113,6 +113,17 @@ class TestTransition:
 class TestValidatesTransitions:
     """JobTransitionService rejects any transition not listed in JobTransitionService.VALID_TRANSITIONS."""
 
+    @pytest.mark.parametrize("transition", ["to_succeeded", "to_failed", "to_stopped"])
+    def test_a_stopping_job_can_reach_any_terminal_status(self, service, transition):
+        """A job can finish or fail while its cancel is in flight, so STOPPING is not a one-way door
+        to STOPPED. The scheduler writes whatever the task store reports."""
+        author = User.objects.create_user(username=f"stopping-to-{transition}")
+        job = Job.objects.create(author=author, status=Job.STOPPING, runner=Program.FLEETS)
+
+        getattr(service, transition)(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Job.objects.get(pk=job.pk).status != Job.STOPPING
+
     @pytest.mark.parametrize(
         "current_status,transition",
         [
@@ -123,7 +134,6 @@ class TestValidatesTransitions:
             (Job.RUNNING, "pending_to_running"),
             (Job.SUCCEEDED, "to_stopped"),
             (Job.FAILED, "to_failed"),
-            (Job.STOPPING, "to_succeeded"),
         ],
     )
     def test_rejects_a_transition_outside_the_whitelist(self, service, current_status, transition):
