@@ -56,6 +56,12 @@ _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 # Literal JSON key in the cancel_fleet body (a plain dict bypasses the model's attribute_map).
 _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 
+# (connect, read) seconds for the cancel. The generated client leaves urllib3's timeout at None, so
+# without this a read that never answers holds the caller for ever. urllib3 retries a failed connect
+# 3 times and does not retry a read on a POST, so one call can cost 9s: three failed connects, then
+# a connect plus a read that times out.
+_CANCEL_TIMEOUT_SECONDS = (1, 5)
+
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
 # rather than on the bare 409, so an unrelated conflict still surfaces instead of being read as
 # "nothing to cancel".
@@ -382,18 +388,18 @@ class FleetHandler:
             poll_interval_seconds: Delay between polls.
 
         Returns:
-            ``True`` if Code Engine accepted the request, ``False`` if there was nothing left to
-            cancel because the fleet is gone or a cancel is already in progress.
+            ``True`` if a cancel is in flight, whether this call started it or an earlier one did.
+            ``False`` only if the fleet is gone, so nothing will ever be written for it.
 
             ``True`` does not mean the fleet was doing anything. Code Engine answers 202 for a
             fleet whose task has already finished, and for one in ``standby``, both measured on
-            staging. Deciding whether a cancel is worth sending belongs to the caller, which is
-            what the scheduler will do once it holds the task-store state.
+            staging. Deciding whether a cancel is worth sending belongs to the caller.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved, or if the cancel never
                 left the process. A ValueError from the model refusing a 2xx body is swallowed
                 instead, because that one means the cancel landed.
+            ReadTimeoutError: If Code Engine did not answer within ``_CANCEL_TIMEOUT_SECONDS``.
             ApiException: If the cancel could not be delivered, so the caller can retry. Also if
                 delete_fleet fails with an error other than 404.
             AssertionError: If waiting is enabled and the fleet never reaches terminal before timeout.
@@ -406,15 +412,18 @@ class FleetHandler:
                 project_id=self.project_id,
                 id=fleet_id,
                 body={_CANCEL_PROCESSING_TASKS_KEY: cancel_processing_tasks},
+                _request_timeout=_CANCEL_TIMEOUT_SECONDS,
             )
         except ApiException as exc:
             # A non-2xx is raised by the transport before the body is deserialized into the model,
             # so a 404 or 409 here is Code Engine's own answer. The converse does not hold: parsing
-            # a 2xx body can raise ApiException(status=0) too. 404 and an already-cancelling 409
-            # mean there is nothing left to do; anything else, a 429 above all, means the cancel was
-            # not delivered, so raise rather than claim it was.
-            if exc.status == 404 or (exc.status == 409 and _is_already_canceled(exc)):
-                logger.info("Fleet [%s] had nothing to cancel (HTTP %s)", fleet_id, exc.status)
+            # a 2xx body can raise ApiException(status=0) too. A 404 means nothing is left to cancel
+            # and a 409 means one is already in flight. Anything else, a 429 above all, means the
+            # cancel was not delivered, so raise rather than claim it was.
+            if exc.status == 409 and _is_already_canceled(exc):
+                logger.info("Fleet [%s] was already being cancelled", fleet_id)
+            elif exc.status == 404:
+                logger.info("Fleet [%s] is gone, nothing to cancel", fleet_id)
                 cancel_sent = False
             else:
                 raise

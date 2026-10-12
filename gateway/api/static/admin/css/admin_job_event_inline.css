@@ -22,6 +22,7 @@
 }
 
 .event-badge[data-event-status="SUCCEEDED"] { --event-color: #00aa00; }
+.event-badge[data-event-status="STOPPING"] { --event-color: #aaaaaa; }
 .event-badge[data-event-status="STOPPED"] { --event-color: #888888; }
 .event-badge[data-event-status="FAILED"] { --event-color: #cc0000; }
 
