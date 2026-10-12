@@ -58,6 +58,7 @@ class FreeFleetsResources(SchedulerTask):
             return
 
         failed_regions: set[str | None] = set()
+        answered_regions: set[str | None] = set()
         candidates = self._jobs_to_clean(self._projects_over_quota(counts), self.deleter.paused_regions())
         for job in candidates:
             if self.kill_signal.received:
@@ -66,11 +67,17 @@ class FreeFleetsResources(SchedulerTask):
                 continue
 
             try:
-                self._delete_and_stamp(job)
+                if self._delete_and_stamp(job):
+                    answered_regions.add(job.ce_region)
             except RunnerRetryableError as ex:
                 logger.warning("job_id=%s region=%s fleet not deleted: %s", job.id, job.ce_region, ex)
-                self.deleter.record_failed_cycle(job.ce_region)
+                self.deleter.record_cycle(job.ce_region, code_engine_answered=False)
                 failed_regions.add(job.ce_region)
+
+        # only a delete that came back True proves Code Engine answered: a False can be a missing
+        # project row or a host that does not resolve, neither of which reached it
+        for region in answered_regions - failed_regions:
+            self.deleter.record_cycle(region, code_engine_answered=True)
 
     def _jobs_to_clean(self, over_quota: list[str], paused_regions: list[str | None]):
         """Terminal Fleets jobs past the retention window, or in a project over its quota, oldest first.

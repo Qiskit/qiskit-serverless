@@ -89,10 +89,12 @@ class RegionBreakers:
 
 
 class FleetsBreakers:
-    """One breaker per dependency per region, so a success on one is never read as evidence about the other.
+    """One breaker per dependency per region: it answers whether that dependency is functional.
 
     Submit needs COS and then Code Engine. The cancel and the fleet delete need only Code Engine. So the
-    Code Engine breaker is shared by all three and the COS one belongs to submit alone.
+    Code Engine breaker is shared by all three and the COS one belongs to submit alone. Which operation
+    made the call does not matter, but which dependency answered does: a working delete says nothing
+    about COS.
     """
 
     def __init__(self) -> None:
@@ -297,13 +299,13 @@ class FleetsFleetDeleter:
             raise RunnerRetryableError(f"Fleet deletes in region {job.ce_region} are paused by the circuit breaker")
         return get_runner(job).free_resources()
 
-    def record_failed_cycle(self, region: str | None) -> None:
-        """Counts one cleanup cycle a region's Code Engine would not answer.
-
-        Only failures are recorded. A delete that worked proves the delete endpoint answered, not that
-        the submit path's create will, so it must not clear the streak the submitter is building.
-        """
-        self.breakers.code_engine.get_breaker(region).record_failure()
+    def record_cycle(self, region: str | None, *, code_engine_answered: bool) -> None:
+        """Counts one cleanup cycle for a region, the way a cancel counts one call."""
+        breaker = self.breakers.code_engine.get_breaker(region)
+        if code_engine_answered:
+            breaker.record_success()
+        else:
+            breaker.record_failure()
 
 
 def first_cancel_refusal(job: Job) -> bool:

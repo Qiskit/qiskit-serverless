@@ -43,13 +43,14 @@ upgrade:
     logged at WARNING naming the project: the fleet may still hold a slot somewhere else.
   - |
     The scheduler now keeps one circuit breaker per dependency per region, where it kept one per
-    region. COS and Code Engine get their own, because a Fleets submit needs both while a fleet
-    delete needs only Code Engine. So a COS failure and a Code Engine failure no longer add up on
-    one counter. The Code Engine breaker is shared by the submit and the delete path, so a failure
-    on either one pauses both, but only the submit path clears it: Code Engine can refuse a fleet
-    create while it still answers a delete, so a working delete says nothing about a submit. Five
-    consecutive failures that a later try can fix still open a breaker for a minute, and both
-    numbers stay dynamic config: ``scheduler.fleets.breaker_failures`` and
+    region. COS and Code Engine get their own, because a Fleets submit needs both while a cancel
+    and a fleet delete need only Code Engine. The breaker answers whether that dependency is
+    functional, so which operation made the call does not matter and all three record the outcome
+    of every call they make. Which dependency answered does matter: a working delete no longer
+    says COS is healthy, which used to clear the failures a throttling COS was building and stop
+    the submit pause from ever firing. A cancel also no longer pauses while COS is unhappy, since
+    it never touches it. Five consecutive failures that a later try can fix still open a breaker
+    for a minute, and both numbers stay dynamic config: ``scheduler.fleets.breaker_failures`` and
     ``scheduler.fleets.breaker_pause_seconds``.
   - |
     The cleanup waits out an unavailable Code Engine with that breaker instead of sleeping inside

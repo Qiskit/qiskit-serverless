@@ -250,7 +250,7 @@ def test_a_paused_region_does_not_fill_the_batch(fleets_program):
     healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
     task = _make_task()
     for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
-        task.deleter.record_failed_cycle("us-east")
+        task.deleter.record_cycle("us-east", code_engine_answered=False)
 
     _run(task)
 
@@ -259,8 +259,23 @@ def test_a_paused_region_does_not_fill_the_batch(fleets_program):
     assert Job.objects.held_fleets().filter(ce_region="us-east").count() == DEFAULT_MAX_DELETES_PER_CYCLE
 
 
-def test_a_clean_cycle_does_not_clear_the_delete_failures(fleets_program):
-    """A delete that worked says nothing about the submit path, so it must not reset the shared streak."""
+def test_a_clean_cycle_clears_the_delete_failures(fleets_program):
+    """Four failures, one cycle that deleted, four more: the streak restarted, so the breaker is closed."""
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, ce_region="us-east")
+    task = _make_task()
+    threshold = Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)
+
+    for _ in range(threshold - 1):
+        _run(task, error=RunnerRetryableError("unavailable"))
+    _run(task)
+    for _ in range(threshold - 1):
+        _run(task, error=RunnerRetryableError("unavailable"))
+
+    assert task.deleter.paused("us-east") is False
+
+
+def test_a_cycle_that_never_reached_code_engine_clears_nothing(fleets_program):
+    """A False can be a missing project or a bad host, so it must not pass for a working region."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, ce_region="us-east")
     task = _make_task()
     threshold = Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)
@@ -268,7 +283,6 @@ def test_a_clean_cycle_does_not_clear_the_delete_failures(fleets_program):
     for _ in range(threshold - 1):
         _run(task, error=RunnerRetryableError("unavailable"))
     _run(task, deleted=False)
-    assert task.deleter.paused("us-east") is False
 
     _run(task, error=RunnerRetryableError("unavailable"))
 
