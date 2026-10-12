@@ -19,8 +19,9 @@ from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 
-# A cancel reaches the task store in about 30s, or about 150s if the task had not started.
-_STOPPING_DEADLINE_SECONDS = 300
+# Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
+# 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
+_STOPPING_DEADLINE_SECONDS = 600
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):

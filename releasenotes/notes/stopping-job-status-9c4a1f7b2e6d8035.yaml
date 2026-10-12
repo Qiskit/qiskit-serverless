@@ -14,9 +14,9 @@ upgrade:
   - |
     The scheduler is what completes a Code Engine cancellation, so it must be running for
     a cancelled job to reach a terminal status. A cancellation that is never confirmed is
-    stopped anyway after 5 minutes.
+    stopped anyway after 10 minutes.
 
-    A cancelled job stays in ``STOPPING`` for about 30 seconds, or about 150 seconds when
+    A cancelled job stays in ``STOPPING`` for about 30 seconds, or up to about 5 minutes when
     its task had not started yet, and counts against the user's active and running job
     limits for that time, because its compute node is still held.
 
