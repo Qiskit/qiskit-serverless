@@ -295,8 +295,9 @@ class FleetsFleetDeleter:
         Raises:
             RunnerRetryableError: while the region's breaker is open, or when Code Engine did not answer.
         """
-        if self.paused(job.ce_region):
-            raise RunnerRetryableError(f"Fleet deletes in region {job.ce_region} are paused by the circuit breaker")
+        region = job.fleet_region
+        if self.paused(region):
+            raise RunnerRetryableError(f"Fleet deletes in region {region} are paused by the circuit breaker")
         return get_runner(job).free_resources()
 
     def record_cycle(self, region: str | None, *, code_engine_answered: bool) -> None:

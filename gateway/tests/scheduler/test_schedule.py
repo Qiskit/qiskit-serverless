@@ -762,13 +762,13 @@ def test_delete_refuses_while_the_breaker_of_that_region_is_open():
 
     assert deleter.paused("us-east") is True
 
-    job = MagicMock(ce_region="us-east")
+    job = MagicMock(fleet_region="us-east")
     with patch("scheduler.schedule.get_runner") as get_runner:
         with pytest.raises(RunnerRetryableError):
             deleter.delete(job)
         get_runner.assert_not_called()
 
-        job.ce_region = "eu-de"
+        job.fleet_region = "eu-de"
         get_runner.return_value.free_resources.return_value = True
         assert deleter.delete(job) is True
 

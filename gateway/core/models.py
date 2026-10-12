@@ -808,6 +808,19 @@ class Job(models.Model):
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
 
+    @property
+    def fleet_region(self) -> str | None:
+        """The region this job's fleet lives in: its own snapshot, or its program's project.
+
+        A job with no snapshot has neither ``ce_region`` nor ``ce_project_name``, since migration 0053
+        added both and nothing writes one without the other, so the delete resolves such a job through
+        its program and this returns the same region the request goes to.
+        """
+        if self.ce_region:
+            return self.ce_region
+        project = self.program.code_engine_project if self.program_id else None
+        return project.region if project else None
+
     def update_fields(self, fields_map: dict) -> None:
         """Persist an explicit field map bypassing optimistic-locking validation.
 

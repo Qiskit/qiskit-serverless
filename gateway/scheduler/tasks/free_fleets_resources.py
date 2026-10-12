@@ -63,45 +63,62 @@ class FreeFleetsResources(SchedulerTask):
         for job in candidates:
             if self.kill_signal.received:
                 break
-            if job.ce_region in failed_regions:
+            region = job.fleet_region
+            if region in failed_regions:
                 continue
 
             try:
                 if self._delete_and_stamp(job):
-                    answered_regions.add(job.ce_region)
+                    answered_regions.add(region)
             except RunnerRetryableError as ex:
-                logger.warning("job_id=%s region=%s fleet not deleted: %s", job.id, job.ce_region, ex)
-                self.deleter.record_cycle(job.ce_region, code_engine_answered=False)
-                failed_regions.add(job.ce_region)
+                logger.warning("job_id=%s region=%s fleet not deleted: %s", job.id, region, ex)
+                self.deleter.record_cycle(region, code_engine_answered=False)
+                failed_regions.add(region)
 
         # only a delete that came back True proves Code Engine answered: a False can be a missing
         # project row or a host that does not resolve, neither of which reached it
         for region in answered_regions - failed_regions:
             self.deleter.record_cycle(region, code_engine_answered=True)
 
-    def _jobs_to_clean(self, over_quota: list[str], paused_regions: list[str | None]):
-        """Terminal Fleets jobs past the retention window, or in a project over its quota, oldest first.
+    def _jobs_to_clean(self, over_quota: dict[str, int], paused_regions: list[str | None]) -> list[Job]:
+        """The jobs this cycle may delete: the projects over their quota first, then the retention window.
+
+        A project over its quota takes only the fleets it needs to get back under the threshold, so a
+        cycle cannot destroy fleets that are still inside their window beyond what the cap asked for.
+        Urgent goes first because its fleets are the newest, so a shared ordering would always put the
+        routine backlog ahead of it.
+        """
+        budget = Config.get_int(ConfigKey.FLEETS_CLEANUP_MAX_DELETES, default=DEFAULT_MAX_DELETES_PER_CYCLE)
+        deletable = (
+            Job.objects.held_fleets()
+            .filter(status__in=Job.TERMINAL_STATUSES)
+            .exclude(self._in_regions(paused_regions))
+            .exclude(id__in=self._giving_up_on())
+        )
+
+        jobs: list[Job] = []
+        for project, needed in over_quota.items():
+            if len(jobs) >= budget:
+                break
+            take = min(needed, budget - len(jobs))
+            jobs += list(deletable.filter(ce_project_name=project).order_by("finished_at")[:take])
+
+        if len(jobs) < budget:
+            jobs += list(
+                self._past_the_window(deletable).exclude(id__in=[job.id for job in jobs])[: budget - len(jobs)]
+            )
+        return jobs
+
+    @staticmethod
+    def _past_the_window(deletable):
+        """The jobs whose retention window has passed, oldest first.
 
         The window measures ``finished_at``, not ``updated``: stamping the delete writes ``updated``,
         so a window keyed on it would move every time the cleanup touched the row.
-
-        Paused regions are left out here rather than in the loop, or their backlog would fill the
-        batch and no other region would be cleaned up.
         """
         retention = max(1, Config.get_int(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS, default=DEFAULT_RETENTION_HOURS))
-        condition = Q(finished_at__lt=timezone.now() - timedelta(hours=retention))
-        if over_quota:
-            condition |= Q(ce_project_name__in=over_quota)
-        return (
-            Job.objects.held_fleets()
-            .filter(status__in=Job.TERMINAL_STATUSES)
-            .filter(condition)
-            .exclude(self._in_regions(paused_regions))
-            .exclude(id__in=self._giving_up_on())
-            .order_by("finished_at")[
-                : Config.get_int(ConfigKey.FLEETS_CLEANUP_MAX_DELETES, default=DEFAULT_MAX_DELETES_PER_CYCLE)
-            ]
-        )
+        cutoff = timezone.now() - timedelta(hours=retention)
+        return deletable.filter(finished_at__lt=cutoff).order_by("finished_at")
 
     @staticmethod
     def _in_regions(regions: list[str | None]) -> Q:
@@ -112,17 +129,21 @@ class FreeFleetsResources(SchedulerTask):
             matched |= Q(ce_region__isnull=True)
         return matched
 
-    def _projects_over_quota(self, counts: dict[str, int]) -> list[str]:
-        """Projects holding force_at_percent of the quota or more, whose oldest fleets go whatever the window."""
+    def _projects_over_quota(self, counts: dict[str, int]) -> dict[str, int]:
+        """How many fleets each project over its quota has to lose to get back under the threshold."""
         percent = Config.get_int(ConfigKey.FLEETS_CLEANUP_FORCE_AT_PERCENT, default=DEFAULT_FORCE_AT_PERCENT)
         # 0 or a negative would floor the threshold to 0, making every project over quota
         if not 1 <= percent < 100:
-            return []
+            return {}
 
         quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
         threshold = quota * percent // 100
-        over = [project for project, held in counts.items() if project != UNASSIGNED_PROJECT and held >= threshold]
-        for project in over:
+        over = {
+            project: held - threshold + 1
+            for project, held in counts.items()
+            if project != UNASSIGNED_PROJECT and held >= threshold
+        }
+        for project, _ in over.items():
             self._report_wedged(project, held=counts[project], quota=quota)
         self._wedged_projects &= set(over)
         return over

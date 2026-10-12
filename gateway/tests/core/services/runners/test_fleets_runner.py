@@ -1484,6 +1484,18 @@ class TestExecutionProject:
 
         assert resolved.project_id == "eu-id"
 
+    def test_the_region_matches_the_project_the_request_goes_to(self):
+        """The caller charges fleet_region, so it has to be the region the handler was built for."""
+        project = TestUtils.get_or_create_ce_project(
+            project_name="only-project", project_id="only-id", cos_bucket_user_data_name="b11", region="eu-de"
+        )
+        job = self._job(self._program(project), ce_project_name=None, ce_region=None)
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert job.fleet_region == "eu-de"
+        assert resolved.region == job.fleet_region
+
     def test_free_resources_sends_nothing_for_an_unknown_project(self):
         project = TestUtils.get_or_create_ce_project(
             project_name="known", project_id="known-id", cos_bucket_user_data_name="b5"

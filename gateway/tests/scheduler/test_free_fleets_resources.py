@@ -321,15 +321,46 @@ def _force_at(*, quota, percent):
 
 
 def test_deletes_a_fleet_inside_the_window_when_its_project_is_over_the_quota(fleets_program):
+    """Threshold 2 of 4 and 2 held: it needs one delete to get under, so only the oldest goes."""
     _force_at(quota=4, percent=50)
-    job = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-1")
-    _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
+    oldest = _terminal_job(fleets_program, age_hours=2, fleet_id="fleet-1")
+    newest = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
 
     free_resources = _run(_make_task())
 
-    assert free_resources.call_count == 2
-    job.refresh_from_db()
-    assert job.fleet_deleted_at is not None
+    free_resources.assert_called_once()
+    oldest.refresh_from_db()
+    newest.refresh_from_db()
+    assert oldest.fleet_deleted_at is not None
+    assert newest.fleet_deleted_at is None
+
+
+def test_a_retention_backlog_does_not_starve_the_quota_cap(fleets_program):
+    """The over-quota fleets are the newest, so one shared ordering would always serve the backlog first."""
+    _force_at(quota=4, percent=50)
+    for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
+        _terminal_job(
+            fleets_program, age_hours=_RETENTION_HOURS + 100 + n, fleet_id=f"old-{n}", ce_project_name="quiet-project"
+        )
+    urgent = _terminal_job(fleets_program, age_hours=1, fleet_id="urgent-1", ce_project_name="busy-project")
+    _terminal_job(fleets_program, age_hours=1, fleet_id="urgent-2", ce_project_name="busy-project")
+
+    _run(_make_task())
+
+    urgent.refresh_from_db()
+    assert urgent.fleet_deleted_at is not None
+
+
+def test_the_cap_takes_no_more_than_the_project_needs(fleets_program):
+    """Threshold 2 of 4 and 5 held: three deletes reach 2, so a whole batch must not destroy more."""
+    _force_at(quota=4, percent=50)
+    for n in range(5):
+        _terminal_job(fleets_program, age_hours=n + 1, fleet_id=f"fleet-{n}")
+
+    free_resources = _run(_make_task())
+
+    assert free_resources.call_count == 4
+    assert Job.objects.held_fleets().count() == 1
 
 
 def test_only_the_project_over_the_quota_loses_its_fresh_fleets(fleets_program):
