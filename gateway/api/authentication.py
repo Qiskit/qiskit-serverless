@@ -43,6 +43,10 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         try:
             channel = Channel(channel_header)
+            if channel == Channel.LOCAL:
+                # The local channel authenticates with the static mock token and has no instance. It belongs to
+                # MockTokenBackend: here it would let anyone who knows that token in without a real login.
+                raise ValueError(channel_header)
         except ValueError as error:
             raise exceptions.AuthenticationFailed(
                 "The value of the channel is not correct. Verify that you are using one of these: "

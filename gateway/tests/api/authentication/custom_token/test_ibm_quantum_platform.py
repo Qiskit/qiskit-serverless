@@ -383,3 +383,16 @@ class TestServiceCrnIsRequired:
 
         assert response.status_code == 200, response.data
         assert Job.objects.get(id=response.data["id"]).instance_crn == CRN
+
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    def test_the_local_channel_is_not_accepted_with_the_mock_token(self, get_resource_instance: MagicMock, settings):
+        """The local channel has no instance and checks a static token: only the mock backend may use it."""
+        settings.SETTINGS_AUTH_MOCK_TOKEN = "awesome_token"
+        request = _create_request(token="awesome_token", crn=None)
+        request.META["HTTP_SERVICE_CHANNEL"] = "local"
+
+        with pytest.raises(AuthenticationFailed, match="channel"):
+            CustomTokenBackend().authenticate(request)
+
+        get_resource_instance.assert_not_called()
+        assert not User.objects.filter(username="mockuser").exists()
