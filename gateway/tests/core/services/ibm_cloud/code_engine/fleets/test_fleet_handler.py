@@ -30,6 +30,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.handler import (
     _CANCEL_PROCESSING_TASKS_KEY,
     _CANCEL_TIMEOUT_SECONDS,
+    _DELETE_TIMEOUT_SECONDS,
     _MODEL_VALIDATION_ERROR,
     FleetHandler,
 )
@@ -380,7 +381,9 @@ def test_cancel_job_waits_and_deletes_when_flag_set(project_id):
         _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
     waiter.assert_called_once()
-    fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.delete_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, _request_timeout=_DELETE_TIMEOUT_SECONDS
+    )
 
 
 def test_cancel_job_no_wait_skips_poller(project_id):
@@ -450,7 +453,9 @@ def test_cancel_job_raises_on_non_404_delete_error(project_id):
         body={_CANCEL_PROCESSING_TASKS_KEY: True},
         _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
-    fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.delete_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, _request_timeout=_DELETE_TIMEOUT_SECONDS
+    )
 
 
 def test_cancel_job_allows_404_on_delete(project_id):
@@ -703,7 +708,9 @@ def test_delete_job_happy_path(project_id):
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
             handler.delete_job(fleet_uuid)
 
-    fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.delete_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, _request_timeout=_DELETE_TIMEOUT_SECONDS
+    )
 
 
 def test_delete_job_ignores_404(project_id):
@@ -718,7 +725,9 @@ def test_delete_job_ignores_404(project_id):
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
             handler.delete_job(fleet_uuid)  # must not raise
 
-    fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
+    fleets_api.delete_fleet.assert_called_once_with(
+        project_id=project_id, id=fleet_uuid, _request_timeout=_DELETE_TIMEOUT_SECONDS
+    )
 
 
 def test_delete_job_raises_on_non_404_error(project_id):

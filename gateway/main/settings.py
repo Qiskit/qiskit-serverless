@@ -591,7 +591,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
     },
     "scheduler.fleets.cleanup.enabled": {
-        "default": "false",
+        "default": "true",
         "type": "boolean",
         "description": "Enable deletion of the fleets of terminal Fleets jobs, so a Code Engine project "
         "does not reach its 1000-fleet limit.",

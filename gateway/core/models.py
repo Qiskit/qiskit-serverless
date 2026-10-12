@@ -751,11 +751,17 @@ class Job(models.Model):
             models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
             # Backs the admin changelist search by fleet_id.
             models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
-            # Backs the retention scan in FreeFleetsResources.
+            # Backs the retention scan in FreeFleetsResources. The condition is JobQuerySet.held_fleets.
             models.Index(
                 fields=["finished_at"],
-                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False),
+                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False, runner="fleets"),
                 name="job_fleet_undeleted_idx",
+            ),
+            # Backs the per-project quota scan, and the held-fleet count through its first column.
+            models.Index(
+                fields=["ce_project_name", "finished_at"],
+                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False, runner="fleets"),
+                name="job_fleet_project_idx",
             ),
         ]
 

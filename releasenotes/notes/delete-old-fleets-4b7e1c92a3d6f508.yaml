@@ -3,9 +3,12 @@ features:
   - |
     The scheduler now deletes the Code Engine fleet of a terminal Fleets job once a retention
     window has passed, so a project does not reach its limit of 1000 fleets. The window keeps a
-    fleet inspectable after the job finished, and it is two weeks. Three things are dynamic
-    config: ``scheduler.fleets.cleanup.enabled``, off by default,
-    ``scheduler.fleets.cleanup.retention_hours``, 336 by default, and
+    fleet inspectable after the job finished, and it is two weeks. It is on from the first
+    scheduler pod that boots, and because fleet deletion has never run before, the first cycles
+    work through every fleet older than two weeks that we still hold. A deleted fleet cannot be
+    recovered for Code Engine support, so size the backlog with ``scheduler_held_fleets`` first
+    if that matters. Three things are dynamic config: ``scheduler.fleets.cleanup.enabled``, on
+    by default, ``scheduler.fleets.cleanup.retention_hours``, 336 by default, and
     ``scheduler.fleets.cleanup.max_deletes_per_cycle``, 20 by default, which is also the delete
     rate against one project because the scheduler loop is about a second.
   - |
@@ -22,7 +25,7 @@ features:
     A project holds at most 1000, so this is what an alert should watch. A fleet we keep failing
     to delete stays in the count, so the number never hides a leak. It is reported every scheduler
     loop, and also while the feature is disabled, so the backlog can be sized before the deletion
-    is turned on.
+    is turned off.
 upgrade:
   - |
     ``Job`` has two new fields. ``finished_at`` is when the job reached a terminal status, which
@@ -32,8 +35,9 @@ upgrade:
     minute or two later. A fleet the delete keeps failing on is never stamped: after three
     attempts the scheduler stops picking it so it cannot block the queue, logs it at ERROR, and
     retries it after a restart. It is read-only in the backoffice. Migration ``0074`` adds both,
-    gives the fleets we already hold a ``finished_at`` from their ``updated``, and adds a partial
-    index on ``api_job``.
+    gives the fleets we already hold a ``finished_at`` from their ``updated``, and adds two
+    partial indexes on ``api_job``, one for the retention scan and one for the per-project quota
+    scan.
   - |
     The delete resolves its Code Engine project from the job's own ``ce_project_name``, so a
     program reassigned to another project after a job ran still has its fleet deleted in the
