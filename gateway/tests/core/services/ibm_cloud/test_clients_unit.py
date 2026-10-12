@@ -29,7 +29,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.ibm_cloud.clients import IBMCloudClientProvider, decode_jwt
+from core.ibm_cloud.clients import IBMCloudClientProvider, decode_jwt, IAM_HTTP_TIMEOUT
 
 
 def b64url_json(payload: dict[str, Any]) -> str:
@@ -126,6 +126,12 @@ def test_provider_extracts_iam_and_account() -> None:
     with patched_provider() as provider:
         assert provider.auth.iam_id == "iam-123"
         assert provider.auth.account_id == "acct-123"
+
+
+def test_provider_bounds_the_iam_token_timeout() -> None:
+    """The SDK defaults to 60s, which outlives both a scheduler tick and a 25s gunicorn request."""
+    with patched_provider() as provider:
+        assert provider.auth.authenticator.token_manager.http_config == {"timeout": IAM_HTTP_TIMEOUT}
 
 
 def test_provider_missing_iam_id() -> None:

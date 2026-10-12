@@ -24,6 +24,8 @@ from tests.utils import TestUtils
 pytestmark = pytest.mark.django_db
 
 _MOD = "scheduler.tasks.balance_filler_jobs"
+# the cancel now goes out from JobTransitionService, so that is where get_runner is looked up
+_RUNNER = "core.services.job_transitions.get_runner"
 _PROFILE = "160x1792x8h100"
 # The filler jobs are owned by whoever owns the filler function, so the author of the
 # program and the author the balancer writes on its jobs are the same user.
@@ -69,7 +71,7 @@ def _run(task, times=1):
     with (
         patch.object(task.submitter, "submit", side_effect=_fake_submit) as submit,
         patch(f"{_MOD}.get_arguments_storage") as arguments,
-        patch(f"{_MOD}.get_runner") as runner,
+        patch(_RUNNER) as runner,
     ):
         for _ in range(times):
             task.run()
@@ -187,16 +189,44 @@ def test_stops_the_oldest_filler_jobs_when_there_are_too_many(filler_program):
     Config.set(ConfigKey.FILLER_SLOTS, "1")
     task = _make_task()
 
-    _, _, runner = _run(task)
+    _run(task)
 
     jobs[0].refresh_from_db()
     jobs[1].refresh_from_db()
     jobs[2].refresh_from_db()
-    assert jobs[0].status == Job.STOPPED
-    assert jobs[1].status == Job.STOPPED
+    assert jobs[0].status == Job.STOPPING
+    assert jobs[1].status == Job.STOPPING
     assert jobs[2].status == Job.RUNNING
-    assert runner.return_value.stop.call_count == 2
     assert JobEvent.objects.filter(job=jobs[0], context=JobEventContext.FILLER_STOP).exists()
+
+
+def test_a_draining_filler_does_not_take_the_place_of_a_shed(filler_program):
+    """A STOPPING filler counts toward the target but cannot be shed again, so the stops come from
+    the rest. Picking it instead would shed one fewer than the excess and leave the profile over
+    target, or, once it reaches STOPPED, under it."""
+    jobs = [
+        TestUtils.create_job(
+            author=_AUTHOR,
+            program=filler_program,
+            status=status,
+            runner=Program.FLEETS,
+            compute_profile_fk=filler_program.default_size.compute_profile,
+            filler=True,
+            fleet_id=f"fleet-{index}",
+        )
+        # Two draining rows push the live count below the target, which is the case that
+        # over-sheds: an unguarded `stoppable[: 2 - 3]` is `stoppable[:-1]` and stops a live one.
+        for index, status in enumerate([Job.RUNNING, Job.RUNNING, Job.STOPPING, Job.STOPPING])
+    ]
+    Config.set(ConfigKey.FILLER_SLOTS, "3")
+    task = _make_task()
+
+    _run(task)
+
+    for job in jobs:
+        job.refresh_from_db()
+    # Four count toward a target of three, two are already draining, so nothing more is owed.
+    assert [job.status for job in jobs] == [Job.RUNNING, Job.RUNNING, Job.STOPPING, Job.STOPPING]
 
 
 def test_does_nothing_when_the_count_already_matches(filler_program):
@@ -213,10 +243,9 @@ def test_does_nothing_when_the_count_already_matches(filler_program):
         )
     task = _make_task()
 
-    submit, _, runner = _run(task)
+    submit, _, _ = _run(task)
 
     assert submit.call_count == 0
-    assert runner.return_value.stop.call_count == 0
     assert Job.objects.filter(filler=True, status=Job.RUNNING).count() == 4
 
 
@@ -237,7 +266,7 @@ def test_zero_slots_stops_every_filler_job(filler_program):
     submit, _, _ = _run(task)
 
     assert submit.call_count == 0
-    assert Job.objects.filter(filler=True, status=Job.STOPPED).count() == 1
+    assert Job.objects.filter(filler=True, status=Job.STOPPING).count() == 1
 
 
 @pytest.mark.parametrize(
@@ -268,7 +297,7 @@ def test_deactivated_stops_every_filler_job(filler_program, config_key, value):
     submit, _, _ = _run(task)
 
     assert submit.call_count == 0
-    assert Job.objects.filter(filler=True, status=Job.STOPPED).count() == 1
+    assert Job.objects.filter(filler=True, status=Job.STOPPING).count() == 1
 
 
 def test_a_program_without_a_default_size_deactivates_the_feature(filler_program):
@@ -359,23 +388,69 @@ def test_mark_failed_does_not_raise_when_the_job_already_turned_terminal(filler_
     assert job.status == Job.SUCCEEDED
 
 
-def test_mark_stopped_does_not_count_a_job_that_already_turned_terminal(filler_program):
-    """Same race for _mark_stopped: a stop that lost the race must not be counted as one."""
+def test_a_job_that_already_turned_terminal_is_not_counted_as_stopped(filler_program):
+    """A stop that lost the race must not be counted as the one that ended the job."""
     job = TestUtils.create_job(
         author=_AUTHOR,
         program=filler_program,
-        status=Job.FAILED,
+        status=Job.SUCCEEDED,
         runner=Program.FLEETS,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
+        fleet_id="fleet-done",
     )
     task = _make_task()
 
-    task._mark_stopped(job)  # must not raise
+    with patch(_RUNNER) as runner:
+        runner.return_value.stop.return_value = True
+        task._stop_one_filler_job(job)  # pylint: disable=protected-access
 
-    job.refresh_from_db()
-    assert job.status == Job.FAILED
     task.metrics.increment_filler_jobs_stopped.assert_not_called()
+    assert Job.objects.get(pk=job.pk).status == Job.SUCCEEDED
+
+
+def test_an_accepted_cancel_is_counted_by_the_poller_not_here(filler_program):
+    """The row goes to STOPPING, so UpdateFleetsJobsStatuses counts it when it writes the terminal
+    status. Counting here too would double count, and counting here instead would count a cancel
+    that was sent but never landed."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-live",
+    )
+    task = _make_task()
+
+    with patch(_RUNNER) as runner:
+        runner.return_value.stop.return_value = True
+        task._stop_one_filler_job(job)  # pylint: disable=protected-access
+
+    assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+    task.metrics.increment_filler_jobs_stopped.assert_not_called()
+
+
+def test_nothing_left_to_cancel_is_counted_here(filler_program):
+    """STOPPED already, so the poller never sees this row and this is the only place to count it."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.RUNNING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-gone",
+    )
+    task = _make_task()
+
+    with patch(_RUNNER) as runner:
+        runner.return_value.stop.return_value = False
+        task._stop_one_filler_job(job)  # pylint: disable=protected-access
+
+    assert Job.objects.get(pk=job.pk).status == Job.STOPPED
+    task.metrics.increment_filler_jobs_stopped.assert_called_once()
 
 
 def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
@@ -401,7 +476,7 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
     submit, _, _ = _run(task, times=4)
 
     stale.refresh_from_db()
-    assert stale.status == Job.STOPPED
+    assert stale.status == Job.STOPPING
     # The stale one never counted towards the target, so all four slots are filled.
     assert submit.call_count == 4
 
@@ -431,7 +506,7 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
     submit, _, _ = _run(task, times=4)
 
     stale.refresh_from_db()
-    assert stale.status == Job.STOPPED
+    assert stale.status == Job.STOPPING
     # It never counted towards the target either, so all four slots are filled.
     assert submit.call_count == 4
 
@@ -477,8 +552,9 @@ def test_the_occupancy_series_go_away_when_the_feature_is_off(filler_program):
     task.metrics.clear_filler_profile_jobs.assert_called_once()
 
 
-def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
-    """A failed cancel leaves the job active so the next loop retries it."""
+def _stuck_filler_job(filler_program, *, fleet_id):
+    """A running filler job on the protected profile, with the feature's slots set to zero so the
+    balancer sheds it."""
     job = TestUtils.create_job(
         author=_AUTHOR,
         program=filler_program,
@@ -486,21 +562,86 @@ def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
         runner=Program.FLEETS,
         compute_profile_fk=filler_program.default_size.compute_profile,
         filler=True,
-        fleet_id="fleet-stuck",
+        fleet_id=fleet_id,
     )
     Config.set(ConfigKey.FILLER_SLOTS, "0")
+    return job
+
+
+def test_a_fleet_that_cannot_be_cancelled_keeps_the_job_active(filler_program):
+    """A failed cancel leaves the job active so the next loop retries it."""
+    job = _stuck_filler_job(filler_program, fleet_id="fleet-stuck")
     task = _make_task()
 
     with (
         patch.object(task.submitter, "submit"),
         patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner") as runner,
+        patch(_RUNNER) as runner,
     ):
         runner.return_value.stop.side_effect = RunnerError("Code Engine said no")
         task.run()
 
     job.refresh_from_db()
     assert job.status == Job.RUNNING
+
+
+def test_an_undeliverable_cancel_keeps_the_filler_job_active(filler_program):
+    """One try per cycle: nothing is written, so the next cycle asks again."""
+    job = _stuck_filler_job(filler_program, fleet_id="fleet-429")
+    task = _make_task()
+
+    with (
+        patch.object(task.submitter, "submit"),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(_RUNNER) as runner,
+    ):
+        runner.return_value.stop.side_effect = RunnerRetryableError("Too Many Requests")
+        task.run()
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING
+
+
+def test_a_paused_region_sends_no_filler_cancel(filler_program):
+    """The breaker is shared with the submit, so a region that stopped answering stops the shedding too."""
+    job = _stuck_filler_job(filler_program, fleet_id="fleet-paused")
+    task = _make_task()
+    task.canceller = MagicMock()
+    task.canceller.paused.return_value = True
+
+    with (
+        patch.object(task.submitter, "submit"),
+        patch(f"{_MOD}.get_arguments_storage"),
+        patch(_RUNNER) as runner,
+    ):
+        task.run()
+
+    job.refresh_from_db()
+    assert job.status == Job.RUNNING
+    runner.return_value.stop.assert_not_called()
+    task.canceller.cancel.assert_not_called()
+
+
+def test_a_draining_filler_job_gets_no_second_cancel(filler_program):
+    """The drain and stale paths pass unfiltered lists, so without the STOPPING guard a filler that
+    is already draining is cancelled again every tick and the 409 is swallowed."""
+    job = TestUtils.create_job(
+        author=_AUTHOR,
+        program=filler_program,
+        status=Job.STOPPING,
+        runner=Program.FLEETS,
+        compute_profile_fk=filler_program.default_size.compute_profile,
+        filler=True,
+        fleet_id="fleet-draining",
+    )
+    Config.set(ConfigKey.FILLER_ENABLED, "false")
+    task = _make_task()
+
+    _, _, runner = _run(task, times=2)
+
+    job.refresh_from_db()
+    assert job.status == Job.STOPPING
+    runner.return_value.stop.assert_not_called()
 
 
 def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_program):
@@ -510,7 +651,7 @@ def test_a_failed_creation_waits_out_the_delay_before_trying_again(filler_progra
     with (
         patch.object(task.submitter, "submit"),
         patch(f"{_MOD}.get_arguments_storage", side_effect=ValueError("no bucket")) as arguments,
-        patch(f"{_MOD}.get_runner"),
+        patch(_RUNNER),
     ):
         task.run()
         assert arguments.call_count == 1
@@ -544,7 +685,7 @@ def test_an_unavailable_submit_fails_the_row_without_the_retry_delay(filler_prog
     with (
         patch.object(task.submitter, "submit", side_effect=RunnerRetryableError("Too Many Requests")),
         patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner"),
+        patch(_RUNNER),
     ):
         task.run()
 
@@ -559,7 +700,7 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
     with (
         patch.object(task.submitter, "submit", side_effect=ValueError("no runner")),
         patch(f"{_MOD}.get_arguments_storage"),
-        patch(f"{_MOD}.get_runner"),
+        patch(_RUNNER),
     ):
         task.run()
 

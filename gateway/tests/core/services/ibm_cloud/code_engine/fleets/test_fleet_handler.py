@@ -29,6 +29,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.ibm_cloud.code_engine.fleets.handler import (
     _CANCEL_PROCESSING_TASKS_KEY,
+    _CANCEL_TIMEOUT_SECONDS,
     _MODEL_VALIDATION_ERROR,
     FleetHandler,
 )
@@ -349,7 +350,10 @@ def test_cancel_job_waits_when_asked_and_does_not_delete(project_id):
             handler.cancel_job(fleet_uuid, wait=True, timeout_seconds=10, poll_interval_seconds=0.01)
 
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={_CANCEL_PROCESSING_TASKS_KEY: True},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
     waiter.assert_called_once()
     fleets_api.delete_fleet.assert_not_called()
@@ -370,7 +374,10 @@ def test_cancel_job_waits_and_deletes_when_flag_set(project_id):
             handler.cancel_job(fleet_uuid, wait=True, delete=True)
 
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={_CANCEL_PROCESSING_TASKS_KEY: True},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
     waiter.assert_called_once()
     fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
@@ -391,7 +398,10 @@ def test_cancel_job_no_wait_skips_poller(project_id):
             handler.cancel_job(fleet_uuid, wait=False)
 
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={_CANCEL_PROCESSING_TASKS_KEY: True},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
     waiter.assert_not_called()
     fleets_api.delete_fleet.assert_not_called()
@@ -435,7 +445,10 @@ def test_cancel_job_raises_on_non_404_delete_error(project_id):
 
     assert exc.value.status == 409
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={_CANCEL_PROCESSING_TASKS_KEY: True},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
     fleets_api.delete_fleet.assert_called_once_with(project_id=project_id, id=fleet_uuid)
 
@@ -510,8 +523,9 @@ def test_cancel_job_never_reads_the_fleet_status(project_id):
     fleets_api.cancel_fleet.assert_called_once()
 
 
-def test_cancel_job_returns_false_when_already_canceling(project_id):
-    """A 409 carrying Code Engine's already-canceled code means there is nothing left to do."""
+def test_cancel_job_returns_true_when_already_canceling(project_id):
+    """A 409 carrying Code Engine's already-canceled code means a cancel is in flight, so a terminal
+    task state is still to come and the caller must wait for it."""
     already_canceling = ApiException(status=409, reason="Conflict")
     # bytes, because that is what production hands us: ApiException.body is urllib3's resp.data.
     already_canceling.body = b'{"errors":[{"code":"fleet_already_canceled"}]}'
@@ -525,7 +539,7 @@ def test_cancel_job_returns_false_when_already_canceling(project_id):
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
             result = handler.cancel_job(fleet_uuid)
 
-    assert result is False
+    assert result is True
 
 
 def test_cancel_job_raises_on_unrelated_conflict(project_id):
@@ -621,7 +635,10 @@ def test_cancel_job_times_out_raises_assertion(project_id):
                 handler.cancel_job(fleet_uuid, wait=True, delete=False, timeout_seconds=0)
 
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={_CANCEL_PROCESSING_TASKS_KEY: True}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={_CANCEL_PROCESSING_TASKS_KEY: True},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
     fleets_api.delete_fleet.assert_not_called()
 
@@ -646,7 +663,10 @@ def test_cancel_job_sends_cancel_processing_tasks_true_by_default(project_id):
             handler.cancel_job(fleet_uuid, wait=False)
 
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={"cancel_processing_tasks": True}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={"cancel_processing_tasks": True},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
 
 
@@ -665,7 +685,10 @@ def test_cancel_job_honors_cancel_processing_tasks_false(project_id):
             handler.cancel_job(fleet_uuid, wait=False, cancel_processing_tasks=False)
 
     fleets_api.cancel_fleet.assert_called_once_with(
-        project_id=project_id, id=fleet_uuid, body={"cancel_processing_tasks": False}
+        project_id=project_id,
+        id=fleet_uuid,
+        body={"cancel_processing_tasks": False},
+        _request_timeout=_CANCEL_TIMEOUT_SECONDS,
     )
 
 
