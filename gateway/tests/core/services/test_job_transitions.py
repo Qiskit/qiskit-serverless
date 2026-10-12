@@ -113,17 +113,6 @@ class TestTransition:
 class TestValidatesTransitions:
     """JobTransitionService rejects any transition not listed in JobTransitionService.VALID_TRANSITIONS."""
 
-    @pytest.mark.parametrize("transition", ["to_succeeded", "to_failed", "to_stopped"])
-    def test_a_stopping_job_can_reach_any_terminal_status(self, service, transition):
-        """A job can finish or fail while its cancel is in flight, so STOPPING is not a one-way door
-        to STOPPED. The scheduler writes whatever the task store reports."""
-        author = User.objects.create_user(username=f"stopping-to-{transition}")
-        job = Job.objects.create(author=author, status=Job.STOPPING, runner=Program.FLEETS)
-
-        getattr(service, transition)(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-
-        assert Job.objects.get(pk=job.pk).status != Job.STOPPING
-
     @pytest.mark.parametrize(
         "current_status,transition",
         [
@@ -134,6 +123,7 @@ class TestValidatesTransitions:
             (Job.RUNNING, "pending_to_running"),
             (Job.SUCCEEDED, "to_stopped"),
             (Job.FAILED, "to_failed"),
+            (Job.STOPPING, "pending_to_running"),
         ],
     )
     def test_rejects_a_transition_outside_the_whitelist(self, service, current_status, transition):
@@ -331,8 +321,10 @@ class TestToTerminal:
     """to_terminal is to_succeeded, to_failed and to_stopped for the caller that only knows the final status."""
 
     @pytest.mark.parametrize("status", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
-    def test_writes_the_given_terminal_status(self, service, user, status):
-        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
+    # STOPPING is not a one-way door to STOPPED, and only a Fleets job ever reaches it
+    @pytest.mark.parametrize("start,runner", [(Job.RUNNING, Program.RAY), (Job.STOPPING, Program.FLEETS)])
+    def test_writes_the_given_terminal_status(self, service, user, status, start, runner):
+        job = Job.objects.create(author=user, runner=runner, status=start)
 
         service.to_terminal(job, status, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -544,4 +536,14 @@ class TestTryStop:
         usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert usage.payload["data"]["metric_value"] >= 100, "the window did not run to the confirmation"
         # A job seen in RUNNING owes the fee, so passing through STOPPING does not waive it.
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_a_job_that_succeeded_before_the_cancel_still_owes_its_fee(self, get_runner, service, user):
+        """The other detour: never seen RUNNING, so to_stopped would have waived the fee."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1

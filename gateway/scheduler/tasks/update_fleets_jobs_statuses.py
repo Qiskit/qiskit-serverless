@@ -73,15 +73,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # hold the user's concurrency slot forever.
             return self.stop_job_if_timeout(job)
 
-        if new_status == Job.SUCCEEDED:
-            self.to_terminal(job, Job.SUCCEEDED)
-            self._record_execution_duration(job)
-
-        elif new_status == Job.STOPPED:
-            self.to_terminal(job, Job.STOPPED)
-
-        elif new_status == Job.FAILED:
-            self.to_terminal(job, Job.FAILED)
+        if new_status in Job.TERMINAL_STATUSES:
+            self.to_terminal(job, new_status)
 
         elif new_status == Job.PENDING:
             # don't change the status... job still trying to start
@@ -104,23 +97,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return True
 
     def confirm_stop(self, job: Job, new_status: str | None) -> bool:
-        """End a STOPPING job once the task store reports any terminal task state, or on the deadline.
-
-        The task store wins over the stop request. A job that finished before its cancel landed
-        really did finish, and writing STOPPED would lose its result or hide its error.
+        """End a STOPPING job with whatever terminal state the task store reports, or STOPPED on the deadline.
 
         No cancel is sent from here: whoever asked for the stop already sent it.
         """
         if new_status in Job.TERMINAL_STATUSES:
-            logger.info("job_id=%s stop confirmed, task store reported %s", job.id, new_status)
+            logger.info("job_id=%s leaving STOPPING, task store reported %s", job.id, new_status)
             final_status = new_status
-        else:
-            # The earliest STOPPING event, not the latest event of any kind: a job still reporting
-            # sub_status would otherwise push its own deadline out for ever.
-            stopping_event = JobEvent.objects.filter(job=job, data__status=Job.STOPPING).order_by("created").first()
-            reference_time = stopping_event.created if stopping_event else job.updated
-            if datetime.now(timezone.utc) - reference_time < timedelta(seconds=_STOPPING_DEADLINE_SECONDS):
-                return False
+        elif self._stopping_deadline_passed(job):
             logger.warning(
                 "job_id=%s user_id=%s stop not confirmed after %ss, writing STOPPED anyway.",
                 job.id,
@@ -128,14 +112,25 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 _STOPPING_DEADLINE_SECONDS,
             )
             final_status = Job.STOPPED
+        else:
+            return False
 
         self.to_terminal(job, final_status)
-        if final_status == Job.SUCCEEDED:
-            self._record_execution_duration(job)
         return True
 
+    @staticmethod
+    def _stopping_deadline_passed(job: Job) -> bool:
+        """Whether the cancel has gone unconfirmed for _STOPPING_DEADLINE_SECONDS.
+
+        Measured from the earliest STOPPING event, not the latest event of any kind: a job still
+        reporting sub_status would otherwise push its own deadline out for ever.
+        """
+        stopping_event = JobEvent.objects.filter(job=job, data__status=Job.STOPPING).order_by("created").first()
+        reference_time = stopping_event.created if stopping_event else job.updated
+        return datetime.now(timezone.utc) - reference_time >= timedelta(seconds=_STOPPING_DEADLINE_SECONDS)
+
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition."""
+        """Persist a terminal status transition, then count it and record a succeeded job's duration."""
         requested = job.status == Job.STOPPING
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
@@ -156,6 +151,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
             return
         self._increment_terminal_counter(job, requested=requested)
+        if new_status == Job.SUCCEEDED:
+            self._record_execution_duration(job)
 
     def to_running(self, job: Job) -> None:
         """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""

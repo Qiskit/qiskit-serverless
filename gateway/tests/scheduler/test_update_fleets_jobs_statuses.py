@@ -117,7 +117,7 @@ class TestUpdateJobStatus:
         mock_timeout.assert_called_once_with(job)
         assert result is False
 
-    def test_succeeded_calls_to_terminal_and_records_duration(self):
+    def test_succeeded_calls_to_terminal(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -127,12 +127,10 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
-            patch.object(task, "_record_execution_duration") as mock_duration,
         ):
             task.update_job_status(job)
 
         mock_terminal.assert_called_once_with(job, Job.SUCCEEDED)
-        mock_duration.assert_called_once_with(job)
 
     def test_pending_to_running_calls_to_running(self):
         task = _make_task()
@@ -253,7 +251,8 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        task.to_terminal(job, Job.SUCCEEDED)
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
@@ -265,6 +264,19 @@ class TestToTerminal:
             context=JobEventContext.UPDATE_JOB_STATUS,
             job_fields={"sub_status": None, "env_vars": "{}"},
         )
+
+    def test_a_succeeded_job_records_its_duration(self):
+        """to_terminal owns this, so every route to SUCCEEDED gets it."""
+        task = _make_task()
+        job = _make_fleets_job()
+        running_event = MagicMock()
+        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        with patch(f"{_MOD}.JobEvent") as mock_event:
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        task.metrics.observe_job_execution_duration.assert_called_once()
 
     def test_job_reaches_failed_state(self):
         task = _make_task()
@@ -290,7 +302,8 @@ class TestToTerminal:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        task.to_terminal(job, Job.SUCCEEDED)
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
 
         task.transitions.running_to_running.assert_not_called()
 
@@ -307,6 +320,7 @@ class TestToTerminal:
         task.to_terminal(job, Job.SUCCEEDED)  # must not raise
 
         task.metrics.increment_jobs_terminal.assert_not_called()
+        task.metrics.observe_job_execution_duration.assert_not_called()
 
 
 class TestToRunning:
@@ -728,12 +742,12 @@ def _old_stopping_event():
 
 
 class TestStoppingJobs:
-    """A STOPPING job is driven to STOPPED by the scheduler, never by the stop request."""
+    """A STOPPING job is driven to a terminal status by the scheduler, never by the stop request."""
 
     @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
     def test_the_task_stores_terminal_status_wins_over_the_stop(self, task_state):
         """A job that finished before its cancel landed really did finish. Writing STOPPED instead
-        would lose a succeeded job's result and hide a failed one's error.
+        reports it as cancelled, which hides a failed job's error from the caller.
 
         The task store is COS, not the Code Engine API, so this read must never consult the breaker:
         gate it and a STOPPING row could never reach a terminal status during a Code Engine outage.
@@ -742,22 +756,19 @@ class TestStoppingJobs:
         job = _make_fleets_job(status=Job.STOPPING)
         runner = MagicMock()
         runner.status.return_value = task_state
-        running_event = MagicMock()
-        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
 
         with (
             patch(f"{_MOD}.get_runner", return_value=runner),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
+            # no RUNNING event, so the duration is skipped: this test is about the status
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = None
             changed = task.update_job_status(job)
 
         assert changed is True
         assert job.status == task_state
         runner.stop.assert_not_called()
         task.canceller.paused.assert_not_called()
-        # a job that really succeeded gets its duration recorded, like one nobody tried to cancel
-        assert task.metrics.observe_job_execution_duration.called is (task_state == Job.SUCCEEDED)
 
     def test_a_running_task_is_left_alone_and_no_cancel_is_sent(self):
         """Whoever asked for the stop already sent the cancel. The poller only observes."""

@@ -7,13 +7,13 @@ features:
     compute node was still being released. Sub-status and error reporting keep working
     while a job is stopping.
 
-    A job that finishes while it is stopping reports what it really did. Cancel a job that
-    had already succeeded and it ends as ``SUCCEEDED`` with its result, and one that had
-    already failed ends as ``FAILED`` with its error, instead of both reporting as stopped.
+    A job that finishes while it is stopping now reports what it really did, instead of
+    reporting as cancelled. One that had already failed ends as ``FAILED``, so its error
+    reaches the caller, and one that had already succeeded ends as ``SUCCEEDED``.
 upgrade:
   - |
     The scheduler is what completes a Code Engine cancellation, so it must be running for
-    a cancelled job to reach ``STOPPED``. A cancellation that is never confirmed is
+    a cancelled job to reach a terminal status. A cancellation that is never confirmed is
     stopped anyway after 5 minutes.
 
     A cancelled job stays in ``STOPPING`` for about 30 seconds, or about 150 seconds when
