@@ -599,7 +599,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.cleanup.retention_hours": {
         "default": "336",
         "type": "integer",
-        "description": "How long a fleet is kept after the job row was last written, so Code Engine "
+        "description": "How long a fleet is kept after the job reached a terminal status, so Code Engine "
         "support can still inspect it. Two weeks by default.",
     },
     "scheduler.fleets.cleanup.force_at_percent": {

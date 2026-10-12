@@ -687,6 +687,24 @@ def test_a_clean_delete_cycle_does_not_clear_the_cos_failures(mock_trace, mock_g
 @pytest.mark.django_db
 @patch("scheduler.schedule.get_runner")
 @patch("scheduler.schedule.trace")
+def test_a_cos_outage_leaves_the_cancels_alone(mock_trace, mock_get_runner_client):
+    """A cancel only calls Code Engine. Before the split a COS outage paused it, which this changes."""
+    _open_breakers_after_one_failure()
+    breakers = FleetsBreakers()
+    submitter = FleetsJobSubmitter(MagicMock(), breakers)
+    canceller = FleetsJobCanceller(MagicMock(), breakers)
+    mock_get_runner_client.return_value.submit.side_effect = CosRetryableError("SlowDown")
+
+    with pytest.raises(CosRetryableError):
+        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+
+    assert submitter.paused("us-east") is True
+    assert canceller.paused("us-east") is False
+
+
+@pytest.mark.django_db
+@patch("scheduler.schedule.get_runner")
+@patch("scheduler.schedule.trace")
 def test_a_cos_outage_pauses_submits_and_leaves_the_deletes_alone(mock_trace, mock_get_runner_client):
     _open_breakers_after_one_failure()
     breakers = FleetsBreakers()
