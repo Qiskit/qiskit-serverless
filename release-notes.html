@@ -469,6 +469,15 @@ slot until the cause is fixed, and the failure is logged with its fleet id.</p>
 </li>
 </ul>
 </section>
+<section id="security-issues">
+<span id="release-notes-upcoming-qiskit-serverless-release-security-issues"></span><h3>Security Issues<a class="headerlink" href="#security-issues" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">custom_token</span></code> authentication mechanism no longer accepts the <code class="docutils literal notranslate"><span class="pre">local</span></code>
+channel, which checks a static mock token and needs no instance. The Helm chart
+also stops passing <code class="docutils literal notranslate"><span class="pre">SETTINGS_AUTH_MOCK_TOKEN</span></code> to the pods unless the
+mechanism is <code class="docutils literal notranslate"><span class="pre">mock_token</span></code>.</p></li>
+</ul>
+</section>
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
@@ -496,6 +505,11 @@ reported as unreachable. And a cancel that Code Engine rate-limited could be
 reported as a completed stop even though nothing had been sent. The fleet’s
 status is no longer read before cancelling: the cancel is sent and Code
 Engine’s response decides.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A request to the IBM Cloud and IBM Quantum Platform channels without the
+<code class="docutils literal notranslate"><span class="pre">Service-CRN</span></code> header now fails with an authentication error that asks for
+the header, instead of an internal server error.</p></li>
 </ul>
 </section>
 </section>
@@ -1847,6 +1861,7 @@ specific jobs. For example:</p>
 <li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
+<li><a class="reference internal" href="#security-issues">Security Issues</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
 </ul>
 </li>
