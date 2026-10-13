@@ -659,6 +659,19 @@ FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALO
 FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
 
+# Qiskit user config (settings.conf) injected into every Ray and Fleets job container.
+# QISKIT_SETTINGS points at it; a function's own config is not read (Qiskit reads one file).
+QISKIT_MIN_QPY_VERSION = int(os.environ.get("QISKIT_MIN_QPY_VERSION", "13"))
+QISKIT_SETTINGS_CONTAINER_PATH = os.environ.get("QISKIT_SETTINGS_CONTAINER_PATH", "/tmp/qiskit/settings.conf")
+
+
+def _render_qiskit_user_config() -> str:
+    """Return the INI contents of the gateway-owned Qiskit user configuration file."""
+    return f"[default]\nmin_qpy_version = {QISKIT_MIN_QPY_VERSION}\n"
+
+
+QISKIT_USER_CONFIG = _render_qiskit_user_config()
+
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).
 CE_COS_USE_PUBLIC_ENDPOINT = os.environ.get("CE_COS_USE_PUBLIC_ENDPOINT", "false").lower() == "true"
