@@ -7,7 +7,10 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
 from core.config_key import ConfigKey
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -75,11 +78,13 @@ class FunctionAccessClient:
             response = requests.get(
                 f"{base_url}/api/v1/entitlements",
                 headers={"Service-CRN": instance_crn, "Authorization": f"apikey {api_key}"},
-                timeout=5,
+                timeout=settings.IBM_CLOUD_API_TIMEOUT,
             )
         except requests.RequestException as exc:
+            # A timeout or connection error is a transient backend problem, not an
+            # access decision: surface it as retryable rather than as a denial.
             logger.exception("FunctionAccessClient: connection error for CRN %s", instance_crn)
-            raise RuntimeFunctionsException("Error connecting to Runtime API") from exc
+            raise RuntimeFunctionsUnavailable("Error connecting to Runtime API") from exc
 
         if response.status_code == 204:
             # We agreed with Runtime that 204 response means there is no functions configured
@@ -87,6 +92,14 @@ class FunctionAccessClient:
             result = FunctionAccessResult(
                 use_legacy_authorization=True, message="Account not configured, migration pending"
             )
+        elif response.status_code == 429 or response.status_code >= 500:
+            # The Runtime API is failing, not answering about access, so this is retryable.
+            logger.warning(
+                "FunctionAccessClient: Runtime API returned %s for CRN %s",
+                response.status_code,
+                instance_crn,
+            )
+            raise RuntimeFunctionsUnavailable(f"Runtime API returned {response.status_code} for CRN {instance_crn}")
         elif response.status_code != 200:
             logger.warning(
                 "FunctionAccessClient: unexpected status %s for CRN %s",
