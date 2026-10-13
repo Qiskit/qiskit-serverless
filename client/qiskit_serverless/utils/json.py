@@ -219,8 +219,19 @@ def safe_json_request(
                     _body_snippet(response.text),
                 )
             ) from json_error
-        # A successful (2xx) response whose body we cannot decode is a genuine
-        # violation of the server contract: report it as a JSON decoding error.
+        # A successful (2xx) response with an empty body is a truncated or blank
+        # success from the service or an intermediary. It is transient and a retry
+        # succeeds, so report it as such. Endpoints that legitimately return no
+        # body (204) are handled by their callers before reaching this point.
+        if response is None or not response.text.strip():
+            raise QiskitServerlessException(
+                format_err_msg(
+                    ErrorCodes.EMPTY1001,
+                    str(json_error.args),
+                )
+            ) from json_error
+        # A successful (2xx) response whose non-empty body we cannot decode is a
+        # genuine violation of the server contract: report it as a decoding error.
         raise QiskitServerlessException(
             format_err_msg(
                 ErrorCodes.JSON1001,

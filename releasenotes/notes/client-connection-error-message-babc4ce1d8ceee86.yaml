@@ -8,3 +8,9 @@ fixes:
     previously reported with code ``AUTH1001`` and a message telling the user to
     check their host and authentication, which pointed at configuration that was
     not the problem.
+  - |
+    A successful response that arrives with an empty body, which happens on a
+    transient blip and clears on retry, now raises a ``QiskitServerlessException``
+    with code ``EMPTY1001`` and a message saying to try again. It was previously
+    reported with code ``JSON1001`` as a server json decoding error, which read as
+    a permanent problem.

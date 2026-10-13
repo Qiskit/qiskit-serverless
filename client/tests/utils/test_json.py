@@ -367,6 +367,33 @@ class TestSafeJsonRequest:
 
         assert ErrorCodes.JSON1001 in str(context.value)
 
+    def test_successful_request_with_empty_body_reports_empty_as_transient(self):
+        """A 2xx response with an empty body is a blank/truncated success, which is
+        transient; it must report EMPTY1001 ('try again'), not JSON1001."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = True
+        mock_response.status_code = 200
+        mock_response.text = ""
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(lambda: mock_response)
+
+        message = str(context.value)
+        assert ErrorCodes.EMPTY1001 in message
+        assert ErrorCodes.JSON1001 not in message
+
+    def test_successful_request_with_whitespace_only_body_reports_empty(self):
+        """A 2xx body that is only whitespace is also treated as an empty response."""
+        mock_response = Mock(spec=requests.Response)
+        mock_response.ok = True
+        mock_response.status_code = 200
+        mock_response.text = "   \n\t "
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(lambda: mock_response)
+
+        assert ErrorCodes.EMPTY1001 in str(context.value)
+
 
 class TestRaiseForNonOkResponse:
     """Tests for the raise_for_non_ok_response helper."""
