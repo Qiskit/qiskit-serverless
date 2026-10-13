@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from prometheus_client import CollectorRegistry
 
-from core.services.blocked_account_events import handle_blocked_account_event
+from core.services.blocked_account_events import BlockedAccountEventsService
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.consume_blocked_account_events import ConsumeBlockedAccountEvents
@@ -63,14 +63,15 @@ class TestConsumeBlockedAccountEventsEnabled:
         with patch(f"{_MOD}.KafkaRegionalConsumer") as mock_consumer_cls:
             _task()
 
-        mock_consumer_cls.assert_called_once_with(
-            topics=[
-                "quantum.production.blocked-account-plans.v1",
-                "quantum.production.blocked-account-plans-non-quantum.v1",
-            ],
-            group_id="qiskit-serverless-scheduler-blocked-accounts-production",
-            handler=handle_blocked_account_event,
-        )
+        mock_consumer_cls.assert_called_once()
+        kwargs = mock_consumer_cls.call_args.kwargs
+        assert kwargs["topics"] == [
+            "quantum.production.blocked-account-plans.v1",
+            "quantum.production.blocked-account-plans-non-quantum.v1",
+        ]
+        assert kwargs["group_id"] == "qiskit-serverless-scheduler-blocked-accounts-production"
+        assert isinstance(kwargs["handler"].__self__, BlockedAccountEventsService)
+        assert kwargs["handler"].__func__ is BlockedAccountEventsService.handle
 
     def test_consumer_is_built_once_and_reused_by_every_tick(self, settings):
         settings.EVENT_STREAMS_ENABLED = True

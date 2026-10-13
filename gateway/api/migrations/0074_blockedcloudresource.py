@@ -38,7 +38,6 @@ class Migration(migrations.Migration):
                         django.db.models.functions.comparison.Coalesce("account", models.Value("")),
                         django.db.models.functions.comparison.Coalesce("plan", models.Value("")),
                         django.db.models.functions.comparison.Coalesce("subscription", models.Value("")),
-                        models.F("source"),
                         name="unique_blocked_resource",
                     ),
                     models.CheckConstraint(

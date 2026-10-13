@@ -511,9 +511,8 @@ class BlockedCloudResource(models.Model):
     are nullable so that narrower rule shapes (e.g., account-only) can be added
     later without a migration.
 
-    Each topic billing-service publishes the blocked set to is its own source of rules: a
-    resource is blocked while it has a row from any source, and a source's recovery only
-    removes that source's row.
+    ``source`` is only informational: the feed that first blocked the resource. Blocked by either
+    feed is the same, so it is not part of the row's identity.
     """
 
     class Source(models.TextChoices):
@@ -542,7 +541,6 @@ class BlockedCloudResource(models.Model):
                 Coalesce("account", Value("")),
                 Coalesce("plan", Value("")),
                 Coalesce("subscription", Value("")),
-                "source",
                 name="unique_blocked_resource",
             ),
             models.CheckConstraint(

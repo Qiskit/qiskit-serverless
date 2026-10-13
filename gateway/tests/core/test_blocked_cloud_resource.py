@@ -25,7 +25,7 @@ class TestBlockedCloudResource(TestCase):
     """Tests for BlockedCloudResource model."""
 
     def test_inserting_same_rule_twice_raises_integrity_error(self):
-        """The unique constraint over the scope and the source prevents duplicate rows."""
+        """The unique constraint over the scope prevents duplicate rows."""
         BlockedCloudResource.objects.create(
             account="acct-123", plan="plan-456", subscription="sub-789", source=_QUANTUM
         )
@@ -42,12 +42,12 @@ class TestBlockedCloudResource(TestCase):
         with self.assertRaises(IntegrityError):
             BlockedCloudResource.objects.create(account="acct-123", source=_QUANTUM)
 
-    def test_the_same_scope_from_each_source_both_persist(self):
-        """Each topic is its own source of rules."""
+    def test_the_same_scope_from_another_source_raises_integrity_error(self):
+        """The source is not part of the identity: blocked by either feed is the same."""
         BlockedCloudResource.objects.create(account="acct-123", source=_QUANTUM)
-        BlockedCloudResource.objects.create(account="acct-123", source=_NON_QUANTUM)
 
-        assert BlockedCloudResource.objects.count() == 2
+        with self.assertRaises(IntegrityError):
+            BlockedCloudResource.objects.create(account="acct-123", source=_NON_QUANTUM)
 
     def test_two_rows_differing_in_one_column_both_persist(self):
         """Constraint allows rows that differ in at least one scope column."""

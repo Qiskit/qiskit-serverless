@@ -5,7 +5,7 @@ import pytest
 
 from core.ibm_cloud.event_streams.kafka_consumer import InvalidEventError
 from core.models import BlockedCloudResource
-from core.services.blocked_account_events import handle_blocked_account_event
+from core.services.blocked_account_events import BlockedAccountEventsService
 
 _QUANTUM = "quantum.production.blocked-account-plans.v1"
 _NON_QUANTUM = "quantum.production.blocked-account-plans-non-quantum.v1"
@@ -17,7 +17,7 @@ def _event(account="acc-1", plan="plan-1", subscription="sub-1", **extra) -> dic
 
 
 def _handle(payload: dict, topic: str = _QUANTUM) -> None:
-    handle_blocked_account_event(payload, "key", "us-east", topic)
+    BlockedAccountEventsService().handle(payload, "key", "us-east", topic)
 
 
 def _rows() -> list[tuple]:
@@ -38,14 +38,17 @@ class TestBlock:
 
         assert len(_rows()) == 1
 
-    def test_either_topic_produces_the_same_row_shape(self):
-        _handle(_event(), topic=_QUANTUM)
+    def test_either_topic_blocks_the_same_resource_with_one_row(self):
         _handle(_event(), topic=_NON_QUANTUM)
+        _handle(_event(), topic=_QUANTUM)
 
-        assert _rows() == [
-            ("acc-1", "plan-1", "sub-1", "blocked-account-plans-non-quantum.v1"),
-            ("acc-1", "plan-1", "sub-1", "blocked-account-plans.v1"),
-        ]
+        assert len(_rows()) == 1
+
+    def test_the_row_keeps_the_source_of_the_first_block(self):
+        _handle(_event(), topic=_NON_QUANTUM)
+        _handle(_event(), topic=_QUANTUM)
+
+        assert _rows() == [("acc-1", "plan-1", "sub-1", "blocked-account-plans-non-quantum.v1")]
 
     def test_a_different_scope_is_another_row(self):
         _handle(_event(subscription="sub-1"))
@@ -68,13 +71,12 @@ class TestUnblock:
 
         assert _rows() == [("acc-1", "plan-1", "other", "blocked-account-plans.v1")]
 
-    def test_a_deleted_event_only_removes_its_topics_row(self):
-        """Blocked by both topics and recovered in one: still blocked by the other."""
+    def test_a_deleted_event_from_either_topic_removes_the_row(self):
+        """Blocked by one topic and recovered in the other: the topics are equivalent."""
         _handle(_event(), topic=_QUANTUM)
-        _handle(_event(), topic=_NON_QUANTUM)
-        _handle(_event(deleted=True), topic=_QUANTUM)
+        _handle(_event(deleted=True), topic=_NON_QUANTUM)
 
-        assert _rows() == [("acc-1", "plan-1", "sub-1", "blocked-account-plans-non-quantum.v1")]
+        assert not _rows()
 
 
 @pytest.mark.django_db
