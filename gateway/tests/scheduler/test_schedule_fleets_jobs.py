@@ -31,13 +31,29 @@ def test_fleets_execute_called_with_ctx():
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch.object(task.submitter, "submit", return_value=mock_job) as mock_execute,
+        patch.object(task.submitter, "submit", return_value=True) as mock_execute,
         patch(f"{_MOD}.TraceContextTextMapPropagator") as mock_propagator,
     ):
         mock_propagator.return_value.extract.return_value = mock_ctx
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     mock_execute.assert_called_once_with(mock_job, mock_ctx)
+
+
+def test_a_submit_that_did_not_reach_pending_records_no_queue_wait():
+    """The queue-wait sample is only meaningful for a job that actually started."""
+    task = _make_task()
+    mock_job = MagicMock(status=Job.QUEUED, gpu=False, env_vars='{"traceparent": null}', filler=False)
+    mock_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    with (
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
+        patch.object(task.submitter, "submit", return_value=False),
+        patch(f"{_MOD}.TraceContextTextMapPropagator"),
+    ):
+        task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
+
+    task.metrics.observe_queue_wait_time.assert_not_called()
 
 
 def test_add_queue_wait_time_metric_skips_filler_jobs():
@@ -89,7 +105,7 @@ def test_a_job_in_a_paused_region_is_not_submitted():
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[paused, other]),
         patch.object(task.submitter, "paused", side_effect=lambda region: region == "us-east"),
-        patch.object(task.submitter, "submit", side_effect=lambda job, ctx: job) as mock_submit,
+        patch.object(task.submitter, "submit", side_effect=lambda job, ctx: True) as mock_submit,
     ):
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 

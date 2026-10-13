@@ -8,6 +8,7 @@ from core.services.runners.ray_runner import FilteredLogs
 from prometheus_client import CollectorRegistry
 
 import pytest
+from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
@@ -17,6 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
@@ -194,13 +196,11 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)
+        assert FleetsJobSubmitter(transitions).submit(job, ctx) is True
 
         mock_runner.submit.assert_called_once()
-        assert ret_job.status == Job.PENDING
-        assert ret_job.env_vars == "{}"
+        assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
         transitions.queued_to_pending.assert_called_once()
-        assert transitions.queued_to_pending.call_args.kwargs["job_fields"]["env_vars"] == "{}"
         transitions.to_failed.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
@@ -217,14 +217,15 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)
+        assert FleetsJobSubmitter(transitions).submit(job, ctx) is False
 
         mock_runner.submit.assert_called_once()
-        assert ret_job.status == Job.FAILED
-        assert ret_job.env_vars == "{}"
         transitions.to_failed.assert_called_once()
-        assert transitions.to_failed.call_args.kwargs["job_fields"]["env_vars"] == "{}"
+        # the spent env vars are cleared on their own, the transition writes only the status
+        assert job.update_fields.call_args.args[0] == {"env_vars": "{}"}
+        assert "job_fields" not in transitions.to_failed.call_args.kwargs
         transitions.queued_to_pending.assert_not_called()
+        mock_runner.stop.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
@@ -319,9 +320,9 @@ class TestScheduleApi(APITestCase):
     def test_fleets_submit_does_not_raise_when_the_job_already_turned_terminal(
         self, mock_trace, mock_get_runner_client
     ):
-        """Lost the race: something else (e.g. a user-initiated stop) already moved the job to
-        a terminal status while it was being submitted. The transition raises
-        InvalidJobTransitionException; this must not propagate and crash the scheduler tick."""
+        """Lost the race: something else (e.g. a user-initiated stop) already moved the job to a
+        terminal status while it was being submitted. The fleet exists by then, so it must be
+        recorded on the row and cancelled, and the tick must not crash."""
         mock_runner = MagicMock()
         mock_get_runner_client.return_value = mock_runner
         transitions = MagicMock()
@@ -334,14 +335,15 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)  # must not raise
+        assert FleetsJobSubmitter(transitions).submit(job, ctx) is False  # must not raise
 
-        assert ret_job.status == Job.PENDING
+        assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
+        mock_runner.stop.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
     def test_fleets_submit_does_not_raise_when_a_failed_submit_lost_the_race(self, mock_trace, mock_get_runner_client):
-        """Same race when the submit failed: the job is returned as FAILED, like the caller expects."""
+        """Same race when the submit failed: no fleet exists, so there is nothing to cancel."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
         mock_get_runner_client.return_value = mock_runner
@@ -352,20 +354,20 @@ class TestScheduleApi(APITestCase):
         job.status = Job.QUEUED
         job.logs = ""
 
-        ret_job = FleetsJobSubmitter(transitions).submit(job, MagicMock())  # must not raise
+        assert FleetsJobSubmitter(transitions).submit(job, MagicMock()) is False  # must not raise
 
-        assert ret_job.status == Job.FAILED
+        mock_runner.stop.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_returns_the_status_it_ended_with_when_the_transition_fails(
+    def test_fleets_submit_records_the_fleet_even_when_the_status_write_blows_up(
         self, mock_trace, mock_get_runner_client
     ):
-        """A failing transition propagates, but the job already carries the status the submit ended with:
-        the filler balancer reads it to tell 'raised before runner.submit()' from 'raised after'."""
-        mock_get_runner_client.return_value.submit.side_effect = RunnerError("Submit failed")
+        """The fleet id is written before the transition and on its own, so a status write that dies
+        for any reason, not only a refused transition, still leaves the fleet findable."""
+        mock_get_runner_client.return_value.submit.return_value = None
         transitions = MagicMock()
-        transitions.to_failed.side_effect = RuntimeError("db down")
+        transitions.queued_to_pending.side_effect = RuntimeError("db down")
 
         job = MagicMock()
         job.status = Job.QUEUED
@@ -374,7 +376,7 @@ class TestScheduleApi(APITestCase):
         with pytest.raises(RuntimeError, match="db down"):
             FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
-        assert job.status == Job.FAILED
+        assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
 
     @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
@@ -431,6 +433,56 @@ class TestScheduleApi(APITestCase):
             # The table was filled as following: Job creation, Job status change to running, job stopping
             # due exceeding time limit.
             assert len(job_events) == 3
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
+    """The staging race of 2026-10-12, against the real transition service and the database.
+
+    The stop endpoint wrote STOPPED while Code Engine was still creating the fleet. The fleet then
+    ran the task to the end with nothing tracking it, because fleet_id only reached the database
+    through the status transition that was refused.
+    """
+    author = User.objects.create_user(username="submit-race-author")
+    job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED, env_vars='{"KEY": "value"}')
+
+    runner = MagicMock()
+
+    def create_the_fleet_then_lose_the_race():
+        job.fleet_id = "fleet-created-anyway"
+        # what the stop endpoint did, three seconds before Code Engine answered
+        Job.objects.filter(pk=job.pk).update(status=Job.STOPPED)
+
+    runner.submit.side_effect = create_the_fleet_then_lose_the_race
+
+    with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
+        submitted = FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(job, None)
+
+    assert submitted is False
+    job.refresh_from_db()
+    assert job.status == Job.STOPPED
+    assert job.fleet_id == "fleet-created-anyway"
+    assert job.env_vars == "{}"
+    runner.stop.assert_called_once()
+
+
+def test_a_cancel_that_fails_leaves_the_fleet_on_the_row_and_on_the_timeline():
+    """The row is terminal, so nothing retries this cancel. The job timeline is the only signal."""
+    runner = MagicMock()
+    runner.stop.side_effect = RunnerRetryableError("Too Many Requests")
+    transitions = MagicMock()
+    transitions.queued_to_pending.side_effect = InvalidJobTransitionException("STOPPED -> PENDING")
+    job = MagicMock(status=Job.QUEUED, logs="")
+
+    with (
+        patch("scheduler.schedule.get_runner", return_value=runner),
+        patch("scheduler.schedule.trace"),
+        patch("scheduler.schedule.JobEvent") as mock_event,
+    ):
+        assert FleetsJobSubmitter(transitions).submit(job, None) is False  # must not raise
+
+    assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
+    assert mock_event.objects.add_error_event.call_args.kwargs["code"] == "FLEET_LEFT_RUNNING"
 
 
 def test_fleets_submit_records_the_given_event_context():

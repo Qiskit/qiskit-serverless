@@ -277,7 +277,7 @@ class BalanceFillerJobs(SchedulerTask):
             return False
 
         try:
-            job = self.submitter.submit(
+            submitted = self.submitter.submit(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
                 context=JobEventContext.FILLER_SUBMIT,
@@ -297,10 +297,9 @@ class BalanceFillerJobs(SchedulerTask):
             self._log_creation_failed(ex)
             return False
 
-        submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
-        logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        # Not reaching PENDING means submit() swallowed a RunnerError.
+        logger.info("[BalanceFillerJobs] job_id=%s filler job submitted=%s", job.id, submitted)
+        # Not reaching PENDING means submit() swallowed a RunnerError, or the row left QUEUED.
         return submitted
 
     def _log_creation_failed(self, ex: Exception) -> None:

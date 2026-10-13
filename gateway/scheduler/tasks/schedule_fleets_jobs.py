@@ -73,15 +73,13 @@ class ScheduleFleetsJobs(SchedulerTask):
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
             try:
-                job = self.submitter.submit(job, ctx)
+                reached_pending = self.submitter.submit(job, ctx)
             except RunnerRetryableError as ex:
                 logger.warning("job_id=%s region=%s Job kept QUEUED: %s", job.id, job.ce_region, ex)
                 skipped_regions.add(job.ce_region)
                 continue
 
-            logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
-
-            if job.status == Job.PENDING:
+            if reached_pending:
                 submitted += 1
                 self.add_queue_wait_time_metric(job)
 
