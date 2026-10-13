@@ -7,6 +7,7 @@ from typing import List, Optional, Any, Tuple
 import jwt
 import requests
 from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientConnectionError
 from django.conf import settings
 from django.core.cache import cache
 from ibm_cloud_sdk_core import ApiException
@@ -19,6 +20,17 @@ from api.domain.exceptions.service_unavailable_exception import ServiceUnavailab
 from api.services.authentication.authentication_base import AuthenticationBase
 
 logger = logging.getLogger("api.IBMQuantumPlatform")
+
+
+def _is_transient_api_exception(api_exception: ApiException) -> bool:
+    """True when an IBM Cloud ApiException is a transient backend failure.
+
+    A 429 (rate limit) or any 5xx is the service failing, not an answer about the
+    caller's credentials or instance, so it should be retried rather than reported
+    as an authentication error.
+    """
+    status_code = api_exception.status_code
+    return status_code == 429 or (status_code is not None and status_code >= 500)
 
 
 class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instance-attributes
@@ -149,6 +161,17 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
                 options={"verify_exp": True, "verify_iat": True},
             )
             cache.set(cache_key, decoded, timeout=self.cache_ttl)
+        except (requests.exceptions.RequestException, PyJWKClientConnectionError) as transient_error:
+            # IAM (or the JWKS endpoint) was unreachable or timed out. This is a
+            # transient backend problem, not a bad API key: ask the caller to retry.
+            logger.warning("IBM Cloud unreachable while authenticating: %s.", transient_error)
+            raise ServiceUnavailable() from transient_error
+        except ApiException as api_exception:
+            if _is_transient_api_exception(api_exception):
+                logger.warning("IBM Cloud returned %s while authenticating.", api_exception.status_code)
+                raise ServiceUnavailable() from api_exception
+            logger.warning("IBM Quantum Platform authentication error: %s.", api_exception.message)
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
             raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
@@ -181,13 +204,12 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             raise ServiceUnavailable() from request_exception
         except ApiException as api_exception:
             # A 5xx or a rate limit (429) is the Resource Controller failing, not the
-            # CRN being wrong, so these also retry rather than blame the CRN. A 4xx
-            # that is not 429 does implicate the CRN (unknown instance, malformed id).
-            status_code = api_exception.status_code
-            if status_code == 429 or (status_code is not None and status_code >= 500):
+            # CRN being wrong, so these retry rather than blame the CRN. A 4xx that is
+            # not 429 does implicate the CRN (unknown instance, malformed id).
+            if _is_transient_api_exception(api_exception):
                 logger.warning(
                     "IBM Quantum Platform returned %s while resolving the instance: %s.",
-                    status_code,
+                    api_exception.status_code,
                     api_exception.message,
                 )
                 raise ServiceUnavailable() from api_exception
@@ -219,7 +241,16 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
             access_groups_service.set_service_url(self.iam_url)
             access_groups_response = access_groups_service.list_access_groups(account_id=self.account_id).get_result()
+        except requests.exceptions.RequestException as request_exception:
+            # Access Groups was unreachable or timed out. Returning no groups here would
+            # silently strip the user's permissions, so retry instead of degrading.
+            logger.warning("IBM Cloud unreachable while resolving access groups: %s.", request_exception)
+            raise ServiceUnavailable() from request_exception
         except ApiException as api_exception:
+            if _is_transient_api_exception(api_exception):
+                # A 5xx or 429 would otherwise drop the user's groups silently; retry.
+                logger.warning("IBM Cloud returned %s while resolving access groups.", api_exception.status_code)
+                raise ServiceUnavailable() from api_exception
             logger.warning("IBM Quantum Platform authentication error: %s.", api_exception.message)
             return []
 

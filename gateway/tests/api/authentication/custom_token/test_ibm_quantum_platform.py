@@ -334,6 +334,57 @@ class TestIBMQuantumPlatformAuthentication:
         assert exc_info.value.status_code == 503
         assert crn not in str(exc_info.value)
 
+    @responses.activate
+    def test_iam_token_server_error_raises_service_unavailable(self):
+        """A 5xx from IAM while fetching the token is a transient backend failure, so
+        it must surface a 503 retry, not a 401 'review your API Key'."""
+        responses.add(
+            responses.POST,
+            f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+            json={"errorMessage": "service unavailable"},
+            status=503,
+        )
+
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "API Key" not in str(exc_info.value)
+
+    @responses.activate
+    def test_iam_token_connection_error_raises_service_unavailable(self):
+        """A connection error reaching IAM is transient, so it surfaces a 503 retry
+        rather than a 401 'review your API Key'."""
+        responses.add(
+            responses.POST,
+            f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+            body=requests.exceptions.ConnectionError("connection refused"),
+        )
+
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "API Key" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_access_groups_server_error_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 5xx while resolving access groups must raise a 503 rather than silently
+        returning no groups, which would strip the user's permissions."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-GROUPS-5XX", "abc18abcd41546508b35dfe0627109c4")
+        mock_list_access_groups.side_effect = ApiException(502, message="Bad Gateway")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate

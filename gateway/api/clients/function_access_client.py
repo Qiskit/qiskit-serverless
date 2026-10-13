@@ -78,7 +78,7 @@ class FunctionAccessClient:
             response = requests.get(
                 f"{base_url}/api/v1/entitlements",
                 headers={"Service-CRN": instance_crn, "Authorization": f"apikey {api_key}"},
-                timeout=settings.RUNTIME_API_TIMEOUT,
+                timeout=settings.IBM_CLOUD_API_TIMEOUT,
             )
         except requests.RequestException as exc:
             # A timeout or connection error is a transient backend problem, not an

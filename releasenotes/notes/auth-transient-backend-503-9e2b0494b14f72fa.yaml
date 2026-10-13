@@ -2,8 +2,8 @@
 fixes:
   - |
     A request whose authentication could not be completed because IBM Cloud was
-    unreachable or returned a server error now fails with ``HTTP 503`` and a message
-    asking the user to retry, instead of a ``401`` telling them to review their CRN.
-    A valid CRN is no longer reported as invalid during an IBM Cloud outage; the
-    ``401`` and the "review your CRN" message are kept only for a CRN that IBM Cloud
-    actually rejects.
+    unreachable, timed out, or returned a server error now fails with ``HTTP 503``
+    and a message asking the user to retry, instead of a ``401`` telling them to
+    review their API key or CRN. Valid credentials and a valid CRN are no longer
+    reported as invalid during an IBM Cloud outage; the ``401`` messages are kept
+    only when IBM Cloud actually rejects the API key or the CRN.

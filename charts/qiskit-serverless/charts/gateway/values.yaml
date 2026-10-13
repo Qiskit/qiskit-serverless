@@ -73,6 +73,7 @@ application:
   runtimeApi:
     url: "https://quantum.cloud.ibm.com"
     cacheTtl: "1"
+    timeout: "10"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
