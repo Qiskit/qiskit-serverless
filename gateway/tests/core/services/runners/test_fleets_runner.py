@@ -13,19 +13,20 @@
 """Unit tests for FleetsRunner."""
 
 import io
-import re
 import tarfile
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.conf import settings as django_settings
+from ibm_botocore.exceptions import ClientError, ReadTimeoutError
+from urllib3.exceptions import MaxRetryError, NameResolutionError, NewConnectionError, ProtocolError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.services.runners.abstract_runner import RunnerError
+from core.services.runners.abstract_runner import RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
@@ -336,6 +337,41 @@ class TestCosStatusDetection:
         assert runner.status() is None
 
 
+def test_stop_returns_false_when_the_program_is_deleted():
+    """Nothing can cancel this fleet or confirm it stopped, so the caller must end the row."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner.job.program = None
+
+    assert runner.stop() is False
+    mock_handler.cancel_job.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "break_it",
+    [
+        lambda job: setattr(job.program, "code_engine_project", None),
+        lambda job: setattr(job.program.code_engine_project, "active", False),
+    ],
+    ids=["no-project", "project-inactive"],
+)
+def test_stop_raises_when_the_project_can_be_put_back(break_it):
+    """An operator can assign or re-activate the project, so this must not become a terminal status:
+    that would strand a fleet still holding its node. Not retryable either, or one deactivated
+    project would open its whole region's breaker and pause everyone else's submits.
+
+    Goes through the real stop() on purpose. Injecting the error into a mocked runner hides which
+    type it reports, which is the thing every caller branches on.
+    """
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    break_it(runner.job)
+
+    with pytest.raises(RunnerError) as exc:
+        runner.stop()
+
+    assert type(exc.value) is RunnerError
+    mock_handler.cancel_job.assert_not_called()
+
+
 def test_stop_returns_true_when_the_cancel_was_accepted():
     """stop() reports True only when Code Engine accepted the cancel."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
@@ -348,7 +384,7 @@ def test_stop_returns_true_when_the_cancel_was_accepted():
 
 
 def test_stop_returns_false_when_there_was_nothing_to_cancel():
-    """stop() reports False when Code Engine says the fleet is gone or already being cancelled.
+    """stop() reports False when Code Engine says the fleet is gone.
 
     It still sends the cancel, and it does not read the fleet status to decide. That pre-read is
     what stopped a fleet in an unrecognised status from being cancelled at all, so assert it is
@@ -364,13 +400,47 @@ def test_stop_returns_false_when_there_was_nothing_to_cancel():
     mock_handler.get_job_status.assert_not_called()
 
 
-def test_stop_raises_runner_error_when_the_cancel_could_not_be_sent():
-    """A Code Engine error means the cancel was not delivered, so the caller can retry."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        ApiException(status=429, reason="Too Many Requests"),
+        ApiException(status=503, reason="Service Unavailable"),
+        ApiException(status=0, reason="no answer"),
+        ApiException(status=403, reason="Forbidden"),
+        ApiException(status=400, reason="Bad Request"),
+        MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")),
+        MaxRetryError(None, "/", reason=NameResolutionError("api.wrong.example.com", None, "not found")),
+        MaxRetryError(None, "/", reason=ProtocolError()),
+        ReadTimeoutError(endpoint_url="/"),
+    ],
+    ids=["429", "503", "no-answer", "403", "400", "refused", "bad-dns", "protocol", "read-timeout"],
+)
+def test_stop_asks_again_for_every_cancel_that_did_not_land(error):
+    """A 400, a 403 and a bad region are all something that gets fixed, and sending the same cancel
+    twice is safe because one already in flight answers 409. A submit cannot say that, which is why
+    it keeps a permanent class and fails the job instead."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.cancel_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+    mock_handler.cancel_job.side_effect = error
 
-    with pytest.raises(RunnerError, match="Code Engine API error"):
+    with pytest.raises(RunnerError) as exc:
         runner.stop()
+
+    assert type(exc.value) is RunnerRetryableError
+
+
+def test_stop_reports_an_unreachable_code_engine_as_retryable():
+    """connect() and _get_handler() flatten every IAM failure into RunnerError, which would
+    otherwise reach the scheduler as a cancel it should not retry, and never open the breaker."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner._connected = False  # pylint: disable=protected-access
+    runner._handler = None  # pylint: disable=protected-access
+
+    with patch(f"{_RUNNER_MOD}.get_ce_auth", side_effect=RunnerError("IAM is down")):
+        with pytest.raises(RunnerError) as exc:
+            runner.stop()
+
+    assert type(exc.value) is RunnerRetryableError
+    mock_handler.cancel_job.assert_not_called()
 
 
 def test_submit_sets_fleet_id_with_cos():
@@ -395,51 +465,53 @@ def test_submit_places_the_fleet_on_the_projects_subnet_pool():
     assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
 
 
-def test_submit_fleet_name_describes_the_job():
-    """A real job's fleet is named job-<function>-<profile>-<username>."""
+def test_submit_fleet_name_is_vendor_function_and_job_id():
     runner, mock_handler = _make_submit_runner()
+    runner.job.id = "1b2c3d4e-0000-4000-8000-000000000001"
     runner.job.program.title = "my-function"
-    runner.job.compute_profile_id = "160x1792x8h100"
-    runner.job.author.username = "alice"
+    runner.job.program.provider = MagicMock()
+    runner.job.program.provider.name = "ibm"
 
     with _patch_settings():
         runner.submit()
 
-    name = mock_handler.submit_job.call_args.kwargs["name"]
-    described, stamp = name.rsplit("-", 1)
-    assert described == "job-my-function-160x1792x8h100-alice"
-    assert re.fullmatch(r"\d{14}", stamp), stamp
+    assert mock_handler.submit_job.call_args.kwargs["name"] == "ibm-my-function-1b2c3d4e-0000-4000-8000-000000000001"
 
 
-def test_submit_fleet_name_uses_filler_prefix_for_filler_jobs():
-    """A filler job's fleet takes the fil- prefix, the same width as job-."""
+def test_submit_fleet_name_is_sanitized_and_bounded_with_custom_vendor():
     runner, mock_handler = _make_submit_runner()
-    runner.job.filler = True
-    runner.job.program.title = "my-function"
-    runner.job.compute_profile_id = "160x1792x8h100"
-    runner.job.author.username = "alice"
-
-    with _patch_settings():
-        runner.submit()
-
-    assert mock_handler.submit_job.call_args.kwargs["name"].startswith("fil-my-function-160x1792x8h100-alice-")
-
-
-def test_submit_fleet_name_is_sanitized_and_bounded():
-    """Characters Code Engine rejects are replaced, and the name stays within 63 characters."""
-    runner, mock_handler = _make_submit_runner()
-    runner.job.filler = True
+    runner.job.id = "1b2c3d4e-0000-4000-8000-000000000001"
     runner.job.program.title = "My Function! With Spaces And A Very Long Title"
-    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
-    runner.job.author.username = "IBMid-1000000000"
+    runner.job.program.provider = None
 
     with _patch_settings():
         runner.submit()
 
     name = mock_handler.submit_job.call_args.kwargs["name"]
-    assert re.fullmatch(r"[a-z0-9-]+", name), name
-    assert len(name) <= 63, name
-    assert name.startswith("fil-my-function-wi-gx3d-24x120x1a-ibmid-10000000-")
+    assert name == "custom-my-function-1b2c3d4e-0000-4000-8000-000000000001"
+    assert len(name) <= 63
+
+
+def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.return_value = {"id": "existing-fleet"}
+
+    with _patch_settings():
+        runner.submit()
+
+    assert runner.job.fleet_id == "existing-fleet"
+
+
+def test_submit_fails_a_name_conflict_the_lookup_could_not_resolve():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = ApiException(status=409, reason="Conflict")
+    mock_handler.submit_job.side_effect.body = '{"errors": [{"code": "fleet_resource_name_conflict"}]}'
+
+    with _patch_settings():
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is RunnerError
 
 
 def test_submit_raises_runner_error_when_cos_not_configured():
@@ -453,13 +525,96 @@ def test_submit_raises_runner_error_when_cos_not_configured():
         runner.submit()
 
 
-def test_submit_raises_runner_error_on_api_exception():
-    """submit() raises RunnerError when the fleet API returns an error."""
+@pytest.mark.parametrize(
+    "status, expected",
+    [
+        (429, RunnerRetryableError),
+        (503, RunnerRetryableError),
+        (400, RunnerError),
+    ],
+)
+def test_submit_raises_the_error_type_for_each_code_engine_status(status, expected):
     runner, mock_handler = _make_submit_runner()
-    mock_handler.submit_job.side_effect = ApiException(status=400, reason="Bad Request")
+    mock_handler.submit_job.side_effect = ApiException(status=status, reason="error")
 
     with _patch_settings():
-        with pytest.raises(RunnerError):
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is expected
+    mock_handler.submit_job.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (
+            ClientError({"Error": {"Code": "SlowDown"}, "ResponseMetadata": {"HTTPStatusCode": 503}}, "PutObject"),
+            RunnerRetryableError,
+        ),
+        (
+            ClientError(
+                {"Error": {"Code": "RequestTimeout"}, "ResponseMetadata": {"HTTPStatusCode": 400}}, "PutObject"
+            ),
+            RunnerRetryableError,
+        ),
+        (
+            ClientError({"Error": {"Code": "AccessDenied"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "PutObject"),
+            RunnerError,
+        ),
+        (
+            ClientError(
+                {"Error": {"Code": "NotImplemented"}, "ResponseMetadata": {"HTTPStatusCode": 501}}, "PutObject"
+            ),
+            RunnerError,
+        ),
+        (ReadTimeoutError(endpoint_url="https://cos"), RunnerRetryableError),
+    ],
+)
+def test_submit_raises_the_error_type_for_each_cos_failure(error, expected):
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings(), patch.object(runner, "_upload_program_to_cos", side_effect=error):
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is expected
+    mock_handler.submit_job.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error", [ApiException(status=503, reason="Service Unavailable"), MaxRetryError(None, "/", reason=ProtocolError())]
+)
+def test_submit_raises_unavailable_when_code_engine_fails_before_the_create(error):
+    runner, mock_handler = _make_submit_runner()
+
+    with _patch_settings(), patch.object(runner, "_upload_program_to_cos", side_effect=error):
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is RunnerRetryableError
+    mock_handler.submit_job.assert_not_called()
+
+
+def test_submit_fails_the_job_when_the_code_engine_host_does_not_resolve():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = MaxRetryError(
+        None, "/", reason=NameResolutionError("api.wrong.codeengine.cloud.ibm.com", None, "not found")
+    )
+
+    with _patch_settings():
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is RunnerError
+
+
+def test_submit_raises_unavailable_when_the_connection_never_opened():
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = MaxRetryError(None, "/", reason=NewConnectionError(None, "refused"))
+
+    with _patch_settings():
+        with pytest.raises(RunnerRetryableError):
             runner.submit()
 
 

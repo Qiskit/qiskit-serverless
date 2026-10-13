@@ -107,7 +107,6 @@ class TestConsumeBlockedAccountEventsEnabled:
             ("us-east", "handled"),
             ("us-east", "handled"),
             ("eu-de", "invalid"),
-            ("eu-de", "tombstone"),
             ("us-east", "consumer_error"),
             ("eu-de", "commit_error"),
             ("eu-de", "fatal"),
@@ -118,7 +117,6 @@ class TestConsumeBlockedAccountEventsEnabled:
         errors = "scheduler_blocked_account_consumer_errors_total"
         assert _sample(metrics, events, region="us-east", outcome="handled") == 2
         assert _sample(metrics, events, region="eu-de", outcome="invalid") == 1
-        assert _sample(metrics, events, region="eu-de", outcome="tombstone") == 1
         assert _sample(metrics, errors, region="us-east", kind="consumer") == 1
         assert _sample(metrics, errors, region="eu-de", kind="commit") == 1
         assert _sample(metrics, errors, region="eu-de", kind="fatal") == 1

@@ -15,14 +15,11 @@ from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.ConsumeBlockedAccountEvents")
 
-# DrainStats outcome -> label of scheduler_blocked_account_events_total
 _EVENT_OUTCOMES = {
     kafka_consumer.HANDLED: "handled",
     kafka_consumer.INVALID: "invalid",
-    kafka_consumer.TOMBSTONE: "tombstone",
     kafka_consumer.RETRY: "retry",
 }
-# DrainStats outcome -> label of scheduler_blocked_account_consumer_errors_total
 _ERROR_KINDS = {
     kafka_consumer.CONSUMER_ERROR: "consumer",
     kafka_consumer.COMMIT_ERROR: "commit",
@@ -41,7 +38,6 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
     def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        # One consumer per region, created once and reused by every tick.
         self.consumer: KafkaRegionalConsumer | None = None
         if settings.EVENT_STREAMS_ENABLED:
             self.consumer = KafkaRegionalConsumer(

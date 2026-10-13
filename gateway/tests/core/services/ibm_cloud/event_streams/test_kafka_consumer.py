@@ -110,6 +110,7 @@ class TestSetup:
             "sasl.password": "my-key",
             "group.id": _GROUP,
             "enable.auto.commit": False,
+            "enable.auto.offset.store": False,
             "auto.offset.reset": "earliest",
         }
         assert callable(config["error_cb"])
@@ -288,20 +289,20 @@ class TestPayloads:
         assert _committed(kafka) == [("topic-a", 0, 1)]
         assert stats.counts[("us-east", "invalid")] == 1
 
-    def test_a_tombstone_is_committed_without_reaching_the_handler(self, settings, caplog):
+    def test_an_empty_value_is_invalid_and_committed_over(self, settings, caplog):
+        """Billing publishes no tombstones, so an empty value is a bug to see in the logs, not to retry forever."""
         _configure(settings)
         handler = MagicMock()
-        kafka = _kafka([_message(raw=None, offset=2, key=b"acc-9")])
+        kafka = _kafka([_message(raw=None, offset=2)])
 
         with patch(f"{_MOD}.Consumer", return_value=kafka):
-            with caplog.at_level(logging.INFO):
+            with caplog.at_level(logging.ERROR):
                 stats = _drain(_consumer(handler))
 
         handler.assert_not_called()
-        assert "Tombstone" in caplog.text
-        assert "key=acc-9" in caplog.text
+        assert "payload is empty" in caplog.text
         assert _committed(kafka) == [("topic-a", 0, 3)]
-        assert stats.counts[("us-east", "tombstone")] == 1
+        assert stats.counts[("us-east", "invalid")] == 1
 
     def test_a_message_without_key_reaches_the_handler_with_none(self, settings):
         _configure(settings)

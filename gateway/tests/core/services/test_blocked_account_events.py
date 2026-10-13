@@ -9,6 +9,7 @@ from core.services.blocked_account_events import handle_blocked_account_event
 
 _QUANTUM = "quantum.production.blocked-account-plans.v1"
 _NON_QUANTUM = "quantum.production.blocked-account-plans-non-quantum.v1"
+_MISSING = object()
 
 
 def _event(account="acc-1", plan="plan-1", subscription="sub-1", **extra) -> dict:
@@ -37,23 +38,6 @@ class TestBlock:
 
         assert len(_rows()) == 1
 
-    def test_the_same_event_twice_with_null_scopes_leaves_one_row(self):
-        _handle(_event(plan=None, subscription=None))
-        _handle(_event(plan=None, subscription=None))
-
-        assert _rows() == [("acc-1", None, None, "blocked-account-plans.v1")]
-
-    def test_an_empty_string_is_stored_as_null(self):
-        _handle(_event(plan="", subscription=None))
-        _handle(_event(plan=None, subscription=""))
-
-        assert _rows() == [("acc-1", None, None, "blocked-account-plans.v1")]
-
-    def test_missing_scope_fields_are_null(self):
-        _handle({"subscription_id": "sub-1"})
-
-        assert _rows() == [(None, None, "sub-1", "blocked-account-plans.v1")]
-
     def test_either_topic_produces_the_same_row_shape(self):
         _handle(_event(), topic=_QUANTUM)
         _handle(_event(), topic=_NON_QUANTUM)
@@ -78,12 +62,6 @@ class TestUnblock:
 
         assert not _rows()
 
-    def test_a_deleted_event_with_null_scopes_removes_the_row(self):
-        _handle(_event(plan=None, subscription=None))
-        _handle(_event(plan=None, subscription=None, deleted=True))
-
-        assert not _rows()
-
     def test_a_deleted_event_for_an_absent_key_is_a_no_op(self):
         _handle(_event(subscription="other"))
         _handle(_event(deleted=True))
@@ -98,31 +76,26 @@ class TestUnblock:
 
         assert _rows() == [("acc-1", "plan-1", "sub-1", "blocked-account-plans-non-quantum.v1")]
 
-    def test_a_deleted_event_does_not_widen_to_a_broader_scope(self):
-        """Unblocking account-only does not remove a subscription-scoped rule of that account."""
-        _handle(_event(plan=None, subscription=None))
-        _handle(_event())
-        _handle(_event(plan=None, subscription=None, deleted=True))
-
-        assert _rows() == [("acc-1", "plan-1", "sub-1", "blocked-account-plans.v1")]
-
 
 @pytest.mark.django_db
 class TestInvalid:
-    @pytest.mark.parametrize(
-        "payload",
-        [
-            {},
-            {"deleted": False},
-            _event(account=None, plan=None, subscription=None),
-            _event(account="", plan="", subscription=""),
-        ],
-    )
-    def test_an_event_without_any_scope_is_invalid(self, payload):
-        with pytest.raises(InvalidEventError, match="no account_id, plan_id nor subscription_id"):
-            _handle(payload)
+    @pytest.mark.parametrize("field", ["account_id", "plan_id", "subscription_id"])
+    @pytest.mark.parametrize("value", [_MISSING, "", None])
+    def test_an_event_without_a_required_field_is_invalid(self, field, value):
+        event = _event()
+        if value is _MISSING:
+            del event[field]
+        else:
+            event[field] = value
+
+        with pytest.raises(InvalidEventError, match=field):
+            _handle(event)
 
         assert not _rows()
+
+    def test_every_missing_field_is_named(self):
+        with pytest.raises(InvalidEventError, match="account_id, plan_id, subscription_id"):
+            _handle({})
 
     @pytest.mark.parametrize(
         "payload",

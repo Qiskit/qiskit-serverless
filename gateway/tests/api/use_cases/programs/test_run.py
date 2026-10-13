@@ -216,6 +216,22 @@ class TestRunFunctionUseCase:
         assert job.size_source == Job.SIZE_SOURCE_DEFAULT_SIZE
         assert job.function_size == size
 
+    def test_fleets_job_keeps_the_instance_crn_of_the_request(self, user, ce_project, monkeypatch):
+        """The CRN of the request is stored on the job, so a Fleets job always knows its instance."""
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input(instance=crn))
+
+        assert job.instance_crn == crn
+
     def test_ray_job_ignores_function_size(self, user):
         """Ray ignores sizing inputs; a stray ``function_size`` leaves the profile and FK null."""
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")

@@ -162,8 +162,10 @@ spec:
               value: {{ .Values.application.rayHost | quote }}
             - name: SETTINGS_AUTH_MECHANISM
               value: {{ .Values.application.auth.mechanism | quote }}
+            {{- if eq .Values.application.auth.mechanism "mock_token" }}
             - name: SETTINGS_AUTH_MOCK_TOKEN
               value: {{ .Values.application.auth.token.mock | quote }}
+            {{- end }}
             - name: IAM_IBM_CLOUD_BASE_URL
               value: {{ .Values.application.auth.token.iamUrl | quote }}
             - name: IAM_IBM_CLOUD_CACHE_TTL

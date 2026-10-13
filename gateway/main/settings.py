@@ -470,6 +470,10 @@ RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
 
+# API key of the service credential that holds the functions operator role, used to call the Runtime API as a service
+# (core/clients/functions_operator_client.py).
+FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
+
 # IBM Cloud
 
 IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL") or "https://iam.test.cloud.ibm.com"
@@ -580,6 +584,18 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "600",
         "type": "integer",
         "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
+    },
+    "scheduler.fleets.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
+        "timeouts) before the scheduler stops submitting and cancelling Fleets jobs in that region.",
+    },
+    "scheduler.fleets.breaker_pause_seconds": {
+        "default": "60",
+        "type": "integer",
+        "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
+        "breaker trips.",
     },
 }
 

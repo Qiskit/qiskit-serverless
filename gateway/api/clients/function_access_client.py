@@ -2,7 +2,6 @@
 
 import hashlib
 import logging
-from urllib.parse import urlparse, urlunparse
 
 import requests
 from django.conf import settings
@@ -12,7 +11,7 @@ from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsExceptio
 from core.config_key import ConfigKey
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.domain.crn import Crn
+from core.domain.crn import regional_base_url
 from core.models import Config
 
 logger = logging.getLogger("api.FunctionAccessClient")
@@ -31,11 +30,7 @@ class FunctionAccessClient:
         (``crn:v1:bluemix:public:quantum-computing:<region>:...``). A CRN whose region
         cannot be parsed falls back to ``base_url`` unchanged.
         """
-        crn = Crn.parse(instance_crn)
-        if crn is None or crn.region == settings.RUNTIME_API_DEFAULT_REGION:
-            return base_url
-        parsed = urlparse(base_url)
-        return urlunparse(parsed._replace(netloc=f"{crn.region}.{parsed.netloc}"))
+        return regional_base_url(base_url, instance_crn, settings.RUNTIME_API_DEFAULT_REGION)
 
     def _instance_entitlements(self, response_json: dict, instance_crn: str) -> dict:
         """Return the ``instance_entitlements`` element holding what ``instance_crn`` is entitled to.

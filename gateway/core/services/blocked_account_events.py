@@ -67,20 +67,23 @@ def _source(topic: str) -> str:
     raise InvalidEventError(f"topic {topic} is not a blocked-account-plan topic")
 
 
-def _scope(payload: dict, key: str | None) -> dict[str, str | None]:
-    """The event's {account, plan, subscription}, an empty string read as no value, or raise
-    InvalidEventError."""
-    scope: dict[str, str | None] = {}
+def _scope(payload: dict, key: str | None) -> dict[str, str]:
+    """The event's {account, plan, subscription}, or raise InvalidEventError if one is missing or empty,
+    not a string, or too long to store."""
+    scope: dict[str, str] = {}
+    missing: list[str] = []
     for column, event_field in _SCOPE_FIELDS.items():
         value = payload.get(event_field)
-        if value is not None and not isinstance(value, str):
+        if value is None or value == "":
+            missing.append(event_field)
+            continue
+        if not isinstance(value, str):
             raise InvalidEventError(f"{event_field} is a {type(value).__name__}, not a string (key={key})")
         max_length = BlockedCloudResource._meta.get_field(column).max_length
-        if value is not None and len(value) > max_length:
+        if len(value) > max_length:
             raise InvalidEventError(f"{event_field} is longer than {max_length} characters (key={key})")
-        # Stored as NULL, so "" and a missing field are the same scope
-        scope[column] = value or None
+        scope[column] = value
 
-    if not any(scope.values()):
-        raise InvalidEventError(f"event has no account_id, plan_id nor subscription_id (key={key})")
+    if missing:
+        raise InvalidEventError(f"event is missing {', '.join(missing)} (key={key})")
     return scope

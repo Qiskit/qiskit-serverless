@@ -301,13 +301,12 @@ class TestFleetsJobs:
         latency (test -> gateway -> scheduler -> mock -> COS) so the test reliably
         observes RUNNING and ``stop()`` always sees a cancellable state.
 
-        Scope note: the gateway's stop use case writes the terminal STOPPED status
-        synchronously, so the DB/client status alone does not prove the *worker*
+        Scope note: the DB/client status alone does not prove the *worker*
         killed the subprocess (and the worker's post-execution recheck would mark
         it canceled either way) — that mid-execution kill is not host-observable
-        here. What this test asserts is the full stop path: RUNNING observed,
-        gateway marks STOPPED, and the cancel reaches a COS ``/canceled/`` queue
-        key (the worker-facing signal produced by FleetsRunner.stop -> cancel_job).
+        here. What this test asserts is the full stop path: RUNNING observed, the gateway
+        records STOPPING then the scheduler STOPPED, and the cancel reaches a COS
+        ``/canceled/`` queue key (produced by FleetsRunner.stop -> cancel_job).
         """
         fn = QiskitFunction(
             title=unique_title,
@@ -348,8 +347,23 @@ class TestFleetsJobs:
         )
         assert row[0] == "STOPPED"
 
+        # The gateway records STOPPING on the accepted cancel, and the scheduler writes STOPPED once
+        # the task store confirms it. Without this the final row alone would also pass for a gateway
+        # that wrote STOPPED directly.
+        events = [
+            r[0]
+            for r in fetch_all(
+                pg_conn,
+                "SELECT data->>'status' FROM api_jobevent WHERE job_id = %s ORDER BY created",
+                (job_id,),
+            )
+            if r[0] is not None
+        ]
+        assert "STOPPING" in events, f"the gateway never recorded STOPPING: {events}"
+        assert events[-1] == "STOPPED", f"expected STOPPED last, got: {events}"
+
         # Verify the cancel actually propagated to the COS task-store (the layer
-        # the worker consumes), not just the gateway's synchronous STOPPED write.
+        # the worker consumes), which the scheduler also reads to confirm the stop.
         fleet_id = row[1]
         # Deliberately not pinning the task-store schema version: the gateway reads
         # whichever version Code Engine wrote, so the test asserts the fleet and the
