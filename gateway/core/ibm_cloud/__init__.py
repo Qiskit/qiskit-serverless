@@ -40,8 +40,15 @@ def get_ce_auth(api_key: str, region: str) -> CEAuth:
     cfg.host = client_provider.config.code_engine_url
     # Configuration uses a copy-on-call singleton; replace the shared dict references
     # so different ApiClient instances don't mutate each other's credentials.
-    cfg.api_key = {"Authorization": client_provider.auth.token}
+    cfg.api_key = {}
     cfg.api_key_prefix = {"Authorization": "Bearer"}
+
+    # get_api_key_with_prefix is the only reader of api_key and it calls this first, so the token
+    # is read per request. That is why api_key starts empty.
+    def refresh_token(config: Configuration) -> None:
+        config.api_key["Authorization"] = client_provider.tokens.get_token()
+
+    cfg.refresh_api_key_hook = refresh_token
     return CEAuth(api_client=ApiClient(cfg), client_provider=client_provider)
 
 

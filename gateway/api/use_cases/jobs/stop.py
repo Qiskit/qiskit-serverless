@@ -116,8 +116,9 @@ class StopJobUseCase:
 
         Every failure is retried, not only the ones Code Engine did not answer, because a repeat
         cancel is safe. What it actually buys is a second go at a rate limit. The same runner serves
-        both attempts, so no second IAM token is fetched, which also means a 403 from an expired
-        token gets the same token again and cannot clear until the next request.
+        both attempts. Its ``refresh_api_key_hook`` reads the token per request and the SDK refreshes
+        one at or near expiry before returning it, so an expired token is never sent. A 403 from a
+        revoked key or a missing access policy does not clear on the retry.
         """
         return retry_function(
             partial(

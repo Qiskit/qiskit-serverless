@@ -539,9 +539,8 @@ class FleetsRunner(AbstractRunner):
     def _get_handler(self) -> FleetHandler:
         """Return the :class:`FleetHandler`, creating it lazily and caching it on this runner.
 
-        The token is read once, when the client is built, and nothing refreshes it: the swagger
-        ``Configuration.refresh_api_key_hook`` is never set. A runner lives for one request or one
-        scheduler tick, so reuse it to pay the IAM fetch once rather than once per call.
+        ``get_ce_auth`` sets the swagger ``Configuration.refresh_api_key_hook``, so the token is
+        re-read before every request and the SDK renews it near expiry.
 
         Returns:
             Initialized :class:`FleetHandler`.
