@@ -386,7 +386,7 @@ def test_a_retention_backlog_does_not_starve_the_quota_cap(fleets_program):
 
 
 def test_the_cap_takes_no_more_than_the_project_needs(fleets_program):
-    """Threshold 2 of 4 and 5 held: three deletes reach 2, so a whole batch must not destroy more."""
+    """Threshold 2 of 4 and 5 held: four deletes get it under 2, so a whole batch must not destroy more."""
     _force_at(quota=4, percent=50)
     for n in range(5):
         _terminal_job(fleets_program, age_hours=n + 1, fleet_id=f"fleet-{n}")

@@ -486,6 +486,7 @@ def test_free_resources_returns_false_without_a_fleet_id():
 @pytest.mark.parametrize(
     "status, expected",
     [
+        (0, RunnerRetryableError),
         (429, RunnerRetryableError),
         (503, RunnerRetryableError),
         (400, None),
