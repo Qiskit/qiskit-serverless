@@ -653,7 +653,8 @@ class Job(models.Model):
     finished_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="When the job reached a terminal status. Unlike updated, a later write never moves it",
+        help_text="When the job reached a terminal status through a status transition, so a Ray job that "
+        "writes its status directly has none. Unlike updated, a later write never moves it",
     )
     result = models.TextField(null=True, blank=True)
     status = models.CharField(

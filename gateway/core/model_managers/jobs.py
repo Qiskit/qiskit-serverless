@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Set, Tuple, Self
 
-from django.db.models.functions import Coalesce
-from django.db.models import QuerySet
+from django.db.models.functions import Coalesce, NullIf
+from django.db.models import QuerySet, Value
 from django.contrib.auth.models import AbstractUser
 
 from core.enums.type_filter import TypeFilter
@@ -57,7 +57,9 @@ class JobQuerySet(QuerySet):
         the two joins here would take its scan off ``job_fleet_undeleted_idx``. The alias is not
         ``fleet_region`` so it cannot shadow the property on the rows that come back.
         """
-        return self.annotate(fleet_region_sql=Coalesce("ce_region", "program__code_engine_project__region"))
+        return self.annotate(
+            fleet_region_sql=Coalesce(NullIf("ce_region", Value("")), "program__code_engine_project__region")
+        )
 
     def user_jobs_page(
         self,

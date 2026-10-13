@@ -33,7 +33,8 @@ class Migration(migrations.Migration):
             name="finished_at",
             field=models.DateTimeField(
                 blank=True,
-                help_text="When the job reached a terminal status. Unlike updated, a later write never moves it",
+                help_text="When the job reached a terminal status through a status transition, so a Ray job that "
+                "writes its status directly has none. Unlike updated, a later write never moves it",
                 null=True,
             ),
         ),

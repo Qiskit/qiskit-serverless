@@ -608,6 +608,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Once a Code Engine project holds this much of scheduler.fleets.quota_per_project, its "
         "oldest terminal fleets are deleted whatever the retention window says. 100 turns this off.",
     },
+    "scheduler.fleets.cleanup.budget_ms": {
+        "default": "500",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the fleet cleanup, in milliseconds. Each delete "
+        "costs an IAM token fetch and a Code Engine call, and the loop is single threaded.",
+    },
     "scheduler.fleets.cleanup.max_deletes_per_cycle": {
         "default": "20",
         "type": "integer",
@@ -623,13 +629,14 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
-        "timeouts) before the scheduler stops calling Code Engine in that region.",
+        "description": "Consecutive failures of one dependency, Code Engine or COS, in one region (429, 5xx, "
+        "connection errors, timeouts) before the scheduler stops calling that dependency there. The two are "
+        "counted separately: Code Engine pauses submits, cancels and fleet deletes, COS pauses submits only.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the scheduler stops calling Code Engine in a region once its breaker trips.",
+        "description": "How long the scheduler stops calling a dependency in a region once its breaker trips.",
     },
 }
 

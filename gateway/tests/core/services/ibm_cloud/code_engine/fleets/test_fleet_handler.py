@@ -706,7 +706,7 @@ def test_delete_job_happy_path(project_id):
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
-            handler.delete_job(fleet_uuid)
+            assert handler.delete_job(fleet_uuid) is True
 
     fleets_api.delete_fleet.assert_called_once_with(
         project_id=project_id, id=fleet_uuid, _request_timeout=_DELETE_TIMEOUT_SECONDS
@@ -723,7 +723,7 @@ def test_delete_job_ignores_404(project_id):
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         with patch.object(handler, "_resolve_fleet_id", return_value=fleet_uuid):
-            handler.delete_job(fleet_uuid)  # must not raise
+            assert handler.delete_job(fleet_uuid) is False  # a 404 is not this project's fleet
 
     fleets_api.delete_fleet.assert_called_once_with(
         project_id=project_id, id=fleet_uuid, _request_timeout=_DELETE_TIMEOUT_SECONDS

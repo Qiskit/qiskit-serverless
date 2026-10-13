@@ -63,7 +63,7 @@ def execute_ray_job(job: Job) -> Job:
 
 
 def build_fleets_circuit_breaker() -> CircuitBreaker:
-    """A fresh circuit breaker for one Code Engine region, with the thresholds of the Fleets Config entries."""
+    """A fresh circuit breaker for one region, with the thresholds of the Fleets Config entries."""
     return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
 

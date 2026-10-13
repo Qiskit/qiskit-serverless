@@ -1,6 +1,7 @@
 """Scheduler task that deletes the fleets of terminal jobs."""
 
 import logging
+import time
 from datetime import timedelta
 
 from django.db.models import Count, Q, Value
@@ -19,6 +20,7 @@ from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("scheduler.FreeFleetsResources")
 
+DEFAULT_BUDGET_MS = 500
 DEFAULT_MAX_DELETES_PER_CYCLE = 20
 MAX_ATTEMPTS_PER_FLEET = 3
 MAX_TRACKED_FAILURES = 500
@@ -58,8 +60,15 @@ class FreeFleetsResources(SchedulerTask):
         failed_regions: set[str | None] = set()
         answered_regions: set[str | None] = set()
         candidates = self._jobs_to_clean(self._projects_over_quota(counts), self.deleter.paused_regions())
-        for job in candidates:
-            if self.kill_signal.received:
+
+        # a delete costs a Code Engine round trip and the loop is single threaded, so the batch is
+        # bounded by time as well as by count. The budget starts here so it measures only the
+        # deletes, and the first one always goes, or a slow cycle would never make progress.
+        deadline = (
+            time.monotonic() + Config.get_int(ConfigKey.FLEETS_CLEANUP_BUDGET_MS, default=DEFAULT_BUDGET_MS) / 1000
+        )
+        for position, job in enumerate(candidates):
+            if self.kill_signal.received or (position and time.monotonic() >= deadline):
                 break
             region = job.fleet_region
             if region in failed_regions:
@@ -154,7 +163,7 @@ class FreeFleetsResources(SchedulerTask):
         return False
 
     def _count_failure(self, job: Job) -> None:
-        """Count one failed attempt on a job, and log the one that reached the limit."""
+        """Count one failed attempt on a job, and log it, at ERROR once it reached the limit."""
         while len(self._failed_attempts) >= MAX_TRACKED_FAILURES:
             self._failed_attempts.pop(next(iter(self._failed_attempts)))
         failures = self._failed_attempts.get(str(job.id), 0) + 1

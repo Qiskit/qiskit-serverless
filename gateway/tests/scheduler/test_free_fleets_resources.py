@@ -1,6 +1,5 @@
 """Tests for FreeFleetsResources."""
 
-import logging
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -14,12 +13,14 @@ from scheduler.tasks.free_fleets_resources import (
     FreeFleetsResources,
     MAX_ATTEMPTS_PER_FLEET,
     DEFAULT_MAX_DELETES_PER_CYCLE,
+    MAX_TRACKED_FAILURES,
 )
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
 
 _SCHEDULE_MOD = "scheduler.schedule"
+_TASK_MOD = "scheduler.tasks.free_fleets_resources"
 _RETENTION_HOURS = 48
 _BREAKER_FAILURES = 5
 
@@ -208,6 +209,40 @@ def test_a_cycle_that_stopped_on_a_rate_limit_is_a_failure(fleets_program):
     free_resources.assert_not_called()
 
 
+def test_the_attempt_counts_stay_bounded(fleets_program):
+    """The scheduler is one long-lived replica, so a permanently failing fleet must not grow the dict."""
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    task = _make_task()
+    task._failed_attempts = {f"old-{n}": 1 for n in range(MAX_TRACKED_FAILURES)}  # pylint: disable=protected-access
+
+    _run(task, deleted=False)
+
+    assert len(task._failed_attempts) == MAX_TRACKED_FAILURES  # pylint: disable=protected-access
+
+
+def test_stops_when_the_time_budget_is_spent(fleets_program):
+    """Each delete costs a Code Engine round trip and the scheduler loop is single threaded."""
+    for n in range(3):
+        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + n + 1, fleet_id=f"fleet-{n}")
+
+    with patch(f"{_TASK_MOD}.time.monotonic", side_effect=[0, 999]):
+        free_resources = _run(_make_task())
+
+    free_resources.assert_called_once()
+    assert Job.objects.held_fleets().count() == 2
+
+
+def test_always_deletes_one_even_with_no_budget(fleets_program):
+    """Otherwise a cycle whose queries are slow would make no progress at all, for ever."""
+    Config.set(ConfigKey.FLEETS_CLEANUP_BUDGET_MS, "0")
+    for n in range(3):
+        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + n + 1, fleet_id=f"fleet-{n}")
+
+    free_resources = _run(_make_task())
+
+    free_resources.assert_called_once()
+
+
 def test_deletes_at_most_one_batch_per_cycle(fleets_program):
     for index in range(DEFAULT_MAX_DELETES_PER_CYCLE + 1):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id=f"fleet-{index}")
@@ -275,6 +310,21 @@ def test_a_cycle_that_never_reached_code_engine_clears_nothing(fleets_program):
     _run(task, error=RunnerRetryableError("unavailable"))
 
     assert task.deleter.paused("us-east") is True
+
+
+def test_an_empty_region_falls_back_like_a_null_one(fleets_program):
+    """The admin can save ce_region as "", and Coalesce alone would read that as the region."""
+    for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
+        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 100 + n, fleet_id=f"blank-{n}", ce_region="")
+    healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
+    task = _make_task()
+    for _ in range(_BREAKER_FAILURES):
+        task.deleter.record_cycle("us-east", code_engine_answered=False)
+
+    _run(task)
+
+    healthy.refresh_from_db()
+    assert healthy.fleet_deleted_at is not None
 
 
 @pytest.mark.parametrize("quota, percent", [(0, 80), (2, 0), (2, 100)])
