@@ -20,6 +20,7 @@ class ErrorCodes:  # pylint: disable=too-few-public-methods
     """Qiskit Serverless error codes."""
 
     AUTH1001: str = "AUTH1001"
+    CONN1001: str = "CONN1001"
     JSON1001: str = "JSON1001"
     HTTP_STD_ERROR: str = "HTTP_STD_ERROR"
 
@@ -27,6 +28,9 @@ class ErrorCodes:  # pylint: disable=too-few-public-methods
 DEFAULT_ERROR_MESSAGE: str = "Something went wrong."
 error_mapping: Dict[ErrorCodeType, str] = {
     ErrorCodes.AUTH1001: "Connection error. Make sure configuration " "(host and auth details) is correct.",
+    ErrorCodes.CONN1001: "Could not reach the Qiskit Serverless service. "
+    "This is often temporary; check your network connection and try again. "
+    "If it persists, verify the host you are connecting to.",
     ErrorCodes.HTTP_STD_ERROR: "Http bad request.",
     ErrorCodes.JSON1001: "Error occurred during decoding server json response.",
 }

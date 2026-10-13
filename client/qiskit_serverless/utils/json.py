@@ -184,6 +184,17 @@ def safe_json_request(
     error_message: Optional[str] = None
     try:
         response = request()
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+    ) as connection_exception:
+        # The request never got a response: a dropped connection, a TLS error, or a
+        # timeout. This is usually transient and a retry succeeds, so it must not be
+        # reported as a configuration or authentication problem.
+        error_message = format_err_msg(
+            ErrorCodes.CONN1001,
+            str(connection_exception.args),
+        )
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
             ErrorCodes.AUTH1001,

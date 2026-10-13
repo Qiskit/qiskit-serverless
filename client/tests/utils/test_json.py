@@ -233,22 +233,56 @@ class TestSafeJsonRequest:
         assert result == [1, 2, 3]
 
     def test_request_with_connection_error(self):
-        """Test with connection error."""
+        """A dropped connection is transient, so it reports CONN1001 ('try again'),
+        not AUTH1001 ('check host and auth')."""
 
         def failing_request():
             raise requests.ConnectionError("Connection failed")
 
-        with pytest.raises(QiskitServerlessException):
+        with pytest.raises(QiskitServerlessException) as context:
             safe_json_request(failing_request)
 
+        message = str(context.value)
+        assert ErrorCodes.CONN1001 in message
+        assert ErrorCodes.AUTH1001 not in message
+
+    def test_request_with_ssl_error_reports_connection_code(self):
+        """An SSL error (e.g. an unexpected EOF mid-read) is a dropped connection,
+        a subclass of ConnectionError, so it also reports CONN1001 rather than a
+        misleading auth message."""
+
+        def ssl_failing_request():
+            raise requests.exceptions.SSLError("EOF occurred in violation of protocol")
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(ssl_failing_request)
+
+        message = str(context.value)
+        assert ErrorCodes.CONN1001 in message
+        assert ErrorCodes.AUTH1001 not in message
+
     def test_request_with_timeout(self):
-        """Test with timeout error."""
+        """A timeout is transient, so it reports CONN1001 rather than AUTH1001."""
 
         def timeout_request():
             raise requests.Timeout("Request timed out")
 
-        with pytest.raises(QiskitServerlessException):
+        with pytest.raises(QiskitServerlessException) as context:
             safe_json_request(timeout_request)
+
+        assert ErrorCodes.CONN1001 in str(context.value)
+
+    def test_request_with_non_connection_error_reports_auth_code(self):
+        """A non-connection request error (e.g. a malformed URL) still reports
+        AUTH1001, which points at host/auth configuration."""
+
+        def bad_config_request():
+            raise requests.exceptions.MissingSchema("Invalid URL 'foo': No scheme supplied")
+
+        with pytest.raises(QiskitServerlessException) as context:
+            safe_json_request(bad_config_request)
+
+        assert ErrorCodes.AUTH1001 in str(context.value)
 
     def test_successful_request_with_nested_data(self):
         """Test with successful request containing nested data."""
