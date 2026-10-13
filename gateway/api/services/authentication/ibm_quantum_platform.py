@@ -5,6 +5,7 @@ import logging
 from typing import List, Optional, Any, Tuple
 
 import jwt
+import requests
 from jwt import PyJWKClient
 from django.conf import settings
 from django.core.cache import cache
@@ -14,6 +15,7 @@ from ibm_platform_services import ResourceControllerV2, IamAccessGroupsV2
 from rest_framework import exceptions
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.authentication_base import AuthenticationBase
 
 logger = logging.getLogger("api.IBMQuantumPlatform")
@@ -168,7 +170,27 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             resource_controller = ResourceControllerV2(self.authenticator)
             resource_controller.set_service_url(self.resource_controller_url)
             instance = resource_controller.get_resource_instance(id=self.crn).get_result()
+        except requests.exceptions.RequestException as request_exception:
+            # A timeout or connection error reaching the Resource Controller is a
+            # transient backend problem, not a bad CRN. Tell the caller to retry
+            # instead of pointing them at credentials that are fine.
+            logger.warning(
+                "IBM Quantum Platform unreachable while resolving the instance: %s.",
+                request_exception,
+            )
+            raise ServiceUnavailable() from request_exception
         except ApiException as api_exception:
+            # A 5xx or a rate limit (429) is the Resource Controller failing, not the
+            # CRN being wrong, so these also retry rather than blame the CRN. A 4xx
+            # that is not 429 does implicate the CRN (unknown instance, malformed id).
+            status_code = api_exception.status_code
+            if status_code == 429 or (status_code is not None and status_code >= 500):
+                logger.warning(
+                    "IBM Quantum Platform returned %s while resolving the instance: %s.",
+                    status_code,
+                    api_exception.message,
+                )
+                raise ServiceUnavailable() from api_exception
             logger.warning(
                 "IBM Quantum Platform verification error: %s.",
                 api_exception.message,
