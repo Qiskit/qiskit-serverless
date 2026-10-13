@@ -19,9 +19,9 @@ injected handler, commits what it finished asynchronously, and returns within th
 keeps fetching, heartbeating and committing in its own background threads between ticks.
 
 Delivery is at-least-once, so handlers must be idempotent:
-- a message is committed once it is done: handled, a tombstone, or impossible to handle (a payload
-  that is not a JSON object, or a handler raising InvalidEventError). Committing over the last ones
-  keeps one bad payload from stalling its partition forever.
+- a message is committed once it is done: handled, or impossible to handle (an empty value, a
+  payload that is not a JSON object, or a handler raising InvalidEventError). Committing over the
+  last ones keeps one bad payload from stalling its partition forever.
 - any other handler failure is taken as transient: the partition is rewound to the failed message,
   nothing from it on is committed, and the failure is re-raised once every region has been drained,
   so the scheduler loop records it. The message is retried next tick.
@@ -45,14 +45,10 @@ from .regions import region_configs, sasl_config
 
 logger = logging.getLogger("gateway.ibm_cloud.event_streams_consumer")
 
-# Most messages one region may contribute to a single scheduler tick, so a backlog is drained
-# over several ticks rather than holding the loop inside one of them.
 MAX_MESSAGES_PER_REGION_PER_TICK = 100
 
-# DrainStats outcomes
 HANDLED = "handled"
 INVALID = "invalid"
-TOMBSTONE = "tombstone"
 RETRY = "retry"
 CONSUMER_ERROR = "consumer_error"
 COMMIT_ERROR = "commit_error"
@@ -88,13 +84,11 @@ class KafkaRegionalConsumer:
         self._handler = handler
         self._region_configs = region_configs()
         self._consumers: dict[str, Consumer] = {}
-        # Regions whose consumer reported a fatal error: it can no longer be used, so it is
-        # rebuilt at the start of the region's next drain.
+        # Regions with a fatal error, whose consumer is rebuilt on the next drain
         self._fatal_regions: set[str] = set()
-        # Regions whose consumer could not be built last time, so a broken config logs its
-        # traceback once per streak rather than every tick.
+        # Regions whose consumer failed to build, to log the traceback once per streak
         self._failing_regions: set[str] = set()
-        # The stats of the drain in progress, for the callbacks librdkafka serves inside consume().
+        # Stats of the drain in progress, for the librdkafka callbacks
         self._stats = DrainStats()
 
         logger.info(
@@ -139,17 +133,16 @@ class KafkaRegionalConsumer:
             self._fatal_regions.discard(region)
             self._discard_consumer(region)
 
-        consumer = self._get_consumer(region)
+        consumer = self._get_or_create_consumer(region)
         if consumer is None:
             return None
 
         try:
             messages = consumer.consume(num_messages=MAX_MESSAGES_PER_REGION_PER_TICK, timeout=0)
         except KafkaException as e:
-            self._on_kafka_exception(region, e)
+            self._on_kafka_error(region, e.args[0])
             return None
 
-        # Next offset to commit, per (topic, partition), for the messages this batch finished
         done: dict[tuple[str, int], int] = {}
         failure: Exception | None = None
         for index, msg in enumerate(messages):
@@ -164,20 +157,11 @@ class KafkaRegionalConsumer:
                     break
                 continue
 
-            try:
-                self._handle(msg, region)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self._stats.add(region, RETRY)
-                logger.error(
-                    "Failed to handle event, retrying next tick: region=%s topic=%s partition=%s offset=%s error=%s",
-                    region,
-                    msg.topic(),
-                    msg.partition(),
-                    msg.offset(),
-                    str(e),
-                )
+            failure = self._handle(msg, region)
+            if failure is not None:
+                # The commit alone is not enough: the consumer keeps fetching from its own position,
+                # already past the batch, so without the rewind the failed message would be skipped
                 self._rewind(consumer, region, messages[index:])
-                failure = e
                 break
 
             done[(msg.topic(), msg.partition())] = msg.offset() + 1
@@ -185,40 +169,36 @@ class KafkaRegionalConsumer:
         self._commit(consumer, region, done)
         return failure
 
-    def _handle(self, msg: Message, region: str) -> None:
-        """Hand one message to the handler. An event that can never be handled is logged and
-        counted, not raised; any other failure of the handler is raised."""
+    def _handle(self, msg: Message, region: str) -> Exception | None:
+        """Hand one message to the handler. Returns the handler's failure when retrying may succeed;
+        an event that can never be handled is logged, counted and skipped instead."""
         key = msg.key().decode("utf-8", errors="replace") if msg.key() is not None else None
-        value = msg.value()
-        if value is None:
-            # A tombstone: the key's previous event is deleted from a compacted topic
-            self._stats.add(region, TOMBSTONE)
-            logger.info("Tombstone: region=%s topic=%s key=%s", region, msg.topic(), key)
-            return
-
         try:
-            payload = self._deserialize(value)
+            payload = self._deserialize(msg.value())
             self._handler(payload, key, region)
         except InvalidEventError as e:
             self._stats.add(region, INVALID)
+            logger.error("Invalid event, skipping it: region=%s topic=%s error=%s", region, msg.topic(), str(e))
+            return None
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self._stats.add(region, RETRY)
             logger.error(
-                "Invalid event, skipping it: region=%s topic=%s partition=%s offset=%s error=%s",
-                region,
-                msg.topic(),
-                msg.partition(),
-                msg.offset(),
-                str(e),
+                "Failed to handle event, retrying next tick: region=%s topic=%s error=%s", region, msg.topic(), str(e)
             )
-            return
+            return e
 
         self._stats.add(region, HANDLED)
+        return None
 
     @staticmethod
-    def _deserialize(value: bytes) -> dict:
+    def _deserialize(value: bytes | None) -> dict:
         """Parse a JSON object payload, or raise InvalidEventError."""
+        if value is None:
+            # No tombstones are published, and json.loads(None) would raise TypeError, retried forever
+            raise InvalidEventError("payload is empty")
         try:
             payload = json.loads(value)
-        except ValueError as e:  # JSONDecodeError and UnicodeDecodeError are both ValueErrors
+        except ValueError as e:
             raise InvalidEventError(f"payload is not valid JSON: {e}") from e
         if not isinstance(payload, dict):
             raise InvalidEventError(f"payload is a JSON {type(payload).__name__}, not an object")
@@ -236,7 +216,7 @@ class KafkaRegionalConsumer:
             try:
                 consumer.seek(TopicPartition(topic, partition, offset))
             except KafkaException as e:
-                # Typically the partition was just revoked: its next owner resumes from the last commit
+                # Usually a revoked partition, whose next owner resumes from the last commit
                 logger.warning(
                     "Could not rewind: region=%s topic=%s partition=%s offset=%s error=%s",
                     region,
@@ -266,15 +246,6 @@ class KafkaRegionalConsumer:
         self._stats.add(region, COMMIT_ERROR)
         logger.warning("Commit failed: region=%s error=%s partitions=%s", region, error, failed)
 
-    def _on_kafka_exception(self, region: str, exception: KafkaException) -> None:
-        """A KafkaException raised by the consumer, handled as the KafkaError it carries."""
-        error = exception.args[0] if exception.args and isinstance(exception.args[0], KafkaError) else None
-        if error is not None:
-            self._on_kafka_error(region, error)
-            return
-        self._stats.add(region, CONSUMER_ERROR)
-        logger.warning("Consumer error: region=%s error=%s", region, str(exception))
-
     def _on_kafka_error(self, region: str, error: KafkaError) -> None:
         """An error from the consumer, either as librdkafka's error_cb or carried by a message.
 
@@ -290,14 +261,13 @@ class KafkaRegionalConsumer:
         self._stats.add(region, CONSUMER_ERROR)
         logger.warning("Consumer error: region=%s error=%s", region, error)
 
-    def _get_consumer(self, region: str) -> Consumer | None:
+    def _get_or_create_consumer(self, region: str) -> Consumer | None:
         """Get or create the consumer for region, or None if it cannot be created. One per region,
         cached, so successive ticks reuse the same group member instead of joining the group again."""
-        consumer = self._consumers.get(region)
+        consumer: Consumer | None = self._consumers.get(region)
         if consumer is not None:
             return consumer
 
-        consumer = None
         try:
             consumer = Consumer(self._consumer_config(region))
             consumer.subscribe(self.topics)
@@ -321,12 +291,9 @@ class KafkaRegionalConsumer:
             **sasl_config(self._region_configs[region]),
             "group.id": self.group_id,
             "enable.auto.commit": False,
-            # A group with no committed offsets yet, i.e. its first deployment, starts from the oldest
-            # retained message: these topics describe state, so what happened before the group existed
-            # still matters. Expect a catch-up, paced by MAX_MESSAGES_PER_REGION_PER_TICK.
+            "enable.auto.offset.store": False,
+            # These topics describe state, so a new group replays the retained history
             "auto.offset.reset": "earliest",
-            # max.poll.interval.ms keeps its default of 5 min: a scheduler tick longer than that makes
-            # the consumer leave the group, and the next consume() rejoins it.
             "error_cb": lambda error: self._on_kafka_error(region, error),
             "on_commit": lambda error, partitions: self._on_commit(region, error, partitions),
         }

@@ -195,7 +195,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
 
     def increment_blocked_account_event(self, region: str, outcome: str, count: int = 1) -> None:
-        """Count consumed blocked-account-plan events. outcome: handled, invalid, tombstone or retry."""
+        """Count consumed blocked-account-plan events. outcome: handled, invalid or retry."""
         self.blocked_account_events_total.labels(region=region, outcome=outcome).inc(count)
 
     def increment_blocked_account_consumer_error(self, region: str, kind: str, count: int = 1) -> None:
