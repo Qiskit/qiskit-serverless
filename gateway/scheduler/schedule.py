@@ -112,10 +112,12 @@ class FleetsJobSubmitter:
         Returns:
             ``True`` when the job reached PENDING. ``False`` when Code Engine refused the submit, or
             when the row left QUEUED while it was being submitted. In that second case the fleet
-            created for it is cancelled.
+            created for it is cancelled. Both reasons are logged here, where the fleet id is still
+            in hand.
 
         Raises:
-            RunnerRetryableError: before any write, so the job stays QUEUED.
+            RunnerRetryableError: only when nothing was written, so the job is still QUEUED and a
+                later tick can try again. Every other outcome returns, because the submit finished.
         """
         breaker = self.breakers.get_breaker(job.ce_region)
         if breaker.is_open:
