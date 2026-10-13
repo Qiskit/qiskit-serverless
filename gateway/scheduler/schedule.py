@@ -25,7 +25,6 @@ from scheduler.tasks.circuit_breaker import CircuitBreaker
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
-
 # Jobs whose cancel was refused, so first_cancel_refusal reports each one once.
 _REFUSED_CANCEL_WARNED: set[str] = set()
 _REFUSED_CANCEL_LIMIT = 10_000

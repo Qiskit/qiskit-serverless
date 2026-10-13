@@ -552,7 +552,7 @@ class FleetsRunner(AbstractRunner):
                 "project and still holds a slot there",
                 self.job.fleet_id,
                 self.job.id,
-                self._project.project_name if self._project else "unassigned",
+                self._project.project_name,
             )
         return True
 
@@ -577,7 +577,6 @@ class FleetsRunner(AbstractRunner):
         """Return the project the fleet was created in, by name, falling back to the program's.
 
         Accepts an inactive project, unlike ``_get_project``.
-
         """
         if not self.job.ce_project_name:
             # Jobs created before migration 0053 have no snapshot

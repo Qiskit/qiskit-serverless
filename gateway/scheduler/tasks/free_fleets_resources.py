@@ -31,7 +31,7 @@ UNASSIGNED_PROJECT = "unassigned"
 
 
 class FreeFleetsResources(SchedulerTask):
-    """Delete the fleet of a terminal Fleets job once the retention window has passed."""
+    """Delete the fleet of a terminal Fleets job, past the retention window or over the project's quota."""
 
     def __init__(
         self,
@@ -156,7 +156,6 @@ class FreeFleetsResources(SchedulerTask):
         if self.deleter.delete(job):
             job.update_fields({"fleet_deleted_at": timezone.now()})
             self._failed_attempts.pop(str(job.id), None)
-            logger.info("job_id=%s fleet_id=%s deleted", job.id, job.fleet_id)
             return True
 
         self._count_failure(job)
