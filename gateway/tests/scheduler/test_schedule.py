@@ -540,25 +540,25 @@ class TestFleetsJobCanceller:
     """The scheduler's cancel: one try, and the region's breaker decides when to try again."""
 
     @staticmethod
-    def _canceller(side_effect=None, returns=True, breakers=None):
+    def _canceller(side_effect=None, returns=Job.STOPPING, breakers=None):
         transitions = MagicMock()
         if side_effect is not None:
-            transitions.try_stop.side_effect = side_effect
+            transitions.stop.side_effect = side_effect
         else:
-            transitions.try_stop.return_value = returns
+            transitions.stop.return_value = returns
         return FleetsJobCanceller(transitions, breakers), transitions
 
-    def test_a_cancel_that_landed_returns_what_try_stop_returned(self):
-        canceller, transitions = self._canceller(returns=True)
+    def test_a_cancel_that_landed_reports_stopping(self):
+        canceller, transitions = self._canceller(returns=Job.STOPPING)
         job = MagicMock(ce_region="us-east")
 
         assert canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS) is True
         assert canceller.paused("us-east") is False
-        transitions.try_stop.assert_called_once()
+        transitions.stop.assert_called_once()
 
     def test_a_cancel_that_lands_lets_a_later_refusal_report_again(self):
         """Without the discard the set only ever grows, and a job that recovers stays silenced."""
-        canceller, _ = self._canceller(returns=True)
+        canceller, _ = self._canceller(returns=Job.STOPPING)
         job = MagicMock(ce_region="us-east")
         _REFUSED_CANCEL_WARNED.add(str(job.id))
 
@@ -569,7 +569,7 @@ class TestFleetsJobCanceller:
     def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
         """False is Code Engine's own 404, so the region is answering."""
         _open_breakers_after_one_failure()
-        canceller, _ = self._canceller(returns=False)
+        canceller, _ = self._canceller(returns=Job.STOPPED)
 
         assert canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS) is False
         assert canceller.paused("us-east") is False
@@ -595,10 +595,10 @@ class TestFleetsJobCanceller:
             canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert canceller.paused("us-east") is True
-        assert transitions.try_stop.call_count == 2
+        assert transitions.stop.call_count == 2
 
     def test_a_cancel_that_landed_and_lost_the_race_counts_as_an_answer(self):
-        """try_stop sends the cancel before it opens the transaction, so Code Engine answered even
+        """stop() sends the cancel before it opens the transaction, so Code Engine answered even
         though the row moved underneath. Counting nothing would leave a working region's streak up."""
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
@@ -611,7 +611,7 @@ class TestFleetsJobCanceller:
             InvalidJobTransitionException("STOPPED -> STOPPING"),
             RunnerRetryableError("Too Many Requests"),
         ):
-            transitions.try_stop.side_effect = error
+            transitions.stop.side_effect = error
             with pytest.raises(type(error)):
                 canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -645,7 +645,7 @@ class TestFleetsJobCanceller:
             with pytest.raises(RunnerRetryableError):
                 canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
 
-        transitions.try_stop.assert_called_once()
+        transitions.stop.assert_called_once()
 
     def test_a_failed_cancel_pauses_the_submit_in_the_same_region_only(self):
         """A region answers the same way to both, so one breaker holds the fact for the whole region."""

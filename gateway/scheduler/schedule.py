@@ -158,7 +158,7 @@ class FleetsJobSubmitter:
                     job.fleet_id,
                     refused,
                 )
-                self._cancel_orphan_fleet(job, runner)
+                self._cancel_orphan_fleet(job, runner, context)
                 span.set_attribute("job.status", job.status)
                 raise
 
@@ -170,7 +170,7 @@ class FleetsJobSubmitter:
             )
 
     @staticmethod
-    def _cancel_orphan_fleet(job: Job, runner: AbstractRunner) -> None:
+    def _cancel_orphan_fleet(job: Job, runner: AbstractRunner, context: JobEventContext) -> None:
         """Cancel a fleet whose row reached a terminal status while it was being submitted."""
         try:
             if not runner.stop():
@@ -190,7 +190,7 @@ class FleetsJobSubmitter:
             JobEvent.objects.add_error_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.SCHEDULE_JOBS,
+                context=context,
                 code="FLEET_LEFT_RUNNING",
                 message=f"Fleet {job.fleet_id} was created but could not be cancelled",
                 exception=type(ex).__name__,
@@ -229,7 +229,7 @@ class FleetsJobCanceller:
         if breaker.is_open:
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
-            cancelled = self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
+            written = self.transitions.stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
         except RunnerRetryableError:
             breaker.record_failure()
             raise
@@ -239,7 +239,7 @@ class FleetsJobCanceller:
             raise
         breaker.record_success()
         _REFUSED_CANCEL_WARNED.discard(str(job.id))
-        return cancelled
+        return written == Job.STOPPING
 
 
 def first_cancel_refusal(job: Job) -> bool:

@@ -334,7 +334,6 @@ class BalanceFillerJobs(SchedulerTask):
                 # STOPPING: the status poller counts it when it writes the terminal status.
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
-            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except RunnerRetryableError as ex:
             # Left active: a status change here would claim a cancel that never left.
             logger.warning(
@@ -354,7 +353,8 @@ class BalanceFillerJobs(SchedulerTask):
             logger.info("[BalanceFillerJobs] job_id=%s transition rejected, skipping the stop", job.id)
             return
 
-        # Terminal already, so the poller never sees this row and this is the only place to count it.
+        # stop() wrote STOPPED itself, so the poller never sees this row and this is the only
+        # place to count it.
         self.metrics.increment_filler_jobs_stopped()
         logger.info("[BalanceFillerJobs] job_id=%s filler job stopped, nothing to cancel", job.id)
 
