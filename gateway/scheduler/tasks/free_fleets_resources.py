@@ -16,7 +16,7 @@ from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.schedule import FleetsBreakers, FleetsFleetDeleter
-from scheduler.tasks.task import SchedulerTask
+from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.FreeFleetsResources")
 

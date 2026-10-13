@@ -11,7 +11,7 @@ from core.services.runners import get_runner
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.tasks.task import SchedulerTask
+from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.FreeRayResources")
 
