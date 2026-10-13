@@ -255,14 +255,14 @@ class TestToTerminal:
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
-        assert job.sub_status == "pending"
+        assert job.sub_status is None
         assert job.env_vars == "{}"
         task.transitions.to_terminal.assert_called_once_with(
             job,
             Job.SUCCEEDED,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            job_fields={"env_vars": "{}"},
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
 
     def test_a_succeeded_job_records_its_duration(self):
@@ -287,14 +287,14 @@ class TestToTerminal:
         task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
-        assert job.sub_status == "pending"
+        assert job.sub_status is None
         assert job.env_vars == "{}"
         task.transitions.to_terminal.assert_called_once_with(
             job,
             Job.FAILED,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            job_fields={"env_vars": "{}"},
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
 
     def test_to_terminal_never_sends_an_in_progress_event(self):
@@ -621,8 +621,7 @@ class TestEventStreamsIntegration:
 
 @pytest.mark.django_db
 def test_to_terminal_writes_the_job_through_the_real_service():
-    """Nothing is mocked between the task and the database: the status, the wiped env_vars, the kept
-    sub_status and the JobEvent all land."""
+    """Nothing is mocked between the task and the database: the status, the wiped fields and the JobEvent land."""
     author = User.objects.create_user(username="update-fleets-real-service")
     job = Job.objects.create(
         author=author, runner=Program.FLEETS, status=Job.RUNNING, sub_status=Job.MAPPING, env_vars='{"k": "v"}'
@@ -634,7 +633,7 @@ def test_to_terminal_writes_the_job_through_the_real_service():
 
     job.refresh_from_db()
     assert job.status == Job.FAILED
-    assert job.sub_status == Job.MAPPING
+    assert job.sub_status is None
     assert job.env_vars == "{}"
     assert JobEvent.objects.filter(job=job, data__status=Job.FAILED).count() == 1
     task.metrics.increment_jobs_terminal.assert_called_once()

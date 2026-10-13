@@ -10,10 +10,6 @@ features:
     A job that finishes while it is stopping now reports what it really did, instead of
     reporting as cancelled. One that had already failed ends as ``FAILED``, so its error
     reaches the caller, and one that had already succeeded ends as ``SUCCEEDED``.
-
-    A job that ends now keeps the last sub-status its function reported, instead of having it
-    cleared. The function reports it from inside the job, so one that was stopped or failed never
-    got the chance to update it, and the last value tells you how far it got.
 upgrade:
   - |
     The scheduler is what completes a Code Engine cancellation, so it must be running for
