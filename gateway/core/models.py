@@ -757,12 +757,6 @@ class Job(models.Model):
                 condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False, runner="fleets"),
                 name="job_fleet_undeleted_idx",
             ),
-            # Backs the per-project quota scan, and the held-fleet count through its first column.
-            models.Index(
-                fields=["ce_project_name", "finished_at"],
-                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False, runner="fleets"),
-                name="job_fleet_project_idx",
-            ),
         ]
 
     @classmethod

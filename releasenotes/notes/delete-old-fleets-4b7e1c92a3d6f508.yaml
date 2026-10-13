@@ -18,7 +18,7 @@ features:
     percentage outside 1 to 99 leaves the window as the only rule. Only terminal jobs are ever
     deleted, because deleting the fleet of a running job would kill it, and the runner refuses a
     non-terminal job whatever the caller asks. So a project can stay over the threshold with every
-    fleet still live, and the scheduler logs that at ERROR. A job with no recorded project counts
+    fleet still live, which ``scheduler_held_fleets`` shows. A job with no recorded project counts
     against no project, and only the window deletes it.
   - |
     New ``scheduler_held_fleets`` metric, the fleets not yet deleted in each Code Engine project.
@@ -35,9 +35,8 @@ upgrade:
     minute or two later. A fleet the delete keeps failing on is never stamped: after three
     attempts the scheduler stops picking it so it cannot block the queue, logs it at ERROR, and
     retries it after a restart. It is read-only in the backoffice. Migration ``0074`` adds both,
-    gives the fleets we already hold a ``finished_at`` from their ``updated``, and adds two
-    partial indexes on ``api_job``, one for the retention scan and one for the per-project quota
-    scan.
+    gives the fleets we already hold a ``finished_at`` from their ``updated``, and adds a partial
+    index on ``api_job`` for the retention scan.
   - |
     The delete resolves its Code Engine project from the job's own ``ce_project_name``, so a
     program reassigned to another project after a job ran still has its fleet deleted in the

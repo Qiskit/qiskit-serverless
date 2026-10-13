@@ -50,14 +50,4 @@ class Migration(migrations.Migration):
                 name="job_fleet_undeleted_idx",
             ),
         ),
-        migrations.AddIndex(
-            model_name="job",
-            index=models.Index(
-                condition=models.Q(
-                    ("fleet_deleted_at__isnull", True), ("fleet_id__isnull", False), ("runner", "fleets")
-                ),
-                fields=["ce_project_name", "finished_at"],
-                name="job_fleet_project_idx",
-            ),
-        ),
     ]

@@ -438,19 +438,6 @@ def test_never_deletes_a_running_fleet_even_at_the_full_quota(fleets_program):
     assert terminal.fleet_deleted_at is not None
 
 
-def test_logs_an_error_when_a_project_over_the_quota_has_nothing_to_delete(fleets_program, caplog):
-    _force_at(quota=4, percent=50)
-    for n in range(2):
-        running = _terminal_job(fleets_program, age_hours=1, fleet_id=f"fleet-{n}")
-        Job.objects.filter(pk=running.id).update(status=Job.RUNNING)
-
-    with caplog.at_level(logging.ERROR):
-        _run(_make_task())
-
-    assert "no slot can be freed" in caplog.text
-    assert "project=ce-test" in caplog.text
-
-
 def test_fleets_without_a_project_do_not_trip_the_quota(fleets_program):
     """Three unassigned fleets would be over the threshold of 2, but they count against no project."""
     _force_at(quota=4, percent=50)

@@ -42,7 +42,6 @@ class FreeFleetsResources(SchedulerTask):
         self.metrics = metrics
         self.deleter = FleetsFleetDeleter(breakers or FleetsBreakers())
         self._failed_attempts: dict[str, int] = {}
-        self._wedged_projects: set[str] = set()
 
     def run(self):
         """Delete the fleets past the retention window or over their project's quota, and report what we hold."""
@@ -143,39 +142,11 @@ class FreeFleetsResources(SchedulerTask):
             return {}
 
         threshold = quota * percent // 100
-        over = {
+        return {
             project: held - threshold + 1
             for project, held in counts.items()
             if project != UNASSIGNED_PROJECT and held >= threshold
         }
-        for project, _ in over.items():
-            self._report_wedged(project, held=counts[project], quota=quota)
-        self._wedged_projects &= set(over)
-        return over
-
-    def _report_wedged(self, project: str, *, held: int, quota: int) -> None:
-        """Log a project that is over its quota with nothing it may delete, once per spell."""
-        if self._deletable_in(project):
-            self._wedged_projects.discard(project)
-            return
-        if project in self._wedged_projects:
-            return
-        self._wedged_projects.add(project)
-        logger.error(
-            "project=%s holds %s of %s fleets and none of them belongs to a terminal job, so no slot can be freed",
-            project,
-            held,
-            quota,
-        )
-
-    def _deletable_in(self, project: str) -> bool:
-        """Whether a project over its quota has any fleet we are allowed to delete."""
-        return (
-            Job.objects.held_fleets()
-            .filter(status__in=Job.TERMINAL_STATUSES, ce_project_name=project)
-            .exclude(id__in=self._giving_up_on())
-            .exists()
-        )
 
     def _giving_up_on(self) -> list[str]:
         """Job ids that failed MAX_ATTEMPTS_PER_FLEET times, so one bad row cannot fill the batch."""
