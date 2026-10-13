@@ -227,6 +227,8 @@ spec:
               value: {{ .Values.application.runtimeApi.url | quote }}
             - name: RUNTIME_API_CACHE_TTL
               value: {{ .Values.application.runtimeApi.cacheTtl | quote }}
+            - name: IBM_CLOUD_API_TIMEOUT
+              value: {{ .Values.application.runtimeApi.timeout | quote }}
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:

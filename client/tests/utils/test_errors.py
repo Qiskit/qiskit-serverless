@@ -61,6 +61,7 @@ class TestErrorCodes:  # pylint: disable=too-few-public-methods
     def test_error_codes_exist(self):
         """Test that expected error codes are defined."""
         assert ErrorCodes.AUTH1001 == "AUTH1001"
+        assert ErrorCodes.CONN1001 == "CONN1001"
         assert ErrorCodes.JSON1001 == "JSON1001"
         assert ErrorCodes.HTTP_STD_ERROR == "HTTP_STD_ERROR"
 
@@ -75,6 +76,13 @@ class TestFormatErrMsg:
         assert "Code:" in result
         assert "AUTH1001" in result
         assert "Connection error" in result
+
+    def test_connection_message_reads_as_transient_not_auth(self):
+        """CONN1001 should ask the user to retry, not to check host and auth."""
+        result = format_err_msg(ErrorCodes.CONN1001)
+        assert "CONN1001" in result
+        assert "try again" in result
+        assert "auth" not in result.lower()
 
     def test_format_with_http_error_code(self):
         """Test formatting with HTTP error code."""
