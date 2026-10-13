@@ -34,6 +34,7 @@ from core.services.runners.abstract_runner import (
     RunnerError,
     RunnerRetryableError,
 )
+from core.clients.runtime_api_errors import RuntimeApiRetryableError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -139,7 +140,7 @@ class FleetsRunner(AbstractRunner):
         """Submit the job as a Code Engine fleet: upload its files to COS, then create the fleet.
 
         Raises:
-            RunnerRetryableError: If Code Engine or COS failed in a way a later try can fix.
+            RunnerRetryableError: If Code Engine, COS or IAM failed in a way a later try can fix.
             RunnerError: If submission fails for any other reason.
         """
         paths = self._upload_to_cos()
@@ -264,6 +265,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except (ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except RuntimeApiRetryableError as ex:
+            raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
@@ -490,6 +493,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError(f"Code Engine API error {ex.status}: {ex.reason}", ex) from ex
         except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except RuntimeApiRetryableError as ex:
+            raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
         except Exception as ex:
             logger.error("Failed to stop fleet [%s]: %s", self.job.fleet_id, ex)
             raise RunnerError(f"Unable to stop fleet [{self.job.fleet_id}]", ex) from ex

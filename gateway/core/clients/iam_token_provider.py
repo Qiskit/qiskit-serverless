@@ -72,7 +72,7 @@ class IamTokenProvider:
 
 
 # This is a singleton actually
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=1)
 def get_iam_token_provider(api_key: str, iam_url: str) -> IamTokenProvider:
     """Singleton per credentials: the provider for this ``api_key`` and ``iam_url``, built the first time it is asked
     for (``lru_cache`` is the lazy singleton). The SDK caches the token on the provider, so building one per call would
