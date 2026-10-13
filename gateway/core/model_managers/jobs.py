@@ -44,10 +44,7 @@ class JobQuerySet(QuerySet):
     """Job events query set to transform into a manager."""
 
     def held_fleets(self) -> Self:
-        """Fleets jobs whose Code Engine fleet we have not deleted: a fleet_id and no stamp.
-
-        Narrower than the ``job_fleet_undeleted_idx`` partial index, which the ordering uses.
-        """
+        """Fleets jobs whose Code Engine fleet we have not deleted: a fleet_id and no stamp."""
         from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
 
         return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)

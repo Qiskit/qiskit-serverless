@@ -86,12 +86,14 @@ class FreeFleetsResources(SchedulerTask):
         A project over its quota takes only the fleets it needs to get back under the threshold, so a
         cycle cannot destroy fleets that are still inside their window beyond what the cap asked for.
         Urgent goes first because its fleets are the newest, so a shared ordering would always put the
-        routine backlog ahead of it.
+        routine backlog ahead of it. Paused regions are excluded here rather than in the loop, or
+        their backlog would fill the batch and no other region would be cleaned up.
         """
         budget = Config.get_int(ConfigKey.FLEETS_CLEANUP_MAX_DELETES, default=DEFAULT_MAX_DELETES_PER_CYCLE)
         deletable = (
             Job.objects.held_fleets()
             .filter(status__in=Job.TERMINAL_STATUSES)
+            .annotate(fleet_region_sql=Coalesce("ce_region", "program__code_engine_project__region"))
             .exclude(self._in_regions(paused_regions))
             .exclude(id__in=self._giving_up_on())
         )
@@ -122,21 +124,24 @@ class FreeFleetsResources(SchedulerTask):
 
     @staticmethod
     def _in_regions(regions: list[str | None]) -> Q:
-        """Match the jobs of these regions. A null region needs its own clause, `IN` never matches it."""
+        """Match the jobs of these regions, by the same region ``Job.fleet_region`` reports.
+
+        A null region needs its own clause, `IN` never matches it.
+        """
         named = [region for region in regions if region is not None]
-        matched = Q(ce_region__in=named) if named else Q(pk__in=[])
+        matched = Q(fleet_region_sql__in=named) if named else Q(pk__in=[])
         if None in regions:
-            matched |= Q(ce_region__isnull=True)
+            matched |= Q(fleet_region_sql__isnull=True)
         return matched
 
     def _projects_over_quota(self, counts: dict[str, int]) -> dict[str, int]:
         """How many fleets each project over its quota has to lose to get back under the threshold."""
         percent = Config.get_int(ConfigKey.FLEETS_CLEANUP_FORCE_AT_PERCENT, default=DEFAULT_FORCE_AT_PERCENT)
-        # 0 or a negative would floor the threshold to 0, making every project over quota
-        if not 1 <= percent < 100:
+        quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
+        # either at 0 or below floors the threshold to 0, which puts every project over quota
+        if not 1 <= percent < 100 or quota < 1:
             return {}
 
-        quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
         threshold = quota * percent // 100
         over = {
             project: held - threshold + 1

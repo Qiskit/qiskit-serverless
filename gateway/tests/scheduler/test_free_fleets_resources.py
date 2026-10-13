@@ -259,6 +259,35 @@ def test_a_paused_region_does_not_fill_the_batch(fleets_program):
     assert Job.objects.held_fleets().filter(ce_region="us-east").count() == DEFAULT_MAX_DELETES_PER_CYCLE
 
 
+def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fleets_program):
+    """These rows carry no ce_region, so only the program fallback shows they belong to the paused region."""
+    for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
+        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 100 + n, fleet_id=f"legacy-{n}", ce_region=None)
+    healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
+    task = _make_task()
+    assert Job.objects.get(fleet_id="legacy-0").fleet_region == "us-east"
+    for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
+        task.deleter.record_cycle("us-east", code_engine_answered=False)
+
+    _run(task)
+
+    healthy.refresh_from_db()
+    assert healthy.fleet_deleted_at is not None
+    assert Job.objects.held_fleets().filter(ce_region__isnull=True).count() == DEFAULT_MAX_DELETES_PER_CYCLE
+
+
+def test_the_cap_is_off_when_the_quota_is_zero(fleets_program):
+    """quota 0 floors the threshold to 0, which would put every project over it."""
+    _force_at(quota=0, percent=80)
+    job = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-1")
+
+    free_resources = _run(_make_task())
+
+    free_resources.assert_not_called()
+    job.refresh_from_db()
+    assert job.fleet_deleted_at is None
+
+
 def test_a_clean_cycle_clears_the_delete_failures(fleets_program):
     """Four failures, one cycle that deleted, four more: the streak restarted, so the breaker is closed."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, ce_region="us-east")
