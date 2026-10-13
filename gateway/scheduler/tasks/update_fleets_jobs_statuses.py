@@ -146,7 +146,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 new_status,
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
-                job_fields={"sub_status": None, "env_vars": "{}"},
+                # sub_status stays: the function reports it from inside the job, so a killed job keeps where it got to
+                job_fields={"env_vars": "{}"},
             )
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
