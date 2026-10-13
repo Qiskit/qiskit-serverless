@@ -11,7 +11,8 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import RunnerRetryableError
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -73,15 +74,17 @@ class ScheduleFleetsJobs(SchedulerTask):
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
             try:
-                reached_pending = self.submitter.submit(job, ctx)
+                self.submitter.submit(job, ctx)
             except RunnerRetryableError as ex:
                 logger.warning("job_id=%s region=%s Job kept QUEUED: %s", job.id, job.ce_region, ex)
                 skipped_regions.add(job.ce_region)
                 continue
+            except (RunnerError, InvalidJobTransitionException):
+                # submit() logged why and left the row in its final state
+                continue
 
-            if reached_pending:
-                submitted += 1
-                self.add_queue_wait_time_metric(job)
+            submitted += 1
+            self.add_queue_wait_time_metric(job)
 
         if submitted:
             logger.info("%s jobs are scheduled for execution.", submitted)

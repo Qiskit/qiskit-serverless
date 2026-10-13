@@ -277,7 +277,7 @@ class BalanceFillerJobs(SchedulerTask):
             return False
 
         try:
-            submitted = self.submitter.submit(
+            self.submitter.submit(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
                 context=JobEventContext.FILLER_SUBMIT,
@@ -288,6 +288,11 @@ class BalanceFillerJobs(SchedulerTask):
             self._mark_failed(job)
             self._log_creation_failed(ex)
             raise
+        except InvalidJobTransitionException as ex:
+            # Something stopped this filler while it was being submitted, and submit() cancelled its
+            # fleet. Not a failed creation: we no longer want it.
+            logger.info("[BalanceFillerJobs] job_id=%s filler job was stopped while submitting: %s", job.id, ex)
+            return False
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
                 # It raised before any write, so no fleet exists and this row is
@@ -297,10 +302,9 @@ class BalanceFillerJobs(SchedulerTask):
             self._log_creation_failed(ex)
             return False
 
-        self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
-        logger.info("[BalanceFillerJobs] job_id=%s filler job submitted=%s", job.id, submitted)
-        # Not reaching PENDING means submit() swallowed a RunnerError, or the row left QUEUED.
-        return submitted
+        self.metrics.increment_filler_jobs_created("submitted")
+        logger.info("[BalanceFillerJobs] job_id=%s filler job submitted", job.id)
+        return True
 
     def _log_creation_failed(self, ex: Exception) -> None:
         """Report a failed creation.

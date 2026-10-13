@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from core.models import Job
+from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
@@ -41,14 +42,15 @@ def test_fleets_execute_called_with_ctx():
 
 
 def test_a_submit_that_did_not_reach_pending_records_no_queue_wait():
-    """The queue-wait sample is only meaningful for a job that actually started."""
+    """The queue-wait sample is only meaningful for a job that actually started. submit() raises
+    rather than returning, so reaching the metric at all means the job is PENDING."""
     task = _make_task()
     mock_job = MagicMock(status=Job.QUEUED, gpu=False, env_vars='{"traceparent": null}', filler=False)
     mock_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
     with (
         patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch.object(task.submitter, "submit", return_value=False),
+        patch.object(task.submitter, "submit", side_effect=RunnerError("Code Engine refused")),
         patch(f"{_MOD}.TraceContextTextMapPropagator"),
     ):
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)

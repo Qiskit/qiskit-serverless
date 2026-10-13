@@ -94,7 +94,7 @@ class FleetsJobSubmitter:
         """Whether the breaker of this region is open."""
         return self.breakers.paused(region)
 
-    def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> bool:
+    def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> None:
         """Submit a Fleets (Code Engine) job and persist the result.
 
         Wraps submission under the scheduler.submit trace span propagated from the job's env_vars,
@@ -109,15 +109,14 @@ class FleetsJobSubmitter:
                 SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
                 filler-jobs balancer passes FILLER_SUBMIT.
 
-        Returns:
-            ``True`` when the job reached PENDING. ``False`` when Code Engine refused the submit, or
-            when the row left QUEUED while it was being submitted. In that second case the fleet
-            created for it is cancelled. Both reasons are logged here, where the fleet id is still
-            in hand.
+        Returns nothing: it returns only when the job reached PENDING, and raises otherwise.
 
         Raises:
-            RunnerRetryableError: only when nothing was written, so the job is still QUEUED and a
-                later tick can try again. Every other outcome returns, because the submit finished.
+            RunnerRetryableError: nothing was written, so the job is still QUEUED and a later tick
+                can try again.
+            RunnerError: Code Engine refused the submit. The job is already FAILED.
+            InvalidJobTransitionException: the row left QUEUED while it was being submitted, so the
+                fleet created for it has been cancelled.
         """
         breaker = self.breakers.get_breaker(job.ce_region)
         if breaker.is_open:
@@ -146,7 +145,7 @@ class FleetsJobSubmitter:
                 except InvalidJobTransitionException as refused:
                     logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, refused)
                 span.set_attribute("job.status", job.status)
-                return False
+                raise
 
             # Recorded on its own, before any status write
             job.update_fields({"fleet_id": job.fleet_id, "env_vars": "{}"})
@@ -161,7 +160,7 @@ class FleetsJobSubmitter:
                 )
                 self._cancel_orphan_fleet(job, runner)
                 span.set_attribute("job.status", job.status)
-                return False
+                raise
 
             span.set_attribute("job.status", job.status)
             logger.info(
@@ -169,7 +168,6 @@ class FleetsJobSubmitter:
                 job.id,
                 time.monotonic() - start,
             )
-            return True
 
     @staticmethod
     def _cancel_orphan_fleet(job: Job, runner: AbstractRunner) -> None:

@@ -196,7 +196,7 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        assert FleetsJobSubmitter(transitions).submit(job, ctx) is True
+        FleetsJobSubmitter(transitions).submit(job, ctx)  # returning is the success signal
 
         mock_runner.submit.assert_called_once()
         assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
@@ -217,7 +217,9 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        assert FleetsJobSubmitter(transitions).submit(job, ctx) is False
+        with pytest.raises(RunnerError) as exc:
+            FleetsJobSubmitter(transitions).submit(job, ctx)
+        assert type(exc.value) is RunnerError
 
         mock_runner.submit.assert_called_once()
         transitions.to_failed.assert_called_once()
@@ -294,7 +296,8 @@ class TestScheduleApi(APITestCase):
 
         submitter = FleetsJobSubmitter(MagicMock())
 
-        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+        with pytest.raises(RunnerError):
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
         assert submitter.paused("us-east") is False
 
@@ -317,9 +320,7 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_does_not_raise_when_the_job_already_turned_terminal(
-        self, mock_trace, mock_get_runner_client
-    ):
+    def test_fleets_submit_reports_the_lost_race_to_its_caller(self, mock_trace, mock_get_runner_client):
         """Lost the race: something else (e.g. a user-initiated stop) already moved the job to a
         terminal status while it was being submitted. The fleet exists by then, so it must be
         recorded on the row and cancelled, and the tick must not crash."""
@@ -335,14 +336,15 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        assert FleetsJobSubmitter(transitions).submit(job, ctx) is False  # must not raise
+        with pytest.raises(InvalidJobTransitionException):
+            FleetsJobSubmitter(transitions).submit(job, ctx)
 
         assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
         mock_runner.stop.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_does_not_raise_when_a_failed_submit_lost_the_race(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_reports_a_failed_submit_that_also_lost_the_race(self, mock_trace, mock_get_runner_client):
         """Same race when the submit failed: no fleet exists, so there is nothing to cancel."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -354,7 +356,8 @@ class TestScheduleApi(APITestCase):
         job.status = Job.QUEUED
         job.logs = ""
 
-        assert FleetsJobSubmitter(transitions).submit(job, MagicMock()) is False  # must not raise
+        with pytest.raises(RunnerError):
+            FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
         mock_runner.stop.assert_not_called()
 
@@ -456,9 +459,9 @@ def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
     runner.submit.side_effect = create_the_fleet_then_lose_the_race
 
     with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
-        submitted = FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(job, None)
+        with pytest.raises(InvalidJobTransitionException):
+            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(job, None)
 
-    assert submitted is False
     job.refresh_from_db()
     assert job.status == Job.STOPPED
     assert job.fleet_id == "fleet-created-anyway"
@@ -479,7 +482,8 @@ def test_a_cancel_that_fails_leaves_the_fleet_on_the_row_and_on_the_timeline():
         patch("scheduler.schedule.trace"),
         patch("scheduler.schedule.JobEvent") as mock_event,
     ):
-        assert FleetsJobSubmitter(transitions).submit(job, None) is False  # must not raise
+        with pytest.raises(InvalidJobTransitionException):
+            FleetsJobSubmitter(transitions).submit(job, None)
 
     assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
     assert mock_event.objects.add_error_event.call_args.kwargs["code"] == "FLEET_LEFT_RUNNING"
