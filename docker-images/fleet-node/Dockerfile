@@ -94,6 +94,19 @@ USER 1000
 # /usr/local/lib/openmpi/ and resolve through libmpi.so.40's $ORIGIN-relative
 # rpath, not through the loader cache, so that subdirectory needs no entry of its
 # own -- but libmpi.so.40 must never be separated from it.
+#
+# The nvidia-*-cu12 CUDA wheels need the same treatment for the same reason:
+# gpu4pyscf dlopens libcublas.so.12 and friends at import, and they install under
+# site-packages/nvidia/<component>/lib, which is on no default loader path
+# either. Their dirs are globbed rather than hardcoded, under every site-packages
+# root pip could have installed into: sysconfig's purelib and platlib (the same
+# source the Vayesta step below trusts) plus site.getsitepackages(). All three are
+# needed because no single one is reliable here -- the wheels are purelib while
+# the primary site dir on this base is platlib, and site.getsitepackages() is
+# built from sys.prefix (/usr) while pip installs under /usr/local via the
+# distro's posix_local scheme. The assert turns "found nothing" into a failure at
+# this line rather than an empty .conf and a puzzling loader error further down,
+# and the cat puts the registered dirs in the build log.
 FROM base AS deps
 USER 0
 COPY docker-images/requirements-dynamic-dependencies.txt \
@@ -104,6 +117,9 @@ RUN pip install --no-cache-dir \
     rm /tmp/requirements-dynamic-dependencies.txt \
        /tmp/requirements-dynamic-dependencies-gpu.txt && \
     echo /usr/local/lib > /etc/ld.so.conf.d/mpi-wheel.conf && \
+    python -c 'import glob, site, sysconfig; roots = {sysconfig.get_paths()[k] for k in ("purelib", "platlib")} | set(site.getsitepackages()); dirs = sorted(d for r in roots for d in glob.glob(f"{r}/nvidia/*/lib")); assert dirs, f"no nvidia/*/lib dirs under {sorted(roots)}"; print("\n".join(dirs))' \
+        > /etc/ld.so.conf.d/nvidia-wheels.conf && \
+    cat /etc/ld.so.conf.d/nvidia-wheels.conf && \
     ldconfig
 USER 1000
 
@@ -195,4 +211,31 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 # requirements-dynamic-dependencies.txt: that file is gateway-advertised and
 # shared with ray-node. After the builder COPYs so they cannot clobber it.
 RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3"
+
+# Every CUDA shared object gpu4pyscf dlopens must be in the loader cache. This is
+# asserted rather than assumed because the failure mode is invisible: a missing
+# library fails `import gpu4pyscf`, the chemistry function falls back to CPU, and
+# the job still succeeds -- so nothing downstream of the build would notice that
+# GPU jobs stopped using their GPU. The check belongs to this stage, not deps, so
+# it covers the image that actually ships, including whatever the COPYs above
+# merged into site-packages.
+#
+# It is a loader-cache check and not `import gpu4pyscf` on purpose: the build
+# runners have no CUDA device, so an import would risk failing for reasons that
+# have nothing to do with these libraries. ldconfig -p prints one
+# "<soname> (abi) => <path>" line per cached entry, hence the trailing " (" in the
+# match -- a bare soname would also match longer names such as
+# libnvrtc-builtins.so.12.9.
+#
+# Mind the soname majors: they track each library's own version, not the CUDA
+# release, so cuFFT is libcufft.so.11, cuRAND libcurand.so.10 and cuSOLVER
+# libcusolver.so.11 even though all three ship in -cu12 wheels. Read them off the
+# installed wheels (ls site-packages/nvidia/*/lib) before editing this list; the
+# ".so.12" spelling looks right and is wrong for three of the nine.
+RUN for lib in libcublas.so.12 libcublasLt.so.12 libcudart.so.12 libcufft.so.11 \
+               libcurand.so.10 libcusolver.so.11 libcusparse.so.12 \
+               libnvJitLink.so.12 libnvrtc.so.12; do \
+        ldconfig -p | grep -qF "$lib (" || \
+            { echo "FATAL: $lib missing from the loader cache -- gpu4pyscf would silently fall back to CPU"; exit 1; }; \
+    done
 USER 1000
