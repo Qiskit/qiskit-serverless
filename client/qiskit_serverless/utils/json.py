@@ -184,6 +184,17 @@ def safe_json_request(
     error_message: Optional[str] = None
     try:
         response = request()
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+    ) as connection_exception:
+        # The request never got a response: a dropped connection, a TLS error, or a
+        # timeout. This is usually transient and a retry succeeds, so it must not be
+        # reported as a configuration or authentication problem.
+        error_message = format_err_msg(
+            ErrorCodes.CONN1001,
+            str(connection_exception.args),
+        )
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
             ErrorCodes.AUTH1001,
@@ -208,8 +219,19 @@ def safe_json_request(
                     _body_snippet(response.text),
                 )
             ) from json_error
-        # A successful (2xx) response whose body we cannot decode is a genuine
-        # violation of the server contract: report it as a JSON decoding error.
+        # A successful (2xx) response with an empty body is a truncated or blank
+        # success from the service or an intermediary. It is transient and a retry
+        # succeeds, so report it as such. Endpoints that legitimately return no
+        # body (204) are handled by their callers before reaching this point.
+        if response is None or not response.text.strip():
+            raise QiskitServerlessException(
+                format_err_msg(
+                    ErrorCodes.EMPTY1001,
+                    str(json_error.args),
+                )
+            ) from json_error
+        # A successful (2xx) response whose non-empty body we cannot decode is a
+        # genuine violation of the server contract: report it as a decoding error.
         raise QiskitServerlessException(
             format_err_msg(
                 ErrorCodes.JSON1001,
