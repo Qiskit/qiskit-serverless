@@ -49,7 +49,7 @@ def fleets_program():
 
 
 def _terminal_job(program, *, age_hours, fleet_id="fleet-1", **kwargs):
-    """A terminal Fleets job that finished `age_hours` ago."""
+    """A terminal Fleets job whose last write was `age_hours` ago."""
     kwargs.setdefault("ce_project_name", program.code_engine_project.project_name)
     job = TestUtils.create_job(
         author=program.author,
@@ -57,11 +57,16 @@ def _terminal_job(program, *, age_hours, fleet_id="fleet-1", **kwargs):
         status=Job.SUCCEEDED,
         runner=Program.FLEETS,
         fleet_id=fleet_id,
-        finished_at=timezone.now() - timedelta(hours=age_hours),
         **kwargs,
     )
-    job.refresh_from_db()
+    _age(job, age_hours)
     return job
+
+
+def _age(job, age_hours):
+    """Move a job's `updated` back. A queryset update skips auto_now, which is the only way."""
+    Job.objects.filter(pk=job.id).update(updated=timezone.now() - timedelta(hours=age_hours))
+    job.refresh_from_db()
 
 
 def _run(task, *, deleted=True, error=None):
@@ -86,10 +91,12 @@ def test_deletes_the_fleet_and_stamps_the_job_past_the_window(fleets_program):
 
 
 def test_does_not_delete_a_fleet_twice(fleets_program):
-    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    """Re-aged between the cycles, so only fleet_deleted_at can keep it out of the second one."""
+    job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
     task = _make_task()
 
     _run(task)
+    _age(job, _RETENTION_HOURS + 1)
     free_resources = _run(task)
 
     free_resources.assert_not_called()

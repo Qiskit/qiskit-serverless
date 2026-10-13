@@ -106,7 +106,7 @@ class FreeFleetsResources(SchedulerTask):
             if len(jobs) >= budget:
                 break
             take = min(needed, budget - len(jobs))
-            jobs += list(deletable.filter(ce_project_name=project).order_by("finished_at")[:take])
+            jobs += list(deletable.filter(ce_project_name=project).order_by("updated")[:take])
 
         if len(jobs) < budget:
             jobs += list(
@@ -116,10 +116,10 @@ class FreeFleetsResources(SchedulerTask):
 
     @staticmethod
     def _past_the_window(deletable):
-        """The jobs whose retention window has passed, oldest first, measured on ``finished_at``."""
+        """The jobs whose retention window has passed, oldest first, measured on ``updated``."""
         retention = max(1, Config.get_int(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS, default=DEFAULT_RETENTION_HOURS))
         cutoff = timezone.now() - timedelta(hours=retention)
-        return deletable.filter(finished_at__lt=cutoff).order_by("finished_at")
+        return deletable.filter(updated__lt=cutoff).order_by("updated")
 
     @staticmethod
     def _in_regions(regions: list[str | None]) -> Q:

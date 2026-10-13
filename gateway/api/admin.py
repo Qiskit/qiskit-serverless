@@ -648,7 +648,7 @@ class JobAdmin(admin.ModelAdmin):
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
-    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions", "finished_at", "fleet_deleted_at"]
+    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions", "fleet_deleted_at"]
     fieldsets = [
         (
             "Info",
@@ -665,7 +665,6 @@ class JobAdmin(admin.ModelAdmin):
                     "account_id",
                     "instance_crn",
                     "version",
-                    "finished_at",
                 ]
             },
         ),
