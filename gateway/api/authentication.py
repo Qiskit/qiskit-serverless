@@ -4,7 +4,11 @@ import logging
 from rest_framework import authentication, exceptions
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
+from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authentication.channel import Channel
@@ -83,10 +87,16 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         try:
             accessible_functions = FunctionAccessClient().get_accessible_functions(crn, authorization_token)
+        except RuntimeFunctionsUnavailable as error:
+            # The Runtime API was unreachable or returned a server error, so access
+            # could not be resolved. This is transient, not a denial: surface a 503
+            # that asks the user to retry rather than a 401 that blames their access.
+            logger.exception("Could not resolve accessible functions: %s", error.message)
+            raise ServiceUnavailable() from error
         except RuntimeFunctionsException as error:
-            # The Runtime API failed while resolving the user's accessible functions.
-            # Details (status codes, CRN) are already logged by FunctionAccessClient;
-            # surface a generic, CRN-free message instead of an opaque 500.
+            # The Runtime API answered, but access could not be resolved (unexpected
+            # status, or no entitlements for this CRN). Details (status codes, CRN) are
+            # already logged by FunctionAccessClient; surface a generic, CRN-free message.
             logger.exception("Could not resolve accessible functions: %s", error.message)
             raise exceptions.AuthenticationFailed(
                 "We couldn't verify your access to Qiskit Functions at this time. "

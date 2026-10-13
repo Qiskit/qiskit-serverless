@@ -466,6 +466,11 @@ QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 # Authentication Runtime API
 RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL", "https://quantum.test.cloud.ibm.com")
 RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
+# Read timeout, in seconds, for the IBM Cloud calls made while authenticating a request
+# (IAM token, Resource Controller, and the entitlements lookup). Kept short so a slow or
+# hung backend does not hold a gateway worker: long enough to ride out a normal latency
+# spike, short enough to fail fast and let the client retry.
+IBM_CLOUD_API_TIMEOUT = int(os.environ.get("IBM_CLOUD_API_TIMEOUT", "10"))
 # The Runtime API is region-scoped. RUNTIME_API_BASE_URL serves the default region on the
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")

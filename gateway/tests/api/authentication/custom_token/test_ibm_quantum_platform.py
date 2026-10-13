@@ -5,6 +5,7 @@ import json
 import time
 from unittest.mock import MagicMock, patch
 import pytest
+import requests
 import responses
 from django.conf import settings
 from django.core.cache import cache
@@ -13,11 +14,15 @@ from django.core.management import call_command
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIClient
 from ibm_platform_services import IamAccessGroupsV2, ResourceControllerV2
-from ibm_cloud_sdk_core import DetailedResponse
+from ibm_cloud_sdk_core import DetailedResponse, ApiException
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
+from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from core.config_key import ConfigKey
 from core.models import PLATFORM_PERMISSION_CUSTOM_RUN, VIEW_PROGRAM_PERMISSION, Job, Program
@@ -220,6 +225,60 @@ class TestIBMQuantumPlatformAuthentication:
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_resource_controller_timeout_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A timeout reaching the Resource Controller is a transient backend problem,
+        so it must surface as a 503 retry, not a 401 'review your CRN'."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-TIMEOUT", "abc18abcd41546508b35dfe0627109c4")
+        mock_get_resource_instance.side_effect = requests.exceptions.ReadTimeout("read timed out")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "review your CRN" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_resource_controller_server_error_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 5xx from the Resource Controller is the backend failing, not a bad CRN,
+        so it must surface as a 503 retry rather than a 401 'review your CRN'."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-5XX", "abc18abcd41546508b35dfe0627109c4")
+        mock_get_resource_instance.side_effect = ApiException(502, message="Bad Gateway")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "review your CRN" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_resource_controller_not_found_still_blames_the_crn(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 404 from the Resource Controller really does implicate the CRN (unknown
+        instance), so it keeps the 401 'review your CRN' message."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-404", "abc18abcd41546508b35dfe0627109c4")
+        mock_get_resource_instance.side_effect = ApiException(404, message="Not Found")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(AuthenticationFailed, match="review your CRN"):
+            CustomTokenBackend().authenticate(_create_request())
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
     @patch("api.authentication.FunctionAccessClient.get_accessible_functions")
     @responses.activate
     def test_runtime_api_failure_raises_friendly_error_without_crn(
@@ -246,6 +305,85 @@ class TestIBMQuantumPlatformAuthentication:
         message = str(exc_info.value)
         assert crn not in message
         assert "502" not in message
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @patch("api.authentication.FunctionAccessClient.get_accessible_functions")
+    @responses.activate
+    def test_runtime_api_unavailable_raises_service_unavailable(
+        self,
+        mock_get_accessible_functions: MagicMock,
+        mock_get_resource_instance: MagicMock,
+        mock_list_access_groups: MagicMock,
+        settings,
+    ):
+        """A transient Runtime API failure while resolving accessible functions must
+        surface a 503 retry, not a 401 that blames the user's access."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-RUNTIME-DOWN", "abc18abcd41546508b35dfe0627109c4")
+
+        crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/secret-account:instance-id::"
+        mock_get_accessible_functions.side_effect = RuntimeFunctionsUnavailable(
+            f"Error connecting to Runtime API for CRN {crn}"
+        )
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request(crn=crn))
+
+        assert exc_info.value.status_code == 503
+        assert crn not in str(exc_info.value)
+
+    @responses.activate
+    def test_iam_token_server_error_raises_service_unavailable(self):
+        """A 5xx from IAM while fetching the token is a transient backend failure, so
+        it must surface a 503 retry, not a 401 'review your API Key'."""
+        responses.add(
+            responses.POST,
+            f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+            json={"errorMessage": "service unavailable"},
+            status=503,
+        )
+
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "API Key" not in str(exc_info.value)
+
+    @responses.activate
+    def test_iam_token_connection_error_raises_service_unavailable(self):
+        """A connection error reaching IAM is transient, so it surfaces a 503 retry
+        rather than a 401 'review your API Key'."""
+        responses.add(
+            responses.POST,
+            f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+            body=requests.exceptions.ConnectionError("connection refused"),
+        )
+
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "API Key" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_access_groups_server_error_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 5xx while resolving access groups must raise a 503 rather than silently
+        returning no groups, which would strip the user's permissions."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-GROUPS-5XX", "abc18abcd41546508b35dfe0627109c4")
+        mock_list_access_groups.side_effect = ApiException(502, message="Bad Gateway")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
