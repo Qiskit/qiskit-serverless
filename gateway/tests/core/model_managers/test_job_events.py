@@ -60,3 +60,24 @@ class TestFirstRunningAt:
         )
 
         assert JobEvent.objects.first_running_at(job.id) is None
+
+
+class TestFirstTerminalAt:
+    """Unit tests for JobEventQuerySet.first_terminal_at()."""
+
+    def test_returns_none_when_the_job_never_finished(self, job):
+        _add_status_event(job, Job.RUNNING)
+
+        assert JobEvent.objects.first_terminal_at(job.id) is None
+
+    def test_returns_the_created_timestamp_of_the_terminal_event(self, job):
+        _add_status_event(job, Job.RUNNING)
+        event = _add_status_event(job, Job.SUCCEEDED)
+
+        assert JobEvent.objects.first_terminal_at(job.id) == event.created
+
+    def test_ignores_non_terminal_status_events(self, job):
+        _add_status_event(job, Job.PENDING)
+        _add_status_event(job, Job.STOPPING)
+
+        assert JobEvent.objects.first_terminal_at(job.id) is None

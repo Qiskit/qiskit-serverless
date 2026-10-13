@@ -33,11 +33,28 @@ class TestMain:
 
     def test_the_tasks_that_change_a_job_status_share_one_transition_service(self):
         """One service, so the Kafka producers of its sender are created once for the whole scheduler."""
-        sharing = (ScheduleFleetsJobs, UpdateFleetsJobsStatuses, BalanceFillerJobs)
+        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
+        tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+        submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
+
+        assert len(tasks) == len(sharing)
+        assert len({id(task.transitions) for task in tasks} | {id(s.transitions) for s in submitters}) == 1
+
+    def test_the_tasks_that_submit_fleets_jobs_share_one_submitter(self):
+        sharing = (ScheduleFleetsJobs, BalanceFillerJobs)
         tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
 
         assert len(tasks) == len(sharing)
-        assert len({id(task.transitions) for task in tasks}) == 1
+        assert len({id(task.submitter) for task in tasks}) == 1
+
+    def test_the_submitter_and_the_canceller_share_one_breaker_per_region(self):
+        """A region that stopped answering is one fact, so a submit and a cancel count against one breaker."""
+        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
+        submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
+        cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
+
+        assert submitters and len(cancellers) == len(sharing)
+        assert len({id(s.breakers) for s in submitters} | {id(c.breakers) for c in cancellers}) == 1
 
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""

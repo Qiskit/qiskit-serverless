@@ -12,12 +12,12 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import execute_fleets_job
+from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter, first_cancel_refusal
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -39,11 +39,18 @@ class BalanceFillerJobs(SchedulerTask):
     """
 
     def __init__(
-        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
+        self,
+        kill_signal: KillSignal,
+        metrics: SchedulerMetrics,
+        transitions: JobTransitionService | None = None,
+        submitter: FleetsJobSubmitter | None = None,
+        canceller: FleetsJobCanceller | None = None,
     ):
         self.kill_signal = kill_signal
         self.metrics = metrics
         self.transitions = transitions or JobTransitionService()
+        self.submitter = submitter or FleetsJobSubmitter(self.transitions)
+        self.canceller = canceller or FleetsJobCanceller(self.transitions)
         self._retry_loops = 0
 
     def run(self):
@@ -51,7 +58,9 @@ class BalanceFillerJobs(SchedulerTask):
         self._discard_unsubmitted_filler_jobs()
 
         program = self._get_filler_program()
-        filler_jobs = list(Job.objects.filter(filler=True, status__in=Job.RUNNING_STATUSES).order_by("created"))
+        filler_jobs = list(
+            Job.objects.filter(filler=True, runner=Program.FLEETS, status__in=Job.RUNNING_STATUSES).order_by("created")
+        )
 
         if program is None:
             self._drain_filler_jobs(filler_jobs)
@@ -107,7 +116,9 @@ class BalanceFillerJobs(SchedulerTask):
         if len(current) < target:
             self._create_filler_job(program)
         elif len(current) > target:
-            self._stop_filler_jobs(current[: len(current) - target])
+            # Draining rows count toward the target but cannot be shed again, so take the stops from the rest
+            stoppable = [job for job in current if job.status != Job.STOPPING]
+            self._stop_filler_jobs(stoppable[: max(0, len(stoppable) - target)])
 
     def _get_filler_program(self) -> Program | None:  # pylint: disable=too-many-return-statements
         """Return the configured filler program, or None when the feature is off.
@@ -223,14 +234,18 @@ class BalanceFillerJobs(SchedulerTask):
         if self._retry_loops > 0:
             self._retry_loops -= 1
             return
-        # A shutdown is not a failure of the work, so it buys no delay.
-        if self.kill_signal.received:
+        # a shutdown or a paused region buys no delay
+        if self.kill_signal.received or self.submitter.paused(program.code_engine_project.region):
             return
-        if not self._submit_filler_job(program):
-            self._retry_loops = RETRY_AFTER_LOOPS
+        try:
+            if not self._submit_filler_job(program):
+                self._retry_loops = RETRY_AFTER_LOOPS
+        except RunnerRetryableError:
+            # no fleet was created, and the region's breaker decides when to try again
+            pass
 
     def _submit_filler_job(self, program: Program) -> bool:
-        """Create and submit one filler job. True when it reached PENDING."""
+        """Create and submit one filler job. True when it reached PENDING. Raises when its region is unavailable."""
         project = program.code_engine_project
         job = Job(
             program=program,
@@ -262,17 +277,20 @@ class BalanceFillerJobs(SchedulerTask):
             return False
 
         try:
-            job = execute_fleets_job(
+            job = self.submitter.submit(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
-                self.transitions,
                 context=JobEventContext.FILLER_SUBMIT,
             )
         except DB_EXCEPTIONS:
             raise
+        except RunnerRetryableError as ex:
+            self._mark_failed(job)
+            self._log_creation_failed(ex)
+            raise
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
-                # It raised before runner.submit(), so no fleet exists and this row is
+                # It raised before any write, so no fleet exists and this row is
                 # already unreachable. _discard_unsubmitted_filler_jobs is the net for
                 # the cases no except block sees.
                 self._mark_failed(job)
@@ -282,43 +300,65 @@ class BalanceFillerJobs(SchedulerTask):
         submitted = job.status == Job.PENDING
         self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
         logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        # Not reaching PENDING means execute_fleets_job swallowed a RunnerError.
+        # Not reaching PENDING means submit() swallowed a RunnerError.
         return submitted
 
     def _log_creation_failed(self, ex: Exception) -> None:
         """Report a failed creation.
 
         Caught here rather than by the scheduler's generic handler, which would log a
-        traceback once a second. RETRY_AFTER_LOOPS already limits this to one a minute.
+        traceback once a second. RETRY_AFTER_LOOPS, or the region's breaker, limits how often it happens.
         """
         logger.error("[BalanceFillerJobs] could not create filler job: %s", str(ex))
         self.metrics.increment_filler_jobs_created("failed")
 
     def _stop_filler_jobs(self, jobs: list[Job]) -> None:
-        """Stop the given filler jobs, cancelling the fleet before writing STOPPED."""
+        """Ask for a stop on the given filler jobs."""
         for job in jobs:
             if self.kill_signal.received:
                 return
+            if job.status == Job.STOPPING:
+                # Already draining: no second cancel to send.
+                continue
             self._stop_one_filler_job(job)
 
     def _stop_one_filler_job(self, job: Job) -> None:
-        """Cancel this job's fleet if it has one, then write STOPPED on the row."""
-        if job.fleet_id:
-            try:
-                get_runner(job).stop()
-            except RunnerError as ex:
-                # Left active on purpose: writing STOPPED would hide a fleet still
-                # holding the node, and the balancer would create another on top.
-                logger.error("[BalanceFillerJobs] job_id=%s error stopping filler job: %s", job.id, str(ex))
+        """Cancel the fleet and write STOPPING, or STOPPED when there was nothing to cancel."""
+        if self.canceller.paused(job.ce_region):
+            return
+        try:
+            if self.canceller.cancel(job, context=JobEventContext.FILLER_STOP):
+                # STOPPING: the status poller counts it when it writes the terminal status.
+                logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
+            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
+        except RunnerRetryableError as ex:
+            # Left active: a status change here would claim a cancel that never left.
+            logger.warning(
+                "[BalanceFillerJobs] job_id=%s fleet_id=%s cancel not delivered: %s", job.id, job.fleet_id, str(ex)
+            )
+            return
+        except RunnerError as ex:
+            log = logger.error if first_cancel_refusal(job) else logger.debug
+            log(
+                "[BalanceFillerJobs] job_id=%s fleet_id=%s cancel could not be sent, the filler stays active: %s",
+                job.id,
+                job.fleet_id,
+                str(ex),
+            )
+            return
+        except InvalidJobTransitionException:
+            logger.info("[BalanceFillerJobs] job_id=%s transition rejected, skipping the stop", job.id)
+            return
 
-        self._mark_stopped(job)
-        logger.info("[BalanceFillerJobs] job_id=%s filler job stopped", job.id)
+        # Terminal already, so the poller never sees this row and this is the only place to count it.
+        self.metrics.increment_filler_jobs_stopped()
+        logger.info("[BalanceFillerJobs] job_id=%s filler job stopped, nothing to cancel", job.id)
 
     def _mark_failed(self, job: Job) -> None:
         """Write FAILED on a job whose submit never happened.
 
-        Not _mark_stopped: nothing stopped it, its creation broke, and that counter is
+        Not the stopped counter: nothing stopped it, its creation broke, and that counter is
         cross-checked against the FILLER_STOP events.
         """
         try:
@@ -326,14 +366,3 @@ class BalanceFillerJobs(SchedulerTask):
         except InvalidJobTransitionException:
             # Lost the race: something else already moved this job to a terminal status.
             logger.info("job_id=%s already in a terminal status, skipping FAILED", job.id)
-
-    def _mark_stopped(self, job: Job) -> None:
-        """Write STOPPED on the job, record the event, and count it."""
-        try:
-            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
-        except InvalidJobTransitionException:
-            # Lost the race: something else already moved this job to a terminal status, so
-            # this stop was not the one that ended it, and must not be counted as one.
-            logger.info("job_id=%s already in a terminal status, skipping STOPPED", job.id)
-            return
-        self.metrics.increment_filler_jobs_stopped()

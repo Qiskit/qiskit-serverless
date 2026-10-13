@@ -28,10 +28,10 @@ class JobEventContext(StrEnum):
     # Scheduler: Job is launched (status PENDING)
     SCHEDULE_JOBS = "SCHEDULE_JOBS"
 
-    # Gateway: job status STOPPED
+    # Gateway: job status STOPPED, or STOPPING for a Fleets job
     STOP_JOB = "STOP_JOB"
 
-    # Scheduler: PENDING to RUNNING, and RUNNING to FAILED/STOPPED/SUCCEEDED
+    # Scheduler: PENDING to RUNNING, RUNNING to FAILED/STOPPED/SUCCEEDED/STOPPING, and STOPPING to STOPPED
     UPDATE_JOB_STATUS = "UPDATE_JOB_STATUS"
 
     # Gateway: status RUNNING, substatus change
@@ -44,7 +44,7 @@ class JobEventContext(StrEnum):
     # Scheduler: a filler job was created and submitted to Fleets (status PENDING or FAILED)
     FILLER_SUBMIT = "FILLER_SUBMIT"
 
-    # Scheduler: a filler job was stopped to free capacity (status STOPPED)
+    # Scheduler: a filler job was stopped to free capacity (status STOPPING or STOPPED)
     FILLER_STOP = "FILLER_STOP"
 
     FILLER_FAILED = "FILLER_FAILED"
@@ -95,6 +95,19 @@ class JobEventQuerySet(QuerySet):
 
         event = (
             self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
+            .order_by("created")
+            .first()
+        )
+        return event.created if event else None
+
+    def first_terminal_at(self, job_id: uuid.UUID):
+        """When this job first reached a terminal status, from its own event history.
+        Returns None if it never did.
+        """
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        event = (
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status__in=Job.TERMINAL_STATUSES)
             .order_by("created")
             .first()
         )

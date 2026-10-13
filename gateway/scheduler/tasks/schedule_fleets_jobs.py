@@ -11,7 +11,8 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from core.config_key import ConfigKey
 from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
-from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_fleets_job
+from core.services.runners import RunnerRetryableError
+from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -22,19 +23,16 @@ logger = logging.getLogger("scheduler.ScheduleFleetsJobs")
 class ScheduleFleetsJobs(SchedulerTask):
     """Schedule Fleets (Code Engine) jobs service."""
 
-    def __init__(
-        self, kill_signal: KillSignal, metrics: SchedulerMetrics, transitions: JobTransitionService | None = None
-    ):
+    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics, submitter: FleetsJobSubmitter | None = None):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self.transitions = transitions or JobTransitionService()
+        self.submitter = submitter or FleetsJobSubmitter(JobTransitionService())
 
     def run(self):
         """Schedule queued Fleets jobs."""
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
-
         self._schedule_fleets_jobs()
 
     def _schedule_fleets_jobs(self):
@@ -59,25 +57,36 @@ class ScheduleFleetsJobs(SchedulerTask):
 
         jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=False, runner=Program.FLEETS)
 
+        skipped_regions: set[str | None] = set()
+        submitted = 0
         for job in jobs:
             if self.kill_signal.received:
                 return
+            if job.ce_region in skipped_regions:
+                continue
+            if self.submitter.paused(job.ce_region):
+                logger.warning("Fleets submits to region %s are paused by the circuit breaker.", job.ce_region)
+                skipped_regions.add(job.ce_region)
+                continue
 
             env = json.loads(job.env_vars)
             ctx = TraceContextTextMapPropagator().extract(carrier=env)
 
-            job = execute_fleets_job(job, ctx, self.transitions)
+            try:
+                job = self.submitter.submit(job, ctx)
+            except RunnerRetryableError as ex:
+                logger.warning("job_id=%s region=%s Job kept QUEUED: %s", job.id, job.ce_region, ex)
+                skipped_regions.add(job.ce_region)
+                continue
 
             logger.warning("job_id=%s Job saved with status=%s", job.id, job.status)
 
             if job.status == Job.PENDING:
+                submitted += 1
                 self.add_queue_wait_time_metric(job)
-            else:
-                # job failed
-                pass
 
-        if jobs:
-            logger.info("%s jobs are scheduled for execution.", len(jobs))
+        if submitted:
+            logger.info("%s jobs are scheduled for execution.", submitted)
 
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""
