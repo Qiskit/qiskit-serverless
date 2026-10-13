@@ -507,6 +507,22 @@ mechanism is <code class="docutils literal notranslate"><span class="pre">mock_t
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>A request that fails to reach the service because the connection was dropped,
+the TLS handshake failed, or the request timed out now raises a
+<code class="docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code> with code <code class="docutils literal notranslate"><span class="pre">CONN1001</span></code> and a message saying the
+failure is usually temporary and to try again. These transient failures were
+previously reported with code <code class="docutils literal notranslate"><span class="pre">AUTH1001</span></code> and a message telling the user to
+check their host and authentication, which pointed at configuration that was
+not the problem.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A successful response that arrives with an empty body, which happens on a
+transient blip and clears on retry, now raises a <code class="docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code>
+with code <code class="docutils literal notranslate"><span class="pre">EMPTY1001</span></code> and a message saying to try again. It was previously
+reported with code <code class="docutils literal notranslate"><span class="pre">JSON1001</span></code> as a server json decoding error, which read as
+a permanent problem.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The gateway and the scheduler now exit when their startup migration fails, instead of
 starting against a database that does not match the code.</p></li>
 </ul>

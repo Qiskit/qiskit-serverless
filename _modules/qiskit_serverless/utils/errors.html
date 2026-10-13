@@ -322,6 +322,8 @@
 <span class="w">    </span><span class="sd">"""Qiskit Serverless error codes."""</span>
 
     <span class="n">AUTH1001</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"AUTH1001"</span>
+    <span class="n">CONN1001</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"CONN1001"</span>
+    <span class="n">EMPTY1001</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"EMPTY1001"</span>
     <span class="n">JSON1001</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"JSON1001"</span>
     <span class="n">HTTP_STD_ERROR</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"HTTP_STD_ERROR"</span></div>
 
@@ -329,6 +331,10 @@
 <span class="n">DEFAULT_ERROR_MESSAGE</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Something went wrong."</span>
 <span class="n">error_mapping</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ErrorCodeType</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
     <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">AUTH1001</span><span class="p">:</span> <span class="s2">"Connection error. Make sure configuration "</span> <span class="s2">"(host and auth details) is correct."</span><span class="p">,</span>
+    <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">CONN1001</span><span class="p">:</span> <span class="s2">"Could not reach the Functions service. "</span>
+    <span class="s2">"This is often temporary; check your network connection and try again. "</span>
+    <span class="s2">"If it persists, verify the host you are connecting to."</span><span class="p">,</span>
+    <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">EMPTY1001</span><span class="p">:</span> <span class="s2">"The Functions service returned an empty response. "</span> <span class="s2">"This is usually temporary; try again."</span><span class="p">,</span>
     <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">HTTP_STD_ERROR</span><span class="p">:</span> <span class="s2">"Http bad request."</span><span class="p">,</span>
     <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">JSON1001</span><span class="p">:</span> <span class="s2">"Error occurred during decoding server json response."</span><span class="p">,</span>
 <span class="p">}</span>

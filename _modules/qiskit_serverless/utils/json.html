@@ -486,6 +486,17 @@
     <span class="n">error_message</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">request</span><span class="p">()</span>
+    <span class="k">except</span> <span class="p">(</span>
+        <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionError</span><span class="p">,</span>
+        <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">as</span> <span class="n">connection_exception</span><span class="p">:</span>
+        <span class="c1"># The request never got a response: a dropped connection, a TLS error, or a</span>
+        <span class="c1"># timeout. This is usually transient and a retry succeeds, so it must not be</span>
+        <span class="c1"># reported as a configuration or authentication problem.</span>
+        <span class="n">error_message</span> <span class="o">=</span> <span class="n">format_err_msg</span><span class="p">(</span>
+            <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">CONN1001</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">connection_exception</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
+        <span class="p">)</span>
     <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">request_exception</span><span class="p">:</span>
         <span class="n">error_message</span> <span class="o">=</span> <span class="n">format_err_msg</span><span class="p">(</span>
             <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">AUTH1001</span><span class="p">,</span>
@@ -510,8 +521,19 @@
                     <span class="n">_body_snippet</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">),</span>
                 <span class="p">)</span>
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">json_error</span>
-        <span class="c1"># A successful (2xx) response whose body we cannot decode is a genuine</span>
-        <span class="c1"># violation of the server contract: report it as a JSON decoding error.</span>
+        <span class="c1"># A successful (2xx) response with an empty body is a truncated or blank</span>
+        <span class="c1"># success from the service or an intermediary. It is transient and a retry</span>
+        <span class="c1"># succeeds, so report it as such. Endpoints that legitimately return no</span>
+        <span class="c1"># body (204) are handled by their callers before reaching this point.</span>
+        <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="n">format_err_msg</span><span class="p">(</span>
+                    <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">EMPTY1001</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">json_error</span><span class="o">.</span><span class="n">args</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">json_error</span>
+        <span class="c1"># A successful (2xx) response whose non-empty body we cannot decode is a</span>
+        <span class="c1"># genuine violation of the server contract: report it as a decoding error.</span>
         <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
             <span class="n">format_err_msg</span><span class="p">(</span>
                 <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">JSON1001</span><span class="p">,</span>

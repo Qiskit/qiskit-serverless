@@ -24,6 +24,8 @@
    .. autosummary::
    
       ~ErrorCodes.AUTH1001
+      ~ErrorCodes.CONN1001
+      ~ErrorCodes.EMPTY1001
       ~ErrorCodes.HTTP_STD_ERROR
       ~ErrorCodes.JSON1001
    
