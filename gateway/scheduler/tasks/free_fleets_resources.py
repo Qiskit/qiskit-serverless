@@ -25,7 +25,6 @@ MAX_TRACKED_FAILURES = 500
 DEFAULT_RETENTION_HOURS = 336
 DEFAULT_QUOTA_PER_PROJECT = 1000
 DEFAULT_FORCE_AT_PERCENT = 80
-# Jobs with no ce_project_name cannot be counted against a project
 UNASSIGNED_PROJECT = "unassigned"
 
 
@@ -74,19 +73,15 @@ class FreeFleetsResources(SchedulerTask):
                 self.deleter.record_cycle(region, code_engine_answered=False)
                 failed_regions.add(region)
 
-        # only a delete that came back True proves Code Engine answered: a False can be a missing
-        # project row or a host that does not resolve, neither of which reached it
+        # only a True proves Code Engine answered: a False may never have reached it
         for region in answered_regions - failed_regions:
             self.deleter.record_cycle(region, code_engine_answered=True)
 
     def _jobs_to_clean(self, over_quota: dict[str, int], paused_regions: list[str | None]) -> list[Job]:
         """The jobs this cycle may delete: the projects over their quota first, then the retention window.
 
-        A project over its quota takes only the fleets it needs to get back under the threshold, so a
-        cycle cannot destroy fleets that are still inside their window beyond what the cap asked for.
-        Urgent goes first because its fleets are the newest, so a shared ordering would always put the
-        routine backlog ahead of it. Paused regions are excluded here rather than in the loop, or
-        their backlog would fill the batch and no other region would be cleaned up.
+        A project over its quota takes only the fleets it needs to get back under the threshold, and a
+        paused region is excluded here so its backlog cannot fill the batch.
         """
         budget = Config.get_int(ConfigKey.FLEETS_CLEANUP_MAX_DELETES, default=DEFAULT_MAX_DELETES_PER_CYCLE)
         deletable = (
@@ -112,11 +107,7 @@ class FreeFleetsResources(SchedulerTask):
 
     @staticmethod
     def _past_the_window(deletable):
-        """The jobs whose retention window has passed, oldest first.
-
-        The window measures ``finished_at``, not ``updated``: stamping the delete writes ``updated``,
-        so a window keyed on it would move every time the cleanup touched the row.
-        """
+        """The jobs whose retention window has passed, oldest first, measured on ``finished_at``."""
         retention = max(1, Config.get_int(ConfigKey.FLEETS_CLEANUP_RETENTION_HOURS, default=DEFAULT_RETENTION_HOURS))
         cutoff = timezone.now() - timedelta(hours=retention)
         return deletable.filter(finished_at__lt=cutoff).order_by("finished_at")
@@ -137,7 +128,6 @@ class FreeFleetsResources(SchedulerTask):
         """How many fleets each project over its quota has to lose to get back under the threshold."""
         percent = Config.get_int(ConfigKey.FLEETS_CLEANUP_FORCE_AT_PERCENT, default=DEFAULT_FORCE_AT_PERCENT)
         quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
-        # either at 0 or below floors the threshold to 0, which puts every project over quota
         if not 1 <= percent < 100 or quota < 1:
             return {}
 

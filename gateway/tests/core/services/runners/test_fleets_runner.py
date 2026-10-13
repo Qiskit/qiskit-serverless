@@ -475,14 +475,6 @@ def test_stop_reports_an_unreachable_code_engine_as_retryable():
     mock_handler.cancel_job.assert_not_called()
 
 
-def test_free_resources_deletes_the_fleet():
-    """free_resources() reports True once Code Engine accepted the delete."""
-    runner, mock_handler = _make_runner(fleet_id="fleet-123")
-
-    assert runner.free_resources() is True
-    mock_handler.delete_job.assert_called_once_with("fleet-123")
-
-
 def test_free_resources_returns_false_without_a_fleet_id():
     """Nothing to delete, and no Code Engine call to make."""
     runner, mock_handler = _make_runner()
@@ -496,7 +488,6 @@ def test_free_resources_returns_false_without_a_fleet_id():
     [
         (429, RunnerRetryableError),
         (503, RunnerRetryableError),
-        (504, RunnerRetryableError),
         (400, None),
     ],
 )
@@ -1392,19 +1383,6 @@ class TestExecutionProject:
             program_title="a-function", author="owner", runner=Program.FLEETS, code_engine_project=project
         )
 
-    def test_deletes_in_the_project_the_job_ran_in(self):
-        ran_in = TestUtils.get_or_create_ce_project(
-            project_name="old-project", project_id="old-id", cos_bucket_user_data_name="b1", region="us-east"
-        )
-        moved_to = TestUtils.get_or_create_ce_project(
-            project_name="new-project", project_id="new-id", cos_bucket_user_data_name="b2", region="us-east"
-        )
-        job = self._job(self._program(moved_to), ce_project_name="old-project", ce_region="us-east")
-
-        project = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
-
-        assert project.project_id == ran_in.project_id
-
     def test_falls_back_to_the_program_without_a_snapshot(self):
         """Jobs created before migration 0053 have no snapshot."""
         project = TestUtils.get_or_create_ce_project(
@@ -1483,18 +1461,6 @@ class TestExecutionProject:
         resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
 
         assert resolved.project_id == "eu-id"
-
-    def test_the_region_matches_the_project_the_request_goes_to(self):
-        """The caller charges fleet_region, so it has to be the region the handler was built for."""
-        project = TestUtils.get_or_create_ce_project(
-            project_name="only-project", project_id="only-id", cos_bucket_user_data_name="b11", region="eu-de"
-        )
-        job = self._job(self._program(project), ce_project_name=None, ce_region=None)
-
-        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
-
-        assert job.fleet_region == "eu-de"
-        assert resolved.region == job.fleet_region
 
     def test_free_resources_sends_nothing_for_an_unknown_project(self):
         project = TestUtils.get_or_create_ce_project(

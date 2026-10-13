@@ -507,9 +507,6 @@ class FleetsRunner(AbstractRunner):
             ``True`` when the fleet is gone, including a 404. ``False`` when there is nothing to
             delete, or when Code Engine, the host name or the project rows refuse it in a way a
             retry will not fix.
-
-        Raises:
-            RunnerRetryableError: If a later try can work, so the caller can try again later
         """
         if not self._may_delete_fleet():
             return False
@@ -581,9 +578,6 @@ class FleetsRunner(AbstractRunner):
 
         Accepts an inactive project, unlike ``_get_project``.
 
-        Raises:
-            RunnerError: If the snapshot name matches no project, or there is no snapshot and the
-                program is gone or has none.
         """
         if not self.job.ce_project_name:
             # Jobs created before migration 0053 have no snapshot

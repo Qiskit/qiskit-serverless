@@ -62,8 +62,7 @@ _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 # a connect plus a read that times out.
 _CANCEL_TIMEOUT_SECONDS = (1, 5)
 
-# (connect, read) for the delete, for the reason above. urllib3 does retry a read on a DELETE, unlike
-# the cancel's POST, so one call can cost more than the cancel's worst case.
+# (connect, read) for the delete, for the reason above.
 _DELETE_TIMEOUT_SECONDS = (1, 5)
 
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
@@ -462,17 +461,12 @@ class FleetHandler:
         """
         Delete a fleet ("job") by name or UUID without attempting a cancel.
 
-        Args:
-            identifier: Fleet UUID or fleet name.
-
-        Returns:
-            ``True`` when this project held the fleet, ``False`` on a 404. A 404 means it is gone, or
-            that it never lived in this project, and the two are not distinguishable here.
+        ``False`` means a 404: the fleet is gone, or it never lived in this project, and the two are
+        not distinguishable here.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved.
-            ApiException: If delete_fleet fails with anything other than a 404. A 429 is raised too,
-                so the caller decides how to back off.
+            ApiException: Anything other than a 404, a 429 included, so the caller owns the backoff.
             ReadTimeoutError: If Code Engine did not answer within ``_DELETE_TIMEOUT_SECONDS``.
         """
         fleet_id = self._resolve_fleet_id(identifier)
@@ -484,7 +478,6 @@ class FleetHandler:
         except ApiException as exc:
             if exc.status != 404:
                 raise
-            logger.info("Fleet [%s] is already gone", fleet_id)
             return False
 
     def _wait_until_state(

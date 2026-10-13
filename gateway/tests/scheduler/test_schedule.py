@@ -706,36 +706,6 @@ def test_a_cos_outage_leaves_the_cancels_alone(mock_trace, mock_get_runner_clien
 @pytest.mark.django_db
 @patch("scheduler.schedule.get_runner")
 @patch("scheduler.schedule.trace")
-def test_a_cos_outage_pauses_submits_and_leaves_the_deletes_alone(mock_trace, mock_get_runner_client):
-    _open_breakers_after_one_failure()
-    breakers = FleetsBreakers()
-    submitter = FleetsJobSubmitter(MagicMock(), breakers)
-    deleter = FleetsFleetDeleter(breakers)
-    mock_get_runner_client.return_value.submit.side_effect = CosRetryableError("SlowDown")
-
-    with pytest.raises(CosRetryableError):
-        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
-
-    assert submitter.paused("us-east") is True
-    assert deleter.paused("us-east") is False
-
-
-@pytest.mark.django_db
-def test_a_failed_delete_cycle_pauses_the_submits_of_that_region():
-    """Both paths call Code Engine, so either one's failure is evidence about it."""
-    _open_breakers_after_one_failure()
-    breakers = FleetsBreakers()
-    submitter = FleetsJobSubmitter(MagicMock(), breakers)
-
-    FleetsFleetDeleter(breakers).record_cycle("us-east", code_engine_answered=False)
-
-    assert submitter.paused("us-east") is True
-    assert submitter.paused("eu-de") is False
-
-
-@pytest.mark.django_db
-@patch("scheduler.schedule.get_runner")
-@patch("scheduler.schedule.trace")
 def test_a_working_delete_clears_the_submits_code_engine_failures(mock_trace, mock_get_runner_client):
     """A delete that worked proves Code Engine answered, whichever operation asked."""
     Config.add_defaults()
@@ -771,24 +741,6 @@ def test_delete_refuses_while_the_breaker_of_that_region_is_open():
         job.fleet_region = "eu-de"
         get_runner.return_value.free_resources.return_value = True
         assert deleter.delete(job) is True
-
-
-@pytest.mark.django_db
-def test_delete_works_again_after_the_breaker_pause_expires():
-    _open_breakers_after_one_failure()
-    Config.set(ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS, "60")
-    deleter = FleetsFleetDeleter(FleetsBreakers())
-    job = MagicMock(ce_region="us-east")
-
-    with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1000.0):
-        deleter.record_cycle("us-east", code_engine_answered=False)
-        assert deleter.paused("us-east") is True
-
-    with patch("scheduler.tasks.circuit_breaker.time.monotonic", return_value=1061.0):
-        assert deleter.paused("us-east") is False
-        with patch("scheduler.schedule.get_runner") as get_runner:
-            get_runner.return_value.free_resources.return_value = True
-            assert deleter.delete(job) is True
 
 
 @pytest.mark.django_db

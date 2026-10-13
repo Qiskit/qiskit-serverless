@@ -113,10 +113,6 @@ class FleetsJobSubmitter:
         self.transitions = transitions
         self.breakers = breakers or FleetsBreakers()
 
-    def get_breaker(self, region: str | None) -> CircuitBreaker:
-        """The Code Engine circuit breaker for this region, from the shared registry."""
-        return self.breakers.code_engine.get_breaker(region)
-
     def paused(self, region: str | None) -> bool:
         """Whether either dependency of this region is paused."""
         return self.breakers.paused(region)
@@ -148,7 +144,7 @@ class FleetsJobSubmitter:
         if self.paused(job.ce_region):
             raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
         cos = self.breakers.cos.get_breaker(job.ce_region)
-        code_engine = self.get_breaker(job.ce_region)
+        code_engine = self.breakers.code_engine.get_breaker(job.ce_region)
         start = time.monotonic()
         tracer = trace.get_tracer("scheduler.tracer")
         with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
@@ -282,7 +278,7 @@ class FleetsFleetDeleter:
         self.breakers = breakers
 
     def paused(self, region: str | None) -> bool:
-        """Whether Code Engine in this region is paused. COS is not read, the delete never touches it."""
+        """Whether Code Engine in this region is paused."""
         return self.breakers.code_engine.paused(region)
 
     def paused_regions(self) -> list[str | None]:
