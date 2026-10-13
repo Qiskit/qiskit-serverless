@@ -18,7 +18,10 @@ from ibm_cloud_sdk_core import DetailedResponse, ApiException
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
 from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from core.config_key import ConfigKey
@@ -302,6 +305,34 @@ class TestIBMQuantumPlatformAuthentication:
         message = str(exc_info.value)
         assert crn not in message
         assert "502" not in message
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @patch("api.authentication.FunctionAccessClient.get_accessible_functions")
+    @responses.activate
+    def test_runtime_api_unavailable_raises_service_unavailable(
+        self,
+        mock_get_accessible_functions: MagicMock,
+        mock_get_resource_instance: MagicMock,
+        mock_list_access_groups: MagicMock,
+        settings,
+    ):
+        """A transient Runtime API failure while resolving accessible functions must
+        surface a 503 retry, not a 401 that blames the user's access."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-RUNTIME-DOWN", "abc18abcd41546508b35dfe0627109c4")
+
+        crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/secret-account:instance-id::"
+        mock_get_accessible_functions.side_effect = RuntimeFunctionsUnavailable(
+            f"Error connecting to Runtime API for CRN {crn}"
+        )
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request(crn=crn))
+
+        assert exc_info.value.status_code == 503
+        assert crn not in str(exc_info.value)
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
