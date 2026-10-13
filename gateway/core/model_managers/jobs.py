@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Set, Tuple, Self
 
+from django.db.models.functions import Coalesce
 from django.db.models import QuerySet
 from django.contrib.auth.models import AbstractUser
 
@@ -48,6 +49,15 @@ class JobQuerySet(QuerySet):
         from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
 
         return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)
+
+    def with_fleet_region(self) -> Self:
+        """Annotate ``fleet_region_sql``, the SQL twin of the ``Job.fleet_region`` property.
+
+        Its own method rather than part of ``held_fleets``: the held-fleet count calls that too, and
+        the two joins here would take its scan off ``job_fleet_undeleted_idx``. The alias is not
+        ``fleet_region`` so it cannot shadow the property on the rows that come back.
+        """
+        return self.annotate(fleet_region_sql=Coalesce("ce_region", "program__code_engine_project__region"))
 
     def user_jobs_page(
         self,
