@@ -28,7 +28,7 @@ class ErrorCodes:  # pylint: disable=too-few-public-methods
 DEFAULT_ERROR_MESSAGE: str = "Something went wrong."
 error_mapping: Dict[ErrorCodeType, str] = {
     ErrorCodes.AUTH1001: "Connection error. Make sure configuration " "(host and auth details) is correct.",
-    ErrorCodes.CONN1001: "Could not reach the Qiskit Serverless service. "
+    ErrorCodes.CONN1001: "Could not reach the Functions service. "
     "This is often temporary; check your network connection and try again. "
     "If it persists, verify the host you are connecting to.",
     ErrorCodes.HTTP_STD_ERROR: "Http bad request.",
