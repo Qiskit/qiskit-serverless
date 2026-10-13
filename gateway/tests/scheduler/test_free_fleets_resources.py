@@ -10,8 +10,11 @@ from django.utils import timezone
 from core.config_key import ConfigKey
 from core.models import Config, Job, Program
 from core.services.runners import RunnerRetryableError
-from scheduler.tasks.fleet_batch import DEFAULT_MAX_DELETES_PER_CYCLE, MAX_ATTEMPTS_PER_FLEET
-from scheduler.tasks.free_fleets_resources import FreeFleetsResources
+from scheduler.tasks.free_fleets_resources import (
+    FreeFleetsResources,
+    MAX_ATTEMPTS_PER_FLEET,
+    DEFAULT_MAX_DELETES_PER_CYCLE,
+)
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
