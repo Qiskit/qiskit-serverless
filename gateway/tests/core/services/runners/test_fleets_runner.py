@@ -337,6 +337,41 @@ class TestCosStatusDetection:
         assert runner.status() is None
 
 
+def test_stop_returns_false_when_the_program_is_deleted():
+    """Nothing can cancel this fleet or confirm it stopped, so the caller must end the row."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner.job.program = None
+
+    assert runner.stop() is False
+    mock_handler.cancel_job.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "break_it",
+    [
+        lambda job: setattr(job.program, "code_engine_project", None),
+        lambda job: setattr(job.program.code_engine_project, "active", False),
+    ],
+    ids=["no-project", "project-inactive"],
+)
+def test_stop_raises_when_the_project_can_be_put_back(break_it):
+    """An operator can assign or re-activate the project, so this must not become a terminal status:
+    that would strand a fleet still holding its node. Not retryable either, or one deactivated
+    project would open its whole region's breaker and pause everyone else's submits.
+
+    Goes through the real stop() on purpose. Injecting the error into a mocked runner hides which
+    type it reports, which is the thing every caller branches on.
+    """
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    break_it(runner.job)
+
+    with pytest.raises(RunnerError) as exc:
+        runner.stop()
+
+    assert type(exc.value) is RunnerError
+    mock_handler.cancel_job.assert_not_called()
+
+
 def test_stop_returns_true_when_the_cancel_was_accepted():
     """stop() reports True only when Code Engine accepted the cancel."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
@@ -349,7 +384,7 @@ def test_stop_returns_true_when_the_cancel_was_accepted():
 
 
 def test_stop_returns_false_when_there_was_nothing_to_cancel():
-    """stop() reports False when Code Engine says the fleet is gone or already being cancelled.
+    """stop() reports False when Code Engine says the fleet is gone.
 
     It still sends the cancel, and it does not read the fleet status to decide. That pre-read is
     what stopped a fleet in an unrecognised status from being cancelled at all, so assert it is
@@ -365,13 +400,47 @@ def test_stop_returns_false_when_there_was_nothing_to_cancel():
     mock_handler.get_job_status.assert_not_called()
 
 
-def test_stop_raises_runner_error_when_the_cancel_could_not_be_sent():
-    """A Code Engine error means the cancel was not delivered, so the caller can retry."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        ApiException(status=429, reason="Too Many Requests"),
+        ApiException(status=503, reason="Service Unavailable"),
+        ApiException(status=0, reason="no answer"),
+        ApiException(status=403, reason="Forbidden"),
+        ApiException(status=400, reason="Bad Request"),
+        MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")),
+        MaxRetryError(None, "/", reason=NameResolutionError("api.wrong.example.com", None, "not found")),
+        MaxRetryError(None, "/", reason=ProtocolError()),
+        ReadTimeoutError(endpoint_url="/"),
+    ],
+    ids=["429", "503", "no-answer", "403", "400", "refused", "bad-dns", "protocol", "read-timeout"],
+)
+def test_stop_asks_again_for_every_cancel_that_did_not_land(error):
+    """A 400, a 403 and a bad region are all something that gets fixed, and sending the same cancel
+    twice is safe because one already in flight answers 409. A submit cannot say that, which is why
+    it keeps a permanent class and fails the job instead."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.cancel_job.side_effect = ApiException(status=429, reason="Too Many Requests")
+    mock_handler.cancel_job.side_effect = error
 
-    with pytest.raises(RunnerError, match="Code Engine API error"):
+    with pytest.raises(RunnerError) as exc:
         runner.stop()
+
+    assert type(exc.value) is RunnerRetryableError
+
+
+def test_stop_reports_an_unreachable_code_engine_as_retryable():
+    """connect() and _get_handler() flatten every IAM failure into RunnerError, which would
+    otherwise reach the scheduler as a cancel it should not retry, and never open the breaker."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner._connected = False  # pylint: disable=protected-access
+    runner._handler = None  # pylint: disable=protected-access
+
+    with patch(f"{_RUNNER_MOD}.get_ce_auth", side_effect=RunnerError("IAM is down")):
+        with pytest.raises(RunnerError) as exc:
+            runner.stop()
+
+    assert type(exc.value) is RunnerRetryableError
+    mock_handler.cancel_job.assert_not_called()
 
 
 def test_submit_sets_fleet_id_with_cos():
