@@ -1,0 +1,7 @@
+---
+security:
+  - |
+    The ``custom_token`` authentication mechanism no longer accepts the ``local``
+    channel, which checks a static mock token and needs no instance. The Helm chart
+    also stops passing ``SETTINGS_AUTH_MOCK_TOKEN`` to the pods unless the
+    mechanism is ``mock_token``.

@@ -62,11 +62,12 @@ logger = logging.getLogger("core.utils")
 def retry_function(  # pylint:  disable=too-many-positional-arguments
     callback: Callable,
     num_retries: int = 10,
-    interval: int = 1,
+    interval: float = 1,
     exceptions: Optional[List[Type[Exception]]] = None,
     error_message: Optional[str] = None,
     error_message_level: int = logging.DEBUG,
     function_name: Optional[str] = None,
+    retry_budget_seconds: Optional[float] = None,
 ):
     """Retries to call callback function.
 
@@ -76,11 +77,15 @@ def retry_function(  # pylint:  disable=too-many-positional-arguments
         interval: interval between tries
         error_message: error message
         function_name: name of executable function
+        retry_budget_seconds: stop retrying once this long has passed since the first try, and
+            raise instead. For a caller on a deadline, such as a request, where a slow failure
+            leaves no room for another try.
 
     Returns:
         function result of None
     """
     name = function_name or getattr(callback, "__name__", "<callback>")
+    started = time.monotonic()
 
     for attempt in range(1, num_retries + 1):
         try:
@@ -91,6 +96,10 @@ def retry_function(  # pylint:  disable=too-many-positional-arguments
 
             # If it's the last allowed attempt, propagate the original exception.
             if attempt == num_retries:
+                raise
+
+            if retry_budget_seconds is not None and time.monotonic() - started > retry_budget_seconds:
+                logger.log(error_message_level, "[retry_function] [%s] no time left to retry", name)
                 raise
 
             # Log and wait before next attempt.
