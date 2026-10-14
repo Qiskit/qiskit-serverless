@@ -346,18 +346,16 @@ class TestWorkloadOutbox:
 
         assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
 
-    def test_a_job_the_builder_rejects_is_logged_and_the_transition_still_happens(self, service, user, caplog):
+    def test_a_job_the_builder_rejects_fails_and_rolls_the_transition_back(self, service, user):
         job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=CRN, status=Job.RUNNING)  # no program
         WorkloadMirror.objects.create(job=job)
 
-        with caplog.at_level(logging.ERROR, logger="core.JobTransitionService"):
+        with pytest.raises(ValueError):
             service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
-        job.refresh_from_db()
-        assert job.status == Job.FAILED
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
-        assert not WorkloadMirror.objects.filter(job=job).exists()
-        assert "cannot be mirrored" in caplog.text
+        assert WorkloadMirror.objects.filter(job=job).exists()
 
 
 class TestSender:

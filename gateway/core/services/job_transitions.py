@@ -246,19 +246,13 @@ class JobTransitionService:
         Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
 
     def _enqueue_workload(self, job: Job) -> None:
-        """The final status of a mirrored job, to send it to the Runtime API. A job the payload builder rejects (it
-        has no program) is logged and skipped, not enqueued: trying again cannot fix it, and it must not roll back the
-        transition. Either way this is the last step of the mirror, so the job leaves the WorkloadMirror table: the
-        outbox row carries the payload and nothing reads the table after a terminal status."""
+        """The final status of a mirrored job, to send it to the Runtime API. If the payload builder rejects the job
+        (it has no program), the error reaches the caller and the transition is rolled back. This is the last step of
+        the mirror, so the job leaves the WorkloadMirror table: the outbox row carries the payload and nothing reads
+        the table after a terminal status."""
         if is_mirrored(job):
-            try:
-                payload = build_workload_payload(job)
-            except ValueError as ex:
-                logger.error("job_id=%s cannot be mirrored as a workload, nothing is enqueued: %s", job.id, ex)
-            else:
-                Outbox.objects.create(
-                    job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload
-                )
+            payload = build_workload_payload(job)
+            Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
