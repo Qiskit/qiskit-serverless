@@ -72,9 +72,8 @@ class IamTokenProvider:
         self._authenticator.token_manager.request_time = 0
 
 
-# This is a singleton actually. No size limit: there is one entry per credential (Code Engine, the functions operator),
-# they come from settings so they are few, and a limit of 1 would make them evict each other and lose their token.
-@lru_cache(maxsize=None)
+# This is a singleton actually
+@lru_cache(maxsize=1)
 def get_iam_token_provider(api_key: str, iam_url: str) -> IamTokenProvider:
     """Singleton per credentials: the provider for this ``api_key`` and ``iam_url``, built the first time it is asked
     for (``lru_cache`` is the lazy singleton). The SDK caches the token on the provider, so building one per call would
