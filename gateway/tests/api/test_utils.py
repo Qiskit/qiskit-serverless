@@ -35,6 +35,8 @@ class TestUtils:
         instances: Union[str, list[str]] = None,
         trial_instances: Union[str, list[str]] = None,
         trial: bool = False,
+        compute_profile: str = None,
+        function_size: str = None,
     ) -> Job:
         """Create a mock job."""
         job = MagicMock()
@@ -47,6 +49,11 @@ class TestUtils:
             job.program.provider.name = program_provider
         job.trial = trial
         job.runner = runner
+        job.compute_profile_id = compute_profile
+        if function_size is None:
+            job.function_size = None
+        else:
+            job.function_size.function_size = function_size
 
         if not arguments:
             arguments = {}
@@ -96,6 +103,8 @@ class TestUtils:
             "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
             "ENV_JOB_ID_GATEWAY": "42",
             "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_JOB_COMPUTE_PROFILE": "",
+            "ENV_JOB_FUNCTION_SIZE": "",
             "ENV_ACCESS_TRIAL": "False",
             "DATA_PATH": "/data",
             "ARGUMENTS_PATH": "/data/arguments/42.json",
@@ -139,6 +148,8 @@ class TestUtils:
             "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
             "ENV_JOB_ID_GATEWAY": "42",
             "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_JOB_COMPUTE_PROFILE": "",
+            "ENV_JOB_FUNCTION_SIZE": "",
             "ENV_ACCESS_TRIAL": "False",
             "DATA_PATH": "/data/IBMid-691000IC75",
             "ARGUMENTS_PATH": "/data/IBMid-691000IC75/arguments/42.json",
@@ -177,6 +188,8 @@ class TestUtils:
             "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
             "ENV_JOB_ID_GATEWAY": "42",
             "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_JOB_COMPUTE_PROFILE": "",
+            "ENV_JOB_FUNCTION_SIZE": "",
             "ENV_ACCESS_TRIAL": "False",
             "DATA_PATH": "/data/IBMid-691000IC75",
             "ARGUMENTS_PATH": "/data/IBMid-691000IC75/arguments/42.json",
@@ -220,6 +233,8 @@ class TestUtils:
             "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
             "ENV_JOB_ID_GATEWAY": "42",
             "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_JOB_COMPUTE_PROFILE": "",
+            "ENV_JOB_FUNCTION_SIZE": "",
             "ENV_ACCESS_TRIAL": "False",
             "DATA_PATH": "/data/IBMid-691000IC75/mockprovider/my-function",
             "ARGUMENTS_PATH": "/data/IBMid-691000IC75/mockprovider/my-function/arguments/42.json",
@@ -262,6 +277,8 @@ class TestUtils:
             "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
             "ENV_JOB_ID_GATEWAY": "42",
             "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_JOB_COMPUTE_PROFILE": "",
+            "ENV_JOB_FUNCTION_SIZE": "",
             "ENV_ACCESS_TRIAL": "False",
             "DATA_PATH": "/data/IBMid-691000IC75/mockprovider/my-function",
             "ARGUMENTS_PATH": "/data/IBMid-691000IC75/mockprovider/my-function/arguments/42.json",
@@ -300,6 +317,8 @@ class TestUtils:
             "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
             "ENV_JOB_ID_GATEWAY": "42",
             "ENV_JOB_ARGUMENTS": "{}",
+            "ENV_JOB_COMPUTE_PROFILE": "",
+            "ENV_JOB_FUNCTION_SIZE": "",
             "ENV_ACCESS_TRIAL": "True",
             "DATA_PATH": "/data",
             "ARGUMENTS_PATH": "/data/arguments/42.json",
@@ -308,6 +327,29 @@ class TestUtils:
             "QISKIT_IBM_CHANNEL": "local",
             "QISKIT_IBM_URL": "https://cloud.ibm.com",
         }
+
+    def test_compute_info_env_var_build(self, settings):
+        """The resolved compute profile and function size are exposed to the job."""
+        settings.SETTINGS_AUTH_MECHANISM = "mock_token"
+        job = TestUtils._create_mock_job(
+            job_id="42",
+            job_author_username="USER",
+            program_title="my-function",
+            compute_profile="24x120x1a100p",
+            function_size="m",
+        )
+
+        env_vars = build_env_variables(
+            channel=Channel.LOCAL,
+            token="mock_token",
+            job=job,
+            trial_mode=False,
+            args="{}",
+            instance=None,
+        )
+
+        assert env_vars["ENV_JOB_COMPUTE_PROFILE"] == "24x120x1a100p"
+        assert env_vars["ENV_JOB_FUNCTION_SIZE"] == "m"
 
     def test_encryption(self, settings):
         """Tests encryption utils."""
