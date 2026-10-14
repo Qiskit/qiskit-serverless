@@ -44,7 +44,7 @@ class TestMain:
             name = "submit_then_stop"
 
             def run(self):
-                accepted.append(get_background_executor().submit(BackgroundPool.RUNTIME_API, lambda: None))
+                accepted.append(get_background_executor().submit(BackgroundPool.RUNTIME_API, lambda: None) is not None)
                 main.kill_signal.received = True
 
             def close(self):
