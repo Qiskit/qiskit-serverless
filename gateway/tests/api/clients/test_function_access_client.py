@@ -3,7 +3,10 @@
 import pytest
 
 from api.clients.function_access_client import FunctionAccessClient
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
 from core.config_key import ConfigKey
 from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_CUSTOM_RUN, PLATFORM_PERMISSION_CUSTOM_WRITE
 
@@ -81,11 +84,39 @@ def test_raises_when_no_element_matches_the_requested_crn(instances_server):
         FunctionAccessClient().get_accessible_functions("crn:test:mismatch", "test-api-key")
 
 
-def test_raises_on_server_error(instances_server):
-    instances_server.error(500)
+def test_raises_unavailable_on_server_error(instances_server):
+    """A 5xx is the Runtime API failing, not an access decision, so it is retryable."""
+    instances_server.error(503)
 
-    with pytest.raises(RuntimeFunctionsException):
+    with pytest.raises(RuntimeFunctionsUnavailable):
         FunctionAccessClient().get_accessible_functions("crn:test:789", "test-api-key")
+
+
+def test_raises_unavailable_on_rate_limit(instances_server):
+    """A 429 is also transient, so it is retryable rather than a denial."""
+    instances_server.error(429)
+
+    with pytest.raises(RuntimeFunctionsUnavailable):
+        FunctionAccessClient().get_accessible_functions("crn:test:429", "test-api-key")
+
+
+def test_raises_plain_exception_on_client_error(instances_server):
+    """A non-429 4xx is an answer about access, not a transient failure, so it is not
+    flagged retryable."""
+    instances_server.error(403)
+
+    with pytest.raises(RuntimeFunctionsException) as exc_info:
+        FunctionAccessClient().get_accessible_functions("crn:test:403", "test-api-key")
+    assert not isinstance(exc_info.value, RuntimeFunctionsUnavailable)
+
+
+def test_raises_unavailable_on_connection_error(settings):
+    """A connection error reaching the Runtime API is transient and retryable."""
+    # Point at a port with nothing listening so the request fails to connect.
+    settings.RUNTIME_API_BASE_URL = "http://127.0.0.1:1"
+
+    with pytest.raises(RuntimeFunctionsUnavailable):
+        FunctionAccessClient().get_accessible_functions("crn:test:conn", "test-api-key")
 
 
 def test_returns_no_response_when_disabled(monkeypatch):
