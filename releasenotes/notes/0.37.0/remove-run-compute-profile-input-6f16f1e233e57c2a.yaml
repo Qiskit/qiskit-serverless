@@ -1,0 +1,11 @@
+---
+upgrade:
+  - |
+    The deprecated ``compute_profile`` input on ``POST /programs/run/`` has been
+    removed. Use ``function_size`` with one of the labels the function declares
+    instead. Sending ``compute_profile`` now returns a 400 naming the replacement,
+    instead of being silently ignored.
+
+    The client SDK's ``compute_profile`` keyword on ``run()`` now raises
+    ``QiskitServerlessException`` locally instead of sending the request, so upgrade
+    the client to get a clear error rather than a generic 400 from the gateway.

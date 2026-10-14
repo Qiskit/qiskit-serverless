@@ -7,7 +7,7 @@ FROM registry.access.redhat.com/ubi9-micro:9.8-1789345812 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
-FROM registry.access.redhat.com/ubi9:9.8-1789646010 AS build
+FROM registry.access.redhat.com/ubi9:9.8-1791810986 AS build
 ARG PYTHON_VERSION
 ARG MICRO_IMAGE_DIR
 

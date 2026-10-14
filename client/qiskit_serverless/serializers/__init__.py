@@ -29,6 +29,8 @@ Qiskit Serverless serializers
     service_serializer
     service_deserializer
     get_arguments
+    get_function_size
+    get_compute_profile
 """
 
 from .serializers import (
@@ -39,4 +41,4 @@ from .serializers import (
     service_deserializer,
 )
 
-from .program_serializers import get_arguments
+from .program_serializers import get_arguments, get_function_size, get_compute_profile
