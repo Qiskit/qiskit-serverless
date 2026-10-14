@@ -563,7 +563,7 @@ class TestStop:
     def test_a_job_that_succeeded_before_the_cancel_still_owes_its_fee(self, get_runner, service, user):
         """The other detour: never seen RUNNING, so to_stopped would have waived the fee."""
         job = _licensed_fleets_job(user, Job.PENDING)
-        service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
