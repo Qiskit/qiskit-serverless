@@ -131,11 +131,11 @@ def get_result(request: Request, job_id: UUID) -> Response:
     user = cast(AbstractUser, request.user)
     outcome = GetJobResultUseCase().execute(job_id, user)
     if outcome.redirect_url:
-        logger.info("[jobs-get-result] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+        logger.debug("[jobs-get-result] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
         return HttpResponseRedirect(outcome.redirect_url)
     if outcome.raw_result is None:
         return Response(status=status.HTTP_204_NO_CONTENT)
-    logger.info("[jobs-get-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
+    logger.debug("[jobs-get-result] user_id=%s job_id=%s | Result retrieved ok", user.id, job_id)
     return Response({"result": outcome.raw_result})
 
 
