@@ -11,159 +11,41 @@
 # that they have been altered from the originals.
 
 """
-Unit tests for IBMCloudClientProvider and decode_jwt.
+Unit tests for IBMCloudClientProvider and the shared IAM token provider factory.
 
-- Tokens are generated from readable JSON payloads using base64url encoding.
-- All IBM Cloud SDK constructors are patched, so tests never hit the network.
-- The "authenticator" used by the provider is replaced by a small fake that only
-  implements token_manager.get_token(), which is all the provider needs.
+The IAM token itself is IamTokenProvider's job and is tested in
+tests/core/clients/test_iam_token_provider.py. Here the provider is given a fake one, so these
+tests never hit the network and only cover what this module owns: the endpoint config, the COS
+HMAC client cache, and that one token provider is shared per credentials.
 """
 
 from __future__ import annotations
 
-import base64
-import json
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Iterator
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from core.ibm_cloud.clients import IBMCloudClientProvider, decode_jwt, IAM_HTTP_TIMEOUT
-
-
-def b64url_json(payload: dict[str, Any]) -> str:
-    """Convert a JSON-serializable dict into a base64url string without padding."""
-    raw = json.dumps(payload).encode("utf-8")
-    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+from core.ibm_cloud import get_ce_auth
+from core.ibm_cloud.clients import IBMCloudClientProvider
+from core.clients.iam_token_provider import get_iam_token_provider
 
 
-def make_token(payload: dict[str, Any]) -> str:
-    """Create a JWT-like string: header.<base64url(json payload)>.signature."""
-    return f"header.{b64url_json(payload)}.signature"
+class FakeTokenProvider:  # pylint: disable=too-few-public-methods
+    """Stands in for IamTokenProvider: all the client provider needs is get_token()."""
 
-
-VALID_PAYLOAD: dict[str, Any] = {"iam_id": "iam-123", "account": {"bss": "acct-123"}}
-VALID_TOKEN = make_token(VALID_PAYLOAD)
-
-
-class FakeAuthenticator:  # pylint: disable=too-few-public-methods
-    """Minimal authenticator-like object used by IBMCloudClientProvider tests."""
-
-    def __init__(self, token: str) -> None:
-        self.token_manager = MagicMock()
-        self.token_manager.get_token.return_value = token
+    def __init__(self, *tokens: str) -> None:
+        self.get_token = MagicMock(side_effect=list(tokens) or ["a-token"])
 
 
 @contextmanager
-def patched_provider(
-    token: str = VALID_TOKEN,
-    *,
-    token_side_effect: Exception | None = None,
-) -> Iterator[IBMCloudClientProvider]:
-    """
-    Context manager that patches IBM SDK constructors while building a provider.
-
-    Args:
-        token: Token returned by IAMAuthenticator().token_manager.get_token().
-        token_side_effect: If provided, get_token() raises this.
-
-    Yields:
-        IBMCloudClientProvider instance created under patched SDK classes.
-    """
-    fake_auth = FakeAuthenticator(token)
-
-    if token_side_effect is not None:
-        fake_auth.token_manager.get_token.side_effect = token_side_effect
-
+def patched_provider(tokens: FakeTokenProvider | None = None) -> Iterator[IBMCloudClientProvider]:
+    """Build a provider with a fake token provider and no real boto3 client."""
     with (
-        patch(
-            "core.ibm_cloud.clients.IAMAuthenticator",
-            return_value=fake_auth,
-        ),
+        patch("core.ibm_cloud.clients.get_iam_token_provider", return_value=tokens or FakeTokenProvider()),
         patch("core.ibm_cloud.clients.ibm_boto3_client") as mock_boto,
     ):
         mock_boto.side_effect = lambda *a, **k: MagicMock()
         yield IBMCloudClientProvider(api_key="dummy-key")
-
-
-def test_decode_jwt_valid() -> None:
-    """decode_jwt should decode a valid token and return expected payload fields."""
-    decoded = decode_jwt(VALID_TOKEN)
-    assert decoded["iam_id"] == "iam-123"
-    assert decoded["account"]["bss"] == "acct-123"
-
-
-def test_decode_jwt_invalid_format() -> None:
-    """decode_jwt should raise on malformed JWT strings."""
-    with pytest.raises(Exception):
-        decode_jwt("invalid.token")
-
-
-def test_decode_jwt_invalid_payload() -> None:
-    """decode_jwt should raise if the payload is not valid JSON."""
-    bad_token = "header.bm90anNvbg.signature"
-    with pytest.raises(Exception):
-        decode_jwt(bad_token)
-
-
-def test_provider_token_fetch_exception_bubbles_up() -> None:
-    """Provider should bubble up errors from token_manager.get_token()."""
-    with pytest.raises(Exception, match="bad key"):
-        with patched_provider(token_side_effect=Exception("bad key")):
-            pass
-
-
-def test_provider_decode_jwt_exception_raises_runtimeerror() -> None:
-    """Provider should raise RuntimeError if the returned token is not a valid JWT."""
-    with pytest.raises(RuntimeError, match="didn't return a valid token"):
-        with patched_provider(token="not-a-jwt"):
-            pass
-
-
-def test_provider_extracts_iam_and_account() -> None:
-    """Provider should extract iam_id and account_id from the decoded token."""
-    with patched_provider() as provider:
-        assert provider.auth.iam_id == "iam-123"
-        assert provider.auth.account_id == "acct-123"
-
-
-def test_provider_bounds_the_iam_token_timeout() -> None:
-    """The SDK defaults to 60s, which outlives both a scheduler tick and a 25s gunicorn request."""
-    with patched_provider() as provider:
-        assert provider.auth.authenticator.token_manager.http_config == {"timeout": IAM_HTTP_TIMEOUT}
-
-
-def test_provider_missing_iam_id() -> None:
-    """Provider should raise if iam_id is missing from the token payload."""
-    token = make_token({"account": {"bss": "acct-123"}})
-    with pytest.raises(RuntimeError):
-        with patched_provider(token=token):
-            pass
-
-
-def test_provider_missing_account() -> None:
-    """Provider should raise if account data is missing from the token payload."""
-    token = make_token({"iam_id": "iam-123"})
-    with pytest.raises(RuntimeError):
-        with patched_provider(token=token):
-            pass
-
-
-def test_provider_missing_account_id() -> None:
-    """Provider should raise if account.bss is missing from the token payload."""
-    token = make_token({"iam_id": "iam-123", "account": {}})
-    with pytest.raises(RuntimeError):
-        with patched_provider(token=token):
-            pass
-
-
-def test_auth_token_delegates_to_sdk() -> None:
-    """auth.token should call token_manager.get_token() on every access, not cache the value."""
-    with patched_provider() as provider:
-        _ = provider.auth.token
-        _ = provider.auth.token
-        assert provider.auth.authenticator.token_manager.get_token.call_count >= 2
 
 
 def test_get_cos_hmac_client_cache_hit_and_miss() -> None:
@@ -215,3 +97,37 @@ def test_get_cos_hmac_client_cache_differentiates_by_endpoint_url() -> None:
 
         assert client_pub is not client_direct
         assert client_pub is client_pub2
+
+
+def test_providers_with_the_same_credentials_share_one_token_provider() -> None:
+    """The SDK caches the token on the provider, so a second one would discard that cache."""
+    with patch("core.clients.iam_token_provider.IamTokenProvider") as mock_cls:
+        first = get_iam_token_provider("key-a", "https://iam.example")
+        second = get_iam_token_provider("key-a", "https://iam.example")
+
+    assert mock_cls.call_count == 1
+    assert first is second
+
+
+def test_a_different_api_key_gets_its_own_token_provider() -> None:
+    """The cache key includes the api key, so one key's token never serves another."""
+    with patch("core.clients.iam_token_provider.IamTokenProvider") as mock_cls:
+        get_iam_token_provider("key-a", "https://iam.example")
+        get_iam_token_provider("key-b", "https://iam.example")
+
+    assert mock_cls.call_count == 2
+
+
+def test_the_code_engine_client_re_reads_the_token_before_a_request() -> None:
+    """The generated client calls refresh_api_key_hook from get_api_key_with_prefix, so the token a
+    kept client sends is read per request and not the snapshot taken when it was built."""
+    tokens = FakeTokenProvider("fresh-token")
+    with (
+        patch("core.ibm_cloud.clients.get_iam_token_provider", return_value=tokens),
+        patch("core.ibm_cloud.clients.ibm_boto3_client"),
+    ):
+        ce_auth = get_ce_auth("dummy-key", "us-east")
+
+    cfg = ce_auth.api_client.configuration
+    assert cfg.api_key == {}  # nothing is read at build time
+    assert cfg.get_api_key_with_prefix("Authorization") == "Bearer fresh-token"
