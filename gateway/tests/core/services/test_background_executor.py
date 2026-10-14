@@ -70,6 +70,7 @@ def test_init_takes_its_defaults_from_settings(settings):
 
     assert BackgroundExecutor.max_workers == 3
     assert BackgroundExecutor.max_pending == 7
+    assert _sample("background_executor_max_pending", {"pool": RUNTIME.value}) == 7  # a single pool gets it all
 
 
 def test_the_task_runs_on_another_thread(small_pool):  # pylint: disable=unused-argument
@@ -105,28 +106,52 @@ def test_a_full_pool_drops_the_next_task(small_pool):  # pylint: disable=unused-
     assert not ran
 
 
-def test_a_pool_can_use_the_whole_limit_and_the_other_still_gets_its_minimum(monkeypatch):
-    class Pools(Enum):
-        """Stand-in with two pools: the real enum has only one for now."""
+@pytest.fixture(name="two_pools")
+def two_pools_fixture(monkeypatch):
+    """The real enum has a single pool for now, so stand in a second one."""
 
+    class Pools(Enum):
         BIG = "big"
         SMALL = "small"
 
     monkeypatch.setattr(background_executor, "BackgroundPool", Pools)
-    monkeypatch.setattr(background_executor, "_MIN_SHARE", {Pools.BIG: 0.25, Pools.SMALL: 0.25})
-    BackgroundExecutor.init(max_workers=1, max_pending=8)  # the minimum of each pool is 2
+    return Pools
+
+
+def test_every_pool_gets_an_even_share_of_the_limit(two_pools):
+    BackgroundExecutor.init(max_workers=1, max_pending=8)
     release = threading.Event()
 
-    # No maximum: with the small pool idle, the big one takes the whole limit.
-    accepted = [BackgroundExecutor.submit(Pools.BIG, release.wait) for _ in range(9)]
-    assert accepted == [True] * 8 + [False]
+    accepted = [BackgroundExecutor.submit(two_pools.BIG, release.wait) for _ in range(5)]
+    assert accepted == [True] * 4 + [False]  # BIG may not take the share of SMALL
 
-    # The global limit is full, but the small pool still gets its minimum, and no more than that.
-    assert BackgroundExecutor.submit(Pools.SMALL, release.wait) is True
-    assert BackgroundExecutor.submit(Pools.SMALL, release.wait) is True
-    assert BackgroundExecutor.submit(Pools.SMALL, release.wait) is False
+    assert [BackgroundExecutor.submit(two_pools.SMALL, release.wait) for _ in range(5)] == [True] * 4 + [False]
 
     release.set()
+
+
+def test_a_free_thread_serves_the_pool_with_the_fewest_tasks_running(two_pools):
+    BackgroundExecutor.init(max_workers=1, max_pending=20)
+    order = []
+    started = threading.Event()
+    release = threading.Event()
+
+    def blocker():
+        started.set()
+        release.wait(WAIT)
+
+    assert BackgroundExecutor.submit(two_pools.BIG, blocker) is True
+    assert started.wait(WAIT)
+    for name in ("big 1", "big 2"):
+        assert BackgroundExecutor.submit(two_pools.BIG, order.append, name) is True
+    assert BackgroundExecutor.submit(two_pools.SMALL, order.append, "small 1") is True
+
+    release.set()
+    deadline = time.monotonic() + WAIT
+    while len(order) < 3 and time.monotonic() < deadline:
+        time.sleep(0.05)
+
+    assert order[0] == "small 1"  # it arrived last, but BIG already had the thread
 
 
 def test_a_failing_task_does_not_propagate_and_frees_its_slot(small_pool, caplog):  # pylint: disable=unused-argument
@@ -182,7 +207,7 @@ def test_metrics_report_the_limits_the_outcomes_and_the_drops(small_pool):  # py
         raise ValueError("x")
 
     assert _sample("background_executor_workers") == 2
-    assert _sample("background_executor_max_pending") == 2
+    assert _sample("background_executor_max_pending", labels) == 2
     assert BackgroundExecutor.submit(RUNTIME, release.wait) is True
     assert BackgroundExecutor.submit(RUNTIME, release.wait) is True
     assert _sample("background_executor_pending", labels) == 2
@@ -200,9 +225,10 @@ def test_metrics_report_the_limits_the_outcomes_and_the_drops(small_pool):  # py
     assert _sample("background_executor_pending", labels) == 0
 
 
-def test_an_invalid_limit_leaves_the_pool_uninitialized():
+@pytest.mark.parametrize("limits", [{"max_workers": 1, "max_pending": -1}, {"max_workers": 0, "max_pending": 1}])
+def test_an_invalid_limit_leaves_the_pool_uninitialized(limits):
     with pytest.raises(ValueError):
-        BackgroundExecutor.init(max_workers=1, max_pending=-1)
+        BackgroundExecutor.init(**limits)
 
     with pytest.raises(BackgroundExecutorNotInitializedError):
         BackgroundExecutor.submit(RUNTIME, lambda: None)
