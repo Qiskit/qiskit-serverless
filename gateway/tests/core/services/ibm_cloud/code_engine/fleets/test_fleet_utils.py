@@ -293,6 +293,29 @@ def test_build_run_env_variables_always_sets_private_endpoint():
     assert by_name["QISKIT_IBM_PRIVATE_ENDPOINT"] == "true"
 
 
+def test_build_run_env_variables_sets_qiskit_settings():
+    """build_run_env_variables points QISKIT_SETTINGS at the gateway's container path."""
+    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
+        mock_settings.FLEETS_GATEWAY_HOST = None
+        mock_settings.QISKIT_SETTINGS_CONTAINER_PATH = "/tmp/qiskit/settings.conf"
+        result = build_run_env_variables(_make_paths(), {})
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["QISKIT_SETTINGS"] == "/tmp/qiskit/settings.conf"
+
+
+def test_build_run_env_variables_qiskit_settings_overrides_vendor():
+    """A vendor-supplied QISKIT_SETTINGS is overridden by the gateway's authoritative value."""
+    stored = {"QISKIT_SETTINGS": "/home/vendor/.qiskit/settings.conf"}
+    with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
+        mock_settings.FLEETS_GATEWAY_HOST = None
+        mock_settings.QISKIT_SETTINGS_CONTAINER_PATH = "/tmp/qiskit/settings.conf"
+        result = build_run_env_variables(_make_paths(), stored)
+    by_name = {e["name"]: e["value"] for e in result}
+    assert by_name["QISKIT_SETTINGS"] == "/tmp/qiskit/settings.conf"
+    # exactly one entry, no duplicate from the stored vendor value
+    assert [e["name"] for e in result].count("QISKIT_SETTINGS") == 1
+
+
 def test_build_run_env_variables_flush_interval_default():
     """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
     result = build_run_env_variables(_make_paths(), {})

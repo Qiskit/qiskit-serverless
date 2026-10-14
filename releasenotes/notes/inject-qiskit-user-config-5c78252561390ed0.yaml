@@ -1,0 +1,22 @@
+---
+features:
+  - |
+    The gateway now injects an authoritative Qiskit user configuration file
+    (``settings.conf``) into every Ray and Code Engine Fleets job container and
+    points ``QISKIT_SETTINGS`` at it. The file currently sets a single key,
+    ``min_qpy_version`` (default ``13``, configurable fleet-wide with the
+    ``QISKIT_MIN_QPY_VERSION`` environment variable), which makes Qiskit reject
+    QPY payloads older than that version. For Fleets the file is written by the
+    job wrapper at container startup; for Ray it is written into the job
+    working directory and referenced by a cwd-relative ``QISKIT_SETTINGS``.
+upgrade:
+  - |
+    The gateway-provided ``settings.conf`` is authoritative: a function's own
+    Qiskit configuration file is no longer consulted in the Functions runtime.
+    Qiskit reads exactly the one file ``QISKIT_SETTINGS`` names, with no merging,
+    and the gateway sets ``QISKIT_SETTINGS`` in the system-controlled environment
+    layer that overrides any value a function supplies. A function that shipped
+    or wrote its own ``settings.conf`` (at the default ``~/.qiskit/settings.conf``
+    or elsewhere) will find it ignored. Function vendors that need Qiskit
+    configuration beyond ``min_qpy_version`` must apply it programmatically in
+    their function code rather than through a configuration file.
