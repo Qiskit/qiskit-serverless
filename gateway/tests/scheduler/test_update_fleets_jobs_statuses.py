@@ -873,6 +873,22 @@ class TestStoppingJobs:
         task.metrics.increment_filler_jobs_stopped.assert_called_once()
         task.metrics.increment_filler_jobs_ended.assert_not_called()
 
+    def test_a_filler_that_finished_before_its_cancel_landed_is_counted_as_ended(self):
+        """The balancer asked, but the task finished first, so counting it as stopped would overstate
+        what the balancer freed."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.SUCCEEDED
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
+        assert job.status == Job.SUCCEEDED
+        task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.SUCCEEDED)
+        task.metrics.increment_filler_jobs_stopped.assert_not_called()
+
 
 @pytest.mark.django_db
 class TestStoppingDeadlineAgainstTheDatabase:

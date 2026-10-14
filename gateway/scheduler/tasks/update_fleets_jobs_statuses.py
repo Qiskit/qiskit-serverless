@@ -132,7 +132,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     def to_terminal(self, job: Job, new_status: str) -> None:
         """Persist a terminal status transition, then count it and record a succeeded job's duration."""
-        requested = job.status == Job.STOPPING
+        stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -151,7 +151,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
             return
-        self._increment_terminal_counter(job, requested=requested)
+        self._increment_terminal_counter(job, stop_landed=stop_landed)
         if new_status == Job.SUCCEEDED:
             self._record_execution_duration(job)
 
@@ -214,11 +214,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.to_terminal(job, Job.STOPPED)
         return True
 
-    def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
-        """Increment terminal jobs counter. `requested` means something asked this job to stop."""
+    def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
+        """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
         if job.filler:
             # A filler never counts as user demand, so it has its own two counters.
-            if requested:
+            if stop_landed:
                 self.metrics.increment_filler_jobs_stopped()
             else:
                 self.metrics.increment_filler_jobs_ended(job.status)
