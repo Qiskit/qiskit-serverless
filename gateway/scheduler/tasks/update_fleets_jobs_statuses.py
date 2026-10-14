@@ -88,7 +88,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.stop_job_if_timeout(job)
 
         elif new_status == Job.RUNNING:
-            self.to_running(job)
+            self.to_running(job, runner)
             self.stop_job_if_timeout(job)
 
         else:
@@ -149,7 +149,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
         self._increment_terminal_counter(job, requested=requested)
 
-    def to_running(self, job: Job) -> None:
+    def to_running(self, job: Job, runner: FleetsRunner) -> None:
         """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
         job_started = job.status == Job.PENDING
         if job_started:
@@ -160,9 +160,21 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.status,
                 Job.RUNNING,
             )
+            # Read before the transition opens its transaction: no network call with the job locked
+            running_at = runner.running_since()
+            if running_at is not None:
+                logger.info(
+                    "job_id=%s started running at %s, %.1fs before it was noticed",
+                    job.id,
+                    running_at.isoformat(),
+                    (datetime.now(timezone.utc) - running_at).total_seconds(),
+                )
             try:
                 self.transitions.pending_to_running(
-                    job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+                    job,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=JobEventContext.UPDATE_JOB_STATUS,
+                    running_at=running_at,
                 )
             except InvalidJobTransitionException as ex:
                 # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
