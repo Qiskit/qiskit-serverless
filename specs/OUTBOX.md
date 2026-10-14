@@ -1,13 +1,12 @@
 # Job outbox
 
 This document describes the transactional outbox that publishes best-effort messages
-to external systems in a deferred way. Today the only channels are `OutboxChannel.LICENSE_FEE`
+to external systems in a deferred way. Today the channels are `OutboxChannel.LICENSE_FEE`
 (`"billing_license_fee"`) and `OutboxChannel.JOB_USAGE` (`"billing_job_usage"`), the two Fleets job
-billing facts published to Kafka. The design is meant to stay generic: a later PR is expected
-to add a `workload` channel that mirrors job state to NTC's Runtime API, and it will not need
-any change to the table's structure or the drain task's logic, only a new `OutboxChannel`
-member, a new sender plus a builder that enqueues that channel's rows, and (since `choices=`
-below) a small migration (see "Adding a channel").
+billing facts published to Kafka, and `OutboxChannel.WORKLOAD` (`"workload"`), the final status of a mirrored
+job sent to the Runtime API. The design is meant to stay generic: adding the `workload` channel needed no change to
+the table's structure or the drain task's logic, only a new `OutboxChannel` member, a new sender plus a builder that
+enqueues that channel's rows, and (since `choices=` below) a small migration (see "Adding a channel").
 
 ## The problem it solves
 
@@ -35,8 +34,8 @@ A Fleets job produces two kinds of Kafka events:
   and dropped, and are not retried.
 - **Outbox**: events that cannot be lost. They are not sent from the scheduler. A JSON
   message is written to the `outbox` table, and the `OutboxTask` scheduler task picks
-  these rows up and sends them where they belong (Kafka today, later NTC workloads or
-  whatever comes next). If the target system is down, the send is retried once the
+  these rows up and sends them where they belong (Kafka for billing, the Runtime API for
+  workloads, or whatever comes next). If the target system is down, the send is retried once the
   row's wait is over (see "Retry with a growing wait").
 
 Four events in total:
@@ -270,8 +269,9 @@ characters and without NUL characters), and moves `next_attempt_at` to now plus 
 seconds, never less than one second. It writes them with a `bulk_update`: one per failed batch for a `BatchSender`,
 one per failed row for a plain `Sender`. `base` and `cap` are the `Config` entries
 `scheduler.outbox.kafka.retry_base_seconds` (120) and `scheduler.outbox.kafka.retry_max_seconds` (600), so the
-longest a row waits is the cap (10 minutes), however many times it has failed. A row is never discarded: these are
-billing facts. It is deleted only when it is delivered.
+longest a row waits is the cap (10 minutes), however many times it has failed. A row is never deleted without having
+been delivered: these are billing facts. A row that can never be sent is parked instead (see "Retryable and permanent
+errors" below).
 
 This is what keeps rows that always fail (a payload the destination rejects every time) from starving the rows
 behind them. Without it, once the breaker had opened and its pause had passed, the oldest rows would be the same bad
@@ -283,12 +283,24 @@ send anything. Two things prevent that:
 - A failed row is not due for `base` seconds, so the bad rows tried just before the breaker opened are not read
   again when it closes, and what is sent next is the rows behind them.
 
-The drain does not tell a failure of the destination from a failure of the row: it counts both for the breaker.
-That is enough because the breaker stops the attempts after a few failures, so during an outage only the rows it
+For a `BatchSender` the drain does not tell a failure of the destination from a failure of the row: it counts both
+for the breaker. That is enough because the breaker stops the attempts after a few failures, so during an outage only the rows it
 tried pay an attempt (a failed batch of a `BatchSender` charges every row of the batch, up to 100 per failure). It
 does mean that rows which all fail at once in a batch look like an outage: the batch counts as one failure, all
 its rows wait, and the next batch of the same tick reaches the rows behind them. A row with many attempts is visible
-in `attempts` and `last_error`. Telling the two apart in the sender is possible later, and would only be an addition.
+in `attempts` and `last_error`.
+
+#### Retryable and permanent errors
+
+A plain `Sender` (one send per row) says which kind of failure it had by the exception it raises. A
+`core.domain.exceptions.retryable_error.RetryableError` means a later try can work (a timeout, a 5xx, a 429, or a problem of
+our configuration such as a missing key, which is fixed without losing the row): the row waits as described above and
+the failure counts for the breaker. Any other exception is permanent (the destination answered with a 400 or a 404 for
+this row, or the sender has a bug): it does not count for the breaker, because the destination is fine, and the row is
+parked. A parked row stays in the table with its error in `last_error` and `next_attempt_at` a year ahead, so the
+drain never reads it, and the pending-rows and oldest-pending-age gauges keep counting it. `WorkloadSender` raises
+`RetryableError` for a transient failure and for a `RuntimeApiError` with no status code (no answer from the Runtime
+API), and lets any other `RuntimeApiError` through.
 
 A failed row is not due again for at least a second, so the next fetch of the same tick cannot find it, unless a
 single send takes longer than its wait.
@@ -352,7 +364,7 @@ channels together (`LICENSE_FEE` and `JOB_USAGE`), and there is no on/off switch
 channels are always active. A future channel that is not Kafka gets its own `Config` keys
 and its own `Destination` with its own `budget_key`, without touching these.
 
-Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, or
+Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_usage`, `workload`, or
 whatever channel a future PR adds), not by any billing-specific vocabulary:
 
 - `scheduler_outbox_sends_total{channel,outcome}`: one increment per send attempt,
@@ -360,6 +372,9 @@ whatever channel a future PR adds), not by any billing-specific vocabulary:
 - `scheduler_outbox_pending_rows{channel}` and
   `scheduler_outbox_oldest_pending_age_seconds{channel}`: reported every tick for
   every registered channel, independent of whether that channel's breaker is open.
+- `scheduler_outbox_drain_duration_seconds{channel}`: a histogram of how long one tick spent draining the channel,
+  observed when the drain ends, however it ends. Compare it with the channel's time budget: a drain that ended
+  because the budget ran out shows up near that value.
 - `scheduler_outbox_breaker_open{channel}`: 1 while the breaker of at least one region
   of that channel is open. It carries no per-region label, and it is set once every
   channel has been drained, so it reflects a breaker that opened during this very tick, even one that a
@@ -399,7 +414,13 @@ logic. It needs:
    same `Destination` under its own key, and shares its sender, breakers and budget `Config` key (each channel still gets its own time window in every tick); one with a new sender builds
    a new `Destination`, with its own breakers.
 
-The `workload` channel, mirroring job state to NTC's Runtime API, is expected to be
-exactly this: one more `OutboxChannel` member, one more `Destination`, and one more registry entry,
-with its own `Config` keys if its thresholds or kill switch need to differ from the billing
-channels'.
+The `workload` channel is an example of exactly this: it carries the final status of a job to the Runtime API
+(`PUT /functions/{function_id}`). `JobTransitionService` enqueues the envelope that `build_workload_payload` builds,
+in the transaction of the terminal transition, `WorkloadSender` sends it, and it has its own `Destination` and
+`scheduler.outbox.workload.*` keys. Only a job that was created in the Runtime API gets this: when `RunFunctionUseCase`
+mirrors a new Fleets job (flag `workloads.mirror.enabled`, a filler or a job without instance CRN is never mirrored),
+it records the job in the `WorkloadMirror` table, and the enqueue (and the `QISKIT_FUNCTIONS_IDENTIFIER` variable of
+its container) depend on that row, not on the flag. So turning the flag off stops new jobs from being mirrored, and the
+jobs already mirrored still report their final status. A job the builder rejects (it has no program) is logged and not
+enqueued, because retrying cannot fix it. Any other failure keeps the row and retries it with a growing wait, so a
+configuration problem on our side delays the mirror instead of losing it.

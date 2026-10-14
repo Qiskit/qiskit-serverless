@@ -14,3 +14,7 @@ class ArgumentsStorage(ABC):
     @abstractmethod
     def save(self, arguments: str) -> None:
         """Persist arguments for the job."""
+
+    @abstractmethod
+    def delete(self) -> None:
+        """Remove the arguments of the job. Nothing happens if there are none."""

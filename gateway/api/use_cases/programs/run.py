@@ -9,21 +9,29 @@ from django.db import transaction
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
+from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
+from core.clients.functions_operator_client import get_functions_operator_client
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
+from core.config_key import ConfigKey
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.domain.workload_payload import build_workload_payload, should_be_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
+    Config,
     FunctionSize,
     Job,
     JobConfig,
     JobEvent,
     Program as Function,
+    WorkloadMirror,
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
@@ -120,7 +128,7 @@ def _get_runner_config(
 class RunFunctionUseCase:
     """Use case for running (enqueueing a job for) a Qiskit Function."""
 
-    def execute(  # pylint: disable=too-many-locals, too-many-branches
+    def execute(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         self,
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
@@ -218,16 +226,41 @@ class RunFunctionUseCase:
             env.update(json.loads(function.env_vars))
         job.env_vars = json.dumps(env)
 
-        get_arguments_storage(job).save(data.arguments)
+        arguments_storage = get_arguments_storage(job)
+        arguments_storage.save(data.arguments)
 
-        with transaction.atomic():
-            if data.config_data:
-                job.config = JobConfig.objects.create(**data.config_data)
-            job.save()
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.API,
-                context=JobEventContext.RUN_PROGRAM,
-                status=job.status,
-            )
+        try:
+            with transaction.atomic():
+                if data.config_data:
+                    job.config = JobConfig.objects.create(**data.config_data)
+                job.save()
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.API,
+                    context=JobEventContext.RUN_PROGRAM,
+                    status=job.status,
+                )
+                # Create the job in the Runtime API inside the transaction on purpose: if the http call fails,
+                # the transaction is rolled back and the job is never created
+                if should_be_mirrored(job) and Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
+                    payload = build_workload_payload(job)
+                    try:
+                        get_functions_operator_client().put_function(payload["function_id"], payload["body"])
+                    except RetryableError as ex:
+                        raise EngineUnavailableException("Job could not be created right now, please retry.") from ex
+                    except RuntimeApiError as ex:
+                        raise EngineUnavailableException("Job could not be created. Please contact support.") from ex
+                    WorkloadMirror.objects.create(job=job)
+        except Exception:
+            self._delete_arguments(arguments_storage, job)
+            raise
         return job
+
+    @staticmethod
+    def _delete_arguments(arguments_storage, job: Job) -> None:
+        """The job was not created, so its arguments, saved before the transaction, are removed. A failure to
+        remove them is logged and does not hide the error that rolled the job back."""
+        try:
+            arguments_storage.delete()
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.error("job_id=%s arguments of a job that was not created could not be deleted: %s", job.id, ex)

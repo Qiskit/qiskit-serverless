@@ -28,7 +28,7 @@ Example::
     mounts = build_run_volume_mounts(
         mounts=[("/output", "my-pds", "user/job-1")]
     )
-    env = build_run_env_variables(paths, decrypted_env_vars)
+    env = build_run_env_variables(paths, decrypted_env_vars, None)
     cmds = build_run_commands(app_run_commands=["python", "main.py"])
 """
 
@@ -165,6 +165,7 @@ def build_run_volume_mounts(
 def build_run_env_variables(
     paths: FleetJobPaths,
     stored_env_vars: dict[str, str | None],
+    job_id: str | None,
 ) -> list[dict[str, str]]:
     """Build the complete environment variable list for the Fleets container.
 
@@ -176,6 +177,7 @@ def build_run_env_variables(
     Args:
         paths: Pre-computed paths for the job (from :func:`build_job_paths`).
         stored_env_vars: Decrypted env vars dict from ``job.env_vars``.
+        job_id: Id of the Functions job (omitted when None), exposed as ``QISKIT_FUNCTIONS_IDENTIFIER``.
 
     Returns:
         List of env var dicts in Code Engine format
@@ -217,6 +219,8 @@ def build_run_env_variables(
             "QISKIT_SETTINGS": settings.QISKIT_SETTINGS_CONTAINER_PATH,
         }
     )
+    if job_id:
+        env["QISKIT_FUNCTIONS_IDENTIFIER"] = job_id
     if paths.container_private_log_path is not None:
         env["PRIVATE_LOG_PATH"] = paths.container_private_log_path
 

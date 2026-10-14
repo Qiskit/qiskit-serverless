@@ -9,6 +9,7 @@ from typing import Callable
 from django.db.models import Min
 from django.utils import timezone
 
+from core.domain.exceptions.retryable_error import RetryableError
 from core.config_key import ConfigKey
 from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from core.models import Config, Outbox, OutboxChannel
@@ -23,6 +24,7 @@ BATCH_SIZE = 100
 LAST_ERROR_MAX_LENGTH = 500  # the size of Outbox.last_error
 MIN_RETRY_WAIT_SECONDS = 1  # so a failed row is never due again within the same tick
 MAX_RETRY_DOUBLINGS = 30  # an attempts count that keeps growing must not build a huge number
+PARKED_SECONDS = 365 * 24 * 3600  # a parked row is due again in a year, in practice never
 MAX_RETRY_WAIT_SECONDS = 24 * 3600  # whatever the Config entries say, so a typo cannot overflow a timedelta
 
 
@@ -68,7 +70,15 @@ class Destination:
         self.metrics.set_outbox_oldest_pending_age_seconds(age_seconds, channel)
 
     def drain(self, channel: OutboxChannel) -> None:
-        """Send the channel's pending rows within the time budget, region by region."""
+        """Send the channel's pending rows within the time budget, region by region. How long it took is reported
+        whatever way it ends."""
+        started = time.perf_counter()
+        try:
+            self._drain(channel)
+        finally:
+            self.metrics.observe_outbox_drain_duration(time.perf_counter() - started, channel)
+
+    def _drain(self, channel: OutboxChannel) -> None:
         budget_ms = Config.get_int(self.budget_key, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
 
@@ -162,7 +172,7 @@ class Destination:
                 return
             try:
                 self.sender.send(row.payload)
-            except Exception as ex:  # pylint: disable=broad-exception-caught
+            except RetryableError as ex:
                 logger.error(
                     "outbox_id=%s job_id=%s error sending, kept to try again later: %s", row.id, row.job_id, ex
                 )
@@ -170,9 +180,26 @@ class Destination:
                 breaker.record_failure()
                 self._keep_for_retry([row], f"{type(ex).__name__}: {ex}")
                 continue
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                # Not retryable: the destination answered and it is this row that it does not take (or the sender
+                # has a bug), so it does not count against the breaker, and trying it again would change nothing.
+                logger.error(
+                    "outbox_id=%s job_id=%s permanent error sending, the row is parked: %s", row.id, row.job_id, ex
+                )
+                self.metrics.increment_outbox_send(row.channel, "failure")
+                self._park(row, f"{type(ex).__name__}: {ex}")
+                continue
             self.metrics.increment_outbox_send(row.channel, "success")
             breaker.record_success()
             row.delete()
+
+    def _park(self, row: Outbox, error: str) -> None:
+        """Leave a row that can never be sent where someone can still find it: it stays in the table with its error,
+        and is not due again for a year, so the drain never reads it."""
+        row.attempts += 1
+        row.last_error = error.replace("\x00", "")[:LAST_ERROR_MAX_LENGTH]
+        row.next_attempt_at = timezone.now() + timedelta(seconds=PARKED_SECONDS)
+        row.save(update_fields=["attempts", "last_error", "next_attempt_at"])
 
     def _keep_for_retry(self, rows: list[Outbox], error: str) -> None:
         """Record a failed attempt on each row and move its next try further away: the wait is the base of the

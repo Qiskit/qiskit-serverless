@@ -122,6 +122,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("channel", "outcome"),
             registry=self.registry,
         )
+        self.outbox_drain_duration = Histogram(
+            "scheduler_outbox_drain_duration_seconds",
+            "How long one scheduler tick spends draining each outbox channel, to compare with its time budget.",
+            labelnames=("channel",),
+            registry=self.registry,
+            buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, float("inf")),
+        )
         self.outbox_pending_rows = Gauge(
             "scheduler_outbox_pending_rows",
             "Outbox rows pending each channel.",
@@ -188,6 +195,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def increment_outbox_send(self, channel: str, outcome: str) -> None:
         """Count one outbox send attempt. outcome: "success" or "failure"."""
         self.outbox_sends_total.labels(channel=channel, outcome=outcome).inc()
+
+    def observe_outbox_drain_duration(self, elapsed_seconds: float, channel: str) -> None:
+        """Record how long one tick spent draining a given outbox channel."""
+        self.outbox_drain_duration.labels(channel=channel).observe(elapsed_seconds)
 
     def set_outbox_pending_rows(self, count: int, channel: str) -> None:
         """Set how many outbox rows are pending a given channel."""

@@ -17,6 +17,7 @@ from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
     ComputeProfile,
+    Config,
     Job,
     JobEvent,
     PLATFORM_PERMISSION_JOBS_READ,
@@ -165,6 +166,7 @@ class TestProgramApi(APITestCase):
         # pylint: disable=invalid-name
         """Set up test fixtures and media root path."""
         super().setUp()
+        Config.add_defaults()  # running a function reads the workload mirror flag
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
         self.LIMITS_ACTIVE_JOBS_PER_USER = 2
