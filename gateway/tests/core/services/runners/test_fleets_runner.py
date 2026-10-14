@@ -80,6 +80,8 @@ def _patch_settings(**overrides):
         "FLEETS_GATEWAY_HOST": None,
         "CUSTOM_IMAGE_PACKAGE_PATH": "/runner",
         "CUSTOM_IMAGE_PACKAGE_NAME": "runner",
+        # Rendered into the fleet wrapper templates; must be a real string so json.dumps works.
+        "QISKIT_USER_CONFIG": "[default]\nmin_qpy_version = 13\n",
     }
     defaults.update(overrides)
     with (

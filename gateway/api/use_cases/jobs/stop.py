@@ -65,8 +65,9 @@ class StopJobUseCase:
             if job.runner == Program.RAY:
                 # Ray has no cancel to confirm. The cluster is asked to stop further down.
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
-            elif not self._try_stop_with_retries(transitions, job):
-                transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+            else:
+                # stop() writes STOPPING or STOPPED itself, and asks again if a fleet appeared
+                self._try_stop_with_retries(transitions, job)
         except RunnerRetryableError as ex:
             logger.warning("job_id=%s fleet_id=%s could not cancel: %s", job.id, job.fleet_id, str(ex))
             raise EngineUnavailableException("Job could not be stopped right now, please retry.") from ex
@@ -110,7 +111,7 @@ class StopJobUseCase:
             for runtime_job_entry in runtime_jobs:
                 self._cancel_runtime_job_entry(runtime_job_entry, qiskit_service, qiskit_api_client)
 
-    def _try_stop_with_retries(self, transitions: JobTransitionService, job: Job) -> bool:
+    def _try_stop_with_retries(self, transitions: JobTransitionService, job: Job) -> str:
         """Cancel the fleet, retrying once. Raises on the second failure, or on the first one that
         came back too slowly to leave room for another.
 
@@ -122,7 +123,7 @@ class StopJobUseCase:
         """
         return retry_function(
             partial(
-                transitions.try_stop,
+                transitions.stop,
                 job,
                 origin=JobEventOrigin.API,
                 context=JobEventContext.STOP_JOB,

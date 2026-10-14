@@ -611,7 +611,11 @@ class FleetsRunner(AbstractRunner):
         # upload template
         template_name = "fleet_custom_job_wrapper.py"
         script = get_template(template_name).render(
-            {"app_cmd": json.dumps(["python", paths.container_function_entrypoint])}
+            {
+                "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
+                # JSON-encoded: a valid Python str literal the wrapper writes to settings.conf.
+                "qiskit_user_config": json.dumps(settings.QISKIT_USER_CONFIG),
+            }
         )
         self._get_cos().upload_fileobj(
             fileobj=BytesIO(script.encode()),
@@ -680,7 +684,11 @@ class FleetsRunner(AbstractRunner):
 
         # upload wrapper script
         wrapper_script = get_template("fleet_provider_job_wrapper.py").render(
-            {"app_cmd": json.dumps(["python", paths.container_function_entrypoint])}
+            {
+                "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
+                # JSON-encoded: a valid Python str literal the wrapper writes to settings.conf.
+                "qiskit_user_config": json.dumps(settings.QISKIT_USER_CONFIG),
+            }
         )
         self._get_cos().upload_fileobj(
             fileobj=BytesIO(wrapper_script.encode()),
