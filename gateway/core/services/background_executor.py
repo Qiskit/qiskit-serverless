@@ -6,10 +6,12 @@ once at startup, in every process that uses it (the scheduler in ``scheduler/mai
 forked child inherits the object but not the threads, so it must call ``init`` again.
 
 Every caller in a process shares the same threads, so the total number of background threads stays bounded by
-``settings.BACKGROUND_EXECUTOR_MAX_WORKERS``. Each caller submits under a ``BackgroundPool`` name, and every pool gets
-the same share: it may have at most ``settings.BACKGROUND_EXECUTOR_MAX_PENDING`` divided by the number of pools tasks
-submitted and unfinished (queued or running). The next one is dropped and ``submit`` returns None. Dropping is by
-design: this is not a queue. Nothing needs configuring when a pool is added: the share is recomputed from the enum.
+``settings.BACKGROUND_EXECUTOR_MAX_WORKERS`` ("worker" is the name the standard library gives to the threads of a
+pool, as in ``ThreadPoolExecutor(max_workers=...)``; here they are always threads). Each caller submits under a
+``BackgroundPool`` name, and every pool gets the same share: it may have at most
+``settings.BACKGROUND_EXECUTOR_MAX_PENDING`` divided by the number of pools tasks submitted and unfinished (queued or
+running). The next one is dropped and ``submit`` returns None. Dropping is by design: this is not a queue. Nothing
+needs configuring when a pool is added: the share is recomputed from the enum.
 
 The threads are shared, not split. A thread that becomes free serves the pool with the fewest tasks running, among the
 pools with tasks waiting (the one served least recently breaks a tie). So a slow service that holds every thread
@@ -32,13 +34,14 @@ whether to submit more now or on the next tick::
     done, not_done = concurrent.futures.wait(self.in_flight, timeout=0)  # timeout=0 does not block
 
 ``queued == 0`` alone is not enough to know that a task will start soon: the threads are shared, so another pool can
-be holding all of them. That is what ``idle_workers`` tells. With a single thread submitting (the scheduler) the status
-can only get freer after it is read, so it is reliable; with several, check what ``submit`` returns.
+be holding all of them. That is what ``idle_workers`` (the idle threads) tells. With a single thread submitting (the
+scheduler) the status can only get freer after it is read, so it is reliable; with several, check what ``submit``
+returns.
 The future of a task that ran is resolved after its slot is free, so ``status`` right after a ``wait`` already counts
 it. A task cancelled with ``future.cancel()`` while it is still queued gives its slot back at once.
 
 Tasks must be short and must not depend on the caller's request or transaction. A task that raises is logged, and the
-exception is kept in its future. Worker threads open their own database connections, which are closed when each task
+exception is kept in its future. The pool's threads open their own database connections, which are closed when each task
 ends.
 
 ``shutdown()`` lets the tasks that are running finish (each bounded by its own request timeouts) and cancels the queued
@@ -50,9 +53,9 @@ Once the pool has threads, ``os.fork()`` in ``api/domain/isolated.py`` runs in a
 3.12 may emit a DeprecationWarning. It is safe there because the child only validates and leaves through
 ``os._exit``, so do not "fix" the warning by touching connections in the child.
 
-Adopting it in the gateway needs ``init()`` in every gunicorn worker after the fork (``main/wsgi.py`` is imported
-there) and ``shutdown()`` from a ``worker_exit`` hook, for a clean exit. Each process has its own pool, so the limits
-multiply by the number of workers.
+Adopting it in the gateway needs ``init()`` in every gunicorn worker (a process) after the fork (``main/wsgi.py`` is
+imported there) and ``shutdown()`` from a ``worker_exit`` hook, for a clean exit. Each process has its own pool, so the
+limits multiply by the number of gunicorn workers.
 
 Metrics are published on the default prometheus_client registry, which the gateway (django_prometheus) and the
 scheduler already expose. ``background_executor_workers`` is the configured number of threads. Per pool:
@@ -103,7 +106,7 @@ class BackgroundPool(Enum):
     RUNTIME_API = "runtime_api"  # calls to the Runtime API
 
 
-_WORKERS = Gauge("background_executor_workers", "Configured number of worker threads of this process.")
+_WORKERS = Gauge("background_executor_workers", "Configured number of threads of this process.")
 _MAX_PENDING = Gauge(
     "background_executor_max_pending", "Limit of accepted and unfinished tasks of the pool.", labelnames=("pool",)
 )
@@ -112,7 +115,7 @@ _PENDING = Gauge(
     "Tasks accepted and not finished yet, running ones included.",
     labelnames=("pool",),
 )
-_RUNNING = Gauge("background_executor_running", "Tasks running on a worker thread right now.", labelnames=("pool",))
+_RUNNING = Gauge("background_executor_running", "Tasks running on a thread right now.", labelnames=("pool",))
 _TASKS = Counter("background_executor_tasks_total", "Finished tasks by outcome.", labelnames=("pool", "outcome"))
 _DROPPED = Counter("background_executor_dropped_total", "Tasks that were not accepted.", labelnames=("pool", "reason"))
 _DURATION = Histogram(
@@ -178,7 +181,7 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
             try:
                 self._execute(pool, future, fn, args, kwargs)
             except Exception:  # pylint: disable=broad-exception-caught
-                logger.exception("background worker failed while finishing a task")  # keep the thread alive
+                logger.exception("background thread failed while finishing a task")  # keep the thread alive
 
     def _execute(self, pool: BackgroundPool, future: Future, fn: Callable, args: tuple, kwargs: dict) -> None:
         if future.cancelled():  # cancelled just after a thread took it: free the slot, then wake the waiters
