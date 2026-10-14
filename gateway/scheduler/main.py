@@ -42,9 +42,6 @@ class Main:
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
 
-        # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
-        get_background_executor().init()
-
         # One service for every task that changes a job status, so the Kafka producers are created once
         transitions = JobTransitionService()
         # one breaker per Code Engine region, shared by every task that calls it
@@ -88,6 +85,8 @@ class Main:
     def run(self):
         """Run the scheduler loop until kill signal is received."""
         logger.info("Scheduler loop started")
+        # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
+        get_background_executor().init()
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
@@ -129,8 +128,13 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
-            self.close_tasks()
-            self.stop_http_server()
-            get_background_executor().shutdown()
+            try:
+                # first, so running background tasks finish while the clients they use are still open
+                get_background_executor().shutdown()
+            finally:
+                try:
+                    self.close_tasks()
+                finally:
+                    self.stop_http_server()
 
         logger.info("Scheduler loop finished")

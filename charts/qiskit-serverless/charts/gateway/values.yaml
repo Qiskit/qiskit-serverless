@@ -40,6 +40,17 @@ application:
     scrapeWithPrometheus: true
     useTLS: true
 
+  # Shared thread pool for fire-and-forget work (HTTP calls). One pool per process: the gateway runs
+  # several processes, so its totals are multiplied; the scheduler is a single process. Tasks over
+  # maxPending are dropped.
+  backgroundExecutor:
+    gateway:
+      maxWorkers: 4
+      maxPending: 100
+    scheduler:
+      maxWorkers: 12
+      maxPending: 100
+
   limits:
     maxJobsPerUser: 2
     maxActiveJobsPerUser: 50
