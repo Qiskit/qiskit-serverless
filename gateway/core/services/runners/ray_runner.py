@@ -563,6 +563,18 @@ class RayRunner(AbstractRunner):
             "middleware_job_id/" + str(self._job.id) + "," + token + "/"
         )
 
+        # Write settings.conf into the working_dir (Ray runs the entrypoint from it) and
+        # point QISKIT_SETTINGS at it, cwd-relative. Set here so a function's own config
+        # is not used.
+        qiskit_settings_name = "qiskit_settings.conf"
+        with open(
+            os.path.join(working_directory_for_upload, qiskit_settings_name),
+            "w",
+            encoding="utf-8",
+        ) as qiskit_settings_file:
+            qiskit_settings_file.write(settings.QISKIT_USER_CONFIG)
+        env["QISKIT_SETTINGS"] = f"./{qiskit_settings_name}"
+
         # Connect to Ray cluster using compute_resource host
         host = compute_resource.host
         logger.info(

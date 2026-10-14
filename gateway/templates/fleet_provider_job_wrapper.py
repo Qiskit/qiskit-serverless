@@ -75,6 +75,28 @@ def _harden():
 _harden()
 # ── End security hardening ────────────────────────────────────────────────────
 
+# ── Qiskit user configuration ──────────────────────────────────────────────────
+# The gateway owns the authoritative Qiskit user config (settings.conf). We write
+# it here, before launching the user function, and QISKIT_SETTINGS (set by the
+# gateway) already points at this path. A vendor's own settings.conf is NOT read:
+# Qiskit reads exactly the one file QISKIT_SETTINGS names, with no merging.
+def _write_qiskit_user_config():
+    path = os.environ.get('QISKIT_SETTINGS')
+    if not path:
+        return
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as conf:
+            conf.write({{ qiskit_user_config }})
+    except OSError:
+        # Non-fatal: if we cannot write the file, Qiskit falls back to its own
+        # discovery. The gateway-side QPY check (if any) remains the hard boundary.
+        pass
+
+
+_write_qiskit_user_config()
+# ── End Qiskit user configuration ───────────────────────────────────────────────
+
 # Command to run (injected by the gateway template engine)
 app_cmd = {{ app_cmd }}
 

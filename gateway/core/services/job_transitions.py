@@ -20,7 +20,7 @@ from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
-from core.services.runners import get_runner, AbstractRunner
+from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
 
 logger = logging.getLogger("core.JobTransitionService")
 
@@ -92,38 +92,49 @@ class JobTransitionService:
         best effort in-progress event is sent."""
         self._send_job_in_progress(job, job_started=False)
 
-    def try_stop(
+    def stop(
         self,
         job: Job,
         *,
         origin: JobEventOrigin,
         context: JobEventContext,
         runner: AbstractRunner | None = None,
-    ) -> bool:
-        """Cancel the fleet and record STOPPING. Fleets only, and the cancel runs before the transaction.
+    ) -> str:
+        """Stop a Fleets job and return the status written. The cancel runs before the transaction.
 
         Args:
             runner: Reuse this runner instead of building one, so a retrying caller fetches the IAM
                 token once.
 
         Returns:
-            ``True`` when STOPPING was written, ``False`` when the fleet is gone and the caller owes
-            a terminal status.
+            ``Job.STOPPING`` when a cancel is in flight, ``Job.STOPPED`` when there was nothing to
+            cancel.
 
         Raises:
             ValueError: If the job is not a Fleets job.
             RunnerError: If the cancel could not be delivered.
-            InvalidJobTransitionException: If the row left a status STOPPING is reachable from.
+            RunnerRetryableError: If a fleet appeared while this was deciding. Nothing is written,
+                so the caller asks again with the fresh row and cancels that fleet.
+            InvalidJobTransitionException: If the row left a status the new one is reachable from.
         """
         if job.runner != Program.FLEETS:
-            raise ValueError(f"Job {job.id}: try_stop is for Fleets jobs, got runner={job.runner}")
-        if not job.fleet_id:
-            return False
-        if not (runner or get_runner(job)).stop():
-            return False
+            raise ValueError(f"Job {job.id}: stop is for Fleets jobs, got runner={job.runner}")
+
+        if job.fleet_id and (runner or get_runner(job)).stop():
+            with transaction.atomic():
+                self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
+            return Job.STOPPING
+
+        # No fleet, or Code Engine says it is already gone. End the job only while that still
+        # holds: comparing against job.fleet_id, not None, keeps the already-gone case correct.
         with transaction.atomic():
-            self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
-        return True
+            current_fleet_id = Job.objects.select_for_update().values_list("fleet_id", flat=True).get(pk=job.pk)
+            if current_fleet_id != job.fleet_id:
+                # Adopt it, or the retry reads the same stale None and decides the same way again.
+                job.fleet_id = current_fleet_id
+                raise RunnerRetryableError(f"Job {job.id}: a fleet appeared while stopping")
+            self._change_status(job, Job.STOPPED, origin=origin, context=context, job_fields=None)
+        return Job.STOPPED
 
     def to_terminal(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
