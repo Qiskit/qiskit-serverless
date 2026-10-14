@@ -52,17 +52,7 @@ upgrade:
     been **removed**. Use ``ray.remote`` directly, as shown above.
   - |
     The OpenTelemetry spans that ``distribute_task`` injected around each
-    distributed task have been removed along with it, including the
-    ``qs.meta.*``, ``qs.resources.*`` and per-circuit ``qs.args.*`` /
-    ``qs.kwargs.*`` span attributes derived from ``QuantumCircuit`` arguments.
-    Gateway-side and scheduler-side tracing are unaffected, as are the
-    client-side ``job.*``, ``function.*`` and ``files.*`` spans.
-
-    The ``Target`` and ``CircuitMeta`` dataclasses and the
-    ``fetch_execution_meta`` helper, which existed only to support
-    ``distribute_task`` and its span attributes, have also been removed.
-  - |
-    ``qiskit_serverless.core.tracing._trace_env_vars`` has been removed; it was
-    only used to propagate a ``traceparent`` into ``distribute_task`` tasks.
-    ``get_tracer`` and ``setup_tracing`` are unchanged: ``setup_tracing`` is
-    still the Ray cluster's ``tracing-startup-hook``.
+    distributed task have been removed along with it, including the per-task
+    ``qs.meta.*``, ``qs.resources.*``, ``qs.args.*`` and ``qs.kwargs.*`` span
+    attributes. The client-side ``job.*``, ``function.*`` and ``files.*`` spans,
+    and gateway and scheduler tracing, are unaffected.
