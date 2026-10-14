@@ -34,7 +34,11 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import ARGUMENTS_PATH
+from qiskit_serverless.core.constants import (
+    ARGUMENTS_PATH,
+    ENV_JOB_COMPUTE_PROFILE,
+    ENV_JOB_FUNCTION_SIZE,
+)
 from qiskit_serverless.exception import QiskitServerlessException
 
 
@@ -112,3 +116,37 @@ def get_arguments() -> Dict[str, Any]:
         arguments = f.read()
 
     return json.loads(arguments, cls=QiskitObjectsDecoder)
+
+
+def get_function_size() -> str:
+    """Returns the function size the running job resolved to.
+
+    Set by the gateway at job submission, this is the size the job runs at,
+    which lets a function check which size was chosen. It is always set for
+    Fleets jobs (the requested size, or the function's default when none was
+    requested).
+
+    Returns:
+        The size label (e.g. ``"M"``). Empty when sizes do not apply, i.e. a
+        non-Fleets (Ray) job.
+    """
+    return os.environ.get(ENV_JOB_FUNCTION_SIZE, "")
+
+
+def get_compute_profile() -> str:
+    """Returns the compute profile the running job resolved to.
+
+    Set by the gateway at job submission, this is the profile the function size
+    mapped to, which lets a function check that the chosen size mapped to the
+    expected profile. It is always set for Fleets jobs.
+
+    This is the requested profile, i.e. the resource allocation the job runs
+    with. It is not the physical Code Engine worker node, which may be larger:
+    Code Engine can serve the requested allocation from a bigger node, and the
+    profile is the allocation the job is accounted for, not the node's size.
+
+    Returns:
+        The compute profile (e.g. ``"24x120x1a100p"``). Empty when profiles do
+        not apply, i.e. a non-Fleets (Ray) job.
+    """
+    return os.environ.get(ENV_JOB_COMPUTE_PROFILE, "")
