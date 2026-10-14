@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -36,7 +36,7 @@ application:
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
-    kubectlImage: alpine/k8s:1.35.4
+    kubectlImage: alpine/k8s:1.37.1
     scrapeWithPrometheus: true
     useTLS: true
 
@@ -129,7 +129,7 @@ ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
   defaultComputeProfile: "16x128"
-  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.37.0"
   fleetsDefaultMaxInstances: 1
   fleetsRuntimeIamUrl: ""
   fleetsRuntimeGlobalSearchUrl: ""

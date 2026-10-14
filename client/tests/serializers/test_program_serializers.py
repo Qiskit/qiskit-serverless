@@ -23,11 +23,17 @@ import pytest
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qiskit_serverless.core.constants import ARGUMENTS_PATH
+from qiskit_serverless.core.constants import (
+    ARGUMENTS_PATH,
+    ENV_JOB_COMPUTE_PROFILE,
+    ENV_JOB_FUNCTION_SIZE,
+)
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
     QiskitObjectsEncoder,
     get_arguments,
+    get_function_size,
+    get_compute_profile,
 )
 
 
@@ -88,3 +94,27 @@ class TestArgParsing:
         with patch.dict(os.environ, {ARGUMENTS_PATH: arguments_file_path}):
             parsed_arguments = get_arguments()
         assert list(parsed_arguments.keys()) == ["circuit", "array"]
+
+
+class TestComputeInfo:
+    """Tests reading the resolved function size and compute profile."""
+
+    def test_values_present(self):
+        """Both values are returned when the gateway set them."""
+        env = {ENV_JOB_COMPUTE_PROFILE: "24x120x1a100p", ENV_JOB_FUNCTION_SIZE: "M"}
+        with patch.dict(os.environ, env):
+            assert get_function_size() == "M"
+            assert get_compute_profile() == "24x120x1a100p"
+
+    def test_values_empty_when_not_applicable(self):
+        """Sizes and profiles do not apply to Ray jobs, so the values are empty."""
+        env = {ENV_JOB_COMPUTE_PROFILE: "", ENV_JOB_FUNCTION_SIZE: ""}
+        with patch.dict(os.environ, env):
+            assert get_function_size() == ""
+            assert get_compute_profile() == ""
+
+    def test_values_empty_when_env_unset(self):
+        """Missing env vars read as empty rather than raising."""
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_function_size() == ""
+            assert get_compute_profile() == ""

@@ -117,6 +117,8 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
+            "ENV_JOB_COMPUTE_PROFILE": job.compute_profile_id or "",
+            "ENV_JOB_FUNCTION_SIZE": job.function_size.function_size if job.function_size else "",
             "ENV_ACCESS_TRIAL": str(trial_mode),
             "DATA_PATH": data_path,
             "ARGUMENTS_PATH": f"{data_path}/arguments/{job.id}.json",

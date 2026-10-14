@@ -15,6 +15,8 @@
 import pytest
 from django.core.cache import cache
 
+from core.clients.iam_token_provider import get_iam_token_provider
+
 
 @pytest.fixture(autouse=True)
 def media_root_tmp(tmp_path, settings):
@@ -35,3 +37,13 @@ def clear_django_cache():
     otherwise leak a value cached by one test into the next.
     """
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_iam_token_providers():
+    """Clear the shared IAM token provider cache before every test.
+
+    The cache is keyed on (api_key, iam_url), and the provider tests all build with the same
+    dummy key, so one test's patched provider would otherwise serve the next one.
+    """
+    get_iam_token_provider.cache_clear()

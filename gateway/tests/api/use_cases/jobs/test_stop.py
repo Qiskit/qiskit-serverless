@@ -12,7 +12,7 @@ from api.use_cases.jobs.stop import (
     _CANCEL_DELAY_SECONDS,
     _CANCEL_RETRY_BUDGET_SECONDS,
 )
-from core.ibm_cloud.clients import IAM_HTTP_TIMEOUT
+from core.clients.iam_token_provider import _DEFAULT_TIMEOUT
 from core.ibm_cloud.code_engine.fleets.handler import _CANCEL_TIMEOUT_SECONDS
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventOrigin
@@ -34,7 +34,7 @@ def test_the_cancel_retry_fits_the_gunicorn_request_timeout():
     after the fleet cancel. urllib3 retries a failed connect 3 times and does not retry a read on a
     POST, so the worst cancel is three failed connects, then a connect plus a read that times out."""
     worst_cancel = 3 * _CANCEL_TIMEOUT_SECONDS[0] + sum(_CANCEL_TIMEOUT_SECONDS)
-    worst_attempt = sum(IAM_HTTP_TIMEOUT) + worst_cancel
+    worst_attempt = 2 * _DEFAULT_TIMEOUT + worst_cancel  # connect + read on the IAM fetch
     waits = (_CANCEL_ATTEMPTS - 1) * _CANCEL_DELAY_SECONDS
 
     # a later attempt only starts while the first is still inside the budget
