@@ -214,7 +214,7 @@ class FleetsJobSubmitter:
                 job.fleet_id,
                 str(ex),
             )
-            # Nothing will retry this: the row is terminal, so no scheduler task reads it again.
+            # No task retries the cancel. The fleet cleanup deletes the fleet after its retention window.
             JobEvent.objects.add_error_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,

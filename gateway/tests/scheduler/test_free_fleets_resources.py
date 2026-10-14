@@ -291,13 +291,16 @@ def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fle
 
 def test_a_clean_cycle_clears_the_delete_failures(fleets_program):
     """Four failures, one cycle that deleted, four more: the streak restarted, so the breaker is closed."""
-    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, ce_region="us-east")
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="first", ce_region="us-east")
+    second = _terminal_job(fleets_program, age_hours=1, fleet_id="second", ce_region="us-east")
     task = _make_task()
     threshold = _BREAKER_FAILURES
 
     for _ in range(threshold - 1):
         _run(task, error=RunnerRetryableError("unavailable"))
     _run(task)
+    # the deleted fleet leaves the window, so without a second candidate the cycles below record nothing
+    _age(second, _RETENTION_HOURS + 1)
     for _ in range(threshold - 1):
         _run(task, error=RunnerRetryableError("unavailable"))
 

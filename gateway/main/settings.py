@@ -612,7 +612,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "500",
         "type": "integer",
         "description": "Time budget per scheduler loop tick for the fleet cleanup, in milliseconds. Each delete "
-        "costs an IAM token fetch and a Code Engine call, and the loop is single threaded.",
+        "is a Code Engine round trip, and the loop is single threaded.",
     },
     "scheduler.fleets.cleanup.max_deletes_per_cycle": {
         "default": "20",

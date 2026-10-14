@@ -547,8 +547,20 @@ def test_free_resources_gives_up_when_the_code_engine_host_does_not_resolve():
     assert runner.free_resources() is False
 
 
-def test_free_resources_raises_unavailable_when_code_engine_is_unreachable():
-    """An IAM failure has to come back retryable: the scheduler task only catches RunnerRetryableError."""
+def test_free_resources_reports_an_iam_failure_as_retryable():
+    """The token is read per request now, so an IAM failure arrives from delete_job. Without this the cleanup
+    counts a permanent failure and gives up on the fleet after three attempts."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = RuntimeApiRetryableError("Could not get an IAM token")
+
+    with pytest.raises(RunnerError) as exc:
+        runner.free_resources()
+
+    assert type(exc.value) is RunnerRetryableError
+
+
+def test_free_resources_raises_unavailable_when_the_client_cannot_be_built():
+    """A missing or malformed API key, which is all connect() can still fail on, must not read as permanent."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     runner._connected = False  # pylint: disable=protected-access
 

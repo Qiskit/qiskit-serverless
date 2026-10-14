@@ -540,6 +540,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError(f"Code Engine request failed: {ex}", ex) from ex
         except (ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError(f"Code Engine request failed: {ex}", ex) from ex
+        except RuntimeApiRetryableError as ex:
+            raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
             return False
