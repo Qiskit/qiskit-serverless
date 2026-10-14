@@ -13,8 +13,8 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
-from django.db.models import F
-from django.db.models.functions import Now
+from django.db.models import F, Value
+from django.db.models.functions import Coalesce, Now
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
@@ -500,6 +500,56 @@ class FunctionSize(models.Model):
 
     def __str__(self):
         return f"{self.function} ({self.function_size})"
+
+
+class BlockedCloudResource(models.Model):
+    """Blocked cloud resource model.
+
+    Mirrors the upstream billing-service's blocked account/plan/subscription set.
+    A row is a blocking rule at whatever scope its populated fields describe;
+    row identity comes from id, never from a business column. The three columns
+    are nullable so that narrower rule shapes (e.g., account-only) can be added
+    later without a migration.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    account = models.CharField(max_length=255, null=True, blank=True, default=None)
+    plan = models.CharField(max_length=255, null=True, blank=True, default=None)
+    subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+
+    class Meta:
+        app_label = "api"
+        constraints = [
+            # Over the coalesced columns rather than the columns themselves, so a NULL counts as
+            # equal to another NULL: a plain unique constraint lets (acc, NULL, NULL) repeat, and
+            # nulls_distinct=False is dropped altogether on SQLite and on PostgreSQL < 15.
+            # Empty strings are stored as NULL, so coalescing to "" conflates nothing.
+            models.UniqueConstraint(
+                Coalesce("account", Value("")),
+                Coalesce("plan", Value("")),
+                Coalesce("subscription", Value("")),
+                name="unique_blocked_resource",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(account__isnull=False)
+                | models.Q(plan__isnull=False)
+                | models.Q(subscription__isnull=False),
+                name="blocked_resource_has_a_scope",
+            ),
+        ]
+
+    def __str__(self):
+        parts = []
+        if self.account:
+            parts.append(f"account={self.account}")
+        if self.plan:
+            parts.append(f"plan={self.plan}")
+        if self.subscription:
+            parts.append(f"subscription={self.subscription}")
+        return f"BlockedCloudResource({', '.join(parts)})"
 
 
 class Job(models.Model):

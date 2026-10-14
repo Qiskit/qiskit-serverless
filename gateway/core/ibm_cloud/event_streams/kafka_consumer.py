@@ -15,7 +15,8 @@
 
 The scheduler is single-threaded, so drain() never waits on the broker: it takes whatever each
 region already has in its local queue (consume() with a zero timeout), hands each message to the
-injected handler, commits what it finished asynchronously, and returns within the tick. librdkafka
+injected handler, commits what it finished asynchronously, measures each topic's lag from the
+watermarks librdkafka has cached, and returns within the tick. librdkafka
 keeps fetching, heartbeating and committing in its own background threads between ticks.
 
 Delivery is at-least-once, so handlers must be idempotent:
@@ -68,6 +69,9 @@ class DrainStats:
     """What a drain() did, counted per (region, outcome), for the caller to turn into metrics."""
 
     counts: Counter = field(default_factory=Counter)
+    # Messages not yet consumed, per (region, topic), summed over the partitions this member holds.
+    # Only the regions drained this time are in it.
+    lag: Counter = field(default_factory=Counter)
 
     def add(self, region: str, outcome: str) -> None:
         """Count one outcome for region."""
@@ -167,6 +171,7 @@ class KafkaRegionalConsumer:
             done[(msg.topic(), msg.partition())] = msg.offset() + 1
 
         self._commit(consumer, region, done)
+        self._measure_lag(consumer, region)
         return failure
 
     def _handle(self, msg: Message, region: str) -> Exception | None:
@@ -237,6 +242,32 @@ class KafkaRegionalConsumer:
         except KafkaException as e:
             self._stats.add(region, COMMIT_ERROR)
             logger.warning("Commit failed: region=%s error=%s", region, str(e))
+
+    def _measure_lag(self, consumer: Consumer, region: str) -> None:
+        """Count into the stats how far behind the high watermark each assigned partition is.
+
+        Every topic gets a value, 0 without assigned partitions, so a topic whose partitions moved
+        to another member stops reporting the lag it had here. The watermarks are the cached ones
+        librdkafka updates with each fetch, so this never waits on the broker. A partition with no
+        position yet, or no known watermark, is left out.
+        """
+        for topic in self.topics:
+            self._stats.lag[(region, topic)] += 0
+        try:
+            partitions = consumer.position(consumer.assignment())
+        except KafkaException as e:
+            logger.debug("Could not read the positions: region=%s error=%s", region, str(e))
+            return
+
+        for tp in partitions:
+            if tp.offset < 0:
+                continue
+            try:
+                _, high = consumer.get_watermark_offsets(tp, cached=True)
+            except KafkaException:
+                continue
+            if high >= 0:
+                self._stats.lag[(region, tp.topic)] += max(high - tp.offset, 0)
 
     def _on_commit(self, region: str, error: KafkaError | None, partitions: list[TopicPartition]) -> None:
         """librdkafka's on_commit callback, served inside consume()."""
