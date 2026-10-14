@@ -1,0 +1,21 @@
+---
+features:
+  - |
+    ``qiskit-fermions==0.2.0`` has been added to the dynamic dependencies allowlist
+    bundled in the custom functions image. Qiskit Functions that declare it as a
+    dependency can now use it.
+  - |
+    The custom functions image now ships the CUDA runtime libraries ``gpu4pyscf``
+    needs at import, so GPU chemistry functions no longer have to install those
+    wheels themselves.
+upgrade:
+  - |
+    ``qiskit-fermions==0.2.0`` requires ``qiskit~=2.5.0``, so the ``qiskit`` version
+    in the custom functions image is now held to the 2.5 line. Functions that relied
+    on an earlier ``qiskit`` in the image should review the Qiskit 2.3-2.5 release
+    notes for API changes.
+fixes:
+  - |
+    Fixed GPU chemistry functions silently running on the CPU, because the CUDA
+    libraries ``gpu4pyscf`` loads at import were missing from the image. The image
+    now installs them and its build checks that they resolve.

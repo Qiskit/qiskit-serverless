@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.17
+# syntax=docker/dockerfile:1.28
 # This code is part of a Qiskit project.
 #
 # (C) IBM 2026
@@ -32,7 +32,7 @@
 # (glibc 2.34) satisfies the mthree manylinux_2_34 wheel. Most pinned deps ship
 # linux/x86_64 wheels for 3.12; the two that do not are compiled in the builder
 # stage, which is the only place a build toolchain exists.
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1789546276 AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1791808450 AS base
 ARG PYTHON_VERSION=3.12
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
