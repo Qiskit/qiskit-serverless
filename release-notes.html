@@ -326,6 +326,16 @@ an additional dependency.</p></li>
 them with the dynamic loader. GPU chemistry functions no longer have to
 install those wheels themselves or run their own <code class="docutils literal notranslate"><span class="pre">ldconfig</span></code> step.</p></li>
 </ul>
+<ul class="simple">
+<li><p>The gateway now injects an authoritative Qiskit user configuration file
+(<code class="docutils literal notranslate"><span class="pre">settings.conf</span></code>) into every Ray and Code Engine Fleets job container and
+points <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> at it. The file currently sets a single key,
+<code class="docutils literal notranslate"><span class="pre">min_qpy_version</span></code> (default <code class="docutils literal notranslate"><span class="pre">13</span></code>, configurable fleet-wide with the
+<code class="docutils literal notranslate"><span class="pre">QISKIT_MIN_QPY_VERSION</span></code> environment variable), which makes Qiskit reject
+QPY payloads older than that version. For Fleets the file is written by the
+job wrapper at container startup; for Ray it is written into the job
+working directory and referenced by a cwd-relative <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code>.</p></li>
+</ul>
 <ul>
 <li><p>Listing Qiskit Functions now accepts a <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument that returns only the
 functions belonging to that provider:</p>
@@ -362,6 +372,17 @@ the Qiskit 2.3-2.5 release notes for API changes.</p></li>
 <li><p>The Fleets selector image is substantially larger: the CUDA wheels add
 roughly 1.7 GB compressed and 2.6 GB installed. Fleets pulls the image per
 job, so expect longer cold starts for Fleets jobs that run on it.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The gateway-provided <code class="docutils literal notranslate"><span class="pre">settings.conf</span></code> is authoritative: a function’s own
+Qiskit configuration file is no longer consulted in the Functions runtime.
+Qiskit reads exactly the one file <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> names, with no merging,
+and the gateway sets <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> in the system-controlled environment
+layer that overrides any value a function supplies. A function that shipped
+or wrote its own <code class="docutils literal notranslate"><span class="pre">settings.conf</span></code> (at the default <code class="docutils literal notranslate"><span class="pre">~/.qiskit/settings.conf</span></code>
+or elsewhere) will find it ignored. Function vendors that need Qiskit
+configuration beyond <code class="docutils literal notranslate"><span class="pre">min_qpy_version</span></code> must apply it programmatically in
+their function code rather than through a configuration file.</p></li>
 </ul>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator and the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and
