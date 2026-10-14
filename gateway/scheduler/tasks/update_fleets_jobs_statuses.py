@@ -206,7 +206,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         if not cancelled:
             # stop() wrote STOPPED itself, so only the counter is left
-            self._increment_terminal_counter(job, stop_landed=True)
+            self._increment_terminal_counter(job)
         return True
 
     def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:

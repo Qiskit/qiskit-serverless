@@ -1,7 +1,7 @@
 """Unit tests for UpdateFleetsJobsStatuses."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -414,7 +414,7 @@ class TestStopJobIfTimeout:
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
-        assert task.metrics.increment_jobs_terminal.call_args.kwargs["final_status"] == Job.STOPPED
+        task.metrics.increment_jobs_terminal.assert_called_once_with(provider=ANY, final_status=Job.STOPPED)
 
     @pytest.mark.parametrize(
         "error",

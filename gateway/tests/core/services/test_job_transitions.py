@@ -10,9 +10,8 @@ from django.contrib.auth.models import User
 
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.services.runners import RunnerRetryableError
 from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Outbox, OutboxChannel, Program, Provider
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import FleetAppearedError, JobTransitionService
 
 pytestmark = pytest.mark.django_db
 
@@ -514,7 +513,7 @@ class TestStop:
         job = _licensed_fleets_job(user, Job.PENDING, fleet_id=None)
         Job.objects.filter(pk=job.pk).update(fleet_id="fleet-appeared")
 
-        with pytest.raises(RunnerRetryableError, match="a fleet appeared while stopping"):
+        with pytest.raises(FleetAppearedError, match="a fleet appeared while stopping"):
             service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         assert Job.objects.get(pk=job.pk).status == Job.PENDING

@@ -18,7 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
@@ -626,6 +626,16 @@ class TestFleetsJobCanceller:
             canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert canceller.paused("us-east") is True
+
+    def test_a_fleet_that_appeared_does_not_count_against_the_region_breaker(self):
+        """Code Engine answered and the row changed under us, so the region did nothing wrong."""
+        _open_breakers_after_one_failure()
+        canceller, _ = self._canceller(side_effect=FleetAppearedError("a fleet appeared while stopping"))
+
+        with pytest.raises(FleetAppearedError):
+            canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert canceller.paused("us-east") is False
 
     def test_a_refused_cancel_leaves_the_breaker_closed(self):
         """A cancel that never left this process says nothing about whether the region is answering."""
