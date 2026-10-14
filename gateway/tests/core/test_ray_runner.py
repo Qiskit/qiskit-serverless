@@ -249,6 +249,44 @@ class TestRayClientOperations(APITestCase):
         self.assertTrue(is_job_stopped)
         mock_client.stop_job.assert_called_once_with("AwesomeJobId")
 
+    def test_submit_to_ray_injects_qiskit_user_config(self):
+        """_submit_to_ray writes the gateway Qiskit config into working_dir and sets QISKIT_SETTINGS."""
+        captured = {}
+
+        def _fake_submit_job(entrypoint, runtime_env):  # noqa: ARG001
+            # Capture the working_dir + env the gateway hands Ray, and read the file
+            # it wrote there, before the temp working dir is cleaned up.
+            working_dir = runtime_env["working_dir"]
+            captured["env_vars"] = runtime_env["env_vars"]
+            settings_rel = runtime_env["env_vars"]["QISKIT_SETTINGS"]
+            with open(os.path.join(working_dir, settings_rel), encoding="utf-8") as handle:
+                captured["config_contents"] = handle.read()
+            return "AwesomeJobId"
+
+        mock_client = MagicMock()
+        mock_client.submit_job.side_effect = _fake_submit_job
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = Job.objects.first()
+            job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
+            job.save()
+            runner = get_runner(job)
+
+            compute_resource = ComputeResource(title="test", host="http://test_user-head-svc:8265/")
+
+            with patch(
+                "core.services.runners.ray_runner.JobSubmissionClient",
+                return_value=mock_client,
+            ):
+                ray_job_id = runner._submit_to_ray(compute_resource)  # pylint: disable=protected-access
+
+        assert ray_job_id == "AwesomeJobId"
+        # QISKIT_SETTINGS points at a cwd-relative file inside the Ray working_dir.
+        assert captured["env_vars"]["QISKIT_SETTINGS"] == "./qiskit_settings.conf"
+        # The file written there is exactly the gateway-owned config.
+        assert captured["config_contents"] == settings.QISKIT_USER_CONFIG
+        assert "min_qpy_version = 13" in captured["config_contents"]
+
     def test_job_submit_local_mode(self):
         """Tests job submission in local mode (no K8s cluster creation)."""
         with self.settings(
