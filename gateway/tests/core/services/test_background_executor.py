@@ -434,3 +434,15 @@ def test_init_waits_for_a_shutdown_in_progress_so_the_gauges_do_not_go_negative(
 
     assert _sample("background_executor_pending", labels) == 0
     assert _sample("background_executor_running", labels) == 0
+
+
+def test_a_submit_that_races_with_a_shutdown_is_dropped_and_counted(small_pool):  # pylint: disable=unused-argument
+    labels = {"pool": RUNTIME.value, "reason": "shut_down"}
+    before = _sample("background_executor_dropped_total", labels) or 0
+    cycle = executor._cycle  # pylint: disable=protected-access
+    with cycle.cond:
+        cycle.stopping = True  # what shutdown() does just before it clears the queues
+
+    assert executor.submit(RUNTIME, lambda: None) is None
+
+    assert _sample("background_executor_dropped_total", labels) == before + 1

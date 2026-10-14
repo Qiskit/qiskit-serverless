@@ -59,9 +59,9 @@ scheduler already expose. ``background_executor_workers`` is the configured numb
 ``background_executor_max_pending`` (its limit), ``background_executor_pending`` (accepted and unfinished, running
 included), ``background_executor_running``, ``background_executor_tasks_total{outcome}`` (completed, failed or skipped
 at shutdown, or cancelled by the caller while queued), ``background_executor_dropped_total{reason}`` (full or
-shut_down) and ``background_executor_task_duration_seconds``. Compare ``pending`` with ``max_pending`` and watch
-``dropped_total`` to size the pool. Every process reports its own numbers: the gateway has several, so aggregate across
-them in the query.
+shut_down, only for a ``submit`` that races with a ``shutdown``) and
+``background_executor_task_duration_seconds``. Compare ``pending`` with ``max_pending`` and watch ``dropped_total`` to
+size the pool. Every process reports its own numbers: the gateway has several, so aggregate across them in the query.
 
 The Kafka sender could adopt this pool later.
 """
