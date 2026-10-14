@@ -19,8 +19,9 @@ from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 
-# A cancel reaches the task store in about 30s, or about 150s if the task had not started.
-_STOPPING_DEADLINE_SECONDS = 300
+# Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
+# 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
+_STOPPING_DEADLINE_SECONDS = 600
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -73,15 +74,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # hold the user's concurrency slot forever.
             return self.stop_job_if_timeout(job)
 
-        if new_status == Job.SUCCEEDED:
-            self.to_terminal(job, Job.SUCCEEDED)
-            self._record_execution_duration(job)
-
-        elif new_status == Job.STOPPED:
-            self.to_terminal(job, Job.STOPPED)
-
-        elif new_status == Job.FAILED:
-            self.to_terminal(job, Job.FAILED)
+        if new_status in Job.TERMINAL_STATUSES:
+            self.to_terminal(job, new_status)
 
         elif new_status == Job.PENDING:
             # don't change the status... job still trying to start
@@ -104,31 +98,41 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return True
 
     def confirm_stop(self, job: Job, new_status: str | None) -> bool:
-        """End a STOPPING job once the task store reports any terminal task state, or on the deadline.
+        """End a STOPPING job with whatever terminal state the task store reports, or STOPPED on the deadline.
 
         No cancel is sent from here: whoever asked for the stop already sent it.
         """
         if new_status in Job.TERMINAL_STATUSES:
-            logger.info("job_id=%s stop confirmed, task store reported %s", job.id, new_status)
-        else:
-            # The earliest STOPPING event, not the latest event of any kind: a job still reporting
-            # sub_status would otherwise push its own deadline out for ever.
-            stopping_event = JobEvent.objects.filter(job=job, data__status=Job.STOPPING).order_by("created").first()
-            reference_time = stopping_event.created if stopping_event else job.updated
-            if datetime.now(timezone.utc) - reference_time < timedelta(seconds=_STOPPING_DEADLINE_SECONDS):
-                return False
+            logger.info("job_id=%s leaving STOPPING, task store reported %s", job.id, new_status)
+            final_status = new_status
+        elif self._stopping_deadline_passed(job):
             logger.warning(
                 "job_id=%s user_id=%s stop not confirmed after %ss, writing STOPPED anyway.",
                 job.id,
                 job.author.id,
                 _STOPPING_DEADLINE_SECONDS,
             )
-        self.to_terminal(job, Job.STOPPED)
+            final_status = Job.STOPPED
+        else:
+            return False
+
+        self.to_terminal(job, final_status)
         return True
 
+    @staticmethod
+    def _stopping_deadline_passed(job: Job) -> bool:
+        """Whether the cancel has gone unconfirmed for _STOPPING_DEADLINE_SECONDS.
+
+        Measured from the earliest STOPPING event, not the latest event of any kind: a job still
+        reporting sub_status would otherwise push its own deadline out for ever.
+        """
+        stopping_event = JobEvent.objects.filter(job=job, data__status=Job.STOPPING).order_by("created").first()
+        reference_time = stopping_event.created if stopping_event else job.updated
+        return datetime.now(timezone.utc) - reference_time >= timedelta(seconds=_STOPPING_DEADLINE_SECONDS)
+
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition."""
-        requested = job.status == Job.STOPPING
+        """Persist a terminal status transition, then count it and record a succeeded job's duration."""
+        stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -147,7 +151,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
             return
-        self._increment_terminal_counter(job, requested=requested)
+        self._increment_terminal_counter(job, stop_landed=stop_landed)
+        if new_status == Job.SUCCEEDED:
+            self._record_execution_duration(job)
 
     def to_running(self, job: Job) -> None:
         """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
@@ -208,11 +214,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self.to_terminal(job, Job.STOPPED)
         return True
 
-    def _increment_terminal_counter(self, job: Job, *, requested: bool = False) -> None:
-        """Increment terminal jobs counter. `requested` means something asked this job to stop."""
+    def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
+        """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
         if job.filler:
             # A filler never counts as user demand, so it has its own two counters.
-            if requested:
+            if stop_landed:
                 self.metrics.increment_filler_jobs_stopped()
             else:
                 self.metrics.increment_filler_jobs_ended(job.status)

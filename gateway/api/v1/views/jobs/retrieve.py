@@ -176,14 +176,14 @@ def retrieve(request: Request, job_id: UUID) -> Response:
 
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
-    logger.info(
+    logger.debug(
         "[jobs-retrieve] user_id=%s job_id=%s accessible_functions=%s",
         user.id,
         job_id,
         accessible_functions,
     )
     job = JobRetrieveUseCase().execute(job_id, user, with_result, accessible_functions=accessible_functions)
-    logger.info(
+    logger.debug(
         "[jobs-retrieve] user_id=%s job_id=%s program=%s | Job retrieved ok",
         user.id,
         job_id,

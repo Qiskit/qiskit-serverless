@@ -85,7 +85,7 @@ def get_by_title(request: Request, title: str) -> Response:
     # comes from the query parameter. The shared helper still handles both, which is what the other
     # callers need, and it keeps the error identical if the route ever starts allowing a slash.
     function_title, provider_name = parse_title_and_provider(title, request.query_params.get("provider"))
-    logger.info(
+    logger.debug(
         "[programs-get-by-title] user_id=%s program=%s provider=%s accessible_functions=%s",
         user.id,
         function_title,
@@ -94,7 +94,7 @@ def get_by_title(request: Request, title: str) -> Response:
     )
 
     function = GetFunctionByTitleUseCase().execute(user, accessible_functions, function_title, provider_name)
-    logger.info(
+    logger.debug(
         "[programs-get-by-title] user_id=%s program=%s provider=%s | Function retrieved ok",
         user.id,
         function_title,

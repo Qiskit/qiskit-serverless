@@ -124,7 +124,7 @@ class TestValidatesTransitions:
             (Job.RUNNING, "pending_to_running"),
             (Job.SUCCEEDED, "to_stopped"),
             (Job.FAILED, "to_failed"),
-            (Job.STOPPING, "to_succeeded"),
+            (Job.STOPPING, "pending_to_running"),
         ],
     )
     def test_rejects_a_transition_outside_the_whitelist(self, service, current_status, transition):
@@ -322,8 +322,10 @@ class TestToTerminal:
     """to_terminal is to_succeeded, to_failed and to_stopped for the caller that only knows the final status."""
 
     @pytest.mark.parametrize("status", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
-    def test_writes_the_given_terminal_status(self, service, user, status):
-        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
+    # STOPPING is not a one-way door to STOPPED, and only a Fleets job ever reaches it
+    @pytest.mark.parametrize("start,runner", [(Job.RUNNING, Program.RAY), (Job.STOPPING, Program.FLEETS)])
+    def test_writes_the_given_terminal_status(self, service, user, status, start, runner):
+        job = Job.objects.create(author=user, runner=runner, status=start)
 
         service.to_terminal(job, status, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -556,4 +558,14 @@ class TestStop:
         usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert usage.payload["data"]["metric_value"] >= 100, "the window did not run to the confirmation"
         # A job seen in RUNNING owes the fee, so passing through STOPPING does not waive it.
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_a_job_that_succeeded_before_the_cancel_still_owes_its_fee(self, get_runner, service, user):
+        """The other detour: never seen RUNNING, so to_stopped would have waived the fee."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
