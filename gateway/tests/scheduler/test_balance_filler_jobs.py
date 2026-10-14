@@ -80,9 +80,9 @@ def _run(task, times=1):
 
 
 def _fake_submit(job, ctx, context=None):  # pylint: disable=unused-argument
-    """Stand in for FleetsJobSubmitter.submit: mark the job PENDING as a real submit would."""
+    """Stand in for FleetsJobSubmitter.submit: write PENDING and report that it was reached."""
     job.update_fields({"status": Job.PENDING})
-    return job
+    return True
 
 
 def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
