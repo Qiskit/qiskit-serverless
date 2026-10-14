@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    A request that reads or writes a Code Engine Fleets job's files in COS now
+    answers 503 "please retry" when Code Engine rate limits the gateway, answers
+    a 5xx, or the connection to it fails. It used to answer 500. This covers running a
+    function, and reading its logs, result and files.

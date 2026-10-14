@@ -27,6 +27,7 @@ from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
+from core.ibm_cloud.exceptions import CloudServiceUnavailableError
 from core.services.runners.abstract_runner import RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
@@ -607,6 +608,7 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
             RunnerError,
         ),
         (ReadTimeoutError(endpoint_url="https://cos"), RunnerRetryableError),
+        (CloudServiceUnavailableError("Code Engine API error: Too Many Requests"), RunnerRetryableError),
     ],
 )
 def test_submit_raises_the_error_type_for_each_cos_failure(error, expected):

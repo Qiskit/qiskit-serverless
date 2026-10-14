@@ -6,12 +6,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
+from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError, ReadTimeoutError
 
+from core.clients.runtime_api_errors import RuntimeApiRetryableError
 from core.ibm_cloud.clients import IBMCloudClientProvider, COS_PUBLIC_URL_TEMPLATE
 from core.ibm_cloud.code_engine.ce_client import ApiClient, Configuration, SecretsAndConfigmapsApi
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
+from core.ibm_cloud.exceptions import CloudServiceUnavailableError
 
 if TYPE_CHECKING:
     from core.models import CodeEngineProject
@@ -75,7 +78,8 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
     Raises:
         ValueError: If required settings are missing or the CE secret is not
             found / lacks the expected HMAC fields.
-        ApiException: If the CE secrets API call fails for a non-404 reason.
+        CloudServiceUnavailableError: If Code Engine or IAM answers 429 or 5xx, or the connection fails.
+        ApiException: If the CE secrets API call fails for any other reason.
     """
     return _create_cos_client(project)
 
@@ -105,7 +109,16 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
     except ApiException as exc:
         if exc.status == 404:
             raise ValueError(f"CE secret {hmac_secret_name!r} not found in project {project.project_id!r}") from exc
+        status = exc.status or 0
+        if status in (0, 429) or status >= 500:
+            raise CloudServiceUnavailableError(f"Code Engine API error: {exc.reason}") from exc
         raise
+    except MaxRetryError as exc:
+        if isinstance(exc.reason, NameResolutionError):
+            raise
+        raise CloudServiceUnavailableError("Unable to reach Code Engine") from exc
+    except (ReadTimeoutError, ProtocolError, RuntimeApiRetryableError) as exc:
+        raise CloudServiceUnavailableError("Unable to reach Code Engine or IBM Cloud IAM") from exc
 
     data: dict[str, Any] = secret.data if isinstance(secret.data, dict) else {}
     access_key_id = data.get("access_key_id", "")
