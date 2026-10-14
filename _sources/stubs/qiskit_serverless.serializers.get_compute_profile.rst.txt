@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.serializers.get\_compute\_profile
+====================================================
+
+.. currentmodule:: qiskit_serverless.serializers
+
+.. autofunction:: get_compute_profile

@@ -257,6 +257,8 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.serializers.service_serializer.html">qiskit_serverless.serializers.service_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.serializers.service_deserializer.html">qiskit_serverless.serializers.service_deserializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.serializers.get_arguments.html">qiskit_serverless.serializers.get_arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.serializers.get_function_size.html">qiskit_serverless.serializers.get_function_size</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.serializers.get_compute_profile.html">qiskit_serverless.serializers.get_compute_profile</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -311,6 +313,25 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
+<ul>
+<li><p>Running Qiskit Functions can now read the compute sizing their job resolved
+to, with two new helpers,
+<code class="xref py py-func docutils literal notranslate"><span class="pre">get_function_size()</span></code> and
+<code class="xref py py-func docutils literal notranslate"><span class="pre">get_compute_profile()</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_function_size</span><span class="p">,</span> <span class="n">get_compute_profile</span>
+
+<span class="n">get_function_size</span><span class="p">()</span>     <span class="c1"># e.g. "M"</span>
+<span class="n">get_compute_profile</span><span class="p">()</span>   <span class="c1"># e.g. "24x120x1a100p"</span>
+</pre></div>
+</div>
+<p>This lets a function check which <code class="docutils literal notranslate"><span class="pre">function_size</span></code> the user submitted and
+which compute profile it mapped to. Both are always set for Fleets jobs (the
+requested size, or the function’s default when none was requested) and are
+empty when sizes do not apply, i.e. a non-Fleets (Ray) job. The values are
+set by the gateway at job submission through the <code class="docutils literal notranslate"><span class="pre">ENV_JOB_FUNCTION_SIZE</span></code>
+and <code class="docutils literal notranslate"><span class="pre">ENV_JOB_COMPUTE_PROFILE</span></code> environment variables.</p>
+</li>
+</ul>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">qiskit-fermions==0.2.0</span></code> is now pre-baked in the Fleets selector and Ray
 runner images, and is advertised by

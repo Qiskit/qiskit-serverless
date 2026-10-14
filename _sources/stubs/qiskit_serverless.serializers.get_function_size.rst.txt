@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.serializers.get\_function\_size
+==================================================
+
+.. currentmodule:: qiskit_serverless.serializers
+
+.. autofunction:: get_function_size

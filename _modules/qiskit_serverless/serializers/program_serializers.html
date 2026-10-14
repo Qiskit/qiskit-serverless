@@ -257,6 +257,8 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.service_serializer.html">qiskit_serverless.serializers.service_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.service_deserializer.html">qiskit_serverless.serializers.service_deserializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.get_arguments.html">qiskit_serverless.serializers.get_arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.get_function_size.html">qiskit_serverless.serializers.get_function_size</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.get_compute_profile.html">qiskit_serverless.serializers.get_compute_profile</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -336,7 +338,11 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeDecoder</span><span class="p">,</span> <span class="n">RuntimeEncoder</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">ARGUMENTS_PATH</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ARGUMENTS_PATH</span><span class="p">,</span>
+    <span class="n">ENV_JOB_COMPUTE_PROFILE</span><span class="p">,</span>
+    <span class="n">ENV_JOB_FUNCTION_SIZE</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.exception</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitServerlessException</span>
 
 
@@ -414,6 +420,40 @@
         <span class="n">arguments</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
 
     <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_function_size"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.serializers.get_function_size.html#qiskit_serverless.serializers.get_function_size">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_function_size</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Returns the function size the running job resolved to.</span>
+
+<span class="sd">    Set by the gateway at job submission, this is the size the job runs at,</span>
+<span class="sd">    which lets a function check which size was chosen. It is always set for</span>
+<span class="sd">    Fleets jobs (the requested size, or the function's default when none was</span>
+<span class="sd">    requested).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The size label (e.g. ``"M"``). Empty when sizes do not apply, i.e. a</span>
+<span class="sd">        non-Fleets (Ray) job.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_FUNCTION_SIZE</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_compute_profile"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.serializers.get_compute_profile.html#qiskit_serverless.serializers.get_compute_profile">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_compute_profile</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Returns the compute profile the running job resolved to.</span>
+
+<span class="sd">    Set by the gateway at job submission, this is the profile the function size</span>
+<span class="sd">    mapped to, which lets a function check that the chosen size mapped to the</span>
+<span class="sd">    expected profile. It is always set for Fleets jobs.</span>
+
+<span class="sd">    This is the requested profile, i.e. the resource allocation the job runs</span>
+<span class="sd">    with. It is not the physical Code Engine worker node, which may be larger:</span>
+<span class="sd">    Code Engine can serve the requested allocation from a bigger node, and the</span>
+<span class="sd">    profile is the allocation the job is accounted for, not the node's size.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The compute profile (e.g. ``"24x120x1a100p"``). Empty when profiles do</span>
+<span class="sd">        not apply, i.e. a non-Fleets (Ray) job.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_COMPUTE_PROFILE</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span></div>
 </pre></div>
         </article>
       </div>
