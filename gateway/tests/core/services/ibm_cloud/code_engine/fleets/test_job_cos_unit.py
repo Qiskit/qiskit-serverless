@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
+from urllib3.exceptions import MaxRetryError, ReadTimeoutError
 
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud import get_cos_client
@@ -206,7 +207,9 @@ def test_get_cos_client_fetches_hmac_from_ce_secret() -> None:
 
         get_cos_client(project)
 
-    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(project_id="proj-id", name="cos-hmac")
+    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(
+        project_id="proj-id", name="cos-hmac", _request_timeout=(1, 3)
+    )
 
 
 def test_get_cos_client_passes_hmac_creds_to_cos_client() -> None:
@@ -320,6 +323,7 @@ def test_get_cos_client_raises_when_ce_secret_not_found() -> None:
     "error, expected",
     [
         (ApiException(status=429, reason="Too Many Requests"), RetryableError),
+        (MaxRetryError(None, "/", reason=ReadTimeoutError(None, "/", "Read timed out.")), RetryableError),
         (ApiException(status=403, reason="Forbidden"), ApiException),
     ],
 )

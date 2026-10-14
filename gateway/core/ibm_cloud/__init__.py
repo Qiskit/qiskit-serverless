@@ -25,6 +25,10 @@ _COS_CLIENT_TTL_SECONDS = 60
 _cos_clients: dict[tuple, tuple[JobCOS, float]] = {}
 _cos_clients_lock = threading.Lock()
 
+# (connect, read) seconds for the HMAC secret read. Deliberately tighter than the IAM budget: the IAM
+# fetch above it already costs up to 8s of the 25s a gunicorn request gets.
+_SECRET_TIMEOUT_SECONDS = (1, 3)
+
 
 @dataclass(frozen=True)
 class CEAuth:
@@ -102,7 +106,7 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
     Raises:
         ValueError: If required settings are missing or the CE secret is not
             found / lacks the expected HMAC fields.
-        RetryableError: If Code Engine or IAM answers 429 or 5xx, or the connection fails.
+        RetryableError: If Code Engine or IAM answers 429 or 5xx, or does not answer in time.
         ApiException: If the CE secrets API call fails for any other reason.
     """
     key = (project.project_id, project.region)
@@ -144,15 +148,19 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
 
     secrets_api = SecretsAndConfigmapsApi(ce_auth.api_client)
     try:
-        secret = secrets_api.get_secret(project_id=project.project_id, name=hmac_secret_name)
+        secret = secrets_api.get_secret(
+            project_id=project.project_id, name=hmac_secret_name, _request_timeout=_SECRET_TIMEOUT_SECONDS
+        )
     except ApiException as exc:
         if exc.status == 404:
             raise ValueError(f"CE secret {hmac_secret_name!r} not found in project {project.project_id!r}") from exc
+        # status 0 is the vendored client's answer when the request never left or came back unreadable
         status = exc.status or 0
         if status in (0, 429) or status >= 500:
             raise RetryableError(f"Code Engine API error: {exc.reason}", status_code=status) from exc
         raise
     except MaxRetryError as exc:
+        # a host that does not resolve is configuration, not a blip
         if isinstance(exc.reason, NameResolutionError):
             raise
         raise RetryableError("Unable to reach Code Engine") from exc
