@@ -422,5 +422,7 @@ mirrors a new Fleets job (flag `workloads.mirror.enabled`, a filler or a job wit
 it records the job in the `WorkloadMirror` table, and the enqueue (and the `QISKIT_FUNCTIONS_IDENTIFIER` variable of
 its container) depend on that row, not on the flag. So turning the flag off stops new jobs from being mirrored, and the
 jobs already mirrored still report their final status. A job the builder rejects (it has no program) is logged and not
-enqueued, because retrying cannot fix it. Any other failure keeps the row and retries it with a growing wait, so a
-configuration problem on our side delays the mirror instead of losing it.
+enqueued, because retrying cannot fix it. A `RetryableError` (including a missing or malformed key, a configuration
+problem on our side) keeps the row and retries it with a growing wait, so it delays the mirror instead of losing it, and
+any other error parks the row (see "Retryable and permanent errors"). The job leaves the `WorkloadMirror` table in the
+same transaction that enqueues its final status, because nothing reads the table after a terminal status.

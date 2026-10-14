@@ -329,6 +329,7 @@ class TestWorkloadOutbox:
         assert row.payload["function_id"] == str(job.id)
         assert row.payload["body"]["status"] == "Failed"
         assert row.payload["body"]["ended_at"] is not None
+        assert not WorkloadMirror.objects.filter(job=job).exists()  # nothing reads the table after a terminal status
 
     def test_a_job_that_is_not_mirrored_enqueues_nothing(self, service, user):
         job = _licensed_fleets_job(user, Job.RUNNING)
@@ -355,6 +356,7 @@ class TestWorkloadOutbox:
         job.refresh_from_db()
         assert job.status == Job.FAILED
         assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
         assert "cannot be mirrored" in caplog.text
 
 

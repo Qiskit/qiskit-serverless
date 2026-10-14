@@ -20,7 +20,7 @@ from core.domain.workload_payload import build_workload_payload, is_mirrored
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
+from core.models import Job, JobEvent, Outbox, OutboxChannel, Program, WorkloadMirror
 from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
 
 logger = logging.getLogger("core.JobTransitionService")
@@ -248,7 +248,8 @@ class JobTransitionService:
     def _enqueue_workload(self, job: Job) -> None:
         """The final status of a mirrored job, to send it to the Runtime API. A job the payload builder rejects (it
         has no program) is logged and skipped, not enqueued: trying again cannot fix it, and it must not roll back the
-        transition."""
+        transition. Either way this is the last step of the mirror, so the job leaves the WorkloadMirror table: the
+        outbox row carries the payload and nothing reads the table after a terminal status."""
         if is_mirrored(job):
             try:
                 payload = build_workload_payload(job)
@@ -258,6 +259,7 @@ class JobTransitionService:
                 Outbox.objects.create(
                     job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload
                 )
+            WorkloadMirror.objects.filter(job_id=job.id).delete()
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
