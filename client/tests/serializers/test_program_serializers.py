@@ -101,9 +101,9 @@ class TestComputeInfo:
 
     def test_values_present(self):
         """Both values are returned when the gateway set them."""
-        env = {ENV_JOB_COMPUTE_PROFILE: "24x120x1a100p", ENV_JOB_FUNCTION_SIZE: "m"}
+        env = {ENV_JOB_COMPUTE_PROFILE: "24x120x1a100p", ENV_JOB_FUNCTION_SIZE: "M"}
         with patch.dict(os.environ, env):
-            assert get_function_size() == "m"
+            assert get_function_size() == "M"
             assert get_compute_profile() == "24x120x1a100p"
 
     def test_values_empty_when_not_applicable(self):

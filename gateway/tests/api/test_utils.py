@@ -336,7 +336,7 @@ class TestUtils:
             job_author_username="USER",
             program_title="my-function",
             compute_profile="24x120x1a100p",
-            function_size="m",
+            function_size="M",
         )
 
         env_vars = build_env_variables(
@@ -349,7 +349,7 @@ class TestUtils:
         )
 
         assert env_vars["ENV_JOB_COMPUTE_PROFILE"] == "24x120x1a100p"
-        assert env_vars["ENV_JOB_FUNCTION_SIZE"] == "m"
+        assert env_vars["ENV_JOB_FUNCTION_SIZE"] == "M"
 
     def test_encryption(self, settings):
         """Tests encryption utils."""

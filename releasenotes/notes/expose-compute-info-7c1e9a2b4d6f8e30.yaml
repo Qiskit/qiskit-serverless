@@ -8,7 +8,7 @@ features:
 
         from qiskit_serverless import get_function_size, get_compute_profile
 
-        get_function_size()     # e.g. "m"
+        get_function_size()     # e.g. "M"
         get_compute_profile()   # e.g. "24x120x1a100p"
 
     This lets a function check which ``function_size`` the user submitted and

@@ -127,7 +127,7 @@ def get_function_size() -> str:
     requested).
 
     Returns:
-        The size label (e.g. ``"m"``). Empty when sizes do not apply, i.e. a
+        The size label (e.g. ``"M"``). Empty when sizes do not apply, i.e. a
         non-Fleets (Ray) job.
     """
     return os.environ.get(ENV_JOB_FUNCTION_SIZE, "")
