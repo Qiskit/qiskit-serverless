@@ -8,6 +8,7 @@ from core.services.runners.ray_runner import FilteredLogs
 from prometheus_client import CollectorRegistry
 
 import pytest
+from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
@@ -17,6 +18,7 @@ from core.model_managers.job_events import JobEventContext
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.job_transitions import JobTransitionService
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
@@ -194,13 +196,11 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)
+        FleetsJobSubmitter(transitions).submit(job, ctx)  # returning is the success signal
 
         mock_runner.submit.assert_called_once()
-        assert ret_job.status == Job.PENDING
-        assert ret_job.env_vars == "{}"
+        assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
         transitions.queued_to_pending.assert_called_once()
-        assert transitions.queued_to_pending.call_args.kwargs["job_fields"]["env_vars"] == "{}"
         transitions.to_failed.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
@@ -217,14 +217,17 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)
+        with pytest.raises(RunnerError) as exc:
+            FleetsJobSubmitter(transitions).submit(job, ctx)
+        assert type(exc.value) is RunnerError
 
         mock_runner.submit.assert_called_once()
-        assert ret_job.status == Job.FAILED
-        assert ret_job.env_vars == "{}"
         transitions.to_failed.assert_called_once()
-        assert transitions.to_failed.call_args.kwargs["job_fields"]["env_vars"] == "{}"
+        # the spent env vars are cleared on their own, the transition writes only the status
+        assert job.update_fields.call_args.args[0] == {"env_vars": "{}"}
+        assert "job_fields" not in transitions.to_failed.call_args.kwargs
         transitions.queued_to_pending.assert_not_called()
+        mock_runner.stop.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
@@ -293,7 +296,8 @@ class TestScheduleApi(APITestCase):
 
         submitter = FleetsJobSubmitter(MagicMock())
 
-        submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
+        with pytest.raises(RunnerError):
+            submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
         assert submitter.paused("us-east") is False
 
@@ -316,12 +320,10 @@ class TestScheduleApi(APITestCase):
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_does_not_raise_when_the_job_already_turned_terminal(
-        self, mock_trace, mock_get_runner_client
-    ):
-        """Lost the race: something else (e.g. a user-initiated stop) already moved the job to
-        a terminal status while it was being submitted. The transition raises
-        InvalidJobTransitionException; this must not propagate and crash the scheduler tick."""
+    def test_fleets_submit_reports_the_lost_race_to_its_caller(self, mock_trace, mock_get_runner_client):
+        """Lost the race: something else (e.g. a user-initiated stop) already moved the job to a
+        terminal status while it was being submitted. The fleet exists by then, so it must be
+        recorded on the row and cancelled, and the tick must not crash."""
         mock_runner = MagicMock()
         mock_get_runner_client.return_value = mock_runner
         transitions = MagicMock()
@@ -334,14 +336,16 @@ class TestScheduleApi(APITestCase):
         job.logs = ""
 
         ctx = MagicMock()
-        ret_job = FleetsJobSubmitter(transitions).submit(job, ctx)  # must not raise
+        with pytest.raises(InvalidJobTransitionException):
+            FleetsJobSubmitter(transitions).submit(job, ctx)
 
-        assert ret_job.status == Job.PENDING
+        assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
+        mock_runner.stop.assert_called_once()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_does_not_raise_when_a_failed_submit_lost_the_race(self, mock_trace, mock_get_runner_client):
-        """Same race when the submit failed: the job is returned as FAILED, like the caller expects."""
+    def test_fleets_submit_reports_a_failed_submit_that_also_lost_the_race(self, mock_trace, mock_get_runner_client):
+        """Same race when the submit failed: no fleet exists, so there is nothing to cancel."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
         mock_get_runner_client.return_value = mock_runner
@@ -352,20 +356,21 @@ class TestScheduleApi(APITestCase):
         job.status = Job.QUEUED
         job.logs = ""
 
-        ret_job = FleetsJobSubmitter(transitions).submit(job, MagicMock())  # must not raise
+        with pytest.raises(RunnerError):
+            FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
-        assert ret_job.status == Job.FAILED
+        mock_runner.stop.assert_not_called()
 
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_returns_the_status_it_ended_with_when_the_transition_fails(
+    def test_fleets_submit_records_the_fleet_even_when_the_status_write_blows_up(
         self, mock_trace, mock_get_runner_client
     ):
-        """A failing transition propagates, but the job already carries the status the submit ended with:
-        the filler balancer reads it to tell 'raised before runner.submit()' from 'raised after'."""
-        mock_get_runner_client.return_value.submit.side_effect = RunnerError("Submit failed")
+        """The fleet id is written before the transition and on its own, so a status write that dies
+        for any reason, not only a refused transition, still leaves the fleet findable."""
+        mock_get_runner_client.return_value.submit.return_value = None
         transitions = MagicMock()
-        transitions.to_failed.side_effect = RuntimeError("db down")
+        transitions.queued_to_pending.side_effect = RuntimeError("db down")
 
         job = MagicMock()
         job.status = Job.QUEUED
@@ -374,7 +379,7 @@ class TestScheduleApi(APITestCase):
         with pytest.raises(RuntimeError, match="db down"):
             FleetsJobSubmitter(transitions).submit(job, MagicMock())
 
-        assert job.status == Job.FAILED
+        assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
 
     @patch("scheduler.tasks.update_ray_jobs_statuses.get_runner")
     def test_job_runtime_limit(self, get_runner):
@@ -433,6 +438,57 @@ class TestScheduleApi(APITestCase):
             assert len(job_events) == 3
 
 
+@pytest.mark.django_db(transaction=True)
+def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
+    """The staging race of 2026-10-12, against the real transition service and the database.
+
+    The stop endpoint wrote STOPPED while Code Engine was still creating the fleet. The fleet then
+    ran the task to the end with nothing tracking it, because fleet_id only reached the database
+    through the status transition that was refused.
+    """
+    author = User.objects.create_user(username="submit-race-author")
+    job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED, env_vars='{"KEY": "value"}')
+
+    runner = MagicMock()
+
+    def create_the_fleet_then_lose_the_race():
+        job.fleet_id = "fleet-created-anyway"
+        # what the stop endpoint did, three seconds before Code Engine answered
+        Job.objects.filter(pk=job.pk).update(status=Job.STOPPED)
+
+    runner.submit.side_effect = create_the_fleet_then_lose_the_race
+
+    with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
+        with pytest.raises(InvalidJobTransitionException):
+            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(job, None)
+
+    job.refresh_from_db()
+    assert job.status == Job.STOPPED
+    assert job.fleet_id == "fleet-created-anyway"
+    assert job.env_vars == "{}"
+    runner.stop.assert_called_once()
+
+
+def test_a_cancel_that_fails_leaves_the_fleet_on_the_row_and_on_the_timeline():
+    """The row is terminal, so nothing retries this cancel. The job timeline is the only signal."""
+    runner = MagicMock()
+    runner.stop.side_effect = RunnerRetryableError("Too Many Requests")
+    transitions = MagicMock()
+    transitions.queued_to_pending.side_effect = InvalidJobTransitionException("STOPPED -> PENDING")
+    job = MagicMock(status=Job.QUEUED, logs="")
+
+    with (
+        patch("scheduler.schedule.get_runner", return_value=runner),
+        patch("scheduler.schedule.trace"),
+        patch("scheduler.schedule.JobEvent") as mock_event,
+    ):
+        with pytest.raises(InvalidJobTransitionException):
+            FleetsJobSubmitter(transitions).submit(job, None)
+
+    assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
+    assert mock_event.objects.add_error_event.call_args.kwargs["code"] == "FLEET_LEFT_RUNNING"
+
+
 def test_fleets_submit_records_the_given_event_context():
     """The JobEvent context is the caller's, defaulting to SCHEDULE_JOBS."""
     mock_job = MagicMock()
@@ -484,25 +540,25 @@ class TestFleetsJobCanceller:
     """The scheduler's cancel: one try, and the region's breaker decides when to try again."""
 
     @staticmethod
-    def _canceller(side_effect=None, returns=True, breakers=None):
+    def _canceller(side_effect=None, returns=Job.STOPPING, breakers=None):
         transitions = MagicMock()
         if side_effect is not None:
-            transitions.try_stop.side_effect = side_effect
+            transitions.stop.side_effect = side_effect
         else:
-            transitions.try_stop.return_value = returns
+            transitions.stop.return_value = returns
         return FleetsJobCanceller(transitions, breakers), transitions
 
-    def test_a_cancel_that_landed_returns_what_try_stop_returned(self):
-        canceller, transitions = self._canceller(returns=True)
+    def test_a_cancel_that_landed_reports_stopping(self):
+        canceller, transitions = self._canceller(returns=Job.STOPPING)
         job = MagicMock(ce_region="us-east")
 
         assert canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS) is True
         assert canceller.paused("us-east") is False
-        transitions.try_stop.assert_called_once()
+        transitions.stop.assert_called_once()
 
     def test_a_cancel_that_lands_lets_a_later_refusal_report_again(self):
         """Without the discard the set only ever grows, and a job that recovers stays silenced."""
-        canceller, _ = self._canceller(returns=True)
+        canceller, _ = self._canceller(returns=Job.STOPPING)
         job = MagicMock(ce_region="us-east")
         _REFUSED_CANCEL_WARNED.add(str(job.id))
 
@@ -513,7 +569,7 @@ class TestFleetsJobCanceller:
     def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
         """False is Code Engine's own 404, so the region is answering."""
         _open_breakers_after_one_failure()
-        canceller, _ = self._canceller(returns=False)
+        canceller, _ = self._canceller(returns=Job.STOPPED)
 
         assert canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS) is False
         assert canceller.paused("us-east") is False
@@ -539,10 +595,10 @@ class TestFleetsJobCanceller:
             canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert canceller.paused("us-east") is True
-        assert transitions.try_stop.call_count == 2
+        assert transitions.stop.call_count == 2
 
     def test_a_cancel_that_landed_and_lost_the_race_counts_as_an_answer(self):
-        """try_stop sends the cancel before it opens the transaction, so Code Engine answered even
+        """stop() sends the cancel before it opens the transaction, so Code Engine answered even
         though the row moved underneath. Counting nothing would leave a working region's streak up."""
         Config.add_defaults()
         Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "2")
@@ -555,7 +611,7 @@ class TestFleetsJobCanceller:
             InvalidJobTransitionException("STOPPED -> STOPPING"),
             RunnerRetryableError("Too Many Requests"),
         ):
-            transitions.try_stop.side_effect = error
+            transitions.stop.side_effect = error
             with pytest.raises(type(error)):
                 canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -589,7 +645,7 @@ class TestFleetsJobCanceller:
             with pytest.raises(RunnerRetryableError):
                 canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
 
-        transitions.try_stop.assert_called_once()
+        transitions.stop.assert_called_once()
 
     def test_a_failed_cancel_pauses_the_submit_in_the_same_region_only(self):
         """A region answers the same way to both, so one breaker holds the fact for the whole region."""

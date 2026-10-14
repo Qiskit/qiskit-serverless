@@ -277,7 +277,7 @@ class BalanceFillerJobs(SchedulerTask):
             return False
 
         try:
-            job = self.submitter.submit(
+            self.submitter.submit(
                 job,
                 TraceContextTextMapPropagator().extract(carrier={}),
                 context=JobEventContext.FILLER_SUBMIT,
@@ -288,6 +288,11 @@ class BalanceFillerJobs(SchedulerTask):
             self._mark_failed(job)
             self._log_creation_failed(ex)
             raise
+        except InvalidJobTransitionException as ex:
+            # Something stopped this filler while it was being submitted, and submit() cancelled its
+            # fleet. Not a failed creation: we no longer want it.
+            logger.info("[BalanceFillerJobs] job_id=%s filler job was stopped while submitting: %s", job.id, ex)
+            return False
         except Exception as ex:  # pylint: disable=broad-exception-caught
             if job.status == Job.QUEUED and not job.fleet_id:
                 # It raised before any write, so no fleet exists and this row is
@@ -297,11 +302,9 @@ class BalanceFillerJobs(SchedulerTask):
             self._log_creation_failed(ex)
             return False
 
-        submitted = job.status == Job.PENDING
-        self.metrics.increment_filler_jobs_created("submitted" if submitted else "failed")
-        logger.info("[BalanceFillerJobs] job_id=%s filler job submitted with status=%s", job.id, job.status)
-        # Not reaching PENDING means submit() swallowed a RunnerError.
-        return submitted
+        self.metrics.increment_filler_jobs_created("submitted")
+        logger.info("[BalanceFillerJobs] job_id=%s filler job submitted", job.id)
+        return True
 
     def _log_creation_failed(self, ex: Exception) -> None:
         """Report a failed creation.
@@ -331,7 +334,6 @@ class BalanceFillerJobs(SchedulerTask):
                 # STOPPING: the status poller counts it when it writes the terminal status.
                 logger.info("[BalanceFillerJobs] job_id=%s filler job cancel sent", job.id)
                 return
-            self.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_STOP)
         except RunnerRetryableError as ex:
             # Left active: a status change here would claim a cancel that never left.
             logger.warning(
@@ -351,7 +353,8 @@ class BalanceFillerJobs(SchedulerTask):
             logger.info("[BalanceFillerJobs] job_id=%s transition rejected, skipping the stop", job.id)
             return
 
-        # Terminal already, so the poller never sees this row and this is the only place to count it.
+        # stop() wrote STOPPED itself, so the poller never sees this row and this is the only
+        # place to count it.
         self.metrics.increment_filler_jobs_stopped()
         logger.info("[BalanceFillerJobs] job_id=%s filler job stopped, nothing to cancel", job.id)
 
