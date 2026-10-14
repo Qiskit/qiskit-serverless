@@ -7,8 +7,6 @@ from core.ibm_cloud.event_streams.kafka_consumer import InvalidEventError
 from core.models import BlockedCloudResource
 from core.services.blocked_account_events import BlockedAccountEventsService
 
-_QUANTUM = "quantum.production.blocked-account-plans.v1"
-_NON_QUANTUM = "quantum.production.blocked-account-plans-non-quantum.v1"
 _MISSING = object()
 
 
@@ -16,12 +14,12 @@ def _event(account="acc-1", plan="plan-1", subscription="sub-1", **extra) -> dic
     return {"account_id": account, "plan_id": plan, "subscription_id": subscription, **extra}
 
 
-def _handle(payload: dict, topic: str = _QUANTUM) -> None:
-    BlockedAccountEventsService().handle(payload, "key", "us-east", topic)
+def _handle(payload: dict) -> None:
+    BlockedAccountEventsService().handle(payload, "key", "us-east")
 
 
 def _rows() -> list[tuple]:
-    return sorted(BlockedCloudResource.objects.values_list("account", "plan", "subscription", "source"))
+    return sorted(BlockedCloudResource.objects.values_list("account", "plan", "subscription"))
 
 
 @pytest.mark.django_db
@@ -30,25 +28,13 @@ class TestBlock:
     def test_an_event_not_deleted_blocks_the_resource(self, extra):
         _handle(_event(**extra))
 
-        assert _rows() == [("acc-1", "plan-1", "sub-1", "blocked-account-plans.v1")]
+        assert _rows() == [("acc-1", "plan-1", "sub-1")]
 
     def test_the_same_event_twice_leaves_one_row(self):
         _handle(_event())
         _handle(_event())
 
         assert len(_rows()) == 1
-
-    def test_either_topic_blocks_the_same_resource_with_one_row(self):
-        _handle(_event(), topic=_NON_QUANTUM)
-        _handle(_event(), topic=_QUANTUM)
-
-        assert len(_rows()) == 1
-
-    def test_the_row_keeps_the_source_of_the_first_block(self):
-        _handle(_event(), topic=_NON_QUANTUM)
-        _handle(_event(), topic=_QUANTUM)
-
-        assert _rows() == [("acc-1", "plan-1", "sub-1", "blocked-account-plans-non-quantum.v1")]
 
     def test_a_different_scope_is_another_row(self):
         _handle(_event(subscription="sub-1"))
@@ -69,14 +55,7 @@ class TestUnblock:
         _handle(_event(subscription="other"))
         _handle(_event(deleted=True))
 
-        assert _rows() == [("acc-1", "plan-1", "other", "blocked-account-plans.v1")]
-
-    def test_a_deleted_event_from_either_topic_removes_the_row(self):
-        """Blocked by one topic and recovered in the other: the topics are equivalent."""
-        _handle(_event(), topic=_QUANTUM)
-        _handle(_event(deleted=True), topic=_NON_QUANTUM)
-
-        assert not _rows()
+        assert _rows() == [("acc-1", "plan-1", "other")]
 
 
 @pytest.mark.django_db
@@ -119,9 +98,3 @@ class TestInvalid:
             _handle(_event(deleted=deleted))
 
         assert len(_rows()) == 1
-
-    def test_an_unknown_topic_is_invalid(self):
-        with pytest.raises(InvalidEventError, match="not a blocked-account-plan topic"):
-            _handle(_event(), topic="quantum.production.something-else.v1")
-
-        assert not _rows()

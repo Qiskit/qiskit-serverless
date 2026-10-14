@@ -55,8 +55,8 @@ CONSUMER_ERROR = "consumer_error"
 COMMIT_ERROR = "commit_error"
 FATAL = "fatal"
 
-# (payload, key, region, topic)
-EventHandler = Callable[[dict, str | None, str, str], None]
+# (payload, key, region)
+EventHandler = Callable[[dict, str | None, str], None]
 
 
 class InvalidEventError(Exception):
@@ -180,7 +180,7 @@ class KafkaRegionalConsumer:
         key = msg.key().decode("utf-8", errors="replace") if msg.key() is not None else None
         try:
             payload = self._deserialize(msg.value())
-            self._handler(payload, key, region, msg.topic())
+            self._handler(payload, key, region)
         except InvalidEventError as e:
             self._stats.add(region, INVALID)
             logger.error("Invalid event, skipping it: region=%s topic=%s error=%s", region, msg.topic(), str(e))

@@ -21,16 +21,6 @@ class Migration(migrations.Migration):
                 ("account", models.CharField(blank=True, default=None, max_length=255, null=True)),
                 ("plan", models.CharField(blank=True, default=None, max_length=255, null=True)),
                 ("subscription", models.CharField(blank=True, default=None, max_length=255, null=True)),
-                (
-                    "source",
-                    models.CharField(
-                        choices=[
-                            ("blocked-account-plans.v1", "Blocked Account Plans"),
-                            ("blocked-account-plans-non-quantum.v1", "Blocked Account Plans Non Quantum"),
-                        ],
-                        max_length=64,
-                    ),
-                ),
             ],
             options={
                 "constraints": [

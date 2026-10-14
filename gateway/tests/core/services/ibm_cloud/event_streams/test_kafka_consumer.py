@@ -188,7 +188,7 @@ class TestDrain:
         with patch(f"{_MOD}.Consumer", return_value=kafka):
             stats = _drain(_consumer(handler))
 
-        handler.assert_called_once_with({"account_id": "acc-1"}, "k1", "us-east", "topic-a")
+        handler.assert_called_once_with({"account_id": "acc-1"}, "k1", "us-east")
         assert stats.counts[("us-east", "handled")] == 1
 
     def test_drain_commits_the_next_offset_of_each_partition_asynchronously(self, settings):
@@ -274,7 +274,7 @@ class TestPayloads:
                 stats = _drain(_consumer(handler))
 
         assert "Invalid event, skipping it" in caplog.text
-        handler.assert_called_once_with({"account_id": "after"}, "acc-key", "us-east", "topic-a")
+        handler.assert_called_once_with({"account_id": "after"}, "acc-key", "us-east")
         assert _committed(kafka) == [("topic-a", 0, 6)]
         assert stats.counts[("us-east", "invalid")] == 1
 
@@ -312,17 +312,7 @@ class TestPayloads:
         with patch(f"{_MOD}.Consumer", return_value=kafka):
             _drain(_consumer(handler))
 
-        handler.assert_called_once_with({"account_id": "a"}, None, "us-east", "topic-a")
-
-    def test_the_handler_is_told_the_topic_of_each_message(self, settings):
-        _configure(settings)
-        handler = MagicMock()
-        kafka = _kafka([_message({"n": 1}, topic="topic-a"), _message({"n": 2}, topic="topic-b")])
-
-        with patch(f"{_MOD}.Consumer", return_value=kafka):
-            _drain(_consumer(handler))
-
-        assert [c.args[3] for c in handler.call_args_list] == ["topic-a", "topic-b"]
+        handler.assert_called_once_with({"account_id": "a"}, None, "us-east")
 
 
 def _assigned(kafka, positions: dict[tuple[str, int], int], high_watermarks: dict[tuple[str, int], int]) -> None:
@@ -436,7 +426,7 @@ class TestTransientFailures:
         main = _kafka([_message({"region": "main"})])
         eu = _kafka([_message({"region": "eu"})])
 
-        def handler(payload, key, region, topic):  # pylint: disable=unused-argument
+        def handler(payload, key, region):  # pylint: disable=unused-argument
             if region == "us-east":
                 raise RuntimeError("db down")
 

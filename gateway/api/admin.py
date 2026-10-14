@@ -183,8 +183,8 @@ class FunctionSizeAdmin(admin.ModelAdmin):
 class BlockedCloudResourceAdmin(admin.ModelAdmin):
     """BlockedCloudResourceAdmin."""
 
-    list_display = ["account", "plan", "subscription", "source", "created", "updated"]
-    list_filter = ["source", "created", "updated"]
+    list_display = ["account", "plan", "subscription", "created", "updated"]
+    list_filter = ["created", "updated"]
     search_fields = ["account", "plan", "subscription"]
     readonly_fields = ["created", "updated", "id"]
 
