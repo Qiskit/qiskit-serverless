@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.17
+# syntax=docker/dockerfile:1.28
 # This code is part of a Qiskit project.
 #
 # (C) IBM 2026

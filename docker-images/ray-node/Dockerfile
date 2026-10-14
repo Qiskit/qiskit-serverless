@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.17
+# syntax=docker/dockerfile:1.28
 FROM registry.access.redhat.com/ubi9-minimal:9.8-1789546276 AS base
 ARG PYTHON_VERSION=3.12
 
