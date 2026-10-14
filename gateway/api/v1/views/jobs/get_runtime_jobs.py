@@ -56,5 +56,5 @@ def get_runtime_jobs(request: Request, job_id: UUID) -> Response:
     """Retrieve runtime jobs for a job."""
     user = cast(AbstractUser, request.user)
     out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id, user)
-    logger.info("[jobs-runtime-jobs:get] user_id=%s job_id=%s | Runtime jobs retrieved ok", user.id, job_id)
+    logger.debug("[jobs-runtime-jobs:get] user_id=%s job_id=%s | Runtime jobs retrieved ok", user.id, job_id)
     return Response(serialize_output(out_runtime_jobs))

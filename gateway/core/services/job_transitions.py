@@ -57,7 +57,8 @@ class JobTransitionService:
         Job.QUEUED: {Job.PENDING, Job.FAILED, Job.STOPPED, Job.STOPPING},
         Job.PENDING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING, Job.RUNNING},
         Job.RUNNING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING},
-        Job.STOPPING: {Job.STOPPED},
+        # a job can finish or fail while its cancel is in flight
+        Job.STOPPING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED},
         # terminal states have no next valid state
         Job.SUCCEEDED: set(),
         Job.FAILED: set(),
