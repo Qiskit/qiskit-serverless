@@ -26,6 +26,7 @@ from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
+from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
 from core.services.runners.abstract_runner import RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
@@ -79,6 +80,8 @@ def _patch_settings(**overrides):
         "FLEETS_GATEWAY_HOST": None,
         "CUSTOM_IMAGE_PACKAGE_PATH": "/runner",
         "CUSTOM_IMAGE_PACKAGE_NAME": "runner",
+        # Rendered into the fleet wrapper templates; must be a real string so json.dumps works.
+        "QISKIT_USER_CONFIG": "[default]\nmin_qpy_version = 13\n",
     }
     defaults.update(overrides)
     with (
@@ -428,6 +431,29 @@ def test_stop_asks_again_for_every_cancel_that_did_not_land(error):
     assert type(exc.value) is RunnerRetryableError
 
 
+def test_stop_reports_an_iam_failure_during_the_cancel_as_retryable():
+    """The token is read per request now, so an IAM failure arrives from cancel_job instead of from
+    building the client. Without this it reads as a cancel the scheduler must not retry."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.cancel_job.side_effect = RuntimeApiRetryableError("Could not get an IAM token")
+
+    with pytest.raises(RunnerError) as exc:
+        runner.stop()
+
+    assert type(exc.value) is RunnerRetryableError
+
+
+def test_stop_reports_a_rejected_api_key_as_permanent():
+    """A key IAM refuses is not worth retrying every tick."""
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.cancel_job.side_effect = RuntimeApiError("IAM rejected the API key (status 403)")
+
+    with pytest.raises(RunnerError) as exc:
+        runner.stop()
+
+    assert type(exc.value) is RunnerError
+
+
 def test_stop_reports_an_unreachable_code_engine_as_retryable():
     """connect() and _get_handler() flatten every IAM failure into RunnerError, which would
     otherwise reach the scheduler as a cancel it should not retry, and never open the breaker."""
@@ -500,6 +526,18 @@ def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
         runner.submit()
 
     assert runner.job.fleet_id == "existing-fleet"
+
+
+def test_submit_reports_an_iam_failure_as_retryable():
+    """Without this an IAM blip marks the job FAILED, which it never comes back from."""
+    runner, mock_handler = _make_submit_runner()
+    mock_handler.submit_job.side_effect = RuntimeApiRetryableError("Could not get an IAM token")
+
+    with _patch_settings():
+        with pytest.raises(RunnerError) as exc:
+            runner.submit()
+
+    assert type(exc.value) is RunnerRetryableError
 
 
 def test_submit_fails_a_name_conflict_the_lookup_could_not_resolve():

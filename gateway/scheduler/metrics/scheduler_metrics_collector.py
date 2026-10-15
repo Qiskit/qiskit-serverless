@@ -156,6 +156,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("region", "kind"),
             registry=self.registry,
         )
+        self.blocked_account_consumer_lag = Gauge(
+            "scheduler_blocked_account_consumer_lag",
+            "Blocked-account-plan messages not yet consumed, by region and topic, over the partitions this "
+            "scheduler holds. Sum it across schedulers for the group's lag.",
+            labelnames=("region", "topic"),
+            registry=self.registry,
+        )
 
         SystemMetricsCollector(registry=self.registry)
 
@@ -201,6 +208,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def increment_blocked_account_consumer_error(self, region: str, kind: str, count: int = 1) -> None:
         """Count blocked-account-plan consumer errors. kind: consumer, commit or fatal."""
         self.blocked_account_consumer_errors_total.labels(region=region, kind=kind).inc(count)
+
+    def set_blocked_account_consumer_lag(self, region: str, topic: str, lag: int) -> None:
+        """Set how many messages of a topic the blocked-account-plan consumer of a region is behind."""
+        self.blocked_account_consumer_lag.labels(region=region, topic=topic).set(lag)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""

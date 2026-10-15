@@ -10,6 +10,7 @@ answering garbage). The key and the token are never logged.
 """
 
 import logging
+from functools import lru_cache
 
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
@@ -68,3 +69,13 @@ class IamTokenProvider:
         a failure every later call would then sleep for up to 60 s waiting for a request that is already over. Clear
         the mark so the next call asks IAM again."""
         self._authenticator.token_manager.request_time = 0
+
+
+# This is a singleton actually
+@lru_cache(maxsize=1)
+def get_iam_token_provider(api_key: str, iam_url: str) -> IamTokenProvider:
+    """Singleton per credentials: the provider for this ``api_key`` and ``iam_url``, built the first time it is asked
+    for (``lru_cache`` is the lazy singleton). The SDK caches the token on the provider, so building one per call would
+    fetch a token and throw that cache away. Nothing is cached when the key is rejected, so the next call tries again.
+    """
+    return IamTokenProvider(api_key, iam_url)

@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The size label declared for a function is now restricted to ``S``, ``M``, ``L``
+    and ``XL``. A size outside this catalog is rejected on ``/programs/upload``. A
+    size is accepted case-insensitively and stored and read back in uppercase.

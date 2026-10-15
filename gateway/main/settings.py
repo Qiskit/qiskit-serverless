@@ -432,7 +432,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -478,6 +478,12 @@ RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-ea
 # API key of the service credential that holds the functions operator role, used to call the Runtime API as a service
 # (core/clients/functions_operator_client.py).
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
+
+# Shared per-process thread pool for background work (core/services/background_executor.py): how many threads it
+# has, and how many tasks may be submitted and unfinished before new ones are dropped. Each caller (BackgroundPool) is
+# guaranteed a minimum share of the pending limit.
+BACKGROUND_EXECUTOR_MAX_WORKERS = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_WORKERS", "4"))
+BACKGROUND_EXECUTOR_MAX_PENDING = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_PENDING", "100"))
 
 # IBM Cloud
 
@@ -611,7 +617,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.37.0",
 )
 
 
@@ -663,6 +669,19 @@ FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALO
 # Set to "true" on staging to enable experimental features in the container.
 FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
+
+# Qiskit user config (settings.conf) injected into every Ray and Fleets job container.
+# QISKIT_SETTINGS points at it; a function's own config is not read (Qiskit reads one file).
+QISKIT_MIN_QPY_VERSION = int(os.environ.get("QISKIT_MIN_QPY_VERSION", "13"))
+QISKIT_SETTINGS_CONTAINER_PATH = os.environ.get("QISKIT_SETTINGS_CONTAINER_PATH", "/tmp/qiskit/settings.conf")
+
+
+def _render_qiskit_user_config() -> str:
+    """Return the INI contents of the gateway-owned Qiskit user configuration file."""
+    return f"[default]\nmin_qpy_version = {QISKIT_MIN_QPY_VERSION}\n"
+
+
+QISKIT_USER_CONFIG = _render_qiskit_user_config()
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).

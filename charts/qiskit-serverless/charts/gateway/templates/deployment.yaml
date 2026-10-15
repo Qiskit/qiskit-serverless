@@ -276,6 +276,10 @@ spec:
             {{- end }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_WORKERS
+              value: {{ .Values.application.backgroundExecutor.gateway.maxWorkers | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_PENDING
+              value: {{ .Values.application.backgroundExecutor.gateway.maxPending | quote }}
             - name: SECURE_HSTS_SECONDS
               value: {{ .Values.application.security.hstsSeconds | quote }}
             - name: SECURE_HSTS_INCLUDE_SUBDOMAINS
@@ -518,6 +522,10 @@ spec:
               value: {{ .Values.application.limits.programTimeoutHours | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_WORKERS
+              value: {{ .Values.application.backgroundExecutor.scheduler.maxWorkers | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_PENDING
+              value: {{ .Values.application.backgroundExecutor.scheduler.maxPending | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
             {{- if .Values.application.ibmCloudFidApiKey.enabled }}

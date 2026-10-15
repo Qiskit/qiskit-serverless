@@ -73,11 +73,11 @@ def get_logs(request: Request, job_id: UUID) -> Response:
     result = GetJobLogsUseCase().execute(job_id, user)
 
     if result.redirect_url:
-        logger.info("[jobs-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+        logger.debug("[jobs-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
         return HttpResponseRedirect(result.redirect_url)
 
     if result.raw_log is None:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    logger.info("[jobs-logs] user_id=%s job_id=%s | Logs retrieved ok", user.id, job_id)
+    logger.debug("[jobs-logs] user_id=%s job_id=%s | Logs retrieved ok", user.id, job_id)
     return Response(serialize_output(result.raw_log))

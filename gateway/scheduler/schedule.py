@@ -19,7 +19,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerRetryableError
+from core.services.runners import get_runner, AbstractRunner, RunnerError, RunnerRetryableError
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
@@ -94,11 +94,13 @@ class FleetsJobSubmitter:
         """Whether the breaker of this region is open."""
         return self.breakers.paused(region)
 
-    def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> Job:
-        """Submits a Fleets (Code Engine) job and persists the result.
+    def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> None:
+        """Submit a Fleets (Code Engine) job and persist the result.
 
-        Wraps submission under the scheduler.submit trace span propagated from the
-        job's env_vars, and writes the status change through the transition service.
+        Wraps submission under the scheduler.submit trace span propagated from the job's env_vars,
+        and writes the status change through the transition service. The fleet is recorded as soon
+        as it exists, before any status write and outside the transition's transaction, so a row
+        that left QUEUED meanwhile still points at its fleet instead of orphaning it.
 
         Args:
             job: job to execute
@@ -107,11 +109,14 @@ class FleetsJobSubmitter:
                 SCHEDULE_JOBS, which is what the fair-share scheduler uses; the
                 filler-jobs balancer passes FILLER_SUBMIT.
 
-        Returns:
-            job with updated status (PENDING on success, FAILED on error)
+        Returns nothing: it returns only when the job reached PENDING, and raises otherwise.
 
         Raises:
-            RunnerRetryableError: before any write, so the job stays QUEUED.
+            RunnerRetryableError: nothing was written, so the job is still QUEUED and a later tick
+                can try again.
+            RunnerError: Code Engine refused the submit. The job is already FAILED.
+            InvalidJobTransitionException: the row left QUEUED while it was being submitted, so the
+                fleet created for it has been cancelled.
         """
         breaker = self.breakers.get_breaker(job.ce_region)
         if breaker.is_open:
@@ -125,13 +130,6 @@ class FleetsJobSubmitter:
                 # Fleets runner set only fleet_id
                 runner.submit()
                 breaker.record_success()
-                job.status = Job.PENDING
-                transition = self.transitions.queued_to_pending
-                logger.info(
-                    "[FleetsJobSubmitter] job_id=%s Execute job (%.2fs) set as PENDING",
-                    job.id,
-                    time.monotonic() - start,
-                )
             except RunnerRetryableError:
                 breaker.record_failure()
                 raise
@@ -141,28 +139,63 @@ class FleetsJobSubmitter:
                     job.id,
                     ex,
                 )
-                job.status = Job.FAILED
-                transition = self.transitions.to_failed
+                job.update_fields({"env_vars": "{}"})
+                try:
+                    self.transitions.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=context)
+                except InvalidJobTransitionException as refused:
+                    logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, refused)
+                span.set_attribute("job.status", job.status)
+                raise
+
+            # Recorded on its own, before any status write
+            job.update_fields({"fleet_id": job.fleet_id, "env_vars": "{}"})
+            try:
+                self.transitions.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=context)
+            except InvalidJobTransitionException as refused:
+                logger.warning(
+                    "[FleetsJobSubmitter] job_id=%s left QUEUED while submitting, cancelling fleet_id=%s: %s",
+                    job.id,
+                    job.fleet_id,
+                    refused,
+                )
+                self._cancel_orphan_fleet(job, runner, context)
+                span.set_attribute("job.status", job.status)
+                raise
 
             span.set_attribute("job.status", job.status)
+            logger.info(
+                "[FleetsJobSubmitter] job_id=%s Execute job (%.2fs) set as PENDING",
+                job.id,
+                time.monotonic() - start,
+            )
 
-            # Env vars have been forwarded to Code Engine; wipe them from the DB now.
-            job.env_vars = "{}"
-            try:
-                transition(
-                    job,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=context,
-                    job_fields={"fleet_id": job.fleet_id, "env_vars": job.env_vars},
+    @staticmethod
+    def _cancel_orphan_fleet(job: Job, runner: AbstractRunner, context: JobEventContext) -> None:
+        """Cancel a fleet whose row reached a terminal status while it was being submitted."""
+        try:
+            if not runner.stop():
+                logger.error(
+                    "[FleetsJobSubmitter] job_id=%s fleet_id=%s had nothing to cancel, check Code Engine",
+                    job.id,
+                    job.fleet_id,
                 )
-            except InvalidJobTransitionException as ex:
-                # Lost the race: something else (e.g. a user-initiated stop) already moved this
-                # job to a terminal status while it was being submitted. The in-memory job.status
-                # set above is returned as-is; the caller reads it, but the DB row was never
-                # written since the job is no longer in a state that transition applies to.
-                logger.warning("[FleetsJobSubmitter] job_id=%s already in a terminal status: %s", job.id, str(ex))
-
-        return job
+        except (RunnerRetryableError, RunnerError) as ex:
+            logger.error(
+                "[FleetsJobSubmitter] job_id=%s fleet_id=%s is still running, its cancel failed: %s",
+                job.id,
+                job.fleet_id,
+                str(ex),
+            )
+            # Nothing will retry this: the row is terminal, so no scheduler task reads it again.
+            JobEvent.objects.add_error_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=context,
+                code="FLEET_LEFT_RUNNING",
+                message=f"Fleet {job.fleet_id} was created but could not be cancelled",
+                exception=type(ex).__name__,
+                args=str(ex),
+            )
 
 
 class FleetsJobCanceller:
@@ -196,7 +229,7 @@ class FleetsJobCanceller:
         if breaker.is_open:
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
-            cancelled = self.transitions.try_stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
+            written = self.transitions.stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
         except RunnerRetryableError:
             breaker.record_failure()
             raise
@@ -206,7 +239,7 @@ class FleetsJobCanceller:
             raise
         breaker.record_success()
         _REFUSED_CANCEL_WARNED.discard(str(job.id))
-        return cancelled
+        return written == Job.STOPPING
 
 
 def first_cancel_refusal(job: Job) -> bool:

@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    Running Qiskit Functions can now read the compute sizing their job resolved
+    to, with two new helpers,
+    :func:`~qiskit_serverless.get_function_size` and
+    :func:`~qiskit_serverless.get_compute_profile`::
+
+        from qiskit_serverless import get_function_size, get_compute_profile
+
+        get_function_size()     # e.g. "M"
+        get_compute_profile()   # e.g. "24x120x1a100p"
+
+    This lets a function check which ``function_size`` the user submitted and
+    which compute profile it mapped to. Both are always set for Fleets jobs (the
+    requested size, or the function's default when none was requested) and are
+    empty when sizes do not apply, i.e. a non-Fleets (Ray) job. The values are
+    set by the gateway at job submission through the ``ENV_JOB_FUNCTION_SIZE``
+    and ``ENV_JOB_COMPUTE_PROFILE`` environment variables.

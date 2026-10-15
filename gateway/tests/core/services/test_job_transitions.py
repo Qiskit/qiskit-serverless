@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.services.runners import RunnerRetryableError
 from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Outbox, OutboxChannel, Program, Provider
 from core.services.job_transitions import JobTransitionService
 
@@ -123,7 +124,7 @@ class TestValidatesTransitions:
             (Job.RUNNING, "pending_to_running"),
             (Job.SUCCEEDED, "to_stopped"),
             (Job.FAILED, "to_failed"),
-            (Job.STOPPING, "to_succeeded"),
+            (Job.STOPPING, "pending_to_running"),
         ],
     )
     def test_rejects_a_transition_outside_the_whitelist(self, service, current_status, transition):
@@ -321,8 +322,10 @@ class TestToTerminal:
     """to_terminal is to_succeeded, to_failed and to_stopped for the caller that only knows the final status."""
 
     @pytest.mark.parametrize("status", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
-    def test_writes_the_given_terminal_status(self, service, user, status):
-        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
+    # STOPPING is not a one-way door to STOPPED, and only a Fleets job ever reaches it
+    @pytest.mark.parametrize("start,runner", [(Job.RUNNING, Program.RAY), (Job.STOPPING, Program.FLEETS)])
+    def test_writes_the_given_terminal_status(self, service, user, status, start, runner):
+        job = Job.objects.create(author=user, runner=runner, status=start)
 
         service.to_terminal(job, status, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -456,14 +459,15 @@ class TestBestEffortEvents:
 
 
 @patch("core.services.job_transitions.get_runner")
-class TestTryStop:
-    """try_stop cancels the fleet and records STOPPING. The scheduler confirms it later."""
+class TestStop:
+    """stop() cancels the fleet and records STOPPING, or records STOPPED when there is nothing to
+    cancel. It never leaves a terminal row behind a fleet nobody cancelled."""
 
     @pytest.mark.parametrize("current_status", [Job.QUEUED, Job.PENDING, Job.RUNNING])
     def test_writes_stopping_and_its_event_and_owes_nothing(self, get_runner, service, user, current_status):
         job = _licensed_fleets_job(user, current_status)
 
-        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is True
+        assert service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPING
 
         assert Job.objects.get(pk=job.pk).status == Job.STOPPING
         assert JobEvent.objects.filter(job=job, data__status=Job.STOPPING).count() == 1
@@ -475,7 +479,7 @@ class TestTryStop:
         Job.objects.filter(pk=job.pk).update(sub_status=Job.EXECUTING_QPU)
         job.refresh_from_db()
 
-        service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         assert Job.objects.get(pk=job.pk).sub_status == Job.EXECUTING_QPU
 
@@ -490,30 +494,50 @@ class TestTryStop:
             author=user, program=program, runner=Program.RAY, status=Job.RUNNING, fleet_id="fleet-abc"
         )
 
-        with pytest.raises(ValueError, match="try_stop is for Fleets jobs"):
-            service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        with pytest.raises(ValueError, match="stop is for Fleets jobs"):
+            service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         assert Job.objects.get(pk=job.pk).status == Job.RUNNING
         assert JobEvent.objects.filter(job=job).count() == 0
         get_runner.assert_not_called()
 
-    def test_a_job_with_no_fleet_is_refused(self, get_runner, service, user):
+    def test_a_job_with_no_fleet_is_stopped_outright(self, get_runner, service, user):
+        """Nothing to cancel, so the job ends here rather than leaving the caller to finish it."""
         job = _licensed_fleets_job(user, Job.QUEUED, fleet_id=None)
 
-        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is False
+        assert service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPED
 
-        assert Job.objects.get(pk=job.pk).status == Job.QUEUED
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPED
         get_runner.assert_not_called()
 
-    def test_a_cancel_that_finds_nothing_writes_no_status(self, get_runner, service, user):
-        """stop() answers False for a fleet Code Engine no longer has, so nothing will confirm a stop."""
+    def test_a_fleet_that_appeared_while_deciding_is_cancelled_on_the_retry(self, get_runner, service, user):
+        """The submit race: the row had no fleet when we looked, and the scheduler finished the
+        submit before we wrote. Writing STOPPED here would strand that fleet for ever."""
+        job = _licensed_fleets_job(user, Job.PENDING, fleet_id=None)
+        Job.objects.filter(pk=job.pk).update(fleet_id="fleet-appeared")
+
+        with pytest.raises(RunnerRetryableError, match="a fleet appeared while stopping"):
+            service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        assert Job.objects.get(pk=job.pk).status == Job.PENDING
+        assert JobEvent.objects.filter(job=job).count() == 0
+        assert job.fleet_id == "fleet-appeared", "without this the retry decides the same way again"
+
+        # what the caller's retry does a second later
+        assert service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPING
+
+        get_runner.return_value.stop.assert_called_once()
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
+
+    def test_a_cancel_that_finds_nothing_ends_the_job(self, get_runner, service, user):
+        """The runner answers False for a fleet Code Engine no longer has. Nothing will ever confirm
+        a stop, so the job ends here. The id is unchanged, so the appeared-fleet guard lets it."""
         get_runner.return_value.stop.return_value = False
         job = _licensed_fleets_job(user, Job.RUNNING)
 
-        assert service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) is False
+        assert service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPED
 
-        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
-        assert JobEvent.objects.filter(job=job).count() == 0
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPED
 
     def test_a_job_that_ran_before_the_cancel_is_billed_up_to_the_confirmation(self, get_runner, service, user):
         """The billed window of a cancelled job ends when the scheduler confirms, not when the user asked."""
@@ -527,11 +551,21 @@ class TestTryStop:
         JobEvent.objects.filter(job=job, data__status=Job.RUNNING).update(
             created=datetime.now(timezone.utc) - timedelta(seconds=100)
         )
-        service.try_stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         service.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert usage.payload["data"]["metric_value"] >= 100, "the window did not run to the confirmation"
         # A job seen in RUNNING owes the fee, so passing through STOPPING does not waive it.
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_a_job_that_succeeded_before_the_cancel_still_owes_its_fee(self, get_runner, service, user):
+        """The other detour: never seen RUNNING, so to_stopped would have waived the fee."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1

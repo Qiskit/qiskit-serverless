@@ -81,11 +81,11 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
     result = GetProviderJobLogsUseCase().execute(job_id, user, accessible_functions=accessible_functions)
 
     if result.redirect_url:
-        logger.info("[jobs-provider-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
+        logger.debug("[jobs-provider-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
         return HttpResponseRedirect(result.redirect_url)
 
     if result.raw_log is None:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    logger.info("[jobs-provider-logs] user_id=%s job_id=%s | Provider logs retrieved ok", user.id, job_id)
+    logger.debug("[jobs-provider-logs] user_id=%s job_id=%s | Provider logs retrieved ok", user.id, job_id)
     return Response(serialize_output(result.raw_log))
