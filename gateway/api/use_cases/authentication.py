@@ -112,14 +112,12 @@ class AuthenticationUseCase:
         accounts = {group.group_name: group.account for group in authentication_groups}
         current = {group.name: group for group in user.groups.select_related("metadata")}
         if current.keys() == accounts.keys() and all(
-            account is None or _account_of(current[name]) == account for name, account in accounts.items()
+            _has_account(current[name], account) for name, account in accounts.items()
         ):
             return list(current.values())
 
         with transaction.atomic():
-            lost = [group for name, group in current.items() if name not in accounts]
-            if lost:
-                user.groups.remove(*lost)
+            user.groups.remove(*[group for name, group in current.items() if name not in accounts])
             permissions = Permission.objects.filter(codename__in=permission_names)
             groups = []
             for name, account in sorted(accounts.items()):
@@ -129,12 +127,14 @@ class AuthenticationUseCase:
                     if created:
                         group.permissions.add(*permissions)
                     user.groups.add(group)
-                if account is not None and _account_of(group) != account:
+                if not _has_account(group, account):
                     GroupMetadata.objects.update_or_create(group=group, defaults={"account": account})
                 groups.append(group)
         return groups
 
 
-def _account_of(group: Group) -> Optional[str]:
+def _has_account(group: Group, account: Optional[str]) -> bool:
+    if account is None:
+        return True
     metadata = getattr(group, "metadata", None)
-    return metadata.account if metadata else None
+    return metadata is not None and metadata.account == account

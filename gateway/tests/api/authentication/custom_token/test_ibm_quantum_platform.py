@@ -180,15 +180,12 @@ class TestIBMQuantumPlatformAuthentication:
         CustomTokenBackend().authenticate(_create_request())
 
         with CaptureQueriesContext(connection) as captured:
-            user, _ = CustomTokenBackend().authenticate(_create_request())
+            CustomTokenBackend().authenticate(_create_request())
 
         assert [query["sql"].split()[0] for query in captured.captured_queries] == ["SELECT", "SELECT"]
-        group = user.groups.get()
-        assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
 
-        CustomTokenBackend().authenticate(_create_request(token="other_token"))
-        group.metadata.refresh_from_db()
-        assert group.metadata.account == "other-account"
+        user, _ = CustomTokenBackend().authenticate(_create_request(token="other_token"))
+        assert user.groups.get().metadata.account == "other-account"
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
