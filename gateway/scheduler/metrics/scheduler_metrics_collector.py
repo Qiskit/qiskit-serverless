@@ -135,6 +135,12 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("channel",),
             registry=self.registry,
         )
+        self.outbox_unrecoverable_rows = Gauge(
+            "scheduler_outbox_unrecoverable_rows",
+            "Outbox rows of each channel that the destination will never take. They are left out of the pending rows.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
         self.outbox_oldest_pending_age_seconds = Gauge(
             "scheduler_outbox_oldest_pending_age_seconds",
             "Age in seconds of the oldest outbox row pending each channel.",
@@ -193,7 +199,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
 
     def increment_outbox_send(self, channel: str, outcome: str) -> None:
-        """Count one outbox send attempt. outcome: "success" or "failure"."""
+        """Count one outbox send attempt. outcome: "success", "failure" (a later try may work) or "unrecoverable"."""
         self.outbox_sends_total.labels(channel=channel, outcome=outcome).inc()
 
     def observe_outbox_drain_duration(self, elapsed_seconds: float, channel: str) -> None:
@@ -203,6 +209,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_outbox_pending_rows(self, count: int, channel: str) -> None:
         """Set how many outbox rows are pending a given channel."""
         self.outbox_pending_rows.labels(channel=channel).set(count)
+
+    def set_outbox_unrecoverable_rows(self, count: int, channel: str) -> None:
+        """Set how many outbox rows of a given channel the destination will never take."""
+        self.outbox_unrecoverable_rows.labels(channel=channel).set(count)
 
     def set_outbox_oldest_pending_age_seconds(self, age_seconds: float, channel: str) -> None:
         """Set the age of the oldest outbox row pending a given channel."""

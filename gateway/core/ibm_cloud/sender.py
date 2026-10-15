@@ -23,7 +23,9 @@ class Sender(ABC):
 
         The outbox sends the rows of a sender without batches one by one, and reads the exception it raises: a
         `core.domain.exceptions.retryable_error.RetryableError` means a later try can work, so the row is kept and sent
-        again with a growing wait. Any other exception is permanent: the row is parked and never sent again."""
+        again with a growing wait. Any other exception is permanent: the row is marked unrecoverable and never sent
+        again.
+        """
 
 
 class BatchSender(Sender):

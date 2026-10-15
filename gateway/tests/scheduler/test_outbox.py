@@ -509,7 +509,7 @@ class TestSendersWithoutBatches:
         assert task.metrics.increment_outbox_send.call_args_list == [((OutboxChannel.JOB_USAGE, "failure"),)] * 2
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
-    def test_a_permanent_error_parks_the_row_without_touching_the_breaker(self):
+    def test_a_permanent_error_marks_the_row_unrecoverable_without_touching_the_breaker(self):
         sender = _single_sender()
 
         def send(payload):
@@ -519,17 +519,32 @@ class TestSendersWithoutBatches:
         sender.send.side_effect = send
         task = _make_task(sender=sender)
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
-        parked = _make_row(payload={"bad": True, "data": {}})
+        bad = _make_row(payload={"bad": True, "data": {}})
         delivered = _make_row()
 
         task.run()
 
-        assert not Outbox.objects.filter(pk=delivered.pk).exists()  # the row behind the parked one was still sent
-        parked.refresh_from_db()
-        assert parked.attempts == 1
-        assert "ValueError" in parked.last_error
-        assert parked.next_attempt_at > timezone.now() + timedelta(days=300)
+        assert not Outbox.objects.filter(pk=delivered.pk).exists()  # the row behind the bad one was still sent
+        bad.refresh_from_db()
+        assert bad.unrecoverable is True
+        assert bad.attempts == 1
+        assert "ValueError" in bad.last_error
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
+        task.metrics.increment_outbox_send.assert_any_call(OutboxChannel.JOB_USAGE, "unrecoverable")
+
+    def test_an_unrecoverable_row_is_never_read_again_and_is_reported_apart(self):
+        sender = _single_sender()
+        task = _make_task(sender=sender)
+        row = _make_row()
+        Outbox.objects.filter(pk=row.pk).update(unrecoverable=True)
+        _make_row()
+
+        task.run()
+
+        assert sender.send.call_count == 1  # only the other row
+        assert Outbox.objects.filter(pk=row.pk).exists()
+        task.metrics.set_outbox_unrecoverable_rows.assert_called_with(1, OutboxChannel.JOB_USAGE)
+        task.metrics.set_outbox_pending_rows.assert_called_with(1, OutboxChannel.JOB_USAGE)  # not counting the flagged
 
     def test_a_success_between_failures_keeps_the_breaker_closed(self):
         sender = _single_sender(fails=lambda payload: payload.get("bad", False))

@@ -79,6 +79,8 @@ channel, deleted independently once its own send succeeds.
 - `attempts`, `next_attempt_at` and `last_error`: the retry state, see "Retry with a growing wait" below.
   A new row has 0 attempts and is due at once (`next_attempt_at` defaults to the moment it is created).
   `last_error` is only there to find out what is wrong with a row that does not leave.
+- `unrecoverable`: true when the destination will never take the row (see "Retryable and permanent errors"). Delivery
+  skips it for good, and it stays in the table for someone to look at. False by default.
 
 A composite index on `(channel, created)` backs the pending-rows gauges, and one on
 `(channel, region, created)` backs the drain, which filters by channel, region and `next_attempt_at` and orders by
@@ -270,7 +272,7 @@ seconds, never less than one second. It writes them with a `bulk_update`: one pe
 one per failed row for a plain `Sender`. `base` and `cap` are the `Config` entries
 `scheduler.outbox.kafka.retry_base_seconds` (120) and `scheduler.outbox.kafka.retry_max_seconds` (600), so the
 longest a row waits is the cap (10 minutes), however many times it has failed. A row is never deleted without having
-been delivered: these are billing facts. A row that can never be sent is parked instead (see "Retryable and permanent
+been delivered: these are billing facts. A row that can never be sent is marked unrecoverable instead (see "Retryable and permanent
 errors" below).
 
 This is what keeps rows that always fail (a payload the destination rejects every time) from starving the rows
@@ -297,8 +299,9 @@ A plain `Sender` (one send per row) says which kind of failure it had by the exc
 our configuration such as a missing key, which is fixed without losing the row): the row waits as described above and
 the failure counts for the breaker. Any other exception is permanent (the destination answered with a 400 or a 404 for
 this row, or the sender has a bug): it does not count for the breaker, because the destination is fine, and the row is
-parked. A parked row stays in the table with its error in `last_error` and `next_attempt_at` a year ahead, so the
-drain never reads it, and the pending-rows and oldest-pending-age gauges keep counting it. `WorkloadSender` raises
+marked `unrecoverable`. Such a row stays in the table with its error in `last_error`, the drain never reads it again,
+and the pending-rows and oldest-pending-age gauges do not count it: it has its own gauge,
+`scheduler_outbox_unrecoverable_rows{channel}`, which is worth an alert as soon as it is above zero. `WorkloadSender` raises
 `RetryableError` for a transient failure and for a `RuntimeApiError` with no status code (no answer from the Runtime
 API), and lets any other `RuntimeApiError` through.
 
@@ -368,10 +371,13 @@ Prometheus metrics, all keyed by `channel` (`billing_license_fee`, `billing_job_
 whatever channel a future PR adds), not by any billing-specific vocabulary:
 
 - `scheduler_outbox_sends_total{channel,outcome}`: one increment per send attempt,
-  `outcome` being `"success"` or `"failure"`.
+  `outcome` being `"success"`, `"failure"` (a later try may work) or `"unrecoverable"` (the row is flagged and
+  never sent again).
 - `scheduler_outbox_pending_rows{channel}` and
   `scheduler_outbox_oldest_pending_age_seconds{channel}`: reported every tick for
-  every registered channel, independent of whether that channel's breaker is open.
+  every registered channel, independent of whether that channel's breaker is open. They count the rows delivery still
+  tries, so the unrecoverable ones are left out.
+- `scheduler_outbox_unrecoverable_rows{channel}`: how many rows of the channel are flagged `unrecoverable`.
 - `scheduler_outbox_drain_duration_seconds{channel}`: a histogram of how long one tick spent draining the channel,
   observed when the drain ends, however it ends. Compare it with the channel's time budget: a drain that ended
   because the budget ran out shows up near that value.
@@ -424,5 +430,5 @@ its container) depend on that row, not on the flag. So turning the flag off stop
 jobs already mirrored still report their final status. If the builder rejects the job (it has no program), the error
 reaches the transition and rolls it back. A `RetryableError` (including a missing or malformed key, a configuration
 problem on our side) keeps the row and retries it with a growing wait, so it delays the mirror instead of losing it, and
-any other error parks the row (see "Retryable and permanent errors"). The job leaves the `WorkloadMirror` table in the
+any other error marks the row unrecoverable (see "Retryable and permanent errors"). The job leaves the `WorkloadMirror` table in the
 same transaction that enqueues its final status, because nothing reads the table after a terminal status.

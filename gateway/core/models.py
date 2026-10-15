@@ -918,6 +918,12 @@ class Outbox(models.Model):
         db_default="",
         help_text="Why the last attempt failed, only to find out what is wrong with a row that does not leave.",
     )
+    unrecoverable = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="The destination will never take this row (it answered with a permanent error), so delivery skips "
+        "it for good. It stays in the table with its last_error for someone to look at.",
+    )
 
     class Meta:
         app_label = "api"
