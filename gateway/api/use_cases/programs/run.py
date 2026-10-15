@@ -251,9 +251,7 @@ class RunFunctionUseCase:
                 if should_be_mirrored(job) and Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
                     payload = build_workload_payload(job)
                     try:
-                        get_functions_operator_client().put_function(
-                            payload["function_id"], payload["body"], timeout=MIRROR_PUT_TIMEOUT_SECONDS
-                        )
+                        get_functions_operator_client().put_function(**payload, timeout=MIRROR_PUT_TIMEOUT_SECONDS)
                     except RetryableError as ex:
                         mirror_error = EngineUnavailableException("Job could not be created right now, please retry.")
                         mirror_error.__cause__ = ex

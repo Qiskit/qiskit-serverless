@@ -276,9 +276,8 @@ class TestWorkloadMirror:
         job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         put_function.assert_called_once()
-        function_id, body = put_function.call_args.args
-        assert function_id == str(job.id)
-        assert body["status"] == "Queued"
+        assert put_function.call_args.kwargs["function_id"] == str(job.id)
+        assert put_function.call_args.kwargs["body"]["status"] == "Queued"
         assert WorkloadMirror.objects.filter(job=job).exists()
 
     def test_nothing_is_sent_or_recorded_while_the_mirror_is_off(self, user, fleets_accessible, put_function):
