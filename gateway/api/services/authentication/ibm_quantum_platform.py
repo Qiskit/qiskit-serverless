@@ -76,21 +76,21 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         if self.iam_id is None:
             logger.warning("IBM Quantum Platform didn't return the IAM ID for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned a token with no IAM ID for this API key. Please contact IBM support."
             )
 
         account_data = decoded.get("account")
         if account_data is None:
             logger.warning("IBM Quantum Platform didn't return the Account data for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned a token with no account for this API key. Please contact IBM support."
             )
 
         self.account_id = account_data.get("bss")
         if self.account_id is None:
             logger.warning("IBM Quantum Platform didn't return the Account ID for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned a token with no account ID for this API key. Please contact IBM support."
             )
 
         logger.debug(
@@ -117,7 +117,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         if resource_plan_id is None:
             logger.warning("IBM Quantum Platform didn't return the Resource plan ID for the resource.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned no resource plan for this instance. Please contact IBM support."
             )
 
         if resource_plan_id not in settings.RESOURCE_PLANS_ID_ALLOWED:
