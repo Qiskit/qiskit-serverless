@@ -6,9 +6,10 @@ fixes:
     removes a short window in which a parallel request from the same user
     could see no groups.
   - |
-    ``GET /api/v1/jobs/{id}/`` now reads the job, its program, its provider
-    and its compute profile in one database query.
-  - |
     The authentication errors that asked users to try again later, where
     retrying alone cannot help, now say what to check first, or to contact
     IBM support.
+other:
+  - |
+    ``GET /api/v1/jobs/{id}/`` now reads the job, its program, its provider
+    and its compute profile in one database query.

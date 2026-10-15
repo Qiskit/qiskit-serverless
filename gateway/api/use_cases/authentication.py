@@ -74,7 +74,7 @@ class AuthenticationUseCase:
 
         if self.channel == Channel.LOCAL:
             permission_names = [VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION]
-            groups = self._sync_user_groups(
+            self._sync_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
@@ -84,8 +84,7 @@ class AuthenticationUseCase:
                 registry=settings.SETTINGS_AUTH_MOCKPROVIDER_REGISTRY,
             )
             if created:
-                for admin_group in groups:
-                    provider.admin_groups.add(admin_group)
+                provider.admin_groups.add(*quantum_user.groups.all())
         else:
             permission_names = [VIEW_PROGRAM_PERMISSION]
             self._sync_user_groups(
@@ -107,19 +106,18 @@ class AuthenticationUseCase:
         user: AbstractUser,
         authentication_groups: List[AuthenticationGroup],
         permission_names: List[str],
-    ) -> List[Group]:
-        """Make the user's groups match the IAM access groups, and write only what changed."""
+    ) -> None:
+        """Make the user's groups match the authentication groups, and write only what changed."""
         accounts = {group.group_name: group.account for group in authentication_groups}
         current = {group.name: group for group in user.groups.select_related("metadata")}
         if current.keys() == accounts.keys() and all(
             _has_account(current[name], account) for name, account in accounts.items()
         ):
-            return list(current.values())
+            return
 
         with transaction.atomic():
             user.groups.remove(*[group for name, group in current.items() if name not in accounts])
             permissions = Permission.objects.filter(codename__in=permission_names)
-            groups = []
             for name, account in sorted(accounts.items()):
                 group = current.get(name)
                 if group is None:
@@ -129,8 +127,6 @@ class AuthenticationUseCase:
                     user.groups.add(group)
                 if not _has_account(group, account):
                     GroupMetadata.objects.update_or_create(group=group, defaults={"account": account})
-                groups.append(group)
-        return groups
 
 
 def _has_account(group: Group, account: Optional[str]) -> bool:
