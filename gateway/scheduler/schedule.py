@@ -18,7 +18,7 @@ from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import get_runner, AbstractRunner, RunnerError, RunnerRetryableError
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
@@ -217,6 +217,7 @@ class FleetsJobCanceller:
 
         Raises:
             RunnerRetryableError: While the region's breaker is open, or when the cancel did not land.
+            FleetAppearedError: When the job's fleet_id changed under this call. Nothing is written.
             RunnerError: When the job's project is unusable, or the cancel never left this process.
             InvalidJobTransitionException: When the cancel landed but the row had already left a
                 status STOPPING is reachable from.
@@ -230,6 +231,10 @@ class FleetsJobCanceller:
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
             written = self.transitions.stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
+        except FleetAppearedError:
+            # Code Engine answered, the row changed under us. Not a region failure.
+            breaker.record_success()
+            raise
         except RunnerRetryableError:
             breaker.record_failure()
             raise
