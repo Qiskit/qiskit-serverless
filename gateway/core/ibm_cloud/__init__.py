@@ -151,4 +151,4 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
     return JobCOS(cos_client)
 
 
-__all__ = ["CEAuth", "clear_cos_clients", "get_ce_auth", "get_cos_client", "JobCOS"]
+__all__ = ["CEAuth", "get_ce_auth", "get_cos_client", "JobCOS"]

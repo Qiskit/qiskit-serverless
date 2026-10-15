@@ -277,6 +277,17 @@ def test_get_cos_client_fetches_the_secret_again_after_the_ttl() -> None:
     assert get_secret.call_count == 2
 
 
+def test_get_cos_client_reuses_the_refreshed_client() -> None:
+    """The TTL rebuild must replace the stale entry, or every later call rebuilds again."""
+    with _patched_secret_fetch() as get_secret, patch(f"{_IBM_CLOUD_MOD}.time") as mock_time:
+        mock_time.monotonic.side_effect = [1000.0, 1061.0, 1062.0]
+        get_cos_client(_make_mock_project())
+        get_cos_client(_make_mock_project())
+        get_cos_client(_make_mock_project())
+
+    assert get_secret.call_count == 2
+
+
 def test_get_cos_client_does_not_cache_a_failure() -> None:
     error = ApiException(status=403, reason="Forbidden")
     with _patched_secret_fetch(get_secret_side_effect=[error, DEFAULT]) as get_secret:
