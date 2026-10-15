@@ -16,6 +16,7 @@ import pytest
 from django.core.cache import cache
 
 from core.clients.iam_token_provider import get_iam_token_provider
+from core.ibm_cloud import clear_cos_clients
 
 
 @pytest.fixture(autouse=True)
@@ -47,3 +48,9 @@ def clear_iam_token_providers():
     dummy key, so one test's patched provider would otherwise serve the next one.
     """
     get_iam_token_provider.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_cos_client_cache():
+    """Clear the per-process COS client cache before every test."""
+    clear_cos_clients()
