@@ -170,7 +170,7 @@ class TestIBMQuantumPlatformAuthentication:
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
-    def test_second_authentication_only_reads_the_groups(
+    def test_second_authentication_only_reads_the_groups_and_follows_a_changed_account(
         self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
         _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)

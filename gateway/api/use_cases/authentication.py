@@ -122,7 +122,7 @@ class AuthenticationUseCase:
                 user.groups.remove(*lost)
             permissions = Permission.objects.filter(codename__in=permission_names)
             groups = []
-            for name, account in accounts.items():
+            for name, account in sorted(accounts.items()):
                 group = current.get(name)
                 if group is None:
                     group, created = Group.objects.get_or_create(name=name)

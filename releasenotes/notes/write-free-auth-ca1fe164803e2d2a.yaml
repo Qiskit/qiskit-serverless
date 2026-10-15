@@ -10,5 +10,5 @@ fixes:
     and its compute profile in one database query.
   - |
     The authentication errors that asked users to try again later, where
-    retrying cannot help, no longer ask them to retry. They now say what to
-    check, or to contact IBM support.
+    retrying alone cannot help, now say what to check first, or to contact
+    IBM support.
