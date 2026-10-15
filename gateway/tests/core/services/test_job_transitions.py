@@ -563,6 +563,18 @@ class TestStop:
         assert Job.objects.get(pk=job.pk).status == Job.STOPPED
         get_runner.assert_not_called()
 
+    def test_a_mirrored_job_with_no_fleet_reports_its_final_status(self, get_runner, service, user):
+        """A job cancelled between /run and the fleet submit never gets another transition, so this is the one that
+        sends its final status to the Runtime API."""
+        job = _licensed_fleets_job(user, Job.QUEUED, fleet_id=None)
+        WorkloadMirror.objects.create(job=job)
+
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        row = Outbox.objects.get(job=job, channel=OutboxChannel.WORKLOAD)
+        assert row.payload["body"]["status"] == "Cancelled"
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
     def test_a_fleet_that_appeared_while_deciding_is_cancelled_on_the_retry(self, get_runner, service, user):
         """The submit race: the row had no fleet when we looked, and the scheduler finished the
         submit before we wrote. Writing STOPPED here would strand that fleet for ever."""

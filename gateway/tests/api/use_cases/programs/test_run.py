@@ -306,25 +306,44 @@ class TestWorkloadMirror:
         put_function.assert_not_called()
         assert not WorkloadMirror.objects.filter(job=job).exists()
 
-    def test_the_job_is_not_created_if_the_runtime_api_does_not_take_it(self, user, fleets_accessible, put_function):
-        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
-        put_function.side_effect = RetryableError("down")
-
-        with pytest.raises(EngineUnavailableException):
-            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
-
-        assert not Job.objects.exists()
-        assert not WorkloadMirror.objects.exists()
-
-    def test_the_saved_arguments_are_deleted_if_the_job_is_not_created(
+    def test_the_job_is_stored_as_failed_if_the_runtime_api_does_not_take_it(
         self, user, fleets_accessible, put_function, monkeypatch
     ):
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
-        put_function.side_effect = RuntimeApiError("rejected")
+        put_function.side_effect = RetryableError("down")
         arguments_storage = mock.Mock()
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
 
         with pytest.raises(EngineUnavailableException):
             RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
+        job = Job.objects.get()
+        assert job.status == Job.FAILED
+        assert JobEvent.objects.filter(job=job, data__code="RUNTIME_API_UNAVAILABLE").exists()
+        assert not WorkloadMirror.objects.exists()
+        arguments_storage.delete.assert_not_called()  # the job exists, so its arguments stay
+        assert put_function.call_args.kwargs["timeout"] == 3
+
+    def test_a_permanent_runtime_api_error_also_stores_the_job_as_failed(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = RuntimeApiError("rejected", status_code=400)
+
+        with pytest.raises(EngineUnavailableException) as error:
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        assert "contact support" in error.value.message
+        assert Job.objects.get().status == Job.FAILED
+
+    def test_the_saved_arguments_are_deleted_if_the_job_is_rolled_back(
+        self, user, fleets_accessible, put_function, monkeypatch
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = ValueError("not an error of the Runtime API")
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+
+        with pytest.raises(ValueError):
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        assert not Job.objects.exists()
         arguments_storage.delete.assert_called_once()

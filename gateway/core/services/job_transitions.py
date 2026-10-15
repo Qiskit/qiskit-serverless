@@ -135,6 +135,7 @@ class JobTransitionService:
                 job.fleet_id = current_fleet_id
                 raise RunnerRetryableError(f"Job {job.id}: a fleet appeared while stopping")
             self._change_status(job, Job.STOPPED, origin=origin, context=context, job_fields=None)
+            self._enqueue_workload(job)
         return Job.STOPPED
 
     def to_terminal(
