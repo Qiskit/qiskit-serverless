@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import connection
 
 from core.models import Config
+from core.services.background_executor import get_background_executor
 from core.services.job_transitions import JobTransitionService
 from scheduler.schedule import CodeEngineBreakers, FleetsJobCanceller, FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
@@ -84,6 +85,8 @@ class Main:
     def run(self):
         """Run the scheduler loop until kill signal is received."""
         logger.info("Scheduler loop started")
+        # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
+        get_background_executor().init()
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
@@ -125,7 +128,13 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
-            self.close_tasks()
-            self.stop_http_server()
+            try:
+                # first, so running background tasks finish while the clients they use are still open
+                get_background_executor().shutdown()
+            finally:
+                try:
+                    self.close_tasks()
+                finally:
+                    self.stop_http_server()
 
         logger.info("Scheduler loop finished")
