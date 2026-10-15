@@ -1,0 +1,16 @@
+---
+features:
+  - |
+    The scheduler now submits up to 5 queued Fleets jobs of the same user in one
+    tick, instead of 1, taking the jobs in rounds across users so that a user
+    with many queued jobs does not delay the others. The new dynamic Config
+    ``scheduler.fleets.jobs_per_user_per_tick`` sets the number. ``1`` gives the
+    old behaviour, and ``0`` or less means up to the user's Fleets limit. The
+    user's Fleets limit still caps how many of their jobs run at once.
+  - |
+    The two per-user job limits can now be changed in the backoffice, without a
+    deploy: ``gateway.limits.active_jobs_per_user`` (queued or running jobs,
+    checked at submit) and ``scheduler.limits.fleets_jobs_per_user`` (running
+    Fleets jobs). When they are empty, the default, or 0, the
+    ``LIMITS_ACTIVE_JOBS_PER_USER`` and ``LIMITS_JOBS_PER_USER_FLEETS`` env
+    settings apply as before.

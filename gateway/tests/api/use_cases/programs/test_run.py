@@ -125,6 +125,18 @@ class TestRunFunctionUseCase:
         with pytest.raises(ActiveJobLimitExceeded):
             RunFunctionUseCase().execute(user, accessible, make_input())
 
+    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=50)
+    def test_the_backoffice_active_job_limit_wins_over_the_env_setting(self, user):
+        Config.add_defaults()
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "1")
+        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Job.objects.create(program=function, author=user, status=Job.QUEUED)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(ActiveJobLimitExceeded) as error:
+            RunFunctionUseCase().execute(user, accessible, make_input())
+        assert error.value.message == "Active job limit reached. The maximum allowed is 1."
+
     @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
     def test_raises_not_found_not_limit_when_function_missing(self, user):
         other = User.objects.create_user(username="other")

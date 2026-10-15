@@ -109,3 +109,14 @@ class TestConfig:
         Config.set(ConfigKey.FILLER_SLOTS, "not-a-number")
 
         assert Config.get_int(ConfigKey.FILLER_SLOTS, default=7) == 7
+
+    def test_get_int_or_falls_back_when_the_value_is_empty_zero_missing_or_not_a_number(self):
+        assert Config.get_int_or(ConfigKey.ACTIVE_JOBS_PER_USER, 50) == 50
+        Config.add_defaults()
+        assert Config.get_int_or(ConfigKey.ACTIVE_JOBS_PER_USER, 50) == 50
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "600")
+        assert Config.get_int_or(ConfigKey.ACTIVE_JOBS_PER_USER, 50) == 600
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "many")
+        assert Config.get_int_or(ConfigKey.ACTIVE_JOBS_PER_USER, 50) == 50
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "0")
+        assert Config.get_int_or(ConfigKey.ACTIVE_JOBS_PER_USER, 50) == 50

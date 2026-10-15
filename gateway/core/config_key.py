@@ -25,3 +25,6 @@ class ConfigKey(Enum):
     OUTBOX_WORKLOAD_CHANNEL_RETRY_MAX_SECONDS = "scheduler.outbox.workload.retry_max_seconds"
     FLEETS_BREAKER_FAILURES = "scheduler.fleets.breaker_failures"
     FLEETS_BREAKER_PAUSE_SECONDS = "scheduler.fleets.breaker_pause_seconds"
+    FLEETS_JOBS_PER_USER_PER_TICK = "scheduler.fleets.jobs_per_user_per_tick"
+    ACTIVE_JOBS_PER_USER = "gateway.limits.active_jobs_per_user"
+    FLEETS_JOBS_PER_USER = "scheduler.limits.fleets_jobs_per_user"

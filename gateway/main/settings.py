@@ -640,6 +640,22 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
         "breaker trips.",
     },
+    "scheduler.fleets.jobs_per_user_per_tick": {
+        "default": "5",
+        "type": "integer",
+        "description": "How many queued Fleets jobs of one user the scheduler submits in one tick, taken in rounds "
+        "across users. 0 or less means up to the user's Fleets limit.",
+    },
+    "gateway.limits.active_jobs_per_user": {
+        "default": "",
+        "type": "integer",
+        "description": "Most jobs one user can have queued or running. Empty or 0 means LIMITS_ACTIVE_JOBS_PER_USER.",
+    },
+    "scheduler.limits.fleets_jobs_per_user": {
+        "default": "",
+        "type": "integer",
+        "description": "Most Fleets jobs one user can have running. Empty or 0 means LIMITS_JOBS_PER_USER_FLEETS.",
+    },
 }
 
 # Fleets / Code Engine credentials
