@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    ``qiskit-paulice==0.2.1`` has been added to the dynamic dependencies allowlist
+    bundled in the custom functions image. Qiskit Functions that declare it as a
+    dependency can now use it.
