@@ -10,6 +10,7 @@ from scheduler.health import UNHEALTHY_THRESHOLD
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.free_fleets_resources import FreeFleetsResources
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
@@ -47,14 +48,15 @@ class TestMain:
         assert len(tasks) == len(sharing)
         assert len({id(task.submitter) for task in tasks}) == 1
 
-    def test_the_submitter_and_the_canceller_share_one_breaker_per_region(self):
-        """A region that stopped answering is one fact, so a submit and a cancel count against one breaker."""
+    def test_the_tasks_that_call_code_engine_share_one_breaker_registry(self):
+        """A region that stopped answering is one fact, so submit, cancel and delete share one registry."""
         sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
-        submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
-        cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
+        submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
+        cancellers = [task.canceller for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+        deleters = [task.deleter for task in self.scheduler_main.tasks if isinstance(task, FreeFleetsResources)]
 
-        assert submitters and len(cancellers) == len(sharing)
-        assert len({id(s.breakers) for s in submitters} | {id(c.breakers) for c in cancellers}) == 1
+        assert submitters and len(cancellers) == len(sharing) and len(deleters) == 1
+        assert len({id(owner.breakers) for owner in submitters + cancellers + deleters}) == 1
 
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""
