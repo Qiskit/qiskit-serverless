@@ -11,6 +11,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIClient
 from ibm_platform_services import IamAccessGroupsV2, ResourceControllerV2
@@ -164,6 +166,29 @@ class TestIBMQuantumPlatformAuthentication:
             assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
             permissions = list(group.permissions.values_list("codename", flat=True))
             assert permissions == [VIEW_PROGRAM_PERMISSION]
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_second_authentication_only_reads_the_groups(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+        _add_mock_response("IBMid-0000000ABC", "other-account")
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        CustomTokenBackend().authenticate(_create_request())
+
+        with CaptureQueriesContext(connection) as captured:
+            user, _ = CustomTokenBackend().authenticate(_create_request())
+
+        assert [query["sql"].split()[0] for query in captured.captured_queries] == ["SELECT", "SELECT"]
+        group = user.groups.get()
+        assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
+
+        CustomTokenBackend().authenticate(_create_request(token="other_token"))
+        group.metadata.refresh_from_db()
+        assert group.metadata.account == "other-account"
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")

@@ -6,6 +6,7 @@ from typing import List, Optional
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.db import transaction
 from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
@@ -73,7 +74,7 @@ class AuthenticationUseCase:
 
         if self.channel == Channel.LOCAL:
             permission_names = [VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION]
-            groups = self._restart_user_groups(
+            groups = self._sync_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
@@ -87,7 +88,7 @@ class AuthenticationUseCase:
                     provider.admin_groups.add(admin_group)
         else:
             permission_names = [VIEW_PROGRAM_PERMISSION]
-            self._restart_user_groups(
+            self._sync_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
@@ -101,25 +102,39 @@ class AuthenticationUseCase:
         )
 
     # Deprecate this when login through instances migration was completed
-    def _restart_user_groups(
+    def _sync_user_groups(
         self,
-        user: type[AbstractUser],
+        user: AbstractUser,
         authentication_groups: List[AuthenticationGroup],
         permission_names: List[str],
     ) -> List[Group]:
-        new_groups = []
+        """Make the user's groups match the IAM access groups, and write only what changed."""
+        accounts = {group.group_name: group.account for group in authentication_groups}
+        current = {group.name: group for group in user.groups.select_related("metadata")}
+        if current.keys() == accounts.keys() and all(
+            account is None or _account_of(current[name]) == account for name, account in accounts.items()
+        ):
+            return list(current.values())
 
-        permissions = Permission.objects.filter(codename__in=permission_names)
+        with transaction.atomic():
+            lost = [group for name, group in current.items() if name not in accounts]
+            if lost:
+                user.groups.remove(*lost)
+            permissions = Permission.objects.filter(codename__in=permission_names)
+            groups = []
+            for name, account in accounts.items():
+                group = current.get(name)
+                if group is None:
+                    group, created = Group.objects.get_or_create(name=name)
+                    if created:
+                        group.permissions.add(*permissions)
+                    user.groups.add(group)
+                if account is not None and _account_of(group) != account:
+                    GroupMetadata.objects.update_or_create(group=group, defaults={"account": account})
+                groups.append(group)
+        return groups
 
-        user.groups.clear()
 
-        for authentication_group in authentication_groups:
-            group, created = Group.objects.get_or_create(name=authentication_group.group_name)
-            if created:
-                group.permissions.add(*permissions)
-            if authentication_group.account is not None:
-                GroupMetadata.objects.update_or_create(group=group, defaults={"account": authentication_group.account})
-            group.user_set.add(user)
-            new_groups.append(group)
-
-        return new_groups
+def _account_of(group: Group) -> Optional[str]:
+    metadata = getattr(group, "metadata", None)
+    return metadata.account if metadata else None
