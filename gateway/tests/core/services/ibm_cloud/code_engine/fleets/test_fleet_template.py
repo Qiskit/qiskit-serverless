@@ -83,7 +83,7 @@ _APP_SCRIPT = "\n".join(
 
 
 def _docker_run(
-    run_commands: list[str], env_pairs: dict[str, str], timeout: int = 90
+    run_commands: list[str], env_pairs: dict[str, str], timeout: int = 90, user: str | None = None
 ) -> tuple[subprocess.CompletedProcess, str]:
     """Run *run_commands* inside a named Docker container.
 
@@ -92,6 +92,9 @@ def _docker_run(
       the ~10 KB script on the command line).
     - /cos/public/ and /cos/provider/ are pre-created so upload_log has a
       writable destination without needing a bind mount.
+
+    *user* is passed to ``docker create --user``; when set, /cos is copied in
+    world-writable first, since a non-root user cannot create it under /.
 
     Returns (result, container_name).  Container is NOT auto-removed so the
     caller can docker-cp log files out before calling _docker_cleanup().
@@ -107,6 +110,7 @@ def _docker_run(
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write(script)
         script_path = f.name
+    os.chmod(script_path, 0o644)  # NamedTemporaryFile is 0600: unreadable to a non-root *user*
 
     try:
         # 1. Create (but don't start) the container; run sh so we can mkdir first.
@@ -116,6 +120,7 @@ def _docker_run(
                 "create",
                 "--name",
                 name,
+                *(["--user", user] if user else []),
                 *env_flags,
                 _DOCKER_IMAGE,
                 "sh",
@@ -125,8 +130,14 @@ def _docker_run(
             check=True,
             capture_output=True,
         )
-        # 2. Copy the script in.
+        # 2. Copy the script in (and, for a non-root user, a writable /cos).
         subprocess.run(["docker", "cp", script_path, f"{name}:/wrapper.py"], check=True, capture_output=True)
+        if user:
+            with tempfile.TemporaryDirectory() as cos_tree:
+                for sub in ("cos", "cos/public", "cos/provider"):
+                    os.makedirs(f"{cos_tree}/{sub}", exist_ok=True)
+                    os.chmod(f"{cos_tree}/{sub}", 0o777)
+                subprocess.run(["docker", "cp", f"{cos_tree}/cos", f"{name}:/cos"], check=True, capture_output=True)
         # 3. Start and wait.
         result = subprocess.run(
             ["docker", "start", "-a", name],
@@ -409,11 +420,13 @@ def test_custom_wrapper_periodic_flush_during_run():
 
 @docker_required
 def test_harden_applies_no_new_privs_and_drops_capabilities():
-    """_harden() sets NoNewPrivs and zeros the capability bounding/effective/permitted sets.
+    """As root, _harden() sets NoNewPrivs and zeros the bounding/effective/permitted sets.
 
-    Runs a wrapper whose app prints /proc/self/status lines for NoNewPrivs, CapBnd,
-    CapEff, and CapPrm.  Asserts the values match the expected hardened state so that
-    any regression where _harden() silently stops working is caught immediately.
+    Root is the case of a custom image left on USER 0, the only one that holds the
+    CAP_SETPCAP needed to shrink the bounding set.  Runs a wrapper whose app prints
+    /proc/self/status lines for NoNewPrivs, CapBnd, CapEff, and CapPrm.  Asserts the
+    values match the expected hardened state so that any regression where _harden()
+    silently stops working is caught immediately.
     """
     app = "grep -E '^(NoNewPrivs|CapBnd|CapEff|CapPrm):' /proc/self/status"
     run_commands = _render_wrapper(["sh", "-c", app])
@@ -434,3 +447,32 @@ def test_harden_applies_no_new_privs_and_drops_capabilities():
     assert "CapBnd:\t0000000000000000" in content, f"capability bounding set not cleared:\n{content}"
     assert "CapEff:\t0000000000000000" in content, f"effective capabilities not zeroed:\n{content}"
     assert "CapPrm:\t0000000000000000" in content, f"permitted capabilities not zeroed:\n{content}"
+
+
+@docker_required
+def test_harden_as_non_root_leaves_no_usable_capabilities():
+    """As uid 1000 with gid 0 (what a bare USER 1000 yields), the job holds no capabilities.
+
+    This is the production shape.  A non-root process lacks CAP_SETPCAP, so _harden()
+    cannot shrink its bounding set (CapBnd is deliberately not asserted); what must
+    hold is that every set it can use is empty and NoNewPrivs stops it gaining any.
+    """
+    app = "grep -E '^(NoNewPrivs|CapInh|CapPrm|CapEff|CapAmb):' /proc/self/status"
+    run_commands = _render_wrapper(["sh", "-c", app])
+    result, name = _docker_run(
+        run_commands,
+        {"PUBLIC_LOG_PATH": "/cos/public/logs.log", "LOG_FLUSH_INTERVAL_SECONDS": "999"},
+        user="1000:0",
+    )
+    try:
+        assert result.returncode == 0, result.stderr
+        with tempfile.TemporaryDirectory() as tmp:
+            _docker_cp(name, "/cos/public/logs.log", tmp)
+            with open(f"{tmp}/logs.log") as f:
+                content = f.read()
+    finally:
+        _docker_cleanup(name)
+
+    assert "NoNewPrivs:\t1" in content, f"NoNewPrivs not set:\n{content}"
+    for cap_set in ("CapInh", "CapPrm", "CapEff", "CapAmb"):
+        assert f"{cap_set}:\t0000000000000000" in content, f"{cap_set} not empty:\n{content}"
