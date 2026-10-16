@@ -80,7 +80,7 @@ arm64 base instead of the published ``icr.io`` image:
    WORKDIR /runner
    COPY ./runner.py /runner
    WORKDIR /
-   USER 1000
+   USER 1000:1000
 
 Then build it as usual, e.g.
 ``docker build --platform linux/arm64 -t test/local-provider-function -f Sample-Dockerfile .``.
