@@ -13,8 +13,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.domain.authentication.channel import Channel
 from core.services.storage.path_builder import PathBuilder
-from core.config_key import ConfigKey
-from core.models import Config, Job
+from core.models import Job
 from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("api.api.utils")
@@ -247,12 +246,11 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
-def active_jobs_limit_reached(author: str) -> bool:
+def active_jobs_limit_reached(author: str, active_jobs_limit: int) -> bool:
     """
     Returns True if the user reached his active jobs limit,
     False otherwise.
     """
-    active_jobs_limit = Config.get_int_or(ConfigKey.ACTIVE_JOBS_PER_USER, settings.LIMITS_ACTIVE_JOBS_PER_USER)
     user_active_jobs_count = Job.objects.filter(author=author, status__in=Job.ACTIVE_STATUSES).count()
 
     return user_active_jobs_count >= active_jobs_limit

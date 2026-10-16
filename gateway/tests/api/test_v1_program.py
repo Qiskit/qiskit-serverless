@@ -13,6 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
+from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
@@ -519,11 +520,9 @@ class TestProgramApi(APITestCase):
                 format="json",
             )
 
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, str(self.LIMITS_ACTIVE_JOBS_PER_USER))
         with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(
-                LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER,
-                MEDIA_ROOT=temp_dir,
-            ):
+            with self.settings(MEDIA_ROOT=temp_dir):
                 user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
                 program = TestUtils.create_program(
                     program_title="Docker-Image-Program-Test",

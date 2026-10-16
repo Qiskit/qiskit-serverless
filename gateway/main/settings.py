@@ -330,11 +330,6 @@ FLEETS_GATEWAY_HOST = os.environ.get("FLEETS_GATEWAY_HOST", SITE_HOST)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-# Per-user concurrent running-job limit for the Fleets (Code Engine) runner.
-# Fleets scales differently from Ray (no per-cluster capacity), so it gets its
-# own, higher default independent of the Ray-oriented LIMITS_JOBS_PER_USER.
-LIMITS_JOBS_PER_USER_FLEETS = int(os.environ.get("LIMITS_JOBS_PER_USER_FLEETS", "50"))
-LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
@@ -647,14 +642,14 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "across users. 0 or less means up to the user's Fleets limit.",
     },
     "gateway.limits.active_jobs_per_user": {
-        "default": "",
+        "default": "50",
         "type": "integer",
-        "description": "Most jobs one user can have queued or running. Empty or 0 means LIMITS_ACTIVE_JOBS_PER_USER.",
+        "description": "Most jobs one user can have queued or running.",
     },
     "scheduler.limits.fleets_jobs_per_user": {
-        "default": "",
+        "default": "50",
         "type": "integer",
-        "description": "Most Fleets jobs one user can have running. Empty or 0 means LIMITS_JOBS_PER_USER_FLEETS.",
+        "description": "Most Fleets jobs one user can have running.",
     },
 }
 

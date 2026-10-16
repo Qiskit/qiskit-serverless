@@ -267,7 +267,7 @@ def get_jobs_to_schedule_fair_share(
         gpu: filter jobs by GPU requirement
         runner: filter jobs by runner type
         per_user: max jobs of one user, taken in rounds across users
-        jobs_per_user: max running jobs of one user, by default the runner's env limit
+        jobs_per_user: max running jobs of one user, by default LIMITS_JOBS_PER_USER
 
     Returns:
         list of jobs for execution
@@ -281,13 +281,11 @@ def get_jobs_to_schedule_fair_share(
     # have separate limits and separate running-job tallies, so a user's Fleets
     # jobs don't count against their Ray budget and vice versa.
     if jobs_per_user is None:
-        jobs_per_user = (
-            settings.LIMITS_JOBS_PER_USER_FLEETS if runner == Program.FLEETS else settings.LIMITS_JOBS_PER_USER
-        )
+        jobs_per_user = settings.LIMITS_JOBS_PER_USER
 
     # Filler jobs are not user demand, and they belong to the author of the filler
     # function, so counting them would stop that person's own jobs being promoted.
-    # This one query serves both LIMITS_JOBS_PER_USER and its Fleets variant.
+    # This one query serves both the Ray and the Fleets limit.
     running_jobs_per_user = {
         entry["author"]: entry["running_jobs_count"]
         for entry in Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
@@ -337,8 +335,8 @@ def _jobs_in_rounds(budgets: dict, per_user: int, gpu: bool, runner: str, slots:
 
 
 def fleets_jobs_per_user() -> int:
-    """The scheduler.limits.fleets_jobs_per_user Config, or LIMITS_JOBS_PER_USER_FLEETS when it is empty or 0."""
-    return Config.get_int_or(ConfigKey.FLEETS_JOBS_PER_USER, settings.LIMITS_JOBS_PER_USER_FLEETS)
+    """The scheduler.limits.fleets_jobs_per_user Config."""
+    return Config.get_int(ConfigKey.FLEETS_JOBS_PER_USER, default=50)
 
 
 def fleets_jobs_per_user_per_tick(jobs_per_user: int) -> int:

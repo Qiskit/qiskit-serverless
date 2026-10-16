@@ -11,6 +11,11 @@ features:
     The two per-user job limits can now be changed in the backoffice, without a
     deploy: ``gateway.limits.active_jobs_per_user`` (queued or running jobs,
     checked at submit) and ``scheduler.limits.fleets_jobs_per_user`` (running
-    Fleets jobs). When they are empty, the default, or 0, the
-    ``LIMITS_ACTIVE_JOBS_PER_USER`` and ``LIMITS_JOBS_PER_USER_FLEETS`` env
-    settings apply as before.
+    Fleets jobs). Both default to 50, the same as before.
+upgrade:
+  - |
+    The ``LIMITS_ACTIVE_JOBS_PER_USER`` and ``LIMITS_JOBS_PER_USER_FLEETS`` env
+    settings and the chart value ``application.limits.maxActiveJobsPerUser`` are
+    removed. Set the ``gateway.limits.active_jobs_per_user`` and
+    ``scheduler.limits.fleets_jobs_per_user`` Config values in the backoffice
+    instead.

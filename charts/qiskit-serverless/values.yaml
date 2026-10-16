@@ -64,7 +64,6 @@ gateway:
       kubectlImage: alpine/k8s:1.37.1
     limits:
       maxJobsPerUser: 2
-      maxActiveJobsPerUser: 50
       maxComputeResources: 4
     nodeSelector:
       cpu: "has-cpu: cpu"

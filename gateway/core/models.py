@@ -1053,22 +1053,6 @@ class Config(models.Model):
         return [v.strip() for v in value.split(",")]
 
     @classmethod
-    def get_int_or(cls, key: ConfigKey, fallback: int) -> int:
-        """Get configuration value as a positive integer, or the fallback when it is not one or is missing."""
-        try:
-            value = cls.get(key).strip()
-        except KeyError:
-            return fallback
-        if not value:
-            return fallback
-        try:
-            number = int(value)
-        except ValueError:
-            logger.warning("Config key '%s' has a non-integer value '%s'; using %s", key.value, value, fallback)
-            return fallback
-        return number if number > 0 else fallback
-
-    @classmethod
     def get_int(cls, key: ConfigKey, default: int = 0) -> int:
         """Get configuration value as integer."""
         value = cls.get(key)
