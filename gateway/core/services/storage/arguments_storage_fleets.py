@@ -50,5 +50,14 @@ class FleetsArgumentsStorage(ArgumentsStorage):
             self._arguments_key,
         )
 
+    def delete(self) -> None:
+        get_cos_client(self._project).delete_object(bucket_name=self._bucket, key=self._arguments_key, wait=False)
+        logger.info(
+            "[delete] job_id=%s bucket=%s key=%s Arguments deleted from COS",
+            self._job_id,
+            self._bucket,
+            self._arguments_key,
+        )
+
     def get(self) -> str | None:
         raise NotImplementedError

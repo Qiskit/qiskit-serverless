@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    Cancelling a job now reports a new ``STOPPING`` status, shown by the client SDK
+    as ``CANCELING``, until the job has really stopped and its compute is released.
+    Previously the job was reported as stopped straight away, while its compute was
+    still being released. Sub-status and error reporting keep working while a job is
+    stopping.
+upgrade:
+  - |
+    A cancelled job stays in ``STOPPING`` until its compute is released, and counts
+    against the user's active and running job limits for that time. A cancellation
+    that is never confirmed is forced to stopped after 5 minutes.
+  - |
+    Stopping a job now answers "Serverless job stop has been requested." where it
+    used to say the job "was running and has been stopped", since the request only
+    asks for the stop and does not wait for it to finish.

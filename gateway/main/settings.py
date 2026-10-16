@@ -432,7 +432,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -478,6 +478,12 @@ RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-ea
 # API key of the service credential that holds the functions operator role, used to call the Runtime API as a service
 # (core/clients/functions_operator_client.py).
 FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
+
+# Shared per-process thread pool for background work (core/services/background_executor.py): how many threads it
+# has, and how many tasks may be submitted and unfinished before new ones are dropped. Each caller (BackgroundPool) is
+# guaranteed a minimum share of the pending limit.
+BACKGROUND_EXECUTOR_MAX_WORKERS = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_WORKERS", "4"))
+BACKGROUND_EXECUTOR_MAX_PENDING = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_PENDING", "100"))
 
 # IBM Cloud
 
@@ -590,6 +596,38 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
     },
+    "workloads.mirror.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Mirror the Fleets jobs created from now on to the Runtime API as workloads (a failure rejects "
+        "the job).",
+    },
+    "scheduler.outbox.workload.budget_ms": {
+        "default": "3000",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the workload outbox channel, in milliseconds.",
+    },
+    "scheduler.outbox.workload.breaker_failures": {
+        "default": "3",
+        "type": "integer",
+        "description": "Consecutive send failures before the workload outbox circuit breaker opens.",
+    },
+    "scheduler.outbox.workload.breaker_pause_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "How long the workload outbox circuit breaker stays open once tripped.",
+    },
+    "scheduler.outbox.workload.retry_base_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "Seconds a workload outbox row waits after its first failed send. The wait doubles with every "
+        "further failure, up to retry_max_seconds, and is never less than one second.",
+    },
+    "scheduler.outbox.workload.retry_max_seconds": {
+        "default": "600",
+        "type": "integer",
+        "description": "The longest a workload outbox row waits between two tries, however many times it has failed.",
+    },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
@@ -602,6 +640,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
         "breaker trips.",
     },
+    "scheduler.blocked_jobs_stop.enabled": {
+        "default": "true",
+        "type": "boolean",
+        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
+        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
+    },
 }
 
 # Fleets / Code Engine credentials
@@ -611,7 +655,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.37.0",
 )
 
 

@@ -11,7 +11,17 @@ from django.contrib.auth.models import User
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.services.runners import RunnerRetryableError
-from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Outbox, OutboxChannel, Program, Provider
+from core.models import (
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobEvent,
+    Outbox,
+    OutboxChannel,
+    Program,
+    Provider,
+    WorkloadMirror,
+)
 from core.services.job_transitions import JobTransitionService
 
 pytestmark = pytest.mark.django_db
@@ -201,7 +211,7 @@ class TestValidatesTransitions:
             (Job.RUNNING, "pending_to_running"),
             (Job.SUCCEEDED, "to_stopped"),
             (Job.FAILED, "to_failed"),
-            (Job.STOPPING, "to_succeeded"),
+            (Job.STOPPING, "pending_to_running"),
         ],
     )
     def test_rejects_a_transition_outside_the_whitelist(self, service, current_status, transition):
@@ -395,6 +405,49 @@ class TestBillingOutbox:
         assert Outbox.objects.filter(job=job).count() == 0
 
 
+class TestWorkloadOutbox:
+    """The final status of a mirrored job is stored for the Runtime API."""
+
+    def test_a_terminal_transition_enqueues_the_envelope_in_the_same_transaction(self, service, user):
+        job = _licensed_fleets_job(user, Job.RUNNING)
+        WorkloadMirror.objects.create(job=job)
+
+        service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        row = Outbox.objects.get(job=job, channel=OutboxChannel.WORKLOAD)
+        assert row.region == "us-east"
+        assert row.payload["function_id"] == str(job.id)
+        assert row.payload["body"]["status"] == "Failed"
+        assert row.payload["body"]["ended_at"] is not None
+        assert not WorkloadMirror.objects.filter(job=job).exists()  # nothing reads the table after a terminal status
+
+    def test_a_job_that_is_not_mirrored_enqueues_nothing(self, service, user):
+        job = _licensed_fleets_job(user, Job.RUNNING)
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+
+    def test_a_non_terminal_transition_enqueues_nothing(self, service, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        WorkloadMirror.objects.create(job=job)
+
+        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+
+    def test_a_job_the_builder_rejects_fails_and_rolls_the_transition_back(self, service, user):
+        job = Job.objects.create(author=user, runner=Program.FLEETS, instance_crn=CRN, status=Job.RUNNING)  # no program
+        WorkloadMirror.objects.create(job=job)
+
+        with pytest.raises(ValueError):
+            service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+        assert not Outbox.objects.filter(channel=OutboxChannel.WORKLOAD).exists()
+        assert WorkloadMirror.objects.filter(job=job).exists()
+
+
 class TestSender:
     """The default sender creates the Kafka producers, so it is only built when none is given."""
 
@@ -412,8 +465,10 @@ class TestToTerminal:
     """to_terminal is to_succeeded, to_failed and to_stopped for the caller that only knows the final status."""
 
     @pytest.mark.parametrize("status", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
-    def test_writes_the_given_terminal_status(self, service, user, status):
-        job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
+    # STOPPING is not a one-way door to STOPPED, and only a Fleets job ever reaches it
+    @pytest.mark.parametrize("start,runner", [(Job.RUNNING, Program.RAY), (Job.STOPPING, Program.FLEETS)])
+    def test_writes_the_given_terminal_status(self, service, user, status, start, runner):
+        job = Job.objects.create(author=user, runner=runner, status=start)
 
         service.to_terminal(job, status, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -598,6 +653,18 @@ class TestStop:
         assert Job.objects.get(pk=job.pk).status == Job.STOPPED
         get_runner.assert_not_called()
 
+    def test_a_mirrored_job_with_no_fleet_reports_its_final_status(self, get_runner, service, user):
+        """A job cancelled between /run and the fleet submit never gets another transition, so this is the one that
+        sends its final status to the Runtime API."""
+        job = _licensed_fleets_job(user, Job.QUEUED, fleet_id=None)
+        WorkloadMirror.objects.create(job=job)
+
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        row = Outbox.objects.get(job=job, channel=OutboxChannel.WORKLOAD)
+        assert row.payload["body"]["status"] == "Cancelled"
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
     def test_a_fleet_that_appeared_while_deciding_is_cancelled_on_the_retry(self, get_runner, service, user):
         """The submit race: the row had no fleet when we looked, and the scheduler finished the
         submit before we wrote. Writing STOPPED here would strand that fleet for ever."""
@@ -646,4 +713,14 @@ class TestStop:
         usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert usage.payload["data"]["metric_value"] >= 100, "the window did not run to the confirmation"
         # A job seen in RUNNING owes the fee, so passing through STOPPING does not waive it.
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_a_job_that_succeeded_before_the_cancel_still_owes_its_fee(self, get_runner, service, user):
+        """The other detour: never seen RUNNING, so to_stopped would have waived the fee."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        service.stop(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1

@@ -9,11 +9,11 @@ mypy-extensions>=0.4.4
 jupyter-sphinx>=0.5.3
 nbsphinx>=0.9.7
 sphinx-autodoc-typehints>=1.24.0
-Sphinx>=6.2.1,<7.2
+Sphinx>=7.4.7,<8
 reno>=3.5.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
 black[jupyter]~=22.12
 sphinx-copybutton>=0.5.2
-qiskit-sphinx-theme~=2.0.0
+qiskit-sphinx-theme~=2.1.1
 tox>=4.0.0

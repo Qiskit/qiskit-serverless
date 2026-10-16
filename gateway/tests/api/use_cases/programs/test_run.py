@@ -6,6 +6,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import override_settings
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -13,14 +14,19 @@ from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
+from core.config_key import ConfigKey
 from core.models import (
     CodeEngineProject,
+    Config,
     ComputeProfile,
     FunctionSize,
     Job,
     JobConfig,
     JobEvent,
     Program,
+    WorkloadMirror,
 )
 
 pytestmark = pytest.mark.django_db
@@ -243,3 +249,100 @@ class TestRunFunctionUseCase:
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
+
+
+class TestWorkloadMirror:
+    CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
+
+    @pytest.fixture
+    def put_function(self):
+        with mock.patch("api.use_cases.programs.run.get_functions_operator_client") as get_client:
+            yield get_client.return_value.put_function
+
+    @pytest.fixture
+    def fleets_accessible(self, user, ce_project, monkeypatch):
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        return FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+    def test_a_fleets_job_is_sent_to_the_runtime_api_when_it_is_created(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_called_once()
+        assert put_function.call_args.kwargs["function_id"] == str(job.id)
+        assert put_function.call_args.kwargs["body"]["status"] == "Queued"
+        assert WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_nothing_is_sent_or_recorded_while_the_mirror_is_off(self, user, fleets_accessible, put_function):
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        RunFunctionUseCase().execute(user, accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert Job.objects.count() == 1
+        assert not WorkloadMirror.objects.exists()
+
+    def test_a_fleets_job_without_instance_is_created_but_not_sent(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input())
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_the_job_is_stored_as_failed_if_the_runtime_api_does_not_take_it(
+        self, user, fleets_accessible, put_function, monkeypatch
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = RetryableError("down")
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+
+        with pytest.raises(EngineUnavailableException):
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        job = Job.objects.get()
+        assert job.status == Job.FAILED
+        assert JobEvent.objects.filter(job=job, data__code="RUNTIME_API_UNAVAILABLE").exists()
+        assert not WorkloadMirror.objects.exists()
+        arguments_storage.delete.assert_not_called()  # the job exists, so its arguments stay
+        assert put_function.call_args.kwargs["timeout"] == 3
+
+    def test_a_permanent_runtime_api_error_also_stores_the_job_as_failed(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = RuntimeApiError("rejected", status_code=400)
+
+        with pytest.raises(EngineUnavailableException) as error:
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        assert "contact support" in error.value.message
+        assert Job.objects.get().status == Job.FAILED
+
+    def test_the_saved_arguments_are_deleted_if_the_job_is_rolled_back(
+        self, user, fleets_accessible, put_function, monkeypatch
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = ValueError("not an error of the Runtime API")
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+
+        with pytest.raises(ValueError):
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        assert not Job.objects.exists()
+        arguments_storage.delete.assert_called_once()

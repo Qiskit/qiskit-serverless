@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +17,10 @@ from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 
 if TYPE_CHECKING:
     from core.models import CodeEngineProject
+
+_COS_CLIENT_TTL_SECONDS = 60
+_cos_clients: dict[tuple, tuple[JobCOS, float]] = {}
+_cos_clients_lock = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -40,13 +46,20 @@ def get_ce_auth(api_key: str, region: str) -> CEAuth:
     cfg.host = client_provider.config.code_engine_url
     # Configuration uses a copy-on-call singleton; replace the shared dict references
     # so different ApiClient instances don't mutate each other's credentials.
-    cfg.api_key = {"Authorization": client_provider.auth.token}
+    cfg.api_key = {}
     cfg.api_key_prefix = {"Authorization": "Bearer"}
+
+    # get_api_key_with_prefix is the only reader of api_key and it calls this first, so the token
+    # is read per request. That is why api_key starts empty.
+    def refresh_token(config: Configuration) -> None:
+        config.api_key["Authorization"] = client_provider.tokens.get_token()
+
+    cfg.refresh_api_key_hook = refresh_token
     return CEAuth(api_client=ApiClient(cfg), client_provider=client_provider)
 
 
 def get_cos_client(project: CodeEngineProject) -> JobCOS:
-    """Build a :class:`JobCOS` for the given CE project.
+    """Build a :class:`JobCOS` for the given CE project, reused in this process for 60 seconds.
 
     Reads ``IBM_CLOUD_API_KEY``, ``CE_HMAC_SECRET_NAME``, and
     ``CE_COS_USE_PUBLIC_ENDPOINT`` from Django settings, fetches HMAC
@@ -70,7 +83,22 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
             found / lacks the expected HMAC fields.
         ApiException: If the CE secrets API call fails for a non-404 reason.
     """
-    return _create_cos_client(project)
+    key = (project.project_id, project.region)
+    now = time.monotonic()
+    with _cos_clients_lock:
+        cached = _cos_clients.get(key)
+    if cached and now - cached[1] < _COS_CLIENT_TTL_SECONDS:
+        return cached[0]
+    client = _create_cos_client(project)
+    with _cos_clients_lock:
+        _cos_clients[key] = (client, now)
+    return client
+
+
+def clear_cos_clients() -> None:
+    """Drop every cached COS client."""
+    with _cos_clients_lock:
+        _cos_clients.clear()
 
 
 def _create_cos_client(project: CodeEngineProject) -> JobCOS:
@@ -108,7 +136,7 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
         raise ValueError(f"CE secret {hmac_secret_name!r} is missing 'access_key_id' or 'secret_access_key'")
 
     endpoint_url = None
-    if getattr(settings, "CE_COS_USE_PUBLIC_ENDPOINT", False):
+    if settings.CE_COS_USE_PUBLIC_ENDPOINT:
         endpoint_url = COS_PUBLIC_URL_TEMPLATE.format(region=project.region)
 
     cos_client = COSClient(

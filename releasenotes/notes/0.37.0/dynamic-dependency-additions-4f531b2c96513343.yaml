@@ -1,0 +1,8 @@
+---
+upgrade:
+  - |
+    Several packages have been added to the dynamic dependencies allowlist bundled
+    in the custom functions image: ``h5py``, ``mpi4py``, ``openmpi``, ``pybind11``
+    and ``qrmi[ibm]``. Qiskit Functions that declare any of them as a dependency
+    can now use them. ``ffsim`` is updated to ``0.0.70`` and ``qiskit-addon-sqd`` to
+    ``0.13.1``.

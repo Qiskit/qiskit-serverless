@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
 from core.clients.functions_operator_client import FunctionsOperatorClient
 
 FUNCTION_ID = "job-1"
@@ -55,9 +56,9 @@ def test_the_timeout_argument_bounds_the_put(client, put):
 
 
 def test_a_token_error_is_raised_as_it_is_and_nothing_is_sent(client, token_provider, put):
-    token_provider.get_token.side_effect = RuntimeApiRetryableError("Could not get an IAM token")
+    token_provider.get_token.side_effect = RetryableError("Could not get an IAM token")
 
-    with pytest.raises(RuntimeApiRetryableError):
+    with pytest.raises(RetryableError):
         client.put_function(FUNCTION_ID, BODY)
 
     put.assert_not_called()
@@ -76,7 +77,7 @@ def test_a_4xx_status_is_a_permanent_rejection(client, put, status_code):
     with pytest.raises(RuntimeApiError) as error:
         client.put_function(FUNCTION_ID, BODY)
 
-    assert not isinstance(error.value, RuntimeApiRetryableError)
+    assert not isinstance(error.value, RetryableError)
     assert error.value.status_code == status_code
 
 
@@ -84,17 +85,16 @@ def test_a_4xx_status_is_a_permanent_rejection(client, put, status_code):
 def test_a_transient_status_is_the_retryable_error(client, put, status_code):
     put.return_value = MagicMock(status_code=status_code, text="try later")
 
-    with pytest.raises(RuntimeApiError) as error:
+    with pytest.raises(RetryableError) as error:
         client.put_function(FUNCTION_ID, BODY)
 
-    assert isinstance(error.value, RuntimeApiRetryableError)
     assert error.value.status_code == status_code
 
 
 def test_a_401_invalidates_the_token_that_was_sent_and_a_403_does_not(client, token_provider, put):
     for status_code in (403, 401):
         put.return_value = MagicMock(status_code=status_code, text="no")
-        with pytest.raises(RuntimeApiRetryableError):
+        with pytest.raises(RetryableError):
             client.put_function(FUNCTION_ID, BODY)
 
     token_provider.invalidate.assert_called_once_with("iam-token")
@@ -112,7 +112,7 @@ def test_an_error_status_logs_the_start_of_the_response_body(client, put, caplog
 def test_network_failures_are_transient(client, put):
     put.side_effect = requests.ConnectionError("boom")
 
-    with pytest.raises(RuntimeApiRetryableError):
+    with pytest.raises(RetryableError):
         client.put_function(FUNCTION_ID, BODY)
 
 
@@ -121,7 +121,7 @@ def test_a_body_without_crn_is_a_permanent_error_and_nothing_is_sent(client, tok
     with pytest.raises(RuntimeApiError) as error:
         client.put_function(FUNCTION_ID, {**BODY, "crn": crn})
 
-    assert not isinstance(error.value, RuntimeApiRetryableError)
+    assert not isinstance(error.value, RetryableError)
     token_provider.get_token.assert_not_called()
     put.assert_not_called()
 
@@ -129,7 +129,7 @@ def test_a_body_without_crn_is_a_permanent_error_and_nothing_is_sent(client, tok
 def test_the_token_never_reaches_the_logs_or_the_error(client, put, caplog):
     put.return_value = MagicMock(status_code=500, text="boom")
 
-    with pytest.raises(RuntimeApiRetryableError) as error:
+    with pytest.raises(RetryableError) as error:
         client.put_function(FUNCTION_ID, BODY)
 
     assert "iam-token" not in caplog.text

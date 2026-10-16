@@ -7,6 +7,7 @@ rationale, if you have it locally, see .claude/specs/2026-09-25-generic-outbox-d
 
 import logging
 
+from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.models import OutboxChannel
@@ -22,9 +23,16 @@ logger = logging.getLogger("scheduler.OutboxTask")
 
 def build_kafka_circuit_breaker() -> CircuitBreaker:
     """A fresh circuit breaker for the Kafka channels, with the thresholds of their Config entries."""
-    return CircuitBreaker(
-        ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS
-    )
+    failures = ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES
+    pause_seconds = ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_PAUSE_SECONDS
+    return CircuitBreaker(failures, pause_seconds)
+
+
+def build_workload_circuit_breaker() -> CircuitBreaker:
+    """A fresh circuit breaker for the workload channel, with the thresholds of its Config entries."""
+    failures = ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BREAKER_FAILURES
+    pause_seconds = ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BREAKER_PAUSE_SECONDS
+    return CircuitBreaker(failures, pause_seconds)
 
 
 class OutboxTask(SchedulerTask):
@@ -46,9 +54,19 @@ class OutboxTask(SchedulerTask):
             metrics=metrics,
             kill_signal=kill_signal,
         )
+        workloads = Destination(
+            sender=WorkloadSender(),
+            breaker_factory=build_workload_circuit_breaker,
+            budget_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BUDGET_MS,
+            retry_base_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_BASE_SECONDS,
+            retry_max_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_MAX_SECONDS,
+            metrics=metrics,
+            kill_signal=kill_signal,
+        )
         self.channels: dict[OutboxChannel, Destination] = {
             OutboxChannel.LICENSE_FEE: kafka,
             OutboxChannel.JOB_USAGE: kafka,
+            OutboxChannel.WORKLOAD: workloads,
         }
 
     def run(self):

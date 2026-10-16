@@ -21,7 +21,6 @@ stack, so a tests/-resident mock would not be available at runtime.
 The env gate in apps.py ensures this code is never executed in production.
 """
 
-import base64
 import json
 import logging
 import os
@@ -125,66 +124,15 @@ def _get_mock_s3():
     return _MOCK_S3[1]
 
 
-def _make_fake_jwt() -> str:
-    """Build a minimal decodable JWT with iam_id and account.bss fields.
-
-    Returns:
-        A base64-encoded JWT string with mock claims.
-    """
-    header_json = json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-    header = base64.urlsafe_b64encode(header_json).rstrip(b"=").decode()
-    payload_data = {
-        "iam_id": "iam-mock-fleets-test",
-        "account": {"bss": "mock-account-id"},
-    }
-    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=").decode()
-    signature = base64.urlsafe_b64encode(b"mock-signature").rstrip(b"=").decode()
-    return f"{header}.{payload}.{signature}"
-
-
-class _FakeTokenManager:  # pylint: disable=too-few-public-methods
-    """Mimics the IAM SDK token manager interface."""
-
-    def __init__(self):
-        self._token = _make_fake_jwt()
+class _FakeTokenProvider:
+    """Stands in for :class:`IamTokenProvider` so the mock stack never calls IAM."""
 
     def get_token(self) -> str:
-        """Return the fake JWT token.
+        """Return a mock bearer token."""
+        return "mock-iam-token"
 
-        Returns:
-            A mock JWT string.
-        """
-        return self._token
-
-
-class _FakeIAMAuthenticator:
-    """Drop-in replacement for ``ibm_cloud_sdk_core.authenticators.IAMAuthenticator``.
-
-    Required because ``IBMCloudClientProvider.__init__`` calls
-    ``IAMAuthenticator.token_manager.get_token()`` to validate credentials.
-    Without this fake, ``_mock_get_cos_client`` would fail with a network error
-    when constructing the ``IBMCloudClientProvider``. The fake JWT must contain
-    ``iam_id`` and ``account.bss`` fields because ``IBMCloudClientProvider``
-    decodes and reads them.
-
-    Args:
-        apikey: The API key (ignored).
-        url: The IAM URL (ignored).
-        **kwargs: Additional keyword arguments (ignored).
-    """
-
-    def __init__(self, apikey: str = "", *, url: str = "", **kwargs):  # pylint: disable=unused-argument
-        self.token_manager = _FakeTokenManager()
-
-    def validate(self):
-        """No-op validation."""
-
-    def authenticate(self, req):
-        """No-op authentication.
-
-        Args:
-            req: The request object (ignored).
-        """
+    def invalidate(self, token: str) -> None:
+        """No-op: the mock token never expires."""
 
 
 def _mock_get_cos_client(project):  # pylint: disable=unused-argument
@@ -385,8 +333,8 @@ def install_mocks():
 
     patches = [
         patch(
-            "core.ibm_cloud.clients.IAMAuthenticator",
-            _FakeIAMAuthenticator,
+            "core.ibm_cloud.clients.get_iam_token_provider",
+            lambda *_a, **_k: _FakeTokenProvider(),
         ),
         # get_cos_client delegates to the private core.ibm_cloud._create_cos_client,
         # which is never imported elsewhere. Patching that single seam redirects

@@ -30,12 +30,14 @@ from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 
 from core.domain import compute_profile
+from core.domain.workload_payload import is_mirrored
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import (
     AbstractRunner,
     RunnerError,
     RunnerRetryableError,
 )
+from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -141,7 +143,7 @@ class FleetsRunner(AbstractRunner):
         """Submit the job as a Code Engine fleet: upload its files to COS, then create the fleet.
 
         Raises:
-            RunnerRetryableError: If Code Engine or COS failed in a way a later try can fix.
+            RunnerRetryableError: If Code Engine, COS or IAM failed in a way a later try can fix.
             RunnerError: If submission fails for any other reason.
         """
         paths = self._upload_to_cos()
@@ -196,6 +198,9 @@ class FleetsRunner(AbstractRunner):
         Mounts two PDS volumes and sets up the dual-log wrapper (provider log = all output,
         user log = ``[public]`` filtered lines), reading the files _upload_to_cos put in COS.
         """
+        # The job id goes to the container as QISKIT_FUNCTIONS_IDENTIFIER only when the job was
+        # mirrored in the first place to the Runtime API during the job creation.
+        functions_identifier = str(self.job.id) if is_mirrored(self.job) else None
         try:
             handler = self._get_handler()
 
@@ -226,7 +231,7 @@ class FleetsRunner(AbstractRunner):
             extra_fields.update(
                 {
                     "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
-                    "run_env_variables": build_run_env_variables(paths, stored_env_vars),
+                    "run_env_variables": build_run_env_variables(paths, stored_env_vars, functions_identifier),
                     "run_commands": ["python", paths.container_docker_entrypoint],
                 }
             )
@@ -266,6 +271,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except (ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except RetryableError as ex:
+            raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
         except Exception as ex:
             logger.error("Failed to submit job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
@@ -547,6 +554,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError(f"Code Engine API error {ex.status}: {ex.reason}", ex) from ex
         except (MaxRetryError, ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+        except RetryableError as ex:
+            raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
         except Exception as ex:
             logger.error("Failed to stop fleet [%s]: %s", self.job.fleet_id, ex)
             raise RunnerError(f"Unable to stop fleet [{self.job.fleet_id}]", ex) from ex
@@ -596,9 +605,8 @@ class FleetsRunner(AbstractRunner):
     def _get_handler(self) -> FleetHandler:
         """Return the :class:`FleetHandler`, creating it lazily and caching it on this runner.
 
-        The token is read once, when the client is built, and nothing refreshes it: the swagger
-        ``Configuration.refresh_api_key_hook`` is never set. A runner lives for one request or one
-        scheduler tick, so reuse it to pay the IAM fetch once rather than once per call.
+        ``get_ce_auth`` sets the swagger ``Configuration.refresh_api_key_hook``, so the token is
+        re-read before every request and the SDK renews it near expiry.
 
         Returns:
             Initialized :class:`FleetHandler`.

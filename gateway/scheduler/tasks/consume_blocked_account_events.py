@@ -6,7 +6,7 @@ from django.conf import settings
 
 from core.ibm_cloud.event_streams import kafka_consumer
 from core.ibm_cloud.event_streams.kafka_consumer import DrainStats, KafkaRegionalConsumer
-from core.services.blocked_account_events import handle_blocked_account_event
+from core.services.blocked_account_events import BlockedAccountEventsService
 
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -45,7 +45,7 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
             self.consumer = KafkaRegionalConsumer(
                 topics=blocked_accounts_topics(settings.ENVIRONMENT),
                 group_id=f"qiskit-serverless-scheduler-blocked-accounts-{settings.ENVIRONMENT}",
-                handler=handle_blocked_account_event,
+                handler=BlockedAccountEventsService().handle,
             )
         else:
             logger.info("EVENT_STREAMS_ENABLED is False, blocked-account events will not be consumed")
@@ -73,3 +73,5 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
                 self.metrics.increment_blocked_account_event(region, _EVENT_OUTCOMES[outcome], count)
             elif outcome in _ERROR_KINDS:
                 self.metrics.increment_blocked_account_consumer_error(region, _ERROR_KINDS[outcome], count)
+        for (region, topic), lag in stats.lag.items():
+            self.metrics.set_blocked_account_consumer_lag(region, topic, lag)
