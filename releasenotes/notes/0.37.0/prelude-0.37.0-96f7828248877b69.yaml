@@ -1,11 +1,17 @@
 ---
 prelude: >
-    ``qiskit_serverless v0.37.0`` removes the Ray-coupling client helpers that were
-    deprecated in 0.34.0: the ``distribute_task`` decorator, the ``get``, ``put`` and
-    ``get_refs_by_status`` helpers, ``distribute_qiskit_function`` and
-    ``qiskit_serverless.core.remote``. Functions that need in-function parallelism
-    should use Ray directly. The deprecated ``compute_profile`` input on ``run()``
-    is also removed in favour of ``function_size``, whose label is restricted to
+    ``qiskit_serverless v0.37.0`` tightens circuit serialization: the gateway now
+    injects an authoritative Qiskit configuration into every job and enforces a
+    minimum QPY version of ``13`` (Qiskit ``1.3.0``), so circuits serialized with an
+    older Qiskit are rejected at load time. Cancelling a job now reports a new
+    ``STOPPING`` status until the compute is actually released, instead of being
+    reported as stopped straight away. The deprecated ``compute_profile`` input on
+    ``run()`` is removed in favour of ``function_size``, whose label is restricted to
     ``S``, ``M``, ``L`` and ``XL``. This release also adds a ``provider`` filter to
-    function listing, reports a new ``STOPPING`` status when a job is cancelled, and
-    raises the required ``qiskit-ibm-runtime`` version to ``0.50``.
+    function listing, bundles the CUDA runtime libraries and ``qiskit-fermions`` for
+    GPU chemistry in the custom functions image, and raises the required
+    ``qiskit-ibm-runtime`` version to ``0.50``. Finally, it removes the Ray-coupling
+    client helpers that were deprecated in 0.34.0 (the ``distribute_task`` decorator,
+    the ``get``, ``put`` and ``get_refs_by_status`` helpers, ``distribute_qiskit_function``
+    and ``qiskit_serverless.core.remote``); functions that need in-function parallelism
+    should use Ray directly.
