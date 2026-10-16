@@ -345,37 +345,10 @@ A rotated HMAC secret is picked up within 60 seconds.</p></li>
 <span id="release-notes-v0-37-0"></span><h2>v0.37.0<a class="headerlink" href="#v0-37-0" title="Link to this heading">¶</a></h2>
 <section id="prelude">
 <span id="release-notes-v0-37-0-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.37.0</span></code> removes the Ray-coupling client helpers that were deprecated in 0.34.0: the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator, the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and <code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> helpers, <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function</span></code> and <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.core.remote</span></code>. Functions that need in-function parallelism should use Ray directly. The deprecated <code class="docutils literal notranslate"><span class="pre">compute_profile</span></code> input on <code class="docutils literal notranslate"><span class="pre">run()</span></code> is also removed in favour of <code class="docutils literal notranslate"><span class="pre">function_size</span></code>, whose label is restricted to <code class="docutils literal notranslate"><span class="pre">S</span></code>, <code class="docutils literal notranslate"><span class="pre">M</span></code>, <code class="docutils literal notranslate"><span class="pre">L</span></code> and <code class="docutils literal notranslate"><span class="pre">XL</span></code>. This release also adds a <code class="docutils literal notranslate"><span class="pre">provider</span></code> filter to function listing, reports a new <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> status when a job is cancelled, and raises the required <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> version to <code class="docutils literal notranslate"><span class="pre">0.50</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.37.0</span></code> tightens circuit serialization: the gateway now injects an authoritative Qiskit configuration into every job and enforces a minimum QPY version of <code class="docutils literal notranslate"><span class="pre">13</span></code> (Qiskit <code class="docutils literal notranslate"><span class="pre">1.3.0</span></code>), so circuits serialized with an older Qiskit are rejected at load time. Cancelling a job now reports a new <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> status until the compute is actually released, instead of being reported as stopped straight away. The deprecated <code class="docutils literal notranslate"><span class="pre">compute_profile</span></code> input on <code class="docutils literal notranslate"><span class="pre">run()</span></code> is removed in favour of <code class="docutils literal notranslate"><span class="pre">function_size</span></code>, whose label is restricted to <code class="docutils literal notranslate"><span class="pre">S</span></code>, <code class="docutils literal notranslate"><span class="pre">M</span></code>, <code class="docutils literal notranslate"><span class="pre">L</span></code> and <code class="docutils literal notranslate"><span class="pre">XL</span></code>. This release also adds a <code class="docutils literal notranslate"><span class="pre">provider</span></code> filter to function listing, bundles the CUDA runtime libraries and <code class="docutils literal notranslate"><span class="pre">qiskit-fermions</span></code> for GPU chemistry in the custom functions image, and raises the required <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> version to <code class="docutils literal notranslate"><span class="pre">0.50</span></code>. Finally, it removes the Ray-coupling client helpers that were deprecated in 0.34.0 (the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator, the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and <code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> helpers, <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function</span></code> and <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.core.remote</span></code>); functions that need in-function parallelism should use Ray directly.</p>
 </section>
 <section id="release-notes-v0-37-0-new-features">
 <span id="id2"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-37-0-new-features" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">qiskit-fermions==0.2.0</span></code> has been added to the dynamic dependencies allowlist
-bundled in the custom functions image. Qiskit Functions that declare it as a
-dependency can now use it.</p></li>
-</ul>
-<ul class="simple">
-<li><p>The custom functions image now ships the CUDA runtime libraries <code class="docutils literal notranslate"><span class="pre">gpu4pyscf</span></code>
-needs at import, so GPU chemistry functions no longer have to install those
-wheels themselves.</p></li>
-</ul>
-<ul>
-<li><p>Listing Qiskit Functions now accepts a <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument that returns only the
-functions belonging to that provider:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">functions</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">"q-ctrl"</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>The filter narrows the functions the caller can already see, so it never widens access,
-and a provider the caller has no functions under returns an empty list.</p>
-</li>
-</ul>
-<ul class="simple">
-<li><p>Cancelling a job now reports a new <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> status, shown by the client SDK
-as <code class="docutils literal notranslate"><span class="pre">CANCELING</span></code>, until the job has really stopped and its compute is released.
-Previously the job was reported as stopped straight away, while its compute was
-still being released. Sub-status and error reporting keep working while a job is
-stopping.</p></li>
-</ul>
 <ul>
 <li><p>Running Qiskit Functions can now read the compute sizing their job resolved
 to, with two new helpers,
@@ -396,6 +369,16 @@ and <code class="docutils literal notranslate"><span class="pre">ENV_JOB_COMPUTE
 </li>
 </ul>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">qiskit-fermions==0.2.0</span></code> has been added to the dynamic dependencies allowlist
+bundled in the custom functions image. Qiskit Functions that declare it as a
+dependency can now use it.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The custom functions image now ships the CUDA runtime libraries <code class="docutils literal notranslate"><span class="pre">gpu4pyscf</span></code>
+needs at import, so GPU chemistry functions no longer have to install those
+wheels themselves.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The gateway now injects an authoritative Qiskit user configuration file
 (<code class="docutils literal notranslate"><span class="pre">settings.conf</span></code>) into every Ray and Code Engine Fleets job container and
 points <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> at it. The file currently sets a single key,
@@ -404,6 +387,23 @@ points <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTI
 QPY payloads older than that version. For Fleets the file is written by the
 job wrapper at container startup; for Ray it is written into the job
 working directory and referenced by a cwd-relative <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code>.</p></li>
+</ul>
+<ul>
+<li><p>Listing Qiskit Functions now accepts a <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument that returns only the
+functions belonging to that provider:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">functions</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="s2">"q-ctrl"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The filter narrows the functions the caller can already see, so it never widens access,
+and a provider the caller has no functions under returns an empty list.</p>
+</li>
+</ul>
+<ul class="simple">
+<li><p>Cancelling a job now reports a new <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> status, shown by the client SDK
+as <code class="docutils literal notranslate"><span class="pre">CANCELING</span></code>, until the job has really stopped and its compute is released.
+Previously the job was reported as stopped straight away, while its compute was
+still being released. Sub-status and error reporting keep working while a job is
+stopping.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-37-0-upgrade-notes">
@@ -428,6 +428,17 @@ can now use them. <code class="docutils literal notranslate"><span class="pre">f
 in the custom functions image is now held to the 2.5 line. Functions that relied
 on an earlier <code class="docutils literal notranslate"><span class="pre">qiskit</span></code> in the image should review the Qiskit 2.3-2.5 release
 notes for API changes.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The gateway-provided <code class="docutils literal notranslate"><span class="pre">settings.conf</span></code> is authoritative: a function’s own
+Qiskit configuration file is no longer consulted in the Functions runtime.
+Qiskit reads exactly the one file <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> names, with no merging,
+and the gateway sets <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> in the system-controlled environment
+layer that overrides any value a function supplies. A function that shipped
+or wrote its own <code class="docutils literal notranslate"><span class="pre">settings.conf</span></code> (at the default <code class="docutils literal notranslate"><span class="pre">~/.qiskit/settings.conf</span></code>
+or elsewhere) will find it ignored. Function vendors that need Qiskit
+configuration beyond <code class="docutils literal notranslate"><span class="pre">min_qpy_version</span></code> must apply it programmatically in
+their function code rather than through a configuration file.</p></li>
 </ul>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator and the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and
@@ -511,17 +522,6 @@ that is never confirmed is forced to stopped after 5 minutes.</p></li>
 used to say the job “was running and has been stopped”, since the request only
 asks for the stop and does not wait for it to finish.</p></li>
 </ul>
-<ul class="simple">
-<li><p>The gateway-provided <code class="docutils literal notranslate"><span class="pre">settings.conf</span></code> is authoritative: a function’s own
-Qiskit configuration file is no longer consulted in the Functions runtime.
-Qiskit reads exactly the one file <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> names, with no merging,
-and the gateway sets <code class="docutils literal notranslate"><span class="pre">QISKIT_SETTINGS</span></code> in the system-controlled environment
-layer that overrides any value a function supplies. A function that shipped
-or wrote its own <code class="docutils literal notranslate"><span class="pre">settings.conf</span></code> (at the default <code class="docutils literal notranslate"><span class="pre">~/.qiskit/settings.conf</span></code>
-or elsewhere) will find it ignored. Function vendors that need Qiskit
-configuration beyond <code class="docutils literal notranslate"><span class="pre">min_qpy_version</span></code> must apply it programmatically in
-their function code rather than through a configuration file.</p></li>
-</ul>
 </section>
 <section id="security-issues">
 <span id="release-notes-v0-37-0-security-issues"></span><h3>Security Issues<a class="headerlink" href="#security-issues" title="Link to this heading">¶</a></h3>
@@ -534,20 +534,6 @@ mechanism is <code class="docutils literal notranslate"><span class="pre">mock_t
 </section>
 <section id="release-notes-v0-37-0-bug-fixes">
 <span id="id4"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-37-0-bug-fixes" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>The gateway and the scheduler now exit when their startup migration fails, instead of
-starting against a database that does not match the code.</p></li>
-</ul>
-<ul class="simple">
-<li><p>Fixed GPU chemistry functions silently running on the CPU, because the CUDA
-libraries <code class="docutils literal notranslate"><span class="pre">gpu4pyscf</span></code> loads at import were missing from the image. The image
-now installs them and its build checks that they resolve.</p></li>
-</ul>
-<ul class="simple">
-<li><p>A request to the IBM Cloud and IBM Quantum Platform channels without the
-<code class="docutils literal notranslate"><span class="pre">Service-CRN</span></code> header now fails with an authentication error that asks for
-the header, instead of an internal server error.</p></li>
-</ul>
 <ul class="simple">
 <li><p>A request whose authentication could not be completed because IBM Cloud was
 unreachable, timed out, or returned a server error now fails with <code class="docutils literal notranslate"><span class="pre">HTTP</span> <span class="pre">503</span></code>
@@ -571,6 +557,20 @@ transient blip and clears on retry, now raises a <code class="docutils literal n
 with code <code class="docutils literal notranslate"><span class="pre">EMPTY1001</span></code> and a message saying to try again. It was previously
 reported with code <code class="docutils literal notranslate"><span class="pre">JSON1001</span></code> as a server json decoding error, which read as
 a permanent problem.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The gateway and the scheduler now exit when their startup migration fails, instead of
+starting against a database that does not match the code.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Fixed GPU chemistry functions silently running on the CPU, because the CUDA
+libraries <code class="docutils literal notranslate"><span class="pre">gpu4pyscf</span></code> loads at import were missing from the image. The image
+now installs them and its build checks that they resolve.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A request to the IBM Cloud and IBM Quantum Platform channels without the
+<code class="docutils literal notranslate"><span class="pre">Service-CRN</span></code> header now fails with an authentication error that asks for
+the header, instead of an internal server error.</p></li>
 </ul>
 </section>
 </section>
