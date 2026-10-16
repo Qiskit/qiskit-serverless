@@ -645,17 +645,13 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "5",
         "type": "integer",
         "description": "How many queued Fleets jobs of one user the scheduler submits in one tick, taken in rounds "
-        "across users. 0 or less means up to the user's Fleets limit.",
+        "across users. 0 or less means up to gateway.limits.active_jobs_per_user.",
     },
     "gateway.limits.active_jobs_per_user": {
         "default": "50",
         "type": "integer",
-        "description": "Most jobs one user can have queued or running.",
-    },
-    "scheduler.limits.fleets_jobs_per_user": {
-        "default": "50",
-        "type": "integer",
-        "description": "Most Fleets jobs one user can have running.",
+        "description": "Most jobs one user can have queued or running. The gateway checks it at submit, and the "
+        "scheduler uses it as the most Fleets jobs one user can have running.",
     },
 }
 

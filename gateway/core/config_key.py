@@ -28,4 +28,3 @@ class ConfigKey(Enum):
     BLOCKED_JOBS_STOP_ENABLED = "scheduler.blocked_jobs_stop.enabled"
     FLEETS_JOBS_PER_USER_PER_TICK = "scheduler.fleets.jobs_per_user_per_tick"
     ACTIVE_JOBS_PER_USER = "gateway.limits.active_jobs_per_user"
-    FLEETS_JOBS_PER_USER = "scheduler.limits.fleets_jobs_per_user"

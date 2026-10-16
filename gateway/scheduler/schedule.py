@@ -335,8 +335,8 @@ def _jobs_in_rounds(budgets: dict, per_user: int, gpu: bool, runner: str, slots:
 
 
 def fleets_jobs_per_user() -> int:
-    """The scheduler.limits.fleets_jobs_per_user Config."""
-    return Config.get_int(ConfigKey.FLEETS_JOBS_PER_USER, default=50)
+    """The gateway.limits.active_jobs_per_user Config, which also caps the running Fleets jobs of one user."""
+    return Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)
 
 
 def fleets_jobs_per_user_per_tick(jobs_per_user: int) -> int:

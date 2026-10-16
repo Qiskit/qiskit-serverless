@@ -191,10 +191,10 @@ class TestScheduleApi(APITestCase):
         Config.set(ConfigKey.FLEETS_JOBS_PER_USER_PER_TICK, "0")
         assert fleets_jobs_per_user_per_tick(jobs_per_user=4) == 4
 
-    def test_fleets_jobs_per_user_reads_config(self):
+    def test_fleets_jobs_per_user_is_the_active_job_limit(self):
         Config.add_defaults()
         assert fleets_jobs_per_user() == 50
-        Config.set(ConfigKey.FLEETS_JOBS_PER_USER, "250")
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "250")
         assert fleets_jobs_per_user() == 250
 
     @patch("scheduler.schedule.get_runner")
