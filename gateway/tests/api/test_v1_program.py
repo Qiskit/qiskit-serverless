@@ -170,7 +170,7 @@ class TestProgramApi(APITestCase):
         Config.add_defaults()  # running a function reads the workload mirror flag
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
-        self.LIMITS_ACTIVE_JOBS_PER_USER = 2
+        self.active_jobs_limit = 2
         self.runner_permission = ["run_program", "api", "program"]
         self.viewer_permission = ["view_program", "api", "program"]
 
@@ -520,7 +520,7 @@ class TestProgramApi(APITestCase):
                 format="json",
             )
 
-        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, str(self.LIMITS_ACTIVE_JOBS_PER_USER))
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, str(self.active_jobs_limit))
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir):
                 user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
@@ -536,27 +536,24 @@ class TestProgramApi(APITestCase):
                 num_jobs_in_queue = Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
 
                 # Checking that this test will run according to scripts
-                assert self.LIMITS_ACTIVE_JOBS_PER_USER > num_jobs_in_queue
+                assert self.active_jobs_limit > num_jobs_in_queue
 
                 # filling up the queue to the limit
-                for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_PER_USER):
+                for _ in range(num_jobs_in_queue, self.active_jobs_limit):
                     programs_response = run_program()
                     assert programs_response.status_code == status.HTTP_200_OK  # ok
 
                 # the user has a job with status `SUCCEEDED`.
                 # Checking it doesn't count it towards the limit
-                assert (
-                    self.LIMITS_ACTIVE_JOBS_PER_USER
-                    == Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
-                )
-                assert Job.objects.filter(author=user).count() > self.LIMITS_ACTIVE_JOBS_PER_USER
+                assert self.active_jobs_limit == Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
+                assert Job.objects.filter(author=user).count() > self.active_jobs_limit
 
                 # Failing to add a job to the queue
                 programs_response_fail = run_program()
                 assert programs_response_fail.status_code == status.HTTP_429_TOO_MANY_REQUESTS  # limit error
                 assert (
                     programs_response_fail.data.get("message") == f"Active job limit reached. The maximum allowed is "
-                    f"{self.LIMITS_ACTIVE_JOBS_PER_USER}."
+                    f"{self.active_jobs_limit}."
                 )
 
                 # Changing a queued job status to Fail and check we can submit another job.
@@ -564,10 +561,7 @@ class TestProgramApi(APITestCase):
                 job.status = Job.FAILED
                 job.save()
 
-                assert (
-                    self.LIMITS_ACTIVE_JOBS_PER_USER
-                    > Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
-                )
+                assert self.active_jobs_limit > Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
 
                 # lastly adding job to the queue
                 programs_response = run_program()
