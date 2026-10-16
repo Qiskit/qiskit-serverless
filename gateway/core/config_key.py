@@ -25,3 +25,4 @@ class ConfigKey(Enum):
     OUTBOX_WORKLOAD_CHANNEL_RETRY_MAX_SECONDS = "scheduler.outbox.workload.retry_max_seconds"
     FLEETS_BREAKER_FAILURES = "scheduler.fleets.breaker_failures"
     FLEETS_BREAKER_PAUSE_SECONDS = "scheduler.fleets.breaker_pause_seconds"
+    BLOCKED_JOBS_STOP_ENABLED = "scheduler.blocked_jobs_stop.enabled"

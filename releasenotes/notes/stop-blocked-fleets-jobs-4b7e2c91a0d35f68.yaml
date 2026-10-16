@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    The scheduler now cancels the ``PENDING`` and ``RUNNING`` Fleets jobs whose
+    account, plan and subscription are blocked, so a resource whose non-quantum
+    allowance is exhausted stops consuming Code Engine capacity. The job goes
+    through ``STOPPING`` like any other stop and is billed for what it really ran.
+    The ``scheduler.blocked_jobs_stop.enabled`` configuration turns this off at
+    runtime without a deploy.

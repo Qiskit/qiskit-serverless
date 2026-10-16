@@ -17,6 +17,7 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.outbox import OutboxTask
+from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.views.probes import make_liveness
 
@@ -76,7 +77,7 @@ class TestMain:
 
     def test_the_submitter_and_the_canceller_share_one_breaker_per_region(self):
         """A region that stopped answering is one fact, so a submit and a cancel count against one breaker."""
-        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
+        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs, StopBlockedFleetsJobs)
         submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
         cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
 

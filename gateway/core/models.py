@@ -551,6 +551,11 @@ class BlockedCloudResource(models.Model):
             parts.append(f"subscription={self.subscription}")
         return f"BlockedCloudResource({', '.join(parts)})"
 
+    @classmethod
+    def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
+        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL."""
+        return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
+
 
 class Job(models.Model):
     """Job model."""

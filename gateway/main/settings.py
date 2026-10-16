@@ -640,6 +640,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
         "breaker trips.",
     },
+    "scheduler.blocked_jobs_stop.enabled": {
+        "default": "true",
+        "type": "boolean",
+        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
+        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
+    },
 }
 
 # Fleets / Code Engine credentials

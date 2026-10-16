@@ -49,6 +49,9 @@ class JobEventContext(StrEnum):
 
     FILLER_FAILED = "FILLER_FAILED"
 
+    # Scheduler: a PENDING or RUNNING job of a blocked resource was stopped (status STOPPING or STOPPED)
+    BLOCKED_RESOURCE_STOP = "BLOCKED_RESOURCE_STOP"
+
 
 class JobEventType(StrEnum):
     """Job events type enum."""
