@@ -116,6 +116,25 @@ class TestTransition:
 
         assert before <= event.created <= datetime.now(timezone.utc)
 
+    def test_a_start_time_without_timezone_is_ignored_and_the_job_still_turns_running(self, service, caplog):
+        """Comparing it with the aware times would raise, and the job would never leave PENDING."""
+        author = User.objects.create_user(username="running-at-author-naive")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        before = datetime.now(timezone.utc)
+
+        with caplog.at_level(logging.WARNING):
+            event = service.pending_to_running(
+                job,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                running_at=datetime(2026, 1, 1, 12, 0, 0),
+            )
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+        assert before <= event.created <= datetime.now(timezone.utc)
+        assert "has no timezone" in caplog.text
+
     def test_a_start_time_before_the_job_existed_is_taken_as_its_creation(self, service):
         author = User.objects.create_user(username="running-at-author-4")
         job = Job.objects.create(author=author, status=Job.PENDING)

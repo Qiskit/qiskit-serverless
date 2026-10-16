@@ -92,6 +92,13 @@ class JobTransitionService:
         with now, and billing and the Runtime API read the start of the job from that event.
         """
         event_created = self._clamp_running_at(job, running_at)
+        if event_created is not None:
+            logger.info(
+                "job_id=%s started running at %s, %.1fs before it was noticed",
+                job.id,
+                event_created.isoformat(),
+                (datetime.now(timezone.utc) - event_created).total_seconds(),
+            )
         with transaction.atomic():
             event = self._change_status(
                 job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, event_created=event_created
@@ -236,6 +243,10 @@ class JobTransitionService:
         """running_at kept between the creation of the job and now. It comes from the clock of another
         service, so it can read as a moment that has not happened here yet, or before the job existed."""
         if running_at is None:
+            return None
+        if running_at.utcoffset() is None:
+            # Comparing it with the aware times below would raise, and block the job from ever turning RUNNING
+            logger.warning("job_id=%s running_at %s has no timezone, using now instead", job.id, running_at)
             return None
         return min(max(running_at, job.created), datetime.now(timezone.utc))
 

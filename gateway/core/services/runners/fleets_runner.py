@@ -347,30 +347,40 @@ class FleetsRunner(AbstractRunner):
         it never raises: no fleet, no project, no ``running`` key yet and a failing COS all give ``None``.
         """
         try:
-            if not self.job.fleet_id:
-                return None
-            if not self._project:
-                self._project = self._get_project()
-            bucket = self._project.cos_bucket_task_store_name
-            if not bucket:
-                return None
-
-            for version in TASK_STORE_VERSIONS:
-                prefix = queue_prefix(self._project.project_id, self.job.fleet_id, version)
-                objects = self._list_task_state_objects(bucket, prefix)
-                if objects is None:
-                    return None
-                if objects:
-                    modified = [
-                        obj["last_modified"]
-                        for obj in objects
-                        if obj.get("last_modified") and task_state_from_key(prefix, obj["key"]) == "running"
-                    ]
-                    return min(modified) if modified else None
-            return None
+            modified = self._running_key_times()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Could not read when fleet [%s] started running: %s", self.job.fleet_id, exc)
             return None
+
+        if any(moment.utcoffset() is None for moment in modified):
+            logger.warning("Fleet [%s] has a running key time without timezone, ignoring it", self.job.fleet_id)
+            return None
+        return min(modified, default=None)
+
+    def _running_key_times(self) -> list[datetime]:
+        """The modification times of the ``running`` keys, none when there is no fleet, project, bucket or
+        key yet, or when COS failed."""
+        fleet_id = self.job.fleet_id
+        if not fleet_id:
+            return []
+        if not self._project:
+            self._project = self._get_project()
+        bucket = self._project.cos_bucket_task_store_name
+        if not bucket:
+            return []
+
+        for version in TASK_STORE_VERSIONS:
+            prefix = queue_prefix(self._project.project_id, fleet_id, version)
+            objects = self._list_task_state_objects(bucket, prefix)
+            if objects is None:
+                return []
+            if objects:
+                return [
+                    obj["last_modified"]
+                    for obj in objects
+                    if obj.get("last_modified") and task_state_from_key(prefix, obj["key"]) == "running"
+                ]
+        return []
 
     def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
         """Report a listing that held keys but no state this gateway recognises.

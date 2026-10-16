@@ -1309,6 +1309,13 @@ class TestRunningSince:
 
         assert runner.running_since() is None
 
+    def test_it_is_none_for_a_time_without_timezone(self, caplog):
+        """Nothing downstream can compare it with a time that has one, and it could be any timezone."""
+        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED.replace(tzinfo=None))]})
+
+        assert runner.running_since() is None
+        assert "without timezone" in caplog.text
+
     def test_it_lists_once_and_reads_no_object(self):
         runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
 
