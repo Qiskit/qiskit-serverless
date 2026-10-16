@@ -162,8 +162,9 @@ class RunFunctionUseCase:
             message = function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
             raise FunctionDisabledException(message=message)
 
-        if active_jobs_limit_reached(user):
-            raise ActiveJobLimitExceeded()
+        active_jobs_limit = Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)
+        if active_jobs_limit_reached(user, active_jobs_limit):
+            raise ActiveJobLimitExceeded(active_jobs_limit)
 
         if function.runner == Function.FLEETS:
             message = None
