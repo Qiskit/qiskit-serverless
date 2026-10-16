@@ -9,28 +9,39 @@ from django.db import transaction
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
+from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
+from core.clients.functions_operator_client import get_functions_operator_client
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
+from core.config_key import ConfigKey
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.domain.workload_payload import build_workload_payload, should_be_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
+    Config,
     FunctionSize,
     Job,
     JobConfig,
     JobEvent,
     Program as Function,
+    WorkloadMirror,
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
+from core.services.job_transitions import JobTransitionService
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("api.api.use_cases.programs.run")
+
+MIRROR_PUT_TIMEOUT_SECONDS = 3  # the PUT that creates the job in the Runtime API (the IAM token has its own timeout)
 
 
 def _is_trial(function: Function, user) -> bool:
@@ -120,7 +131,7 @@ def _get_runner_config(
 class RunFunctionUseCase:
     """Use case for running (enqueueing a job for) a Qiskit Function."""
 
-    def execute(  # pylint: disable=too-many-locals, too-many-branches
+    def execute(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         self,
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
@@ -218,16 +229,65 @@ class RunFunctionUseCase:
             env.update(json.loads(function.env_vars))
         job.env_vars = json.dumps(env)
 
-        get_arguments_storage(job).save(data.arguments)
+        arguments_storage = get_arguments_storage(job)
+        arguments_storage.save(data.arguments)
 
-        with transaction.atomic():
-            if data.config_data:
-                job.config = JobConfig.objects.create(**data.config_data)
-            job.save()
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.API,
-                context=JobEventContext.RUN_PROGRAM,
-                status=job.status,
-            )
+        mirror_error: EngineUnavailableException | None = None
+        try:
+            with transaction.atomic():
+                if data.config_data:
+                    job.config = JobConfig.objects.create(**data.config_data)
+                job.save()
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.API,
+                    context=JobEventContext.RUN_PROGRAM,
+                    status=job.status,
+                )
+                # Create the job in the Runtime API inside the transaction on purpose: the answer can be lost after
+                # the Runtime API took the job (a timeout), so if the http call fails, the job is stored as FAILED
+                # instead of being rolled back, to keep a record of the id the Runtime API may have.
+                # Later, that FAILED status should reach the Runtime API through the outbox, once the thread pool is in.
+                if should_be_mirrored(job) and Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
+                    payload = build_workload_payload(job)
+                    try:
+                        get_functions_operator_client().put_function(**payload, timeout=MIRROR_PUT_TIMEOUT_SECONDS)
+                    except RetryableError as ex:
+                        mirror_error = EngineUnavailableException("Job could not be created right now, please retry.")
+                        mirror_error.__cause__ = ex
+                        self._fail_job(job, ex)
+                    except RuntimeApiError as ex:
+                        mirror_error = EngineUnavailableException("Job could not be created. Please contact support.")
+                        mirror_error.__cause__ = ex
+                        self._fail_job(job, ex)
+                    else:
+                        WorkloadMirror.objects.create(job=job)
+        except Exception:
+            self._delete_arguments(arguments_storage, job)
+            raise
+        if mirror_error is not None:
+            raise mirror_error
         return job
+
+    @staticmethod
+    def _fail_job(job: Job, error: Exception) -> None:
+        """The Runtime API did not take the job. It stays in the database as FAILED, with the reason in its events."""
+        JobEvent.objects.add_error_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.RUN_PROGRAM,
+            code="RUNTIME_API_UNAVAILABLE",
+            message="The job could not be created in the Runtime API",
+            exception=type(error).__name__,
+            args=str(error),
+        )
+        JobTransitionService().to_failed(job, origin=JobEventOrigin.API, context=JobEventContext.RUN_PROGRAM)
+
+    @staticmethod
+    def _delete_arguments(arguments_storage, job: Job) -> None:
+        """The job was not created, so its arguments, saved before the transaction, are removed. A failure to
+        remove them is logged and does not hide the error that rolled the transaction back."""
+        try:
+            arguments_storage.delete()
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.error("job_id=%s arguments of a job that was not created could not be deleted: %s", job.id, ex)

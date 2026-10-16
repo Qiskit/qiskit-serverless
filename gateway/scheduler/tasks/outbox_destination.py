@@ -9,6 +9,7 @@ from typing import Callable
 from django.db.models import Min
 from django.utils import timezone
 
+from core.domain.exceptions.retryable_error import RetryableError
 from core.config_key import ConfigKey
 from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
 from core.models import Config, Outbox, OutboxChannel
@@ -59,16 +60,27 @@ class Destination:
         return self.breakers[region]
 
     def report_metrics(self, channel: OutboxChannel) -> None:
-        """Report how many rows are pending and how long the oldest has been waiting."""
+        """Report how many rows are pending (the ones delivery still tries), how long the oldest has been waiting,
+        and how many rows the destination will never take."""
         queryset = Outbox.objects.filter(channel=channel)
-        self.metrics.set_outbox_pending_rows(queryset.count(), channel)
+        pending = queryset.filter(unrecoverable=False)
+        self.metrics.set_outbox_pending_rows(pending.count(), channel)
 
-        oldest = queryset.order_by("created").first()
+        oldest = pending.order_by("created").first()
         age_seconds = (timezone.now() - oldest.created).total_seconds() if oldest else 0
         self.metrics.set_outbox_oldest_pending_age_seconds(age_seconds, channel)
+        self.metrics.set_outbox_unrecoverable_rows(queryset.filter(unrecoverable=True).count(), channel)
 
     def drain(self, channel: OutboxChannel) -> None:
-        """Send the channel's pending rows within the time budget, region by region."""
+        """Send the channel's pending rows within the time budget, region by region. How long it took is reported
+        whatever way it ends."""
+        started = time.perf_counter()
+        try:
+            self._drain(channel)
+        finally:
+            self.metrics.observe_outbox_drain_duration(time.perf_counter() - started, channel)
+
+    def _drain(self, channel: OutboxChannel) -> None:
         budget_ms = Config.get_int(self.budget_key, default=500)
         deadline = time.monotonic() + (budget_ms / 1000)
 
@@ -86,7 +98,7 @@ class Destination:
     def _pending_regions(self, channel: OutboxChannel) -> list[str | None]:
         """The regions (null included) that have rows due to be sent, the one with the oldest row first."""
         pending = (
-            Outbox.objects.filter(channel=channel, next_attempt_at__lte=timezone.now())
+            Outbox.objects.filter(channel=channel, unrecoverable=False, next_attempt_at__lte=timezone.now())
             .values_list("region")
             .annotate(oldest=Min("created"))
             .order_by("oldest")
@@ -105,9 +117,9 @@ class Destination:
             # (each due again after its wait) can then never be what a whole batch is made of, and keep the
             # breaker from closing on a success, while a fresh row is waiting behind it.
             batch = list(
-                Outbox.objects.filter(channel=channel, region=region, next_attempt_at__lte=timezone.now()).order_by(
-                    "attempts", "created", "pk"
-                )[:BATCH_SIZE]
+                Outbox.objects.filter(
+                    channel=channel, region=region, unrecoverable=False, next_attempt_at__lte=timezone.now()
+                ).order_by("attempts", "created", "pk")[:BATCH_SIZE]
             )
             if not batch:
                 return
@@ -162,7 +174,7 @@ class Destination:
                 return
             try:
                 self.sender.send(row.payload)
-            except Exception as ex:  # pylint: disable=broad-exception-caught
+            except RetryableError as ex:
                 logger.error(
                     "outbox_id=%s job_id=%s error sending, kept to try again later: %s", row.id, row.job_id, ex
                 )
@@ -170,9 +182,29 @@ class Destination:
                 breaker.record_failure()
                 self._keep_for_retry([row], f"{type(ex).__name__}: {ex}")
                 continue
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                # Not retryable: the destination answered and it is this row that it does not take (or the sender
+                # has a bug), so it does not count against the breaker, and trying it again would change nothing.
+                logger.error(
+                    "outbox_id=%s job_id=%s permanent error sending, the row is marked unrecoverable: %s",
+                    row.id,
+                    row.job_id,
+                    ex,
+                )
+                self.metrics.increment_outbox_send(row.channel, "unrecoverable")
+                self._mark_unrecoverable(row, f"{type(ex).__name__}: {ex}")
+                continue
             self.metrics.increment_outbox_send(row.channel, "success")
             breaker.record_success()
             row.delete()
+
+    def _mark_unrecoverable(self, row: Outbox, error: str) -> None:
+        """Leave a row that can never be sent where someone can still find it: it stays in the table with its error,
+        flagged, and delivery never reads it again."""
+        row.attempts += 1
+        row.last_error = error.replace("\x00", "")[:LAST_ERROR_MAX_LENGTH]
+        row.unrecoverable = True
+        row.save(update_fields=["attempts", "last_error", "unrecoverable"])
 
     def _keep_for_retry(self, rows: list[Outbox], error: str) -> None:
         """Record a failed attempt on each row and move its next try further away: the wait is the base of the
