@@ -15,6 +15,7 @@ from core.services.background_executor import (
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.export_fleets_breakers import ExportFleetsBreakers
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
@@ -81,8 +82,11 @@ class TestMain:
         submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
         cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
 
+        exporter = self.scheduler_main.tasks[-1]
+
         assert submitters and len(cancellers) == len(sharing)
-        assert len({id(s.breakers) for s in submitters} | {id(c.breakers) for c in cancellers}) == 1
+        assert isinstance(exporter, ExportFleetsBreakers)
+        assert len({id(holder.breakers) for holder in submitters + cancellers + [exporter]}) == 1
 
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""
