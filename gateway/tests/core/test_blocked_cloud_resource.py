@@ -61,3 +61,19 @@ class TestBlockedCloudResource(TestCase):
         row = BlockedCloudResource(account="acct-123", subscription="sub-789")
 
         assert str(row) == "BlockedCloudResource(account=acct-123, subscription=sub-789)"
+
+    def test_blocks_the_exact_account_plan_and_subscription(self):
+        BlockedCloudResource.objects.create(account="acct-123", plan="plan-456", subscription="sub-789")
+
+        assert BlockedCloudResource.blocks("acct-123", "plan-456", "sub-789")
+        assert not BlockedCloudResource.blocks("acct-123", "plan-other", "sub-789")
+        assert not BlockedCloudResource.blocks("acct-123", "plan-456", "sub-other")
+
+    def test_a_null_column_only_matches_a_null_column(self):
+        """Exact match: a row's NULL is not a wildcard, and neither is a job's."""
+        BlockedCloudResource.objects.create(account="acct-123", plan="plan-456", subscription="sub-789")
+        BlockedCloudResource.objects.create(account="acct-999")
+
+        assert not BlockedCloudResource.blocks("acct-123", "plan-456", None)
+        assert not BlockedCloudResource.blocks("acct-999", "plan-456", "sub-789")
+        assert BlockedCloudResource.blocks("acct-999", None, None)
