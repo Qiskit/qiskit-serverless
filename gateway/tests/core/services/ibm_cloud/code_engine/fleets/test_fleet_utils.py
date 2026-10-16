@@ -201,7 +201,7 @@ def test_build_run_volume_mounts_provider_function():
 def test_build_run_env_variables_passes_through_stored_vars():
     """build_run_env_variables passes stored env vars through to output."""
     stored = {"ENV_JOB_GATEWAY_TOKEN": "tok", "CUSTOM_VAR": "custom"}
-    result = build_run_env_variables(_make_paths(), stored)
+    result = build_run_env_variables(_make_paths(), stored, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["ENV_JOB_GATEWAY_TOKEN"] == "tok"
     assert by_name["CUSTOM_VAR"] == "custom"
@@ -210,7 +210,7 @@ def test_build_run_env_variables_passes_through_stored_vars():
 
 def test_build_run_env_variables_overlays_system_vars():
     """build_run_env_variables includes system vars derived from paths."""
-    result = build_run_env_variables(_make_paths(), {})
+    result = build_run_env_variables(_make_paths(), {}, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["PUBLIC_LOG_PATH"] == "/output/logs.log"
     assert by_name["ARGUMENTS_PATH"] == "/output/arguments.json"
@@ -222,7 +222,7 @@ def test_build_run_env_variables_overlays_system_vars():
 def test_build_run_env_variables_system_vars_override_stored():
     """build_run_env_variables system vars override stored vars with the same name."""
     stored = {"ARGUMENTS_PATH": "/old/stale/path", "RESULTS_PATH": "/old/results.json"}
-    result = build_run_env_variables(_make_paths(arguments_path="/data/arguments.json"), stored)
+    result = build_run_env_variables(_make_paths(arguments_path="/data/arguments.json"), stored, None)
     names = [e["name"] for e in result]
     assert len(names) == len(set(names)), f"Duplicate env var names: {names}"
     by_name = {e["name"]: e["value"] for e in result}
@@ -233,7 +233,7 @@ def test_build_run_env_variables_system_vars_override_stored():
 def test_build_run_env_variables_no_duplicates():
     """build_run_env_variables produces no duplicate env var names."""
     stored = {"PUBLIC_LOG_PATH": "/old", "RESULTS_PATH": "/old/r.json", "MY_VAR": "v"}
-    result = build_run_env_variables(_make_paths(), stored)
+    result = build_run_env_variables(_make_paths(), stored, None)
     names = [e["name"] for e in result]
     assert len(names) == len(set(names))
 
@@ -241,7 +241,7 @@ def test_build_run_env_variables_no_duplicates():
 def test_build_run_env_variables_excludes_empty_values():
     """build_run_env_variables excludes entries with empty or falsy values."""
     stored = {"KEEP": "yes", "DROP": "", "ALSO_DROP": None}
-    result = build_run_env_variables(_make_paths(), stored)
+    result = build_run_env_variables(_make_paths(), stored, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert "KEEP" in by_name
     assert "DROP" not in by_name
@@ -251,10 +251,26 @@ def test_build_run_env_variables_excludes_empty_values():
 def test_build_run_env_variables_drops_env_job_arguments():
     """build_run_env_variables drops the ENV_JOB_ARGUMENTS stored env var."""
     stored = {"ENV_JOB_ARGUMENTS": '{"secret": "value"}', "KEEP": "yes"}
-    result = build_run_env_variables(_make_paths(), stored)
+    result = build_run_env_variables(_make_paths(), stored, None)
     names = {e["name"] for e in result}
     assert "ENV_JOB_ARGUMENTS" not in names
     assert "KEEP" in names
+
+
+def test_build_run_env_variables_sets_functions_identifier_only_when_given():
+    """build_run_env_variables exposes the job id as QISKIT_FUNCTIONS_IDENTIFIER, and leaves it out when empty."""
+    with_id = {e["name"]: e["value"] for e in build_run_env_variables(_make_paths(), {}, job_id="job-123")}
+    without_id = {e["name"] for e in build_run_env_variables(_make_paths(), {}, None)}
+
+    assert with_id["QISKIT_FUNCTIONS_IDENTIFIER"] == "job-123"
+    assert "QISKIT_FUNCTIONS_IDENTIFIER" not in without_id
+
+
+def test_build_run_env_variables_keeps_a_functions_identifier_of_the_function_when_there_is_no_job_id():
+    """Without a job id the variable is not touched, so one the function defined itself stays."""
+    result = build_run_env_variables(_make_paths(), {"QISKIT_FUNCTIONS_IDENTIFIER": "mine"}, None)
+
+    assert {e["name"]: e["value"] for e in result}["QISKIT_FUNCTIONS_IDENTIFIER"] == "mine"
 
 
 def test_build_run_env_variables_with_private_log():
@@ -262,6 +278,7 @@ def test_build_run_env_variables_with_private_log():
     result = build_run_env_variables(
         _make_paths(public_log_path="/public/logs.log", private_log_path="/private/logs.log"),
         {},
+        None,
     )
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["PUBLIC_LOG_PATH"] == "/public/logs.log"
@@ -270,7 +287,7 @@ def test_build_run_env_variables_with_private_log():
 
 def test_build_run_env_variables_without_private_log():
     """build_run_env_variables omits PRIVATE_LOG_PATH when container_private_log_path is None."""
-    result = build_run_env_variables(_make_paths(private_log_path=None), {})
+    result = build_run_env_variables(_make_paths(private_log_path=None), {}, None)
     names = {e["name"] for e in result}
     assert "PRIVATE_LOG_PATH" not in names
 
@@ -281,14 +298,14 @@ def test_build_run_env_variables_gateway_host_override():
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
         mock_settings.FLEETS_GATEWAY_HOST = "https://fleets.example.com"
         mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 15
-        result = build_run_env_variables(_make_paths(), stored)
+        result = build_run_env_variables(_make_paths(), stored, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["ENV_JOB_GATEWAY_HOST"] == "https://fleets.example.com"
 
 
 def test_build_run_env_variables_always_sets_private_endpoint():
     """build_run_env_variables always injects QISKIT_IBM_PRIVATE_ENDPOINT=true."""
-    result = build_run_env_variables(_make_paths(), {})
+    result = build_run_env_variables(_make_paths(), {}, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["QISKIT_IBM_PRIVATE_ENDPOINT"] == "true"
 
@@ -298,7 +315,7 @@ def test_build_run_env_variables_sets_qiskit_settings():
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
         mock_settings.FLEETS_GATEWAY_HOST = None
         mock_settings.QISKIT_SETTINGS_CONTAINER_PATH = "/tmp/qiskit/settings.conf"
-        result = build_run_env_variables(_make_paths(), {})
+        result = build_run_env_variables(_make_paths(), {}, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["QISKIT_SETTINGS"] == "/tmp/qiskit/settings.conf"
 
@@ -309,7 +326,7 @@ def test_build_run_env_variables_qiskit_settings_overrides_vendor():
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
         mock_settings.FLEETS_GATEWAY_HOST = None
         mock_settings.QISKIT_SETTINGS_CONTAINER_PATH = "/tmp/qiskit/settings.conf"
-        result = build_run_env_variables(_make_paths(), stored)
+        result = build_run_env_variables(_make_paths(), stored, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["QISKIT_SETTINGS"] == "/tmp/qiskit/settings.conf"
     # exactly one entry, no duplicate from the stored vendor value
@@ -318,7 +335,7 @@ def test_build_run_env_variables_qiskit_settings_overrides_vendor():
 
 def test_build_run_env_variables_flush_interval_default():
     """build_run_env_variables defaults LOG_FLUSH_INTERVAL_SECONDS to 15."""
-    result = build_run_env_variables(_make_paths(), {})
+    result = build_run_env_variables(_make_paths(), {}, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "15"
 
@@ -328,7 +345,7 @@ def test_build_run_env_variables_flush_interval_from_settings():
     with patch("core.ibm_cloud.code_engine.fleets.utils.settings") as mock_settings:
         mock_settings.FLEETS_LOG_FLUSH_INTERVAL_SECONDS = 42
         mock_settings.FLEETS_GATEWAY_HOST = None
-        result = build_run_env_variables(_make_paths(), {})
+        result = build_run_env_variables(_make_paths(), {}, None)
     by_name = {e["name"]: e["value"] for e in result}
     assert by_name["LOG_FLUSH_INTERVAL_SECONDS"] == "42"
 

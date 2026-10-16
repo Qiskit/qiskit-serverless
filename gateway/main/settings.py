@@ -596,6 +596,38 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
     },
+    "workloads.mirror.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Mirror the Fleets jobs created from now on to the Runtime API as workloads (a failure rejects "
+        "the job).",
+    },
+    "scheduler.outbox.workload.budget_ms": {
+        "default": "3000",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the workload outbox channel, in milliseconds.",
+    },
+    "scheduler.outbox.workload.breaker_failures": {
+        "default": "3",
+        "type": "integer",
+        "description": "Consecutive send failures before the workload outbox circuit breaker opens.",
+    },
+    "scheduler.outbox.workload.breaker_pause_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "How long the workload outbox circuit breaker stays open once tripped.",
+    },
+    "scheduler.outbox.workload.retry_base_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "Seconds a workload outbox row waits after its first failed send. The wait doubles with every "
+        "further failure, up to retry_max_seconds, and is never less than one second.",
+    },
+    "scheduler.outbox.workload.retry_max_seconds": {
+        "default": "600",
+        "type": "integer",
+        "description": "The longest a workload outbox row waits between two tries, however many times it has failed.",
+    },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
@@ -607,6 +639,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
         "breaker trips.",
+    },
+    "scheduler.blocked_jobs_stop.enabled": {
+        "default": "true",
+        "type": "boolean",
+        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
+        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
     },
 }
 

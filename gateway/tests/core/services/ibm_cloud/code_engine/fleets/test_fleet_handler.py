@@ -228,6 +228,7 @@ def test_submit_job_with_builder_extra_fields(mock_fleets_api_cls, project_id, b
                 container_result_path="/output/results.json",
             ),
             {},
+            None,
         ),
         "run_commands": ["python", "/function_user_data/fleet_custom_job_wrapper.py"],
     }
