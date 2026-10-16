@@ -80,11 +80,31 @@ class JobTransitionService:
             return self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
 
     def pending_to_running(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        running_at: datetime | None = None,
     ) -> JobEvent:
-        """The job started running: a job_started event is sent, best effort, once it is written."""
+        """The job started running: a job_started event is sent, best effort, once it is written.
+
+        running_at is when it really started, if the caller knows: the event is stamped with it instead of
+        with now, and billing and the Runtime API read the start of the job from that event.
+        """
+        event_created = self._clamp_running_at(job, running_at)
+        if event_created is not None:
+            logger.info(
+                "job_id=%s started running at %s, %.1fs before it was noticed",
+                job.id,
+                event_created.isoformat(),
+                (datetime.now(timezone.utc) - event_created).total_seconds(),
+            )
         with transaction.atomic():
-            event = self._change_status(job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields)
+            event = self._change_status(
+                job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, event_created=event_created
+            )
         self._send_job_in_progress(job, job_started=True)
         return event
 
@@ -200,6 +220,7 @@ class JobTransitionService:
         origin: JobEventOrigin,
         context: JobEventContext,
         job_fields: dict | None,
+        event_created: datetime | None = None,
     ) -> JobEvent:
         """
         Transition the job's status, validating the state change is valid. It must run inside a transaction,
@@ -208,7 +229,7 @@ class JobTransitionService:
         Steps:
             - LOCK: Lock the job by id (Django raises if there is no transaction open)
             - Reads the job status again fresh from db and validate the transition
-            - Adds a new JobEvent
+            - Adds a new JobEvent, created at event_created or now
             - Changes the job status + extra fields
         """
         current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=job.pk)
@@ -216,9 +237,23 @@ class JobTransitionService:
         if status not in self.VALID_TRANSITIONS.get(current_status, set()):
             raise InvalidJobTransitionException(f"Job {job.id}: invalid transition {current_status} -> {status}")
 
-        event = JobEvent.objects.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
+        event = JobEvent.objects.add_status_event(
+            job_id=job.id, origin=origin, context=context, status=status, created=event_created
+        )
         job.update_fields({"status": status, **(job_fields or {})})
         return event
+
+    @staticmethod
+    def _clamp_running_at(job: Job, running_at: datetime | None) -> datetime | None:
+        """running_at kept between the creation of the job and now. It comes from the clock of another
+        service, so it can read as a moment that has not happened here yet, or before the job existed."""
+        if running_at is None:
+            return None
+        if running_at.utcoffset() is None:
+            # Comparing it with the aware times below would raise, and block the job from ever turning RUNNING
+            logger.warning("job_id=%s running_at %s has no timezone, using now instead", job.id, running_at)
+            return None
+        return min(max(running_at, job.created), datetime.now(timezone.utc))
 
     @staticmethod
     def _region(job: Job) -> str | None:

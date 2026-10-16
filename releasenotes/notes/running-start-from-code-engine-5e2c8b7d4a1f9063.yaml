@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    The moment a job running on IBM Cloud Code Engine starts running is now the time Code
+    Engine wrote the ``running`` state of its task, read from the task store, instead of the
+    time the scheduler noticed it. It falls back to the time the scheduler noticed when that
+    time cannot be read. The start time reported to billing and to the Runtime API, and the
+    job timeline, use it.
+upgrade:
+  - |
+    The duration billed for a Code Engine job (its end minus its start) can grow by the seconds
+    the scheduler took to notice the job was running, because the start is now the real one
+    while the end is still the time the scheduler noticed the job had finished.
+
+    This adds a database migration that only changes the default of ``JobEvent.created`` and
+    needs no downtime.

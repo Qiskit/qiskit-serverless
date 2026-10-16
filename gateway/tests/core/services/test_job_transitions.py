@@ -63,6 +63,13 @@ def service(sender):
     return JobTransitionService(sender=sender)
 
 
+def _created_a_minute_ago(job: Job) -> Job:
+    """The job as it is a minute after it was created, so a start time of a few seconds ago is after it."""
+    Job.objects.filter(pk=job.pk).update(created=datetime.now(timezone.utc) - timedelta(minutes=1))
+    job.refresh_from_db()
+    return job
+
+
 class TestTransition:
     """Unit tests for the status change every JobTransitionService transition does."""
 
@@ -80,6 +87,76 @@ class TestTransition:
         job.refresh_from_db()
         assert job.status == Job.RUNNING
         assert job.sub_status == "mapping"
+
+    def test_pending_to_running_stamps_the_event_with_the_time_it_really_started(self, service):
+        author = User.objects.create_user(username="running-at-author-1")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=3)
+
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
+        )
+
+        assert event.created == started
+        assert JobEvent.objects.first_running_at(job.id) == started
+
+    def test_pending_to_running_without_the_start_time_stamps_the_event_now(self, service):
+        author = User.objects.create_user(username="running-at-author-2")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        before = datetime.now(timezone.utc)
+
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        assert before <= event.created <= datetime.now(timezone.utc)
+
+    def test_a_start_time_in_the_future_is_taken_as_now(self, service):
+        """The task store has its own clock: it can be ahead of the gateway's."""
+        author = User.objects.create_user(username="running-at-author-3")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        before = datetime.now(timezone.utc)
+
+        event = service.pending_to_running(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            running_at=before + timedelta(minutes=5),
+        )
+
+        assert before <= event.created <= datetime.now(timezone.utc)
+
+    def test_a_start_time_without_timezone_is_ignored_and_the_job_still_turns_running(self, service, caplog):
+        """Comparing it with the aware times would raise, and the job would never leave PENDING."""
+        author = User.objects.create_user(username="running-at-author-naive")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        before = datetime.now(timezone.utc)
+
+        with caplog.at_level(logging.WARNING):
+            event = service.pending_to_running(
+                job,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                running_at=datetime(2026, 1, 1, 12, 0, 0),
+            )
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+        assert before <= event.created <= datetime.now(timezone.utc)
+        assert "has no timezone" in caplog.text
+
+    def test_a_start_time_before_the_job_existed_is_taken_as_its_creation(self, service):
+        author = User.objects.create_user(username="running-at-author-4")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+
+        event = service.pending_to_running(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            running_at=job.created - timedelta(minutes=5),
+        )
+
+        assert event.created == job.created
 
     def test_creates_the_status_change_event(self, service):
         author = User.objects.create_user(username="change-status-author-2")
@@ -154,6 +231,19 @@ class TestBillingOutbox:
     """JobTransitionService is the only place that builds and stores outbox messages, and only for
     an eligible job (Fleets, not filler, with an instance CRN) transitioning to a terminal
     status."""
+
+    def test_both_messages_carry_the_time_the_job_really_started(self, service, user):
+        job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=3)
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
+        )
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        rows = Outbox.objects.filter(job=job)
+        assert {row.channel for row in rows} == {OutboxChannel.LICENSE_FEE, OutboxChannel.JOB_USAGE}
+        assert {row.payload["data"]["job_started_at"] for row in rows} == {started.isoformat()}
 
     def test_succeeded_enqueues_both_messages_even_without_a_running_event(self, service, user):
         """The short-job-between-two-polls case: never observed RUNNING, still owes the fee."""

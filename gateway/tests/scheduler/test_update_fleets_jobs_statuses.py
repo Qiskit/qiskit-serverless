@@ -23,7 +23,9 @@ def _make_transitions():
     also owe (outbox, Kafka) is tested in tests/core/services/test_job_transitions.py."""
     transitions = MagicMock()
 
-    def _pending_to_running(job, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+    def _pending_to_running(
+        job, *, origin, context, job_fields=None, running_at=None
+    ):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.RUNNING, **(job_fields or {})})
 
     def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
@@ -146,7 +148,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_called_once_with(job)
+        mock_running.assert_called_once_with(job, mock_runner)
 
     def test_running_to_running_calls_to_running(self):
         """to_running is called unconditionally for a RUNNING poll result; it is the one
@@ -165,7 +167,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_called_once_with(job)
+        mock_running.assert_called_once_with(job, mock_runner)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -329,14 +331,42 @@ class TestToRunning:
     def test_job_transitions_from_pending_to_running(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
+        runner = MagicMock()
+        runner.running_since.return_value = None
 
-        task.to_running(job)
+        task.to_running(job, runner)
 
         assert job.status == Job.RUNNING
         task.transitions.pending_to_running.assert_called_once_with(
-            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=None
         )
         task.transitions.running_to_running.assert_not_called()
+
+    def test_the_transition_gets_the_time_code_engine_started_the_job(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        started = datetime.now(timezone.utc) - timedelta(seconds=4)
+        runner = MagicMock()
+        runner.running_since.return_value = started
+
+        task.to_running(job, runner)
+
+        task.transitions.pending_to_running.assert_called_once_with(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
+        )
+
+    def test_the_start_time_is_read_before_the_transition(self):
+        """The transition holds a transaction and a lock on the job: the COS call must not be inside it."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        calls = []
+        runner = MagicMock()
+        runner.running_since.side_effect = lambda: calls.append("running_since")
+        task.transitions.pending_to_running.side_effect = lambda *a, **k: calls.append("pending_to_running")
+
+        task.to_running(job, runner)
+
+        assert calls == ["running_since", "pending_to_running"]
 
     def test_does_not_send_in_progress_when_the_job_already_turned_terminal(self):
         """A user-initiated stop can race this poll and win it first: the transition then
@@ -349,18 +379,29 @@ class TestToRunning:
             "Job x: invalid transition STOPPED -> RUNNING"
         )
 
-        task.to_running(job)  # must not raise
+        task.to_running(job, MagicMock())  # must not raise
 
         task.transitions.running_to_running.assert_not_called()
 
     def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
+        runner = MagicMock()
 
-        task.to_running(job)
+        task.to_running(job, runner)
 
         task.transitions.running_to_running.assert_called_once_with(job)
         task.transitions.pending_to_running.assert_not_called()
+
+    def test_an_already_running_job_does_not_read_the_start_time_again(self):
+        """The start time is read once per job, in the transition, not on every tick."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        runner = MagicMock()
+
+        task.to_running(job, runner)
+
+        runner.running_since.assert_not_called()
 
 
 class TestStopJobIfTimeout:
