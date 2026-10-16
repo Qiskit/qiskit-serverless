@@ -316,6 +316,14 @@ stop the jobs already mirrored from reporting their final status. Inside the
 container of a mirrored job, the environment variable
 <code class="docutils literal notranslate"><span class="pre">QISKIT_FUNCTIONS_IDENTIFIER</span></code> holds the job id.</p></li>
 </ul>
+<ul class="simple">
+<li><p>The scheduler now cancels the <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> Fleets jobs whose
+account, plan and subscription are blocked, so a resource whose non-quantum
+allowance is exhausted stops consuming Code Engine capacity. The job goes
+through <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> like any other stop and is billed for what it really ran.
+The <code class="docutils literal notranslate"><span class="pre">scheduler.blocked_jobs_stop.enabled</span></code> configuration turns this off at
+runtime without a deploy.</p></li>
+</ul>
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Link to this heading">¶</a></h3>
