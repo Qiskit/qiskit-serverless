@@ -21,7 +21,7 @@ import requests
 from django.conf import settings
 
 from core.clients.iam_token_provider import IamTokenProvider, get_iam_token_provider
-from core.clients.runtime_api_errors import RuntimeApiError
+from core.clients.runtime_api_errors import ResponseLostError, RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.crn import regional_base_url
 
@@ -60,9 +60,12 @@ class FunctionsOperatorClient:
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=timeout,
             )
-        except requests.RequestException as exc:
-            logger.error("function_id=%s connection error: %s", function_id, exc)
+        except requests.ConnectTimeout as exc:  # the request never left
+            logger.error("function_id=%s connect timeout: %s", function_id, exc)
             raise RetryableError("Error connecting to the Runtime API") from exc
+        except requests.RequestException as exc:  # it may have left, so the Runtime API may have applied it
+            logger.error("function_id=%s connection error: %s", function_id, exc)
+            raise ResponseLostError("Error connecting to the Runtime API") from exc
 
         if response.status_code in (200, 202):
             return

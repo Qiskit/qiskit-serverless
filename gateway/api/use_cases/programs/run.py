@@ -17,7 +17,7 @@ from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.clients.functions_operator_client import get_functions_operator_client
-from core.clients.runtime_api_errors import RuntimeApiError
+from core.clients.runtime_api_errors import ResponseLostError, RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.config_key import ConfigKey
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -244,22 +244,23 @@ class RunFunctionUseCase:
                     context=JobEventContext.RUN_PROGRAM,
                     status=job.status,
                 )
-                # Create the job in the Runtime API inside the transaction on purpose: the answer can be lost after
-                # the Runtime API took the job (a timeout), so if the http call fails, the job is stored as FAILED
-                # instead of being rolled back, to keep a record of the id the Runtime API may have.
-                # Later, that FAILED status should reach the Runtime API through the outbox, once the thread pool is in.
+                # Create the job in the Runtime API inside the transaction on purpose: if the http call fails, the
+                # transaction is rolled back and the job is never created. The exception is a lost response: the
+                # request left but no answer came, so the Runtime API may have taken the job, and the job is stored as
+                # FAILED instead to keep the id it may have. Later, that FAILED status should reach the Runtime API
+                # through the outbox, once the thread pool is in.
                 if should_be_mirrored(job) and Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
                     payload = build_workload_payload(job)
                     try:
                         get_functions_operator_client().put_function(**payload, timeout=MIRROR_PUT_TIMEOUT_SECONDS)
-                    except RetryableError as ex:
+                    except ResponseLostError as ex:
                         mirror_error = EngineUnavailableException("Job could not be created right now, please retry.")
                         mirror_error.__cause__ = ex
                         self._fail_job(job, ex)
+                    except RetryableError as ex:
+                        raise EngineUnavailableException("Job could not be created right now, please retry.") from ex
                     except RuntimeApiError as ex:
-                        mirror_error = EngineUnavailableException("Job could not be created. Please contact support.")
-                        mirror_error.__cause__ = ex
-                        self._fail_job(job, ex)
+                        raise EngineUnavailableException("Job could not be created. Please contact support.") from ex
                     else:
                         WorkloadMirror.objects.create(job=job)
         except Exception:
@@ -271,7 +272,8 @@ class RunFunctionUseCase:
 
     @staticmethod
     def _fail_job(job: Job, error: Exception) -> None:
-        """The Runtime API did not take the job. It stays in the database as FAILED, with the reason in its events."""
+        """The response of the Runtime API was lost, so the job stays in the database as FAILED, with the reason in its
+        events."""
         JobEvent.objects.add_error_event(
             job_id=job.id,
             origin=JobEventOrigin.API,

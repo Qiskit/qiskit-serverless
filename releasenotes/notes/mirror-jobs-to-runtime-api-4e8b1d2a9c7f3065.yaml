@@ -12,5 +12,8 @@ features:
 upgrade:
   - |
     While ``workloads.mirror.enabled`` is on, running a Fleets function with an
-    instance CRN can fail with a ``503`` error, and no job is created, if the
-    Runtime API does not accept the job. Retrying the request later is safe.
+    instance CRN can fail with a ``503`` error if the Runtime API does not
+    accept the job, and no job is created. If the Runtime API takes too long to
+    answer, the job may have been created there, so it is stored as ``FAILED``
+    here and the request also gets a ``503``. In both cases, retrying the
+    request later is safe.

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from core.clients.runtime_api_errors import RuntimeApiError
+from core.clients.runtime_api_errors import ResponseLostError, RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.clients.functions_operator_client import FunctionsOperatorClient
 
@@ -109,11 +109,20 @@ def test_an_error_status_logs_the_start_of_the_response_body(client, put, caplog
     assert "field size is invalid" in caplog.text
 
 
-def test_network_failures_are_transient(client, put):
-    put.side_effect = requests.ConnectionError("boom")
+def test_a_lost_response_may_have_been_applied(client, put):
+    put.side_effect = requests.ReadTimeout("boom")
 
-    with pytest.raises(RetryableError):
+    with pytest.raises(ResponseLostError):
         client.put_function(FUNCTION_ID, BODY)
+
+
+def test_a_connect_timeout_is_retryable_but_the_request_never_left(client, put):
+    put.side_effect = requests.ConnectTimeout("boom")
+
+    with pytest.raises(RetryableError) as error:
+        client.put_function(FUNCTION_ID, BODY)
+
+    assert not isinstance(error.value, ResponseLostError)
 
 
 @pytest.mark.parametrize("crn", [None, ""])
