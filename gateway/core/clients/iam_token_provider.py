@@ -5,7 +5,7 @@ is explicit and can be shared or replaced. Build one per process and keep it: th
 inside the instance, so a new one per request would ask IAM for a new token every time.
 
 Errors use the same two types as the clients: ``RuntimeApiError`` when the key itself is the problem (empty, malformed
-or rejected by IAM, so asking again cannot help) and ``RuntimeApiRetryableError`` for anything else (IAM down, slow, or
+or rejected by IAM, so asking again cannot help) and ``RetryableError`` for anything else (IAM down, slow, or
 answering garbage). The key and the token are never logged.
 """
 
@@ -15,7 +15,8 @@ from functools import lru_cache
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
-from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
 
 logger = logging.getLogger("core.IamTokenProvider")
 
@@ -50,11 +51,11 @@ class IamTokenProvider:
                 logger.error("IAM rejected the API key with status %s", exc.status_code)
                 raise RuntimeApiError(f"IAM rejected the API key (status {exc.status_code})") from exc
             logger.error("Could not get an IAM token, status %s", exc.status_code)
-            raise RuntimeApiRetryableError("Could not get an IAM token") from exc
+            raise RetryableError("Could not get an IAM token") from exc
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self._forget_failed_request()
             logger.error("Could not get an IAM token: %s", type(exc).__name__)
-            raise RuntimeApiRetryableError("Could not get an IAM token") from exc
+            raise RetryableError("Could not get an IAM token") from exc
 
     def invalidate(self, token: str) -> None:
         """Drop ``token`` from the cache, so the next ``get_token`` asks IAM for a new one. Use it when the API rejects

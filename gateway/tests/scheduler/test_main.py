@@ -7,6 +7,11 @@ from django.db.utils import OperationalError
 from prometheus_client import CollectorRegistry
 
 from scheduler.health import UNHEALTHY_THRESHOLD
+from core.services.background_executor import (
+    BackgroundExecutorNotInitializedError,
+    BackgroundPool,
+    get_background_executor,
+)
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
@@ -31,6 +36,28 @@ class TestMain:
         self.scheduler_main = Main(metrics=SchedulerMetrics(CollectorRegistry()))
         yield
         self.scheduler_main.stop_http_server()
+
+    def test_run_opens_the_background_executor_and_closes_it_when_it_ends(self):
+        main = self.scheduler_main
+        accepted = []
+
+        class SubmitThenStop:
+            name = "submit_then_stop"
+
+            def run(self):
+                accepted.append(get_background_executor().submit(BackgroundPool.RUNTIME_API, lambda: None) is not None)
+                main.kill_signal.received = True
+
+            def close(self):
+                pass
+
+        main.tasks = [SubmitThenStop()]
+
+        main.run()
+
+        assert accepted == [True]
+        with pytest.raises(BackgroundExecutorNotInitializedError):
+            get_background_executor().submit(BackgroundPool.RUNTIME_API, lambda: None)
 
     def test_the_tasks_that_change_a_job_status_share_one_transition_service(self):
         """One service, so the Kafka producers of its sender are created once for the whole scheduler."""

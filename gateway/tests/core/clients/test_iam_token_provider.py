@@ -11,7 +11,8 @@ from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.token_managers.iam_token_manager import IAMTokenManager
 
 from core.clients.iam_token_provider import IamTokenProvider
-from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
 
 IAM_URL = "https://iam.test.cloud.ibm.com"
 
@@ -41,7 +42,7 @@ def test_an_empty_key_is_a_permanent_error_when_it_is_built(authenticator):
     with pytest.raises(RuntimeApiError) as error:
         IamTokenProvider("", IAM_URL)
 
-    assert not isinstance(error.value, RuntimeApiRetryableError)
+    assert not isinstance(error.value, RetryableError)
     authenticator.assert_not_called()
 
 
@@ -51,7 +52,7 @@ def test_a_malformed_key_is_a_permanent_error_when_it_is_built(authenticator):
     with pytest.raises(RuntimeApiError) as error:
         IamTokenProvider("operator-key", IAM_URL)
 
-    assert not isinstance(error.value, RuntimeApiRetryableError)
+    assert not isinstance(error.value, RetryableError)
     assert "operator-key" not in str(error.value)
 
 
@@ -61,7 +62,7 @@ def test_an_iam_rejection_of_the_key_is_a_permanent_error(authenticator):
     with pytest.raises(RuntimeApiError) as error:
         IamTokenProvider("operator-key", IAM_URL).get_token()
 
-    assert not isinstance(error.value, RuntimeApiRetryableError)
+    assert not isinstance(error.value, RetryableError)
     assert "operator-key" not in str(error.value)
 
 
@@ -76,7 +77,7 @@ def test_an_iam_rejection_of_the_key_is_a_permanent_error(authenticator):
 def test_any_other_failure_is_transient(authenticator, failure):
     authenticator.return_value.token_manager.get_token.side_effect = failure
 
-    with pytest.raises(RuntimeApiRetryableError):
+    with pytest.raises(RetryableError):
         IamTokenProvider("operator-key", IAM_URL).get_token()
 
 
@@ -94,7 +95,7 @@ def test_a_failed_request_does_not_block_the_next_call():
         "request_token",
         side_effect=[requests.ConnectionError("down"), {"access_token": token, "expires_in": 3600}],
     ) as request_token:
-        with pytest.raises(RuntimeApiRetryableError):
+        with pytest.raises(RetryableError):
             provider.get_token()
         started = time.monotonic()
         assert provider.get_token() == token

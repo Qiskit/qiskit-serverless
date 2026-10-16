@@ -276,6 +276,10 @@ spec:
             {{- end }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_WORKERS
+              value: {{ .Values.application.backgroundExecutor.gateway.maxWorkers | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_PENDING
+              value: {{ .Values.application.backgroundExecutor.gateway.maxPending | quote }}
             - name: SECURE_HSTS_SECONDS
               value: {{ .Values.application.security.hstsSeconds | quote }}
             - name: SECURE_HSTS_INCLUDE_SUBDOMAINS
@@ -450,6 +454,10 @@ spec:
           env:
             - name: SITE_HOST
               value: {{ .Values.scheduler.siteHost | quote }}
+            - name: IAM_IBM_CLOUD_BASE_URL
+              value: {{ .Values.application.auth.token.iamUrl | quote }}
+            - name: RUNTIME_API_BASE_URL
+              value: {{ .Values.application.runtimeApi.url | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY
@@ -518,6 +526,10 @@ spec:
               value: {{ .Values.application.limits.programTimeoutHours | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_WORKERS
+              value: {{ .Values.application.backgroundExecutor.scheduler.maxWorkers | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_PENDING
+              value: {{ .Values.application.backgroundExecutor.scheduler.maxPending | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
             {{- if .Values.application.ibmCloudFidApiKey.enabled }}

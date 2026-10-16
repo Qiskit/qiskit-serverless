@@ -19,7 +19,13 @@ class Sender(ABC):
     def send(self, payload: dict, timeout: float = 5) -> None:
         """Deliver the payload. Raises on failure, except with timeout=0: that only hands the payload over, so it
         returns at once, does not raise, and a payload that is not delivered is dropped and logged. What else
-        `timeout` means depends on the implementation."""
+        `timeout` means depends on the implementation.
+
+        The outbox sends the rows of a sender without batches one by one, and reads the exception it raises: a
+        `core.domain.exceptions.retryable_error.RetryableError` means a later try can work, so the row is kept and sent
+        again with a growing wait. Any other exception is permanent: the row is marked unrecoverable and never sent
+        again.
+        """
 
 
 class BatchSender(Sender):

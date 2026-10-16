@@ -10,3 +10,4 @@ qiskit-addon-obp==0.3.0
 qiskit-addon-sqd==0.12.1
 qiskit-addon-utils==0.2.0
 qiskit-aer==0.17.2
+qiskit-paulice==0.2.1

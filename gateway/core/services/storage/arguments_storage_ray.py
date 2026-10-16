@@ -73,3 +73,9 @@ class RayArgumentsStorage(ArgumentsStorage):
             self._job_id,
             arguments_path,
         )
+
+    def delete(self) -> None:
+        arguments_path = self._get_arguments_path()
+        if os.path.exists(arguments_path):
+            os.remove(arguments_path)
+            logger.info("Arguments for job ID '%s' deleted from '%s'.", self._job_id, arguments_path)
