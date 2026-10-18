@@ -1,0 +1,8 @@
+---
+other:
+  - |
+    The scheduler histograms ``scheduler_loop_duration_seconds`` and
+    ``scheduler_task_duration_seconds`` now have buckets up to 300 seconds.
+    Before, they stopped at 10 seconds, so a slow tick could not be told apart
+    from a very slow one. Queries that span the deploy will see the old series
+    cut.

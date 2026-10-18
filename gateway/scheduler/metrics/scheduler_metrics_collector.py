@@ -10,6 +10,10 @@ from prometheus_client import (
 
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
+# The default prometheus_client buckets stop at 10 s, so a tick or a task that takes minutes would be
+# indistinguishable from one that takes 11 s. These go up to 300 s.
+LOOP_DURATION_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 40, 80, 160, 300, float("inf"))
+
 
 class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Metrics related with the scheduler life cycle like wait time per job or tasks failure.
@@ -22,6 +26,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         self.loop_duration = Histogram(
             "scheduler_loop_duration_seconds",
             "Duration of one scheduler loop iteration.",
+            buckets=LOOP_DURATION_BUCKETS,
             registry=self.registry,
         )
         self.task_errors = Counter(
@@ -34,6 +39,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             "scheduler_task_duration_seconds",
             "Duration of one scheduler task execution.",
             labelnames=("task_name",),
+            buckets=LOOP_DURATION_BUCKETS,
             registry=self.registry,
         )
         self.start_time = Gauge(
