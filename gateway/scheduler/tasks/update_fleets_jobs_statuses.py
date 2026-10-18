@@ -264,5 +264,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
                 )
 
+        self.metrics.increment_task_items(self.name, counter)
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)

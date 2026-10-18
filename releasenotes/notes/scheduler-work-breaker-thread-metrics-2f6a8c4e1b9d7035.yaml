@@ -1,0 +1,8 @@
+---
+other:
+  - |
+    The scheduler now exposes ``scheduler_task_items_total`` (jobs submitted
+    and jobs whose status changed, per task),
+    ``scheduler_fleets_jobs_skipped_by_breaker_total`` (jobs a Code Engine
+    circuit breaker kept queued, per region) and ``scheduler_process_threads``
+    (live threads of the process).
