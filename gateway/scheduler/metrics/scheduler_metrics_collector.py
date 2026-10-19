@@ -43,7 +43,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.task_items_total = Counter(
             "scheduler_task_items_total",
-            "Items a scheduler task handled (jobs submitted, jobs whose status changed). Divide the rate of "
+            "Items a scheduler task handled (jobs submitted, jobs whose status was checked). Divide the rate of "
             "scheduler_task_duration_seconds_sum by the rate of this to get the cost per item.",
             labelnames=("task_name",),
             registry=self.registry,

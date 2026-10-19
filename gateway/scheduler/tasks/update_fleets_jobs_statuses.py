@@ -246,6 +246,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
 
         counter = 0
+        checked = 0
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
@@ -256,6 +257,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping status update cycle")
                 return
+            checked += 1
             try:
                 if self.update_job_status(job):
                     counter += 1
@@ -264,6 +266,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
                 )
 
-        self.metrics.increment_task_items(self.name, counter)
+        # Every job whose status was read, not only the ones that changed: a job still RUNNING counts, and so does
+        # one whose status could not be read, which is the slow one when COS is degraded.
+        self.metrics.increment_task_items(self.name, checked)
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)

@@ -59,16 +59,21 @@ class ScheduleFleetsJobs(SchedulerTask):
         jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=False, runner=Program.FLEETS)
 
         skipped_regions: set[str | None] = set()
+        # The regions in skipped_regions because their breaker is open. The others are there after a retryable
+        # failure (a 429, for one) with the breaker still closed, and those jobs are not counted as held by a breaker.
+        paused_regions: set[str | None] = set()
         submitted = 0
         for job in jobs:
             if self.kill_signal.received:
                 return
             if job.ce_region in skipped_regions:
-                self.metrics.increment_fleets_jobs_skipped_by_breaker(job.ce_region)
+                if job.ce_region in paused_regions:
+                    self.metrics.increment_fleets_jobs_skipped_by_breaker(job.ce_region)
                 continue
             if self.submitter.paused(job.ce_region):
                 logger.warning("Fleets submits to region %s are paused by the circuit breaker.", job.ce_region)
                 skipped_regions.add(job.ce_region)
+                paused_regions.add(job.ce_region)
                 self.metrics.increment_fleets_jobs_skipped_by_breaker(job.ce_region)
                 continue
 
