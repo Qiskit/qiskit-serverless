@@ -621,6 +621,7 @@ class JobAdmin(admin.ModelAdmin):
         "program__provider__name",
         "fleet_id",
         "compute_profile_fk__compute_profile_id",
+        "function_size_name",
         "status",
         "instance_crn",
     ]
@@ -641,14 +642,13 @@ class JobAdmin(admin.ModelAdmin):
         "program",
         "program__provider",
         "compute_profile_fk",
-        "function_size",
     ]
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
-    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions"]
+    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions", "function_size_name"]
     fieldsets = [
         (
             "Info",
@@ -676,6 +676,7 @@ class JobAdmin(admin.ModelAdmin):
                     "fleet_id",
                     "compute_profile_fk",
                     "size_source",
+                    "function_size_name",
                     "function_size",
                     "ce_project_name",
                     "ce_region",
@@ -905,8 +906,8 @@ class JobAdmin(admin.ModelAdmin):
                 obj.compute_profile_fk,
             )
         ]
-        if obj.function_size is not None:
-            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size.function_size))
+        if obj.function_size_name:
+            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size_name))
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     @admin.display(description="Program")
