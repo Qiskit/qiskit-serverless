@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    The scheduler exports three new metrics:
+    ``scheduler_code_engine_request_duration_seconds`` by endpoint and status,
+    ``scheduler_cos_request_duration_seconds`` by operation and status, and
+    ``scheduler_fleets_breaker_open`` by region. A Code Engine 429 shows up
+    as a ``status="429"`` series. The gateway does not record them.
+upgrade:
+  - |
+    ``scheduler_loop_duration_seconds`` and ``scheduler_task_duration_seconds``
+    now have buckets up to 30 minutes. The old buckets stopped at 10 seconds.

@@ -38,12 +38,14 @@ Example::
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from ibm_boto3 import client as ibm_boto3_client
 
 from core.clients.iam_token_provider import IamTokenProvider, get_iam_token_provider
+from core.ibm_cloud import call_metrics
 
 IAM_PROD_URL = "https://iam.cloud.ibm.com"
 IAM_TEST_URL = "https://iam.test.cloud.ibm.com"
@@ -157,5 +159,20 @@ class IBMCloudClientProvider:
             endpoint_url=resolved_endpoint,
             region_name=resolved_region,
         )
+        s3.meta.events.register("before-call.s3", _start_cos_call)
+        s3.meta.events.register("after-call.s3", _end_cos_call)
+        s3.meta.events.register("after-call-error.s3", _end_cos_call)
         self.clients.cos_hmac[cache_key] = s3
         return s3
+
+
+def _start_cos_call(context: dict, **_: Any) -> None:
+    context["metrics_start"] = time.monotonic()
+
+
+def _end_cos_call(context: dict, event_name: str, http_response: Any = None, **_: Any) -> None:
+    start = context.pop("metrics_start", None)
+    if start is None:
+        return
+    status = str(http_response.status_code) if http_response is not None else "0"
+    call_metrics.observe_cos(event_name.rsplit(".", 1)[-1], status, time.monotonic() - start)
