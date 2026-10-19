@@ -317,6 +317,13 @@ container of a mirrored job, the environment variable
 <code class="docutils literal notranslate"><span class="pre">QISKIT_FUNCTIONS_IDENTIFIER</span></code> holds the job id.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The scheduler exports three new metrics:
+<code class="docutils literal notranslate"><span class="pre">scheduler_code_engine_request_duration_seconds</span></code> by endpoint and status,
+<code class="docutils literal notranslate"><span class="pre">scheduler_cos_request_duration_seconds</span></code> by operation and status, and
+<code class="docutils literal notranslate"><span class="pre">scheduler_fleets_breaker_open</span></code> by region. A Code Engine 429 shows up
+as a <code class="docutils literal notranslate"><span class="pre">status=&quot;429&quot;</span></code> series. The gateway does not record them.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now cancels the <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> Fleets jobs whose
 account, plan and subscription are blocked, so a resource whose non-quantum
 allowance is exhausted stops consuming Code Engine capacity. The job goes
@@ -336,6 +343,10 @@ dependency can now use it.</p></li>
 <li><p>While <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> is on, running a Fleets function with an
 instance CRN can fail with a <code class="docutils literal notranslate"><span class="pre">503</span></code> error, and no job is created, if the
 Runtime API does not accept the job. Retrying the request later is safe.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_loop_duration_seconds</span></code> and <code class="docutils literal notranslate"><span class="pre">scheduler_task_duration_seconds</span></code>
+now have buckets up to 30 minutes. The old buckets stopped at 10 seconds.</p></li>
 </ul>
 </section>
 <section id="bug-fixes">
