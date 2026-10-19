@@ -114,7 +114,8 @@ class FleetsJobSubmitter:
         Raises:
             RunnerRetryableError: nothing was written, so the job is still QUEUED and a later tick
                 can try again.
-            RunnerError: Code Engine refused the submit. The job is already FAILED.
+            RunnerError: Code Engine refused the submit. The job is already FAILED, with the
+                reason on an error event.
             InvalidJobTransitionException: the row left QUEUED while it was being submitted, so the
                 fleet created for it has been cancelled.
         """
@@ -138,6 +139,15 @@ class FleetsJobSubmitter:
                     "[FleetsJobSubmitter] job_id=%s error=%s Job set as FAILED: submission error",
                     job.id,
                     ex,
+                )
+                JobEvent.objects.add_error_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.SCHEDULER,
+                    context=context,
+                    code="FLEET_SUBMIT_FAILED",
+                    message="The job could not be submitted to Code Engine",
+                    exception=type(ex).__name__,
+                    args=str(ex),
                 )
                 job.update_fields({"env_vars": "{}"})
                 try:
