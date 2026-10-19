@@ -21,15 +21,16 @@ from core.domain.exceptions.retryable_error import RetryableError
 logger = logging.getLogger("core.IamTokenProvider")
 
 _KEY_REJECTED = {400, 401, 403}
-_DEFAULT_TIMEOUT = 3  # seconds
+_DEFAULT_TIMEOUT = (3, 5)  # seconds, (connect, read)
 
 
 class IamTokenProvider:
     """Gives a valid IAM token for ``api_key``. Safe to share between threads."""
 
-    def __init__(self, api_key: str, iam_url: str, timeout: float = _DEFAULT_TIMEOUT) -> None:
+    def __init__(self, api_key: str, iam_url: str, timeout: float | tuple[float, float] = _DEFAULT_TIMEOUT) -> None:
         """``timeout`` (seconds, greater than zero) bounds the request to IAM; the SDK waits 60 s by default. It is
-        fixed here and not per call, because the token manager is shared by every thread that asks for a token.
+        a number or a ``(connect, read)`` pair, as in ``requests``. It is fixed here and not per call, because the
+        token manager is shared by every thread that asks for a token.
         Raises RuntimeApiError if ``api_key`` is empty or malformed."""
         if not api_key:
             raise RuntimeApiError("The API key is not set")
@@ -50,11 +51,11 @@ class IamTokenProvider:
             if exc.status_code in _KEY_REJECTED:
                 logger.error("IAM rejected the API key with status %s", exc.status_code)
                 raise RuntimeApiError(f"IAM rejected the API key (status {exc.status_code})") from exc
-            logger.error("Could not get an IAM token, status %s", exc.status_code)
+            logger.warning("Could not get an IAM token, status %s", exc.status_code)
             raise RetryableError("Could not get an IAM token") from exc
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self._forget_failed_request()
-            logger.error("Could not get an IAM token: %s", type(exc).__name__)
+            logger.warning("Could not get an IAM token: %s", type(exc).__name__)
             raise RetryableError("Could not get an IAM token") from exc
 
     def invalidate(self, token: str) -> None:

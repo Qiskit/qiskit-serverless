@@ -29,7 +29,7 @@ def test_gives_the_token_and_bounds_the_request_to_iam(authenticator):
 
     assert provider.get_token() == "iam-token"
     authenticator.assert_called_once_with("operator-key", url=IAM_URL)
-    assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
+    assert authenticator.return_value.token_manager.http_config == {"timeout": (3, 5)}
 
 
 def test_the_timeout_is_set_when_it_is_built(authenticator):
