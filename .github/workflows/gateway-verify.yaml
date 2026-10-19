@@ -38,6 +38,13 @@ jobs:
       - name: Install tox
         run: |
           pip install tox>=4.0.0
+      - name: Check migrations
+        id: migrations
+        run: tox -emigrations
+      - name: Explain how to fix the migrations
+        if: failure() && steps.migrations.outcome == 'failure'
+        run: |
+          echo "::error title=Migrations out of sync::Either two migrations share the same parent (usually because another PR merged a migration first) or a model change has no migration. For a conflict, rename your migration with the next free number, point its dependency at the latest migration on main, then run 'tox -emigrations' again. The /fix-migrations skill does it for you."
       - name: Run styles check
         run: tox -elint
       - name: Test using tox environment
