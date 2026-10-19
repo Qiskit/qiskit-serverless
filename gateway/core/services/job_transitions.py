@@ -41,6 +41,10 @@ def _is_fee_billable(job: Job) -> bool:
     )
 
 
+class FleetAppearedError(RunnerRetryableError):
+    """The job's ``fleet_id`` changed while a stop was deciding, so nothing was written."""
+
+
 class JobTransitionService:
     """Changes the status of a job, validated and atomic, and does what each transition owes.
 
@@ -114,7 +118,8 @@ class JobTransitionService:
         Raises:
             ValueError: If the job is not a Fleets job.
             RunnerError: If the cancel could not be delivered.
-            RunnerRetryableError: If a fleet appeared while this was deciding. Nothing is written,
+            RunnerRetryableError: If Code Engine could not be reached.
+            FleetAppearedError: If a fleet appeared while this was deciding. Nothing is written,
                 so the caller asks again with the fresh row and cancels that fleet.
             InvalidJobTransitionException: If the row left a status the new one is reachable from.
         """
@@ -133,7 +138,7 @@ class JobTransitionService:
             if current_fleet_id != job.fleet_id:
                 # Adopt it, or the retry reads the same stale None and decides the same way again.
                 job.fleet_id = current_fleet_id
-                raise RunnerRetryableError(f"Job {job.id}: a fleet appeared while stopping")
+                raise FleetAppearedError(f"Job {job.id}: a fleet appeared while stopping")
             self._change_status(job, Job.STOPPED, origin=origin, context=context, job_fields=None)
             self._enqueue_workload(job)
         return Job.STOPPED
