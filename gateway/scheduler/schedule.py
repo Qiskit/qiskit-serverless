@@ -342,6 +342,8 @@ def _jobs_in_rounds(budgets: dict, per_user: int, gpu: bool, runner: str, slots:
     """Each user's oldest queued jobs within their budget, the first job of every user before any second one."""
     ranked = (
         Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner, author__in=budgets)
+        .with_program()
+        .select_related("program__code_engine_project")
         .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
         .filter(rank__lte=per_user)
         .order_by("rank", "created")

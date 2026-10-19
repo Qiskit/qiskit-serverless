@@ -651,7 +651,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "50",
         "type": "integer",
         "description": "Most jobs one user can have queued or running. The gateway checks it at submit, and the "
-        "scheduler uses it as the most Fleets jobs one user can have running.",
+        "scheduler uses it as the most Fleets jobs one user can have running. 0 blocks every submit.",
     },
 }
 
