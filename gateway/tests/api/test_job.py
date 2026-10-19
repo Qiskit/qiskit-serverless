@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -19,7 +21,7 @@ from core.domain.authorization.function_access_result import FunctionAccessResul
 from core.domain.business_models import BusinessModel
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
+from core.models import ComputeProfile, Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
 from tests.utils import TestUtils
 
 
@@ -1014,6 +1016,20 @@ class TestRetrieveJob:
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") is None
         assert response.data.get("business_model") == BusinessModel.LICENSED
+
+    def test_author_retrieves_the_job_in_one_query(self, authorize):
+        program = TestUtils.create_program("one-query-function", author="test_user", provider="one-query-provider")
+        profile = ComputeProfile.objects.create(compute_profile_id="one-query-profile", cpu="8", memory="32")
+        job = TestUtils.create_job(author="test_user", program=program, compute_profile_fk=profile)
+        client = authorize("test_user")
+
+        with CaptureQueriesContext(connection) as captured:
+            response = client.get(reverse("v1:retrieve", args=[job.id]) + "?with_result=false", format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["program"]["provider"] == "one-query-provider"
+        assert response.data["compute_profile_fk"]["compute_profile_id"] == "one-query-profile"
+        assert len(captured) == 1
 
     def test_old_subsidized_job_is_retrieved_as_licensed(self, authorize):
         """A job stored with the old SUBSIDIZED name is reported to the client as LICENSED."""
