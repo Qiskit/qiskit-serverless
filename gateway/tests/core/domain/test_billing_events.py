@@ -162,8 +162,8 @@ class TestBuildLicenseFee:
     def test_built_when_provider_and_function_size_are_present(self):
         provider = Provider(name="ibm-dev")
         program = Program(title="my-fn", provider=provider)
-        function_size = FunctionSize(function_size="m", compute_profile=ComputeProfile(compute_profile_id="16x128"))
-        job = _job(program=program, function_size=function_size)
+        function_size = FunctionSize(function_size="M", compute_profile=ComputeProfile(compute_profile_id="16x128"))
+        job = _job(program=program, function_size=function_size, function_size_name=function_size.function_size)
         running_started_at = datetime(2026, 9, 25, 11, 0, 0, tzinfo=timezone.utc)
 
         message = BillingEvents.build_license_fee(job, running_started_at)
@@ -180,8 +180,8 @@ class TestBuildLicenseFee:
         transition, never through RUNNING."""
         provider = Provider(name="ibm-dev")
         program = Program(title="my-fn", provider=provider)
-        function_size = FunctionSize(function_size="m", compute_profile=ComputeProfile(compute_profile_id="16x128"))
-        job = _job(program=program, function_size=function_size)
+        function_size = FunctionSize(function_size="M", compute_profile=ComputeProfile(compute_profile_id="16x128"))
+        job = _job(program=program, function_size=function_size, function_size_name=function_size.function_size)
 
         message = BillingEvents.build_license_fee(job, job_started_at=None)
 
@@ -192,7 +192,28 @@ class TestBuildLicenseFee:
         provider = Provider(name="ibm-dev")
         program = Program(title="my-fn", provider=provider)
         function_size = FunctionSize(function_size="M", compute_profile=ComputeProfile(compute_profile_id="16x128"))
-        job = _job(program=program, function_size=function_size)
+        job = _job(program=program, function_size=function_size, function_size_name=function_size.function_size)
+
+        message = BillingEvents.build_license_fee(job, datetime(2026, 9, 25, 11, 0, 0, tzinfo=timezone.utc))
+
+        assert message["data"]["metric_type"] == "license_ibm-dev_my-fn_m"
+
+    def test_metric_type_reads_the_snapshot_not_the_renamed_size_row(self):
+        """#1971: the row was renamed M -> L after the job was created; the job is still billed as M."""
+        provider = Provider(name="ibm-dev")
+        program = Program(title="my-fn", provider=provider)
+        renamed = FunctionSize(function_size="L", compute_profile=ComputeProfile(compute_profile_id="16x128"))
+        job = _job(program=program, function_size=renamed, function_size_name="M")
+
+        message = BillingEvents.build_license_fee(job, datetime(2026, 9, 25, 11, 0, 0, tzinfo=timezone.utc))
+
+        assert message["data"]["metric_type"] == "license_ibm-dev_my-fn_m"
+
+    def test_built_from_the_snapshot_after_the_size_row_was_deleted(self):
+        """#1971: a re-upload deleted the row (FK SET_NULL); the snapshot still prices the job."""
+        provider = Provider(name="ibm-dev")
+        program = Program(title="my-fn", provider=provider)
+        job = _job(program=program, function_size=None, function_size_name="M")
 
         message = BillingEvents.build_license_fee(job, datetime(2026, 9, 25, 11, 0, 0, tzinfo=timezone.utc))
 

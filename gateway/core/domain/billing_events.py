@@ -26,7 +26,8 @@ class BillingEvents:
     def build_license_fee(job: Job, job_started_at: datetime | None) -> dict:
         """
         Build a license fee for a provider program. Rules:
-        - The job.program, job.program.provider and job.function_size CAN'T be None (or AttributeError will be raised)
+        - The job.program, job.program.provider and job.function_size_name CAN'T be None (or AttributeError will be
+          raised). The size is the snapshot taken at creation, not the live job.function_size row (#1971).
         - #1899 job_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
           (a direct PENDING -> SUCCEEDED transition).
         - The function size is lowercased, the billing service's metric table keys are lowercase.
@@ -36,7 +37,7 @@ class BillingEvents:
                 LICENSE_FEE_METRIC_TYPE,
                 job.program.provider.name,
                 job.program.title,
-                job.function_size.function_size.lower(),
+                job.function_size_name.lower(),
             ]
         )
         logger.info("job_id=%s Building license_fee message metric_type=%s", job.id, metric_type)
