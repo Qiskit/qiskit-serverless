@@ -14,11 +14,11 @@ from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from core.model_managers.job_events import JobEventContext
+from core.model_managers.job_events import JobEventContext, JobEventType
 from core.config_key import ConfigKey
 from core.models import Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage import get_logs_storage
 
@@ -203,9 +203,10 @@ class TestScheduleApi(APITestCase):
         transitions.queued_to_pending.assert_called_once()
         transitions.to_failed.assert_not_called()
 
+    @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_failure(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_failure(self, mock_trace, mock_get_runner_client, mock_event):
         """Tests Fleets job execution failure handling."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -288,9 +289,12 @@ class TestScheduleApi(APITestCase):
 
         assert runner.submit.call_count == 2
 
+    @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_does_not_count_a_failed_job_against_the_breaker(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_does_not_count_a_failed_job_against_the_breaker(
+        self, mock_trace, mock_get_runner_client, mock_event
+    ):
         _open_breakers_after_one_failure()
         mock_get_runner_client.return_value.submit.side_effect = RunnerError("Bad Request")
 
@@ -342,9 +346,12 @@ class TestScheduleApi(APITestCase):
         assert job.update_fields.call_args.args[0] == {"fleet_id": job.fleet_id, "env_vars": "{}"}
         mock_runner.stop.assert_called_once()
 
+    @patch("scheduler.schedule.JobEvent")
     @patch("scheduler.schedule.get_runner")
     @patch("scheduler.schedule.trace")
-    def test_fleets_submit_reports_a_failed_submit_that_also_lost_the_race(self, mock_trace, mock_get_runner_client):
+    def test_fleets_submit_reports_a_failed_submit_that_also_lost_the_race(
+        self, mock_trace, mock_get_runner_client, mock_event
+    ):
         """Same race when the submit failed: no fleet exists, so there is nothing to cancel."""
         mock_runner = MagicMock()
         mock_runner.submit.side_effect = RunnerError("Submit failed")
@@ -467,6 +474,32 @@ def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
     assert job.fleet_id == "fleet-created-anyway"
     assert job.env_vars == "{}"
     runner.stop.assert_called_once()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_submit_records_its_reason_in_the_database():
+    """Against the real transition service. GET /jobs/{id}/events returns only ERROR events, so
+    without this row the user sees a FAILED job and an empty list."""
+    author = User.objects.create_user(username="submit-failure-author")
+    job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED, env_vars='{"KEY": "value"}')
+
+    runner = MagicMock()
+    runner.submit.side_effect = RunnerError("fleet quota exceeded")
+
+    with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
+        with pytest.raises(RunnerError):
+            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(
+                job, None, context=JobEventContext.FILLER_SUBMIT
+            )
+
+    job.refresh_from_db()
+    assert job.status == Job.FAILED
+
+    error = JobEvent.objects.get(job=job, event_type=JobEventType.ERROR)
+    assert error.data["code"] == "FLEET_SUBMIT_FAILED"
+    assert "fleet quota exceeded" in error.data["args"]
+    # the caller's context, not the SCHEDULE_JOBS default
+    assert error.context == JobEventContext.FILLER_SUBMIT
 
 
 def test_a_cancel_that_fails_leaves_the_fleet_on_the_row_and_on_the_timeline():
@@ -626,6 +659,16 @@ class TestFleetsJobCanceller:
             canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert canceller.paused("us-east") is True
+
+    def test_a_fleet_that_appeared_does_not_count_against_the_region_breaker(self):
+        """Code Engine answered and the row changed under us, so the region did nothing wrong."""
+        _open_breakers_after_one_failure()
+        canceller, _ = self._canceller(side_effect=FleetAppearedError("a fleet appeared while stopping"))
+
+        with pytest.raises(FleetAppearedError):
+            canceller.cancel(MagicMock(ce_region="us-east"), context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert canceller.paused("us-east") is False
 
     def test_a_refused_cancel_leaves_the_breaker_closed(self):
         """A cancel that never left this process says nothing about whether the region is answering."""

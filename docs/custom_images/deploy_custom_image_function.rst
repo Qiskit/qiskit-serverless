@@ -61,7 +61,7 @@ image and adding your implementation:
    WORKDIR /runner
    COPY ./runner.py /runner
    WORKDIR /
-   USER 1000
+   USER 1000:1000
 
 For more complete examples, visit the :ref:`image_examples` section.
 

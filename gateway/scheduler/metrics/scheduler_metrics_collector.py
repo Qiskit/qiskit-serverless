@@ -10,6 +10,9 @@ from prometheus_client import (
 
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
+TICK_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1200, 1800, float("inf"))
+CLOUD_CALL_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, float("inf"))
+
 
 class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Metrics related with the scheduler life cycle like wait time per job or tasks failure.
@@ -23,6 +26,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             "scheduler_loop_duration_seconds",
             "Duration of one scheduler loop iteration.",
             registry=self.registry,
+            buckets=TICK_BUCKETS,
         )
         self.task_errors = Counter(
             "scheduler_task_errors_total",
@@ -35,6 +39,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             "Duration of one scheduler task execution.",
             labelnames=("task_name",),
             registry=self.registry,
+            buckets=TICK_BUCKETS,
         )
         self.start_time = Gauge(
             "scheduler_start_timestamp_seconds",
@@ -177,6 +182,29 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             registry=self.registry,
         )
 
+        self.code_engine_request_duration = Histogram(
+            "scheduler_code_engine_request_duration_seconds",
+            "Duration of one Code Engine API call, an IAM token refresh included. "
+            "status is ok, the HTTP code, or the exception class.",
+            labelnames=("endpoint", "status"),
+            registry=self.registry,
+            buckets=CLOUD_CALL_BUCKETS,
+        )
+        self.cos_request_duration = Histogram(
+            "scheduler_cos_request_duration_seconds",
+            "Duration of one COS call until the response headers, retries included. "
+            "status is the HTTP code, or 0 when there was no answer.",
+            labelnames=("operation", "status"),
+            registry=self.registry,
+            buckets=CLOUD_CALL_BUCKETS,
+        )
+        self.fleets_breaker_open = Gauge(
+            "scheduler_fleets_breaker_open",
+            "1 while the Code Engine circuit breaker of a region is open, 0 otherwise.",
+            labelnames=("region",),
+            registry=self.registry,
+        )
+
         SystemMetricsCollector(registry=self.registry)
 
         self.wsgi_app = make_wsgi_app(self.registry)
@@ -221,6 +249,18 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_outbox_breaker_open(self, is_open: bool, channel: str) -> None:
         """Record whether a given outbox channel's circuit breaker is currently open."""
         self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
+
+    def set_fleets_breaker_open(self, is_open: bool, region: str | None) -> None:
+        """Record whether the Code Engine circuit breaker of a region is open."""
+        self.fleets_breaker_open.labels(region=region or "none").set(1 if is_open else 0)
+
+    def observe_code_engine_call(self, endpoint: str, status: str, seconds: float) -> None:
+        """Record one Code Engine API call."""
+        self.code_engine_request_duration.labels(endpoint=endpoint, status=status).observe(seconds)
+
+    def observe_cos_call(self, operation: str, status: str, seconds: float) -> None:
+        """Record one COS call."""
+        self.cos_request_duration.labels(operation=operation, status=status).observe(seconds)
 
     def increment_blocked_account_event(self, region: str, outcome: str, count: int = 1) -> None:
         """Count consumed blocked-account-plan events. outcome: handled, invalid or retry."""

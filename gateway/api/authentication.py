@@ -99,8 +99,9 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             # already logged by FunctionAccessClient; surface a generic, CRN-free message.
             logger.exception("Could not resolve accessible functions: %s", error.message)
             raise exceptions.AuthenticationFailed(
-                "We couldn't verify your access to Qiskit Functions at this time. "
-                "Please try again later, or contact IBM support if the problem persists."
+                "We couldn't verify your access to Qiskit Functions. Check that your instance can use "
+                "Qiskit Functions and that your API key has access to it, then try again. If the problem "
+                "persists, contact IBM support."
             ) from error
         return quantum_user, CustomAuthentication(
             channel=channel,
