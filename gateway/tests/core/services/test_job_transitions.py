@@ -10,7 +10,6 @@ from django.contrib.auth.models import User
 
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.services.runners import RunnerRetryableError
 from core.models import (
     ComputeProfile,
     FunctionSize,
@@ -22,7 +21,7 @@ from core.models import (
     Provider,
     WorkloadMirror,
 )
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import FleetAppearedError, JobTransitionService
 
 pytestmark = pytest.mark.django_db
 
