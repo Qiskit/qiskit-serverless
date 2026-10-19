@@ -24,6 +24,7 @@ from core.clients.iam_token_provider import IamTokenProvider, get_iam_token_prov
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.crn import regional_base_url
+from core.external_call_metrics import RUNTIME_API_PUT, observe_operation
 
 logger = logging.getLogger("core.FunctionsOperatorClient")
 
@@ -54,12 +55,13 @@ class FunctionsOperatorClient:
         token = self._token_provider.get_token()
 
         try:
-            response = requests.put(
-                f"{base_url}/api/v1/functions/{function_id}",
-                json=body,
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=timeout,
-            )
+            with observe_operation(RUNTIME_API_PUT):
+                response = requests.put(
+                    f"{base_url}/api/v1/functions/{function_id}",
+                    json=body,
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=timeout,
+                )
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)
             raise RetryableError("Error connecting to the Runtime API") from exc

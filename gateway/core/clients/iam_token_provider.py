@@ -17,6 +17,7 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
+from core.external_call_metrics import IAM_TOKEN, observe_operation
 
 logger = logging.getLogger("core.IamTokenProvider")
 
@@ -44,7 +45,8 @@ class IamTokenProvider:
         """A valid token. The SDK caches it, refreshes it near expiry and lets one thread at a time ask IAM while the
         others wait, so ask on every use and do not add a lock around it."""
         try:
-            return self._authenticator.token_manager.get_token()
+            with observe_operation(IAM_TOKEN):
+                return self._authenticator.token_manager.get_token()
         except ApiException as exc:
             self._forget_failed_request()
             if exc.status_code in _KEY_REJECTED:
