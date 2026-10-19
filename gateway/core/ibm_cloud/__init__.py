@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 
+from core.ibm_cloud import call_metrics
 from core.ibm_cloud.clients import IBMCloudClientProvider, COS_PUBLIC_URL_TEMPLATE
 from core.ibm_cloud.code_engine.ce_client import ApiClient, Configuration, SecretsAndConfigmapsApi
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
@@ -55,7 +56,25 @@ def get_ce_auth(api_key: str, region: str) -> CEAuth:
         config.api_key["Authorization"] = client_provider.tokens.get_token()
 
     cfg.refresh_api_key_hook = refresh_token
-    return CEAuth(api_client=ApiClient(cfg), client_provider=client_provider)
+    return CEAuth(api_client=_MeteredApiClient(cfg), client_provider=client_provider)
+
+
+class _MeteredApiClient(ApiClient):
+    """An ApiClient that reports the time and the result of each Code Engine call."""
+
+    def call_api(self, resource_path, method, *args, **kwargs):
+        start = time.monotonic()
+        status = "ok"
+        try:
+            return super().call_api(resource_path, method, *args, **kwargs)
+        except ApiException as exc:
+            status = str(exc.status or 0)
+            raise
+        except Exception as exc:
+            status = type(exc).__name__
+            raise
+        finally:
+            call_metrics.observe_code_engine(f"{method} {resource_path}", status, time.monotonic() - start)
 
 
 def get_cos_client(project: CodeEngineProject) -> JobCOS:
