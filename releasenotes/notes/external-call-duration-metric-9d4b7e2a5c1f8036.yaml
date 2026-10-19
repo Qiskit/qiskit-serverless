@@ -3,6 +3,8 @@ other:
   - |
     The scheduler now exposes ``scheduler_operation_duration_seconds``, a
     histogram of how long it takes to read the status of a Fleets job, to upload
-    the files of a job when submitting it, to get an IAM token and to send a
-    workload to the Runtime API. It is labeled by operation and by outcome (ok,
-    timeout or error). The gateway does not record it.
+    the files of a job when submitting it, to request an IAM token and to send a
+    workload to the Runtime API. It is labeled by operation and by status: ok,
+    timeout or error, or the HTTP code for the Runtime API call. Only the
+    requests that really reach IAM are timed, not the ones answered from the
+    token cache. The gateway does not record it.

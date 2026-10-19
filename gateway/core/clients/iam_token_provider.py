@@ -44,9 +44,16 @@ class IamTokenProvider:
     def get_token(self) -> str:
         """A valid token. The SDK caches it, refreshes it near expiry and lets one thread at a time ask IAM while the
         others wait, so ask on every use and do not add a lock around it."""
+        token_manager = self._authenticator.token_manager
         try:
-            with observe_operation(IAM_TOKEN):
-                return self._authenticator.token_manager.get_token()
+            with observe_operation(IAM_TOKEN) as observation:
+                cached = token_manager.token_info
+                token = token_manager.get_token()
+                # The SDK answers from its cache nearly every time, which would fill the histogram with zeros and hide
+                # the few real requests. It stores a new token_info object only when it asked IAM, so a sample is
+                # kept only then.
+                observation.discard = token_manager.token_info is cached
+                return token
         except ApiException as exc:
             self._forget_failed_request()
             if exc.status_code in _KEY_REJECTED:

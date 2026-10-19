@@ -12,6 +12,7 @@ the histogram is created by ``enable()``, which only ``run_scheduler`` calls. In
 import socket
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Iterator
 
 from prometheus_client import REGISTRY, CollectorRegistry, Histogram
@@ -22,11 +23,22 @@ FLEET_SUBMIT_UPLOAD = "fleet_submit_upload"
 RUNTIME_API_PUT = "runtime_api_put"
 IAM_TOKEN = "iam_token"
 
-OUTCOME_OK = "ok"
-OUTCOME_TIMEOUT = "timeout"
-OUTCOME_ERROR = "error"
+STATUS_OK = "ok"
+STATUS_TIMEOUT = "timeout"
+STATUS_ERROR = "error"
 
 _DURATION: Histogram | None = None
+
+
+@dataclass
+class Observation:
+    """What the ``with`` block of ``observe_operation`` hands to its caller. The status is ``ok``, ``timeout`` or
+    ``error`` by how the block ended, unless the caller sets it: an HTTP call answers with a code and does not raise
+    on a 4xx or a 5xx, so it sets the code, as the request metrics of Code Engine and COS do. A caller that only finds
+    out afterwards that nothing was really done (an answer from a cache) sets ``discard`` and no sample is recorded."""
+
+    status: str | None = None
+    discard: bool = False
 
 
 def enable(registry: CollectorRegistry = REGISTRY) -> None:
@@ -34,9 +46,9 @@ def enable(registry: CollectorRegistry = REGISTRY) -> None:
     global _DURATION  # pylint: disable=global-statement
     _DURATION = Histogram(
         "scheduler_operation_duration_seconds",
-        "Duration of one operation of the scheduler against another service, by operation and outcome "
-        "(ok, timeout or error).",
-        labelnames=("operation", "outcome"),
+        "Duration of one operation of the scheduler against another service. status is ok, timeout or error, "
+        "or the HTTP code when the operation is an HTTP call that answers with one.",
+        labelnames=("operation", "status"),
         buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 40, 60, 120, 300, float("inf")),
         registry=registry,
     )
@@ -62,16 +74,19 @@ def _is_timeout(exc: BaseException) -> bool:
 
 
 @contextmanager
-def observe_operation(operation: str) -> Iterator[None]:
+def observe_operation(operation: str) -> Iterator[Observation]:
     """Time the block and record it under ``operation``, if recording is enabled. The exception, if any, is raised
     again untouched."""
+    observation = Observation()
     started = time.perf_counter()
-    outcome = OUTCOME_OK
+    status = STATUS_OK
     try:
-        yield
+        yield observation
     except BaseException as exc:
-        outcome = OUTCOME_TIMEOUT if _is_timeout(exc) else OUTCOME_ERROR
+        status = STATUS_TIMEOUT if _is_timeout(exc) else STATUS_ERROR
         raise
     finally:
-        if _DURATION is not None:
-            _DURATION.labels(operation=operation, outcome=outcome).observe(time.perf_counter() - started)
+        if _DURATION is not None and not observation.discard:
+            _DURATION.labels(operation=operation, status=observation.status or status).observe(
+                time.perf_counter() - started
+            )

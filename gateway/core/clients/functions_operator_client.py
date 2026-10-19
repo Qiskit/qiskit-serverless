@@ -55,13 +55,15 @@ class FunctionsOperatorClient:
         token = self._token_provider.get_token()
 
         try:
-            with observe_operation(RUNTIME_API_PUT):
+            with observe_operation(RUNTIME_API_PUT) as observation:
                 response = requests.put(
                     f"{base_url}/api/v1/functions/{function_id}",
                     json=body,
                     headers={"Authorization": f"Bearer {token}"},
                     timeout=timeout,
                 )
+                # requests does not raise on a 4xx or a 5xx, so without this a refused PUT would count as ok
+                observation.status = str(response.status_code)
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)
             raise RetryableError("Error connecting to the Runtime API") from exc

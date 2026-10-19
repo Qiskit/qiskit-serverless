@@ -16,17 +16,30 @@ def registry_fixture():
     external_call_metrics.disable()
 
 
-def _count(registry: CollectorRegistry, operation: str, outcome: str) -> float:
+def _count(registry: CollectorRegistry, operation: str, status: str) -> float:
     return (
         registry.get_sample_value(
-            "scheduler_operation_duration_seconds_count", {"operation": operation, "outcome": outcome}
+            "scheduler_operation_duration_seconds_count", {"operation": operation, "status": status}
         )
         or 0.0
     )
 
 
 class TestObserveOperation:
-    """Each operation is recorded once, with the outcome it ended with."""
+    """Each operation is recorded once, with the status it ended with."""
+
+    def test_a_status_set_by_the_caller_replaces_the_one_from_how_the_block_ended(self, registry):
+        with observe_operation(FLEET_STATUS_READ) as observation:
+            observation.status = "429"
+
+        assert _count(registry, FLEET_STATUS_READ, "429") == 1
+        assert _count(registry, FLEET_STATUS_READ, "ok") == 0
+
+    def test_a_discarded_observation_records_nothing(self, registry):
+        with observe_operation(FLEET_STATUS_READ) as observation:
+            observation.discard = True
+
+        assert _count(registry, FLEET_STATUS_READ, "ok") == 0
 
     def test_an_operation_that_returns_is_ok(self, registry):
         with observe_operation(FLEET_STATUS_READ):
