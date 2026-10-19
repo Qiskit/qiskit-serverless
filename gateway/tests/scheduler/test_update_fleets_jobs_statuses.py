@@ -578,6 +578,23 @@ class TestRun:
 
         mock_logger.info.assert_called_with("Updated %s Fleets jobs.", 2)
 
+    def test_counts_every_job_checked_and_not_only_the_ones_that_changed(self):
+        task = _make_task()
+        changed = _make_fleets_job()
+        unreadable = _make_fleets_job()
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", side_effect=[True, False]),
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [changed, unreadable]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            task.run()
+
+        task.metrics.increment_task_items.assert_called_once_with(task.name, 2)
+
 
 class TestEventStreamsIntegration:
     """Tests that emit methods are called at the right lifecycle points."""

@@ -109,18 +109,23 @@ def test_a_code_engine_failure_skips_only_that_region_for_the_tick():
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     assert [call.args[0] for call in mock_submit.call_args_list] == [failing, other_region]
+    # the breaker is still closed after a 429, so the job left behind is not one a breaker held back
+    task.metrics.increment_fleets_jobs_skipped_by_breaker.assert_not_called()
 
 
 def test_a_job_in_a_paused_region_is_not_submitted():
     task = _make_task()
     paused = MagicMock(env_vars="{}", ce_region="us-east")
+    same_region = MagicMock(env_vars="{}", ce_region="us-east")
     other = MagicMock(env_vars="{}", ce_region="eu-de")
 
     with (
-        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[paused, other]),
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[paused, same_region, other]),
         patch.object(task.submitter, "paused", side_effect=lambda region: region == "us-east"),
         patch.object(task.submitter, "submit", side_effect=lambda job, ctx: True) as mock_submit,
     ):
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     assert [call.args[0] for call in mock_submit.call_args_list] == [other]
+    # both jobs of the paused region are counted, the one that found the breaker open and the one skipped after it
+    assert task.metrics.increment_fleets_jobs_skipped_by_breaker.call_count == 2
