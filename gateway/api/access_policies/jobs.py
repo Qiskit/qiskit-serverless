@@ -48,7 +48,7 @@ class JobAccessPolicies:
         if job is None:
             raise ValueError("job cannot be None")
 
-        if user.id == job.author.id:
+        if user.id == job.author_id:
             return True
 
         has_access = False
@@ -79,7 +79,7 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author_id
         if not has_access:
             logger.warning(
                 "[can_read_result] job_id=%s user_id=%s | no access to read result",
