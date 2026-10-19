@@ -73,7 +73,10 @@ RUN mkdir /function_user_data /job_user_data /function_provider_data /job_provid
 COPY client /tmp/qs
 RUN pip install --no-cache-dir /tmp/qs && \
     rm -rf /tmp/qs
-USER 1000
+# Always USER 1000:1000, never a bare USER 1000: uid 1000 has no /etc/passwd entry
+# here, so without an explicit group the runtime assigns gid 0 (root group), and
+# Code Engine Fleets has no runAsGroup to override it.
+USER 1000:1000
 
 # Dynamic dependencies — the qiskit workload stack pre-baked so Fleets functions
 # run without reinstalling. requirements-dynamic-dependencies.txt is shared with
@@ -121,7 +124,7 @@ RUN pip install --no-cache-dir \
         > /etc/ld.so.conf.d/nvidia-wheels.conf && \
     cat /etc/ld.so.conf.d/nvidia-wheels.conf && \
     ldconfig
-USER 1000
+USER 1000:1000
 
 # Vayesta and sbd-eigensolver, the two packages with no published wheels. They are
 # compiled in this throwaway stage so the C/C++ toolchain never reaches the
@@ -238,4 +241,4 @@ RUN for lib in libcublas.so.12 libcublasLt.so.12 libcudart.so.12 libcufft.so.11 
         ldconfig -p | grep -qF "$lib (" || \
             { echo "FATAL: $lib missing from the loader cache -- gpu4pyscf would silently fall back to CPU"; exit 1; }; \
     done
-USER 1000
+USER 1000:1000
