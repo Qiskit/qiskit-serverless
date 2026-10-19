@@ -43,6 +43,7 @@ def _licensed_fleets_job(user, status, fleet_id="fleet-abc"):
         runner=Program.FLEETS,
         instance_crn=CRN,
         function_size=size,
+        function_size_name=size.function_size,
         status=status,
         fleet_id=fleet_id,
     )
@@ -252,11 +253,11 @@ class TestBillingOutbox:
         assert billing_event.payload["data"]["metric_type"].startswith("classical")
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
-    def test_missing_function_size_despite_a_provider_waives_the_fee_and_logs(self, service, user, caplog):
-        """A SET_NULL deletion of FunctionSize racing the transition is an anomaly, not the
-        normal no-provider case, so it gets a log line even though the fee is waived the same way."""
+    def test_missing_size_snapshot_despite_a_provider_waives_the_fee_and_logs(self, service, user, caplog):
+        """A job created with no size snapshot is an anomaly, not the normal no-provider case, so it
+        gets a log line even though the fee is waived the same way."""
         job = _licensed_fleets_job(user, Job.PENDING)
-        Job.objects.filter(pk=job.pk).update(function_size=None)
+        Job.objects.filter(pk=job.pk).update(function_size_name=None)
         job.refresh_from_db()
 
         with caplog.at_level(logging.ERROR):
@@ -264,6 +265,30 @@ class TestBillingOutbox:
 
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
         assert "waiving the fee" in caplog.text
+
+    def test_size_row_deleted_while_active_still_owes_the_fee_at_the_original_size(self, service, user):
+        """#1971: a re-upload deletes the job's size row (FK SET_NULL) while it runs. The snapshot keeps
+        the fee, where the FK alone used to waive it."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        job.function_size.delete()
+        job.refresh_from_db()
+        assert job.function_size is None
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
+        assert fee.payload["data"]["metric_type"].endswith("_my-fn_m")
+
+    def test_size_row_renamed_while_active_bills_the_size_the_job_ran_with(self, service, user):
+        """#1971: the backoffice renames the job's size row M -> L while it runs; the fee stays at M."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        FunctionSize.objects.filter(pk=job.function_size_id).update(function_size="L")
+        job.refresh_from_db()
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
+        assert fee.payload["data"]["metric_type"].endswith("_my-fn_m")
 
     def test_second_terminal_transition_enqueues_nothing_more(self, service, user):
         """A job that reaches a terminal status twice must only be billed once, and the second

@@ -233,10 +233,12 @@ class JobTransitionService:
 
     def _enqueue_license_fee(self, job: Job, job_started_at: datetime | None) -> None:
         """The license fee message. The caller has checked the job owes it."""
-        # This branch goes away once function_size stops being nullable (tracked by @ElePT).
-        if job.function_size is None:
+        # Reads the snapshot, so a size row renamed or deleted after creation no longer changes the fee (#1971).
+        # Only jobs created with no size reach this branch now. It goes away once function_size_name stops
+        # being nullable (tracked by @ElePT).
+        if job.function_size_name is None:
             logger.error(
-                "job_id=%s license fee message cannot be built for provider=%s: function_size is missing, "
+                "job_id=%s license fee message cannot be built for provider=%s: function_size_name is missing, "
                 "waiving the fee",
                 job.id,
                 job.program.provider,
