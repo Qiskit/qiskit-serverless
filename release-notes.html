@@ -373,6 +373,13 @@ IBM support.</p></li>
 <section id="other-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-other-notes"></span><h3>Other Notes<a class="headerlink" href="#other-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_task_items_total</span></code> (jobs submitted
+and jobs whose status was checked, per task),
+<code class="docutils literal notranslate"><span class="pre">scheduler_fleets_jobs_skipped_by_breaker_total</span></code> (jobs a Code Engine
+circuit breaker kept queued, per region) and <code class="docutils literal notranslate"><span class="pre">scheduler_process_threads</span></code>
+(live threads of the process).</p></li>
+</ul>
+<ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/{id}/</span></code> now reads the job, its program, its provider
 and its compute profile in one database query.</p></li>
 </ul>
