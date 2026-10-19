@@ -26,12 +26,20 @@ from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
 from core.models import Job, Program
-from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
 from core.services.runners.abstract_runner import RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
+
+
+@pytest.fixture(autouse=True)
+def job_not_mirrored():
+    """These tests do not use the database, so whether the job is mirrored is patched instead of looked up."""
+    with patch.object(fleets_runner_module, "is_mirrored", return_value=False) as is_mirrored:
+        yield is_mirrored
 
 
 def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
@@ -435,7 +443,7 @@ def test_stop_reports_an_iam_failure_during_the_cancel_as_retryable():
     """The token is read per request now, so an IAM failure arrives from cancel_job instead of from
     building the client. Without this it reads as a cancel the scheduler must not retry."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
-    mock_handler.cancel_job.side_effect = RuntimeApiRetryableError("Could not get an IAM token")
+    mock_handler.cancel_job.side_effect = RetryableError("Could not get an IAM token")
 
     with pytest.raises(RunnerError) as exc:
         runner.stop()
@@ -491,6 +499,21 @@ def test_submit_places_the_fleet_on_the_projects_subnet_pool():
     assert placements == [{"type": "subnet_pool", "reference": "subnet-1"}]
 
 
+def test_submit_gives_the_container_the_functions_identifier_only_for_a_mirrored_job(job_not_mirrored):
+    runner, mock_handler = _make_submit_runner()
+    with _patch_settings():
+        runner.submit()
+    names = {e["name"] for e in mock_handler.submit_job.call_args.kwargs["extra_fields"]["run_env_variables"]}
+    assert "QISKIT_FUNCTIONS_IDENTIFIER" not in names
+
+    job_not_mirrored.return_value = True
+    runner, mock_handler = _make_submit_runner()
+    with _patch_settings():
+        runner.submit()
+    env = {e["name"]: e["value"] for e in mock_handler.submit_job.call_args.kwargs["extra_fields"]["run_env_variables"]}
+    assert env["QISKIT_FUNCTIONS_IDENTIFIER"] == str(runner.job.id)
+
+
 def test_submit_fleet_name_is_vendor_function_and_job_id():
     runner, mock_handler = _make_submit_runner()
     runner.job.id = "1b2c3d4e-0000-4000-8000-000000000001"
@@ -531,7 +554,7 @@ def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
 def test_submit_reports_an_iam_failure_as_retryable():
     """Without this an IAM blip marks the job FAILED, which it never comes back from."""
     runner, mock_handler = _make_submit_runner()
-    mock_handler.submit_job.side_effect = RuntimeApiRetryableError("Could not get an IAM token")
+    mock_handler.submit_job.side_effect = RetryableError("Could not get an IAM token")
 
     with _patch_settings():
         with pytest.raises(RunnerError) as exc:

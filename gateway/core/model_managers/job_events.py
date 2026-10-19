@@ -31,7 +31,7 @@ class JobEventContext(StrEnum):
     # Gateway: job status STOPPED, or STOPPING for a Fleets job
     STOP_JOB = "STOP_JOB"
 
-    # Scheduler: PENDING to RUNNING, RUNNING to FAILED/STOPPED/SUCCEEDED/STOPPING, and STOPPING to STOPPED
+    # Scheduler: PENDING to RUNNING, RUNNING to FAILED/STOPPED/SUCCEEDED/STOPPING, and STOPPING to any terminal
     UPDATE_JOB_STATUS = "UPDATE_JOB_STATUS"
 
     # Gateway: status RUNNING, substatus change
@@ -48,6 +48,9 @@ class JobEventContext(StrEnum):
     FILLER_STOP = "FILLER_STOP"
 
     FILLER_FAILED = "FILLER_FAILED"
+
+    # Scheduler: a PENDING or RUNNING job of a blocked resource was stopped (status STOPPING or STOPPED)
+    BLOCKED_RESOURCE_STOP = "BLOCKED_RESOURCE_STOP"
 
 
 class JobEventType(StrEnum):

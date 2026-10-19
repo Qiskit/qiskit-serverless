@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    The gateway and the scheduler now reuse a Code Engine Fleets project's COS
+    client for 60 seconds. Before, every status poll of every running job and
+    every COS request made its own Code Engine call to read the COS HMAC secret,
+    so a busy scheduler could reach the Code Engine API rate limit by itself.
+    A rotated HMAC secret is picked up within 60 seconds.

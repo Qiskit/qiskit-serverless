@@ -63,6 +63,6 @@ Dockerfile:
    COPY ./runner.py /runner
    WORKDIR /
 
-   USER 1000
+   USER 1000:1000
 
 Follow the steps in the :ref:`deploy_image` section to deploy and run the function using local infrastructure.

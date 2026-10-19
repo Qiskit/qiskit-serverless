@@ -8,13 +8,15 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from core.domain.exceptions.retryable_error import RetryableError
+from core.clients.workload_sender import WorkloadSender
 from core.config_key import ConfigKey
 from core.models import Config, Job, Outbox, OutboxChannel, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from core.ibm_cloud.event_streams.kafka_sender import KafkaSender
 from core.ibm_cloud.sender import BatchSender, PendingMessage, Sender
-from scheduler.tasks.outbox import OutboxTask, build_kafka_circuit_breaker
+from scheduler.tasks.outbox import OutboxTask, build_kafka_circuit_breaker, build_workload_circuit_breaker
 from scheduler.tasks.outbox_destination import Destination
 
 pytestmark = pytest.mark.django_db
@@ -35,7 +37,7 @@ def _single_sender(fails=lambda payload: False) -> MagicMock:
 
     def send(payload):
         if fails(payload):
-            raise RuntimeError("boom")
+            raise RetryableError("boom")
 
     sender.send.side_effect = send
     return sender
@@ -129,38 +131,38 @@ class TestFailureHandling:
 class TestBreakerIsolationBetweenChannels:
     def test_one_channel_failing_does_not_stop_another_from_draining_the_same_tick(self):
         billing_sender = _sender(delivers=lambda pk: False)
-        workload_sender = _sender()
+        other_sender = _sender()
         task = _make_task()
         task.channels = {
             OutboxChannel.JOB_USAGE: _kafka_destination(task, billing_sender),
-            "workload": _kafka_destination(task, workload_sender),
+            "other": _kafka_destination(task, other_sender),
         }
         billing_row = _make_row()  # channel=OutboxChannel.USAGE, will fail
-        workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
+        other_row = Outbox.objects.create(job=_make_job(), channel="other", payload={})
 
         task.run()
 
         assert Outbox.objects.filter(pk=billing_row.pk).exists()  # failed, kept for retry
-        assert not Outbox.objects.filter(pk=workload_row.pk).exists()  # succeeded, deleted
+        assert not Outbox.objects.filter(pk=other_row.pk).exists()  # succeeded, deleted
 
     def test_an_open_breaker_on_one_channel_does_not_skip_another_channel(self):
         billing_sender = _sender(delivers=lambda pk: False)
-        workload_sender = _sender()
+        other_sender = _sender()
         task = _make_task()
         task.channels = {
             OutboxChannel.JOB_USAGE: _kafka_destination(task, billing_sender),
-            "workload": _kafka_destination(task, workload_sender),
+            "other": _kafka_destination(task, other_sender),
         }
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         _make_row()  # trips the usage breaker on this first run()
         task.run()
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
-        workload_row = Outbox.objects.create(job=_make_job(), channel="workload", payload={})
+        other_row = Outbox.objects.create(job=_make_job(), channel="other", payload={})
         task.run()  # billing breaker open and skipped; workload must still be attempted
 
-        workload_sender.send_batch.assert_called_once()
-        assert not Outbox.objects.filter(pk=workload_row.pk).exists()
+        other_sender.send_batch.assert_called_once()
+        assert not Outbox.objects.filter(pk=other_row.pk).exists()
 
 
 class TestSharedBreakerAcrossChannelsWithTheSameDestination:
@@ -194,6 +196,15 @@ class TestBudgetAndKillSignal:
             task.run()
 
         sender.send_batch.assert_not_called()
+
+    def test_reports_how_long_the_drain_of_each_channel_took(self):
+        task = _make_task(sender=_sender())
+        _make_row()
+
+        task.run()
+
+        task.metrics.observe_outbox_drain_duration.assert_called_once()
+        assert task.metrics.observe_outbox_drain_duration.call_args.args[1] == OutboxChannel.JOB_USAGE
 
     def test_the_drain_itself_stops_when_the_kill_signal_arrives(self):
         sender = _sender()
@@ -498,6 +509,43 @@ class TestSendersWithoutBatches:
         assert task.metrics.increment_outbox_send.call_args_list == [((OutboxChannel.JOB_USAGE, "failure"),)] * 2
         assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
+    def test_a_permanent_error_marks_the_row_unrecoverable_without_touching_the_breaker(self):
+        sender = _single_sender()
+
+        def send(payload):
+            if payload.get("bad"):
+                raise ValueError("the destination does not take this row")
+
+        sender.send.side_effect = send
+        task = _make_task(sender=sender)
+        Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
+        bad = _make_row(payload={"bad": True, "data": {}})
+        delivered = _make_row()
+
+        task.run()
+
+        assert not Outbox.objects.filter(pk=delivered.pk).exists()  # the row behind the bad one was still sent
+        bad.refresh_from_db()
+        assert bad.unrecoverable is True
+        assert bad.attempts == 1
+        assert "ValueError" in bad.last_error
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
+        task.metrics.increment_outbox_send.assert_any_call(OutboxChannel.JOB_USAGE, "unrecoverable")
+
+    def test_an_unrecoverable_row_is_never_read_again_and_is_reported_apart(self):
+        sender = _single_sender()
+        task = _make_task(sender=sender)
+        row = _make_row()
+        Outbox.objects.filter(pk=row.pk).update(unrecoverable=True)
+        _make_row()
+
+        task.run()
+
+        assert sender.send.call_count == 1  # only the other row
+        assert Outbox.objects.filter(pk=row.pk).exists()
+        task.metrics.set_outbox_unrecoverable_rows.assert_called_with(1, OutboxChannel.JOB_USAGE)
+        task.metrics.set_outbox_pending_rows.assert_called_with(1, OutboxChannel.JOB_USAGE)  # not counting the flagged
+
     def test_a_success_between_failures_keeps_the_breaker_closed(self):
         sender = _single_sender(fails=lambda payload: payload.get("bad", False))
         task = _make_task(sender=sender)
@@ -558,7 +606,7 @@ class TestRetryWithBackoff:
 
         row.refresh_from_db()
         assert row.attempts == 1
-        assert row.last_error == "RuntimeError: boom"
+        assert row.last_error == "RetryableError: boom"
         assert self._wait_of(row) > timedelta(seconds=60)  # the default base is two minutes
 
     def test_the_rows_a_batch_sender_did_not_confirm_record_the_attempt_too(self):
@@ -729,3 +777,33 @@ class TestRetryWithBackoff:
 
         assert not Outbox.objects.filter(pk=good_row.pk).exists()
         assert Outbox.objects.filter(pk__in=[r.pk for r in bad_rows]).count() == 3
+
+
+class TestWorkloadChannel:
+    """The workload channel is registered by default."""
+
+    def _task_with_workload_sender(self, sender):
+        task = _make_task()
+        assert isinstance(task.channels[OutboxChannel.WORKLOAD].sender, WorkloadSender)
+        task.channels = {
+            OutboxChannel.WORKLOAD: Destination(
+                metrics=task.metrics,
+                kill_signal=task.kill_signal,
+                sender=sender,
+                breaker_factory=build_workload_circuit_breaker,
+                budget_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_BUDGET_MS,
+                retry_base_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_BASE_SECONDS,
+                retry_max_key=ConfigKey.OUTBOX_WORKLOAD_CHANNEL_RETRY_MAX_SECONDS,
+            )
+        }
+        return task
+
+    def test_rows_are_sent_and_deleted_whatever_the_mirror_flag_says(self):
+        sender = _single_sender()
+        task = self._task_with_workload_sender(sender)
+        row = Outbox.objects.create(job=_make_job(), channel=OutboxChannel.WORKLOAD, payload={"function_id": "j"})
+
+        task.run()  # the flag is off: a job that was mirrored still reports its final status
+
+        sender.send.assert_called_once_with({"function_id": "j"})
+        assert not Outbox.objects.filter(pk=row.pk).exists()

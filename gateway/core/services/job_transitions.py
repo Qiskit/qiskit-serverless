@@ -16,10 +16,11 @@ from django.db import transaction
 from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.domain.workload_payload import build_workload_payload, is_mirrored
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Outbox, OutboxChannel, Program
+from core.models import Job, JobEvent, Outbox, OutboxChannel, Program, WorkloadMirror
 from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
 
 logger = logging.getLogger("core.JobTransitionService")
@@ -61,7 +62,8 @@ class JobTransitionService:
         Job.QUEUED: {Job.PENDING, Job.FAILED, Job.STOPPED, Job.STOPPING},
         Job.PENDING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING, Job.RUNNING},
         Job.RUNNING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED, Job.STOPPING},
-        Job.STOPPING: {Job.STOPPED},
+        # a job can finish or fail while its cancel is in flight
+        Job.STOPPING: {Job.SUCCEEDED, Job.FAILED, Job.STOPPED},
         # terminal states have no next valid state
         Job.SUCCEEDED: set(),
         Job.FAILED: set(),
@@ -138,6 +140,7 @@ class JobTransitionService:
                 job.fleet_id = current_fleet_id
                 raise FleetAppearedError(f"Job {job.id}: a fleet appeared while stopping")
             self._change_status(job, Job.STOPPED, origin=origin, context=context, job_fields=None)
+            self._enqueue_workload(job)
         return Job.STOPPED
 
     def to_terminal(
@@ -164,6 +167,7 @@ class JobTransitionService:
                 self._enqueue_job_usage(job, job_started_at, event.created)
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
+            self._enqueue_workload(job)
         return event
 
     def to_failed(
@@ -190,6 +194,7 @@ class JobTransitionService:
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
+            self._enqueue_workload(job)
         return event
 
     def _change_status(
@@ -245,6 +250,16 @@ class JobTransitionService:
 
         message = BillingEvents.build_license_fee(job, job_started_at)
         Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
+
+    def _enqueue_workload(self, job: Job) -> None:
+        """The final status of a mirrored job, to send it to the Runtime API. If the payload builder rejects the job
+        (it has no program), the error reaches the caller and the transition is rolled back. This is the last step of
+        the mirror, so the job leaves the WorkloadMirror table: the outbox row carries the payload and nothing reads
+        the table after a terminal status."""
+        if is_mirrored(job):
+            payload = build_workload_payload(job)
+            Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
+            WorkloadMirror.objects.filter(job_id=job.id).delete()
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.

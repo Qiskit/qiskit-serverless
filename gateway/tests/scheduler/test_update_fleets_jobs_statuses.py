@@ -117,7 +117,7 @@ class TestUpdateJobStatus:
         mock_timeout.assert_called_once_with(job)
         assert result is False
 
-    def test_succeeded_calls_to_terminal_and_records_duration(self):
+    def test_succeeded_calls_to_terminal(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -127,12 +127,10 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
-            patch.object(task, "_record_execution_duration") as mock_duration,
         ):
             task.update_job_status(job)
 
         mock_terminal.assert_called_once_with(job, Job.SUCCEEDED)
-        mock_duration.assert_called_once_with(job)
 
     def test_pending_to_running_calls_to_running(self):
         task = _make_task()
@@ -253,7 +251,8 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        task.to_terminal(job, Job.SUCCEEDED)
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
@@ -265,6 +264,19 @@ class TestToTerminal:
             context=JobEventContext.UPDATE_JOB_STATUS,
             job_fields={"sub_status": None, "env_vars": "{}"},
         )
+
+    def test_a_succeeded_job_records_its_duration(self):
+        """to_terminal owns this, so every route to SUCCEEDED gets it."""
+        task = _make_task()
+        job = _make_fleets_job()
+        running_event = MagicMock()
+        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        with patch(f"{_MOD}.JobEvent") as mock_event:
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        task.metrics.observe_job_execution_duration.assert_called_once()
 
     def test_job_reaches_failed_state(self):
         task = _make_task()
@@ -290,7 +302,8 @@ class TestToTerminal:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        task.to_terminal(job, Job.SUCCEEDED)
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
 
         task.transitions.running_to_running.assert_not_called()
 
@@ -307,6 +320,7 @@ class TestToTerminal:
         task.to_terminal(job, Job.SUCCEEDED)  # must not raise
 
         task.metrics.increment_jobs_terminal.assert_not_called()
+        task.metrics.observe_job_execution_duration.assert_not_called()
 
 
 class TestToRunning:
@@ -736,25 +750,31 @@ def _old_stopping_event():
 
 
 class TestStoppingJobs:
-    """A STOPPING job is driven to STOPPED by the scheduler, never by the stop request."""
+    """A STOPPING job is driven to a terminal status by the scheduler, never by the stop request."""
 
     @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
-    def test_any_terminal_task_state_confirms_the_stop(self, task_state):
-        """A task that finished before the cancel landed is still the stop the user asked for.
+    def test_the_task_stores_terminal_status_wins_over_the_stop(self, task_state):
+        """A job that finished before its cancel landed really did finish. Writing STOPPED instead
+        reports it as cancelled, which hides a failed job's error from the caller.
 
         The task store is COS, not the Code Engine API, so this read must never consult the breaker:
-        gate it and a STOPPING row could never reach STOPPED during a Code Engine outage.
+        gate it and a STOPPING row could never reach a terminal status during a Code Engine outage.
         """
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         runner = MagicMock()
         runner.status.return_value = task_state
 
-        with patch(f"{_MOD}.get_runner", return_value=runner):
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            # no RUNNING event, so the duration is skipped: this test is about the status
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = None
             changed = task.update_job_status(job)
 
         assert changed is True
-        assert job.status == Job.STOPPED
+        assert job.status == task_state
         runner.stop.assert_not_called()
         task.canceller.paused.assert_not_called()
 
@@ -860,6 +880,22 @@ class TestStoppingJobs:
         assert job.status == Job.STOPPED
         task.metrics.increment_filler_jobs_stopped.assert_called_once()
         task.metrics.increment_filler_jobs_ended.assert_not_called()
+
+    def test_a_filler_that_finished_before_its_cancel_landed_is_counted_as_ended(self):
+        """The balancer asked, but the task finished first, so counting it as stopped would overstate
+        what the balancer freed."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.SUCCEEDED
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
+        assert job.status == Job.SUCCEEDED
+        task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.SUCCEEDED)
+        task.metrics.increment_filler_jobs_stopped.assert_not_called()
 
 
 @pytest.mark.django_db

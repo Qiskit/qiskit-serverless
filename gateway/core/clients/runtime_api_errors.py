@@ -1,4 +1,5 @@
-"""Errors shared by every client of the Runtime API."""
+"""Errors shared by every client of the Runtime API. A failure that a later try can fix is a
+``core.domain.exceptions.retryable_error.RetryableError`` instead."""
 
 
 class RuntimeApiError(Exception):
@@ -7,7 +8,3 @@ class RuntimeApiError(Exception):
     def __init__(self, message: str, *, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
-
-
-class RuntimeApiRetryableError(RuntimeApiError):
-    """The Runtime API call failed, and trying again can fix: 401, 403, 408, 429, 5xx, or network error"""

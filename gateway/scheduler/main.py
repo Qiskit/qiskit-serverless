@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import connection
 
 from core.models import Config
+from core.services.background_executor import get_background_executor
 from core.services.job_transitions import JobTransitionService
 from scheduler.schedule import CodeEngineBreakers, FleetsJobCanceller, FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
@@ -19,6 +20,7 @@ from scheduler.tasks.free_resources import FreeResources
 from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
+from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
@@ -56,6 +58,7 @@ class Main:
             ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
             UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions, canceller),
+            StopBlockedFleetsJobs(self.kill_signal, canceller),
             # after the status updates, so it sees this tick's freshest terminal jobs
             OutboxTask(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
@@ -84,6 +87,8 @@ class Main:
     def run(self):
         """Run the scheduler loop until kill signal is received."""
         logger.info("Scheduler loop started")
+        # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
+        get_background_executor().init()
         try:
             while not self.kill_signal.received:
                 start_time = time.time()
@@ -125,7 +130,13 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
-            self.close_tasks()
-            self.stop_http_server()
+            try:
+                # first, so running background tasks finish while the clients they use are still open
+                get_background_executor().shutdown()
+            finally:
+                try:
+                    self.close_tasks()
+                finally:
+                    self.stop_http_server()
 
         logger.info("Scheduler loop finished")

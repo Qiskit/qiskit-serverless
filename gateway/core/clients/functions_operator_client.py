@@ -4,21 +4,25 @@ Today it sends a workload with ``PUT /functions/{function_id}``, which mirrors F
 Other calls made with that same credential belong here too.
 
 The client does not log in: it is given an ``IamTokenProvider`` (``iam_token_provider.py``) built by the caller from
-the service key, for example ``IamTokenProvider(settings.FUNCTIONS_OPERATOR_API_KEY, settings.IAM_IBM_CLOUD_BASE_URL)``.
+the service key, for example
+``get_iam_token_provider(settings.FUNCTIONS_OPERATOR_API_KEY, settings.IAM_IBM_CLOUD_BASE_URL)``, the one shared per
+credential.
 The other pieces shared with other Runtime API clients live elsewhere too: the errors in ``runtime_api_errors.py`` and
 the regional host in ``core/domain/crn.py`` (``regional_base_url``).
 
 One attempt per call and no internal retry: the caller decides what a failure means, and the type of the
-``RuntimeApiRetryableError`` says trying again can help, a plain ``RuntimeApiError`` says it cannot.
+``RetryableError`` says trying again can help, a plain ``RuntimeApiError`` says it cannot.
 """
 
 import logging
+from functools import lru_cache
 
 import requests
 from django.conf import settings
 
-from core.clients.iam_token_provider import IamTokenProvider
-from core.clients.runtime_api_errors import RuntimeApiError, RuntimeApiRetryableError
+from core.clients.iam_token_provider import IamTokenProvider, get_iam_token_provider
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.crn import regional_base_url
 
 logger = logging.getLogger("core.FunctionsOperatorClient")
@@ -41,7 +45,7 @@ class FunctionsOperatorClient:
         """Replace the function ``function_id`` on the Runtime API with ``body``. Returns when it applied it (200) or
         ignored it because the function was already terminal (202). ``timeout`` is in seconds, greater than zero, and
         bounds the PUT; the request for the token has the timeout of the token provider. Raises RuntimeApiError for a
-        permanent failure (a body without ``crn`` among them) and RuntimeApiRetryableError for a transient one, token
+        permanent failure (a body without ``crn`` among them) and RetryableError for a transient one, token
         errors included."""
         crn = body.get("crn")
         if not crn:
@@ -58,7 +62,7 @@ class FunctionsOperatorClient:
             )
         except requests.RequestException as exc:
             logger.error("function_id=%s connection error: %s", function_id, exc)
-            raise RuntimeApiRetryableError("Error connecting to the Runtime API") from exc
+            raise RetryableError("Error connecting to the Runtime API") from exc
 
         if response.status_code in (200, 202):
             return
@@ -74,5 +78,18 @@ class FunctionsOperatorClient:
             self._token_provider.invalidate(token)  # the cached token was rejected, the next attempt needs a new one
         message = f"Unexpected status {response.status_code} for function {function_id}"
         if transient:
-            raise RuntimeApiRetryableError(message, status_code=response.status_code)
+            raise RetryableError(message, status_code=response.status_code)
         raise RuntimeApiError(message, status_code=response.status_code)
+
+
+# This is a singleton actually
+@lru_cache(maxsize=1)
+def get_functions_operator_client() -> FunctionsOperatorClient:
+    """Singleton: the one client of this process, built the first time it is asked for from
+    ``FUNCTIONS_OPERATOR_API_KEY`` (``lru_cache`` is the lazy singleton). It is not built at import on purpose, so a
+    missing key does not stop the boot or the tests that never send a workload. The provider caches the IAM token and
+    the client holds nothing else, so the instance is shared by every thread.
+    Raises RuntimeApiError if the key is empty or malformed (nothing is cached, so the next call tries again)."""
+    return FunctionsOperatorClient(
+        get_iam_token_provider(settings.FUNCTIONS_OPERATOR_API_KEY, settings.IAM_IBM_CLOUD_BASE_URL)
+    )

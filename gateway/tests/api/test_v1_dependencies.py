@@ -35,5 +35,6 @@ class TestAvailableDependenciesVersion(APITestCase):
             "qiskit-addon-utils==0.2.0",
             "qiskit-aer==0.17.2",
             "qiskit-fermions==0.2.0",
+            "qiskit-paulice==0.2.1",
             "qrmi[ibm]==0.24.4",
         ]

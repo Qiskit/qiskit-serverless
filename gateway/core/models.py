@@ -13,8 +13,8 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
-from django.db.models import F
-from django.db.models.functions import Now
+from django.db.models import F, Value
+from django.db.models.functions import Coalesce, Now
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
@@ -502,6 +502,61 @@ class FunctionSize(models.Model):
         return f"{self.function} ({self.function_size})"
 
 
+class BlockedCloudResource(models.Model):
+    """Blocked cloud resource model.
+
+    Mirrors the upstream billing-service's blocked account/plan/subscription set.
+    A row is a blocking rule at whatever scope its populated fields describe;
+    row identity comes from id, never from a business column. The three columns
+    are nullable so that narrower rule shapes (e.g., account-only) can be added
+    later without a migration.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    account = models.CharField(max_length=255, null=True, blank=True, default=None)
+    plan = models.CharField(max_length=255, null=True, blank=True, default=None)
+    subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+
+    class Meta:
+        app_label = "api"
+        constraints = [
+            # Over the coalesced columns rather than the columns themselves, so a NULL counts as
+            # equal to another NULL: a plain unique constraint lets (acc, NULL, NULL) repeat, and
+            # nulls_distinct=False is dropped altogether on SQLite and on PostgreSQL < 15.
+            # Empty strings are stored as NULL, so coalescing to "" conflates nothing.
+            models.UniqueConstraint(
+                Coalesce("account", Value("")),
+                Coalesce("plan", Value("")),
+                Coalesce("subscription", Value("")),
+                name="unique_blocked_resource",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(account__isnull=False)
+                | models.Q(plan__isnull=False)
+                | models.Q(subscription__isnull=False),
+                name="blocked_resource_has_a_scope",
+            ),
+        ]
+
+    def __str__(self):
+        parts = []
+        if self.account:
+            parts.append(f"account={self.account}")
+        if self.plan:
+            parts.append(f"plan={self.plan}")
+        if self.subscription:
+            parts.append(f"subscription={self.subscription}")
+        return f"BlockedCloudResource({', '.join(parts)})"
+
+    @classmethod
+    def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
+        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL."""
+        return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
+
+
 class Job(models.Model):
     """Job model."""
 
@@ -805,11 +860,13 @@ class JobEvent(models.Model):
 
 
 class OutboxChannel(StrEnum):
-    """The channels a row in the Outbox table can be sent on: both billing facts published via
-    Kafka today. See Outbox.channel below for what adding a member here costs."""
+    """The channels a row in the Outbox table can be sent on: the two billing facts published via Kafka, and
+    the final status of a job mirrored to the Runtime API. See Outbox.channel below for what adding a member
+    here costs."""
 
     LICENSE_FEE = "billing_license_fee"
     JOB_USAGE = "billing_job_usage"
+    WORKLOAD = "workload"
 
 
 class Outbox(models.Model):
@@ -866,6 +923,12 @@ class Outbox(models.Model):
         db_default="",
         help_text="Why the last attempt failed, only to find out what is wrong with a row that does not leave.",
     )
+    unrecoverable = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="The destination will never take this row (it answered with a permanent error), so delivery skips "
+        "it for good. It stays in the table with its last_error for someone to look at.",
+    )
 
     class Meta:
         app_label = "api"
@@ -876,6 +939,24 @@ class Outbox(models.Model):
 
     def __str__(self):
         return f"<Outbox id={self.id} job={self.job_id} channel={self.channel}>"
+
+
+class WorkloadMirror(models.Model):
+    """A job that was created in the Runtime API as a workload (see core/domain/workload_payload.py). Only these jobs
+    get the later steps of the mirror: the Functions identifier in their container and the final status through the
+    outbox. The row is written in the transaction that creates the job, right after the Runtime API took it, so the
+    mirror flag only decides about new jobs and a job never ends up half mirrored if the flag changes. The row is
+    deleted in the transaction that enqueues the final status, so the table only holds jobs still on their way. Deleting
+    this table is all it takes to retire the mirror once it stays on for good."""
+
+    job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"<WorkloadMirror job={self.job_id}>"
 
 
 class GroupMetadata(models.Model):
