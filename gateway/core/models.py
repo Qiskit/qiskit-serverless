@@ -707,8 +707,20 @@ class Job(models.Model):
         blank=True,
         related_name="jobs",
         help_text=(
-            "Size row the job resolved to at creation; null when sized by the deployment "
-            "default profile or a non-Fleets runner."
+            "Live link to the catalog size row the job resolved to at creation. The row can be renamed "
+            "or deleted later, so this is not a record of the size the job ran with: read "
+            "function_size_name for that. Null when sized by the deployment default profile, a non-Fleets "
+            "runner, or once the row is deleted."
+        ),
+    )
+    function_size_name = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text=(
+            "Size label the job ran with, captured at creation time and never changed, so it survives a "
+            "rename or delete of the function_size row. Null when run by a non-Fleets runner or sized by the "
+            "deployment default profile."
         ),
     )
 
