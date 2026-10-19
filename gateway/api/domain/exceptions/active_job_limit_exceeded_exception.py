@@ -1,10 +1,10 @@
-"""Base exception for business domain errors."""
+"""The user already has as many active jobs as they are allowed."""
 
 
 class ActiveJobLimitExceeded(Exception):
-    """Base exception for business domain errors."""
+    """The submit is refused because the user is at gateway.limits.active_jobs_per_user."""
 
-    def __init__(self, limit: int, message: str = None):
+    def __init__(self, limit: int):
         self.limit = limit
         self.message = f"Active job limit reached. The maximum allowed is {self.limit}."
-        super().__init__(message)
+        super().__init__(self.message)
