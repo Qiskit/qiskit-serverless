@@ -149,7 +149,7 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
 
 
 @pytest.mark.parametrize(
-    "setting, provider_name, title, expected",
+    "setting, job_program_provider_name, job_program_title, expected",
     [
         ("true", "qctrl", "management", True),
         ("TRUE", None, "management", True),
@@ -173,10 +173,12 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
         ("custom/management", "custom", "management", True),
     ],
 )
-def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(setting, provider_name, title, expected):
+def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(
+    setting, job_program_provider_name, job_program_title, expected
+):
     author = User.objects.create_user(username="carol")
-    provider = Provider.objects.create(name=provider_name) if provider_name else None
-    program = Program.objects.create(title=title, provider=provider, author=author)
+    provider = Provider.objects.create(name=job_program_provider_name) if job_program_provider_name else None
+    program = Program.objects.create(title=job_program_title, provider=provider, author=author)
     job = Job(author=author, program=program)
     Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, setting)
 
