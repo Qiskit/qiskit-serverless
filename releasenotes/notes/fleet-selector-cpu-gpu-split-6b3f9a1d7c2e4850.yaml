@@ -1,0 +1,28 @@
+---
+features:
+  - |
+    The Fleets runtime is now published as two images instead of one. The CUDA
+    stack moved out of ``fleet-selector`` into a new ``fleet-selector-gpu``
+    image built from the same workload stack, so a job that does not use a GPU
+    no longer pulls the CUDA wheels. Fleets pulls the runtime image once per
+    job, and those wheels are about 2.5 GB compressed, so this is pull latency
+    saved on every CPU job. Build them with ``make build-fleet-selector`` and
+    ``make build-fleet-selector-gpu``.
+upgrade:
+  - |
+    ``fleet-selector`` no longer contains ``cupy``, ``cutensor``, ``gpu4pyscf``
+    or the ``nvidia-*`` CUDA runtime libraries. A function that imports any of
+    them has to run on ``fleet-selector-gpu``, which carries the identical
+    workload stack plus the CUDA wheels. The image builds assert this in both
+    directions, so neither half can drift back into the other unnoticed.
+
+    The gateway does not yet choose between the two: ``FLEETS_DEFAULT_IMAGE``
+    is still a single value, and an imageless Fleets job continues to get
+    whatever it points at. Point it at the GPU image for a deployment whose
+    functions need CUDA until the compute-profile-based choice lands. Provider
+    images (``program.image``) are unaffected.
+
+    Builds of ``docker-images/fleet-node/Dockerfile`` that relied on the
+    default stage now resolve to the GPU image, since ``selector-gpu`` is last
+    in the file. Pass ``--target selector`` for the CPU runtime; the Makefile
+    targets and both CI workflows already do.

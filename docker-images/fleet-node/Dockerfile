@@ -12,19 +12,36 @@
 # that they have been altered from the originals.
 #
 # Fleets worker image (Python 3.12) — the Fleets-runner counterpart of
-# docker-images/ray-node/Dockerfile, split into these stages:
-#   base:     slim public image (client only, no dynamic deps). Function providers
-#             build custom Fleets images FROM it.
-#   selector: base + requirements-dynamic-dependencies.txt (the qiskit workload
-#             stack). The full runtime the gateway deploys for imageless Fleets
-#             jobs, and what the integration-test worker
-#             (tests/fleets/fleet-worker/Dockerfile) builds FROM, so the test runs
-#             against the production runtime. It is the LAST stage, so a build with
-#             no --target resolves to it.
+# docker-images/ray-node/Dockerfile. Three of its stages ship:
+#   base:         slim public image (client only, no dynamic deps). Function
+#                 providers build custom Fleets images FROM it.
+#   selector:     base + requirements-dynamic-dependencies.txt (the qiskit
+#                 workload stack), CPU only. The runtime the gateway deploys for
+#                 imageless Fleets jobs, and what the integration-test worker
+#                 (tests/fleets/fleet-worker/Dockerfile) builds FROM, so the test
+#                 runs against the production runtime.
+#   selector-gpu: selector + requirements-dynamic-dependencies-gpu.txt (the CUDA
+#                 stack). Same workload stack as selector, for jobs on a GPU
+#                 compute profile.
+# deps and builder are intermediate: deps is the shared pip layer both selectors
+# rest on, builder holds the C/C++ toolchain and never ships.
+#
+# The CUDA wheels are ~2.5 GB compressed, and Fleets pulls the image once per
+# job, so they are confined to selector-gpu: a CPU job must not pay that pull
+# cost for wheels it never imports. Nothing enforces that split at runtime, so
+# the selector stage asserts it carries no CUDA payload and selector-gpu asserts
+# every library gpu4pyscf dlopens resolves — see those stages.
+#
+# selector-gpu is the LAST stage, so a build with no --target resolves to the GPU
+# image. CPU builds must pass --target selector explicitly; build-fleet-node and
+# build-fleet-selector in the Makefile and both CI workflows do. The order is
+# forced -- selector-gpu is FROM selector, so it cannot be declared first -- which
+# is why the default is the GPU image rather than the more obvious CPU one.
 #
 # Build from repo root (client/ must be in the build context):
-#   docker build --platform linux/amd64 -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .                 # full (selector)
-#   docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .     # slim base
+#   docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .        # CPU runtime
+#   docker build --platform linux/amd64 --target selector-gpu -f docker-images/fleet-node/Dockerfile -t fleet-node:gpu .       # CUDA runtime
+#   docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .              # slim base
 #
 # No CUDA base image and no driver install: the CUDA libraries come from the
 # wheels in requirements-dynamic-dependencies-gpu.txt, and CE's NVIDIA container
@@ -81,9 +98,11 @@ USER 1000:1000
 # Dynamic dependencies — the qiskit workload stack pre-baked so Fleets functions
 # run without reinstalling. requirements-dynamic-dependencies.txt is shared with
 # ray-node so the two runners cannot drift, and the gateway reads that same file
-# for GET /api/v1/dependencies-versions. The GPU pins live in a second file that
-# the gateway does NOT read, so the CUDA packages ship in the image without being
-# advertised as dependencies a function on a CPU compute profile could request.
+# for GET /api/v1/dependencies-versions. This stage is CPU only and is what both
+# shipped selectors rest on; the CUDA pins are installed by selector-gpu alone,
+# from a second file the gateway does NOT read, so they never become dependencies
+# a function on a CPU compute profile could request and then fail on for want of
+# a device.
 #
 # The openmpi wheel is a native library, not an importable package: it exists so
 # mpi4py has an MPI to dlopen (mpi4py ships prebuilt MPI.openmpi/MPI.mpich .so
@@ -97,32 +116,13 @@ USER 1000:1000
 # /usr/local/lib/openmpi/ and resolve through libmpi.so.40's $ORIGIN-relative
 # rpath, not through the loader cache, so that subdirectory needs no entry of its
 # own -- but libmpi.so.40 must never be separated from it.
-#
-# The nvidia-*-cu12 CUDA wheels need the same treatment for the same reason:
-# gpu4pyscf dlopens libcublas.so.12 and friends at import, and they install under
-# site-packages/nvidia/<component>/lib, which is on no default loader path
-# either. Their dirs are globbed rather than hardcoded, under every site-packages
-# root pip could have installed into: sysconfig's purelib and platlib (the same
-# source the Vayesta step below trusts) plus site.getsitepackages(). All three are
-# needed because no single one is reliable here -- the wheels are purelib while
-# the primary site dir on this base is platlib, and site.getsitepackages() is
-# built from sys.prefix (/usr) while pip installs under /usr/local via the
-# distro's posix_local scheme. The assert turns "found nothing" into a failure at
-# this line rather than an empty .conf and a puzzling loader error further down,
-# and the cat puts the registered dirs in the build log.
 FROM base AS deps
 USER 0
-COPY docker-images/requirements-dynamic-dependencies.txt \
-     docker-images/requirements-dynamic-dependencies-gpu.txt /tmp/
+COPY docker-images/requirements-dynamic-dependencies.txt /tmp/
 RUN pip install --no-cache-dir \
-        -r /tmp/requirements-dynamic-dependencies.txt \
-        -r /tmp/requirements-dynamic-dependencies-gpu.txt && \
-    rm /tmp/requirements-dynamic-dependencies.txt \
-       /tmp/requirements-dynamic-dependencies-gpu.txt && \
+        -r /tmp/requirements-dynamic-dependencies.txt && \
+    rm /tmp/requirements-dynamic-dependencies.txt && \
     echo /usr/local/lib > /etc/ld.so.conf.d/mpi-wheel.conf && \
-    python -c 'import glob, site, sysconfig; roots = {sysconfig.get_paths()[k] for k in ("purelib", "platlib")} | set(site.getsitepackages()); dirs = sorted(d for r in roots for d in glob.glob(f"{r}/nvidia/*/lib")); assert dirs, f"no nvidia/*/lib dirs under {sorted(roots)}"; print("\n".join(dirs))' \
-        > /etc/ld.so.conf.d/nvidia-wheels.conf && \
-    cat /etc/ld.so.conf.d/nvidia-wheels.conf && \
     ldconfig
 USER 1000:1000
 
@@ -195,12 +195,15 @@ RUN echo "https://github.com/BoothGroup/Vayesta/archive/refs/tags/v1.0.1.tar.gz 
     wget -qO "$(python -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')/vayesta/logo.txt" \
         https://raw.githubusercontent.com/BoothGroup/Vayesta/v1.0.1/vayesta/logo.txt
 
-# The shipped image: deps plus the two compiled packages and the runtime halves of
-# what they linked against, and nothing from the toolchain. The site-packages trees
-# are copied wholesale because compiled extensions land in platlib (lib64) while
-# pure-python deps land in purelib (lib); the toolchain is installed by microdnf,
-# not pip, so it stays behind in builder.
+# The shipped CPU image: deps plus the two compiled packages and the runtime
+# halves of what they linked against, and nothing from the toolchain. The
+# site-packages trees are copied wholesale because compiled extensions land in
+# platlib (lib64) while pure-python deps land in purelib (lib); the toolchain is
+# installed by microdnf, not pip, so it stays behind in builder.
 #
+# Also the base selector-gpu adds the CUDA stack to, so everything here is in
+# both shipped images and anything CPU-specific would have to go after the FROM
+# below instead.
 FROM deps AS selector
 USER 0
 RUN microdnf install -y openblas libgomp git-core && \
@@ -215,13 +218,88 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 # shared with ray-node. After the builder COPYs so they cannot clobber it.
 RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3"
 
+# This image must carry no CUDA payload: that is the whole point of the split,
+# and ~2.5 GB of pull time per CPU job rests on it. Asserted rather than trusted
+# because the ways it could come back are all quiet ones -- a GPU pin added to
+# the shared requirements file instead of the -gpu one, or builder moved onto the
+# GPU side, in which case the COPYs above would drag a CUDA tree in here without
+# a single line of this stage changing.
+#
+# Globbed under every site-packages root pip could have installed into:
+# sysconfig's purelib and platlib (the same source the Vayesta step above trusts)
+# plus site.getsitepackages(). All three are needed because no single one is
+# reliable here -- the CUDA wheels are purelib while the primary site dir on this
+# base is platlib, and site.getsitepackages() is built from sys.prefix (/usr)
+# while pip installs under /usr/local via the distro's posix_local scheme.
+#
+# Dist-info dirs are globbed too, not just the import packages: a CUDA wheel that
+# somehow installed with no importable top-level dir would still be a wheel in
+# the image, and the nvidia-* ones are precisely the heavy, mostly-.so kind.
+#
+# A `python -c` one-liner, matching the other embedded scripts in this file,
+# rather than the heredoc RUN the syntax directive above would allow: that needs
+# BuildKit on Docker and Buildah >= 1.33 on Podman, and nothing else here asks
+# for either.
+RUN python -c 'import glob, site, sysconfig; roots = {sysconfig.get_paths()[k] for k in ("purelib", "platlib")} | set(site.getsitepackages()); pats = ("nvidia", "nvidia_*", "cupy", "cupy_*", "cutensor", "cutensor_*", "gpu4pyscf", "gpu4pyscf_*"); found = sorted(d for r in roots for p in pats for d in glob.glob(f"{r}/{p}")); assert not found, f"CUDA payload in the CPU image: {found}"; print(f"no CUDA payload under {sorted(roots)}")'
+# The CPU pin set, recorded so selector-gpu can prove it did not move any of it
+# (see that stage). It works precisely because selector-gpu is FROM selector: the
+# file is inherited, so the comparison needs no COPY --from and cannot go stale.
+#
+# --format=freeze rather than `pip freeze` because the latter spells a
+# URL-installed package as "vayesta @ https://..." and would make the comparison
+# depend on install method rather than version. A few KB, and it ships in both
+# images, which is no loss: it is the clearest statement of what runtime a given
+# image actually has. mkdir -p so this does not rest on /opt existing in the base.
+RUN mkdir -p /opt && pip list --format=freeze | sort > /opt/cpu-pins.txt
+USER 1000:1000
+
+# The shipped GPU image: the same workload stack as selector plus the CUDA wheels.
+# LAST stage on purpose -- see the --target note in the header block.
+#
+# The CUDA pins go in after selector's ray install and its builder COPYs, where
+# the old single-image build had them in before both. pip therefore resolves them
+# against an already-populated site-packages, so it could satisfy a CUDA wheel's
+# constraint by moving a package the CPU image already pinned -- cupy-cuda12x
+# constrains numpy<2.6,>=2.0 while ffsim constrains numpy<=2.3, and a resolution
+# inside that overlap is reachable. The result would be two images whose shared
+# workload stack is not actually the same stack, which is both a support problem
+# and a silent one.
+#
+# A -c constraints file cannot prevent it: pip rejects extras in constraints
+# ("Constraints cannot have extras") and the shared file has
+# qiskit-addon-aqc-tensor[quimb-jax]. So it is detected instead. The assert
+# compares this stage's pin set against the CPU one recorded above and fails on
+# any package whose version moved, listing them; additions are the point of the
+# stage and pass. If it ever fires, the fix is to pin the moved package in
+# requirements-dynamic-dependencies.txt so both images resolve it the same way --
+# not to delete the check.
+FROM selector AS selector-gpu
+USER 0
+COPY docker-images/requirements-dynamic-dependencies-gpu.txt /tmp/
+RUN pip install --no-cache-dir \
+        -r /tmp/requirements-dynamic-dependencies-gpu.txt && \
+    rm /tmp/requirements-dynamic-dependencies-gpu.txt
+RUN pip list --format=freeze | sort > /opt/gpu-pins.txt
+RUN python -c 'import pathlib; pins = lambda p: dict(l.split("==", 1) for l in pathlib.Path(p).read_text().splitlines() if "==" in l); cpu, gpu = pins("/opt/cpu-pins.txt"), pins("/opt/gpu-pins.txt"); moved = {n: (v, gpu.get(n, "REMOVED")) for n, v in cpu.items() if gpu.get(n) != v}; assert not moved, f"the GPU install moved packages the CPU image pins, so the two images no longer share one workload stack: {moved}. Pin them in requirements-dynamic-dependencies.txt."; print(f"CPU pin set intact ({len(cpu)} packages); GPU adds {len(set(gpu) - set(cpu))}")'
+
+# The nvidia-*-cu12 CUDA wheels need the same ldconfig treatment the openmpi wheel
+# gets in deps, and for the same reason: gpu4pyscf dlopens libcublas.so.12 and
+# friends at import, and they install under site-packages/nvidia/<component>/lib,
+# which is on no default loader path. Their dirs are globbed rather than
+# hardcoded, under all three site-packages roots, for the reasons the purity
+# assert in selector spells out. The assert turns "found nothing" into a failure
+# at this line rather than an empty .conf and a puzzling loader error further
+# down, and the cat puts the registered dirs in the build log.
+RUN python -c 'import glob, site, sysconfig; roots = {sysconfig.get_paths()[k] for k in ("purelib", "platlib")} | set(site.getsitepackages()); dirs = sorted(d for r in roots for d in glob.glob(f"{r}/nvidia/*/lib")); assert dirs, f"no nvidia/*/lib dirs under {sorted(roots)}"; print("\n".join(dirs))' \
+        > /etc/ld.so.conf.d/nvidia-wheels.conf && \
+    cat /etc/ld.so.conf.d/nvidia-wheels.conf && \
+    ldconfig
+
 # Every CUDA shared object gpu4pyscf dlopens must be in the loader cache. This is
 # asserted rather than assumed because the failure mode is invisible: a missing
 # library fails `import gpu4pyscf`, the chemistry function falls back to CPU, and
 # the job still succeeds -- so nothing downstream of the build would notice that
-# GPU jobs stopped using their GPU. The check belongs to this stage, not deps, so
-# it covers the image that actually ships, including whatever the COPYs above
-# merged into site-packages.
+# GPU jobs stopped using their GPU.
 #
 # It is a loader-cache check and not `import gpu4pyscf` on purpose: the build
 # runners have no CUDA device, so an import would risk failing for reasons that
