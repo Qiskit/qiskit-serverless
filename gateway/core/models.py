@@ -3,8 +3,10 @@
 # pylint: disable=too-many-lines
 
 import logging
+import operator
 import uuid
 from enum import StrEnum
+from functools import reduce
 
 from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
@@ -555,6 +557,13 @@ class BlockedCloudResource(models.Model):
     def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
         """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL."""
         return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
+
+    @classmethod
+    def blocked_jobs_filter(cls) -> models.Q | None:
+        """A Job filter matching the jobs blocks() would block, or None when nothing is blocked."""
+        rows = cls.objects.values_list("account", "plan", "subscription")
+        jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
+        return reduce(operator.or_, jobs) if jobs else None
 
 
 class Job(models.Model):

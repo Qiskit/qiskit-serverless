@@ -309,6 +309,26 @@ class TestWorkloadMirror:
         put_function.assert_not_called()
         assert not WorkloadMirror.objects.filter(job=job).exists()
 
+    def test_a_job_that_the_mirror_list_does_not_name_is_created_but_not_sent(
+        self, user, fleets_accessible, put_function
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,ibm/sampler")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_job_of_a_custom_function_is_sent_when_the_mirror_list_has_custom(
+        self, user, fleets_accessible, put_function
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_called_once()
+        assert WorkloadMirror.objects.filter(job=job).exists()
+
     def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])

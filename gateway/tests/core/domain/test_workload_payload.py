@@ -4,9 +4,10 @@ import json
 import pytest
 from django.contrib.auth.models import User
 
-from core.domain.workload_payload import build_workload_payload
+from core.config_key import ConfigKey
+from core.domain.workload_payload import build_workload_payload, mirror_enabled_for
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Program, Provider
+from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program, Provider
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
@@ -173,3 +174,46 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
     assert {status: build_workload_payload(_simple_job(status))["body"]["status"] for status in expected} == expected
     with pytest.raises(KeyError):
         build_workload_payload(_simple_job("EXPLODED"))
+
+
+@pytest.mark.parametrize(
+    "setting, job_program_provider_name, job_program_title, expected",
+    [
+        ("true", "qctrl", "management", True),
+        ("TRUE", None, "management", True),
+        ("false", "qctrl", "management", False),
+        ("QCtrl", "qctrl", "management", True),
+        ("ibm, qctrl", "QCtrl", "management", True),
+        ("qctrl/management", "qctrl", "management", True),
+        ("qctrl/management", "qctrl", "Management", True),
+        ("qctrl/management", "qctrl", "management2", False),
+        ("qctrl/management", "qctrl", "my-management", False),
+        ("qctrl/management", "qctrl", "manage", False),
+        ("qctrl/management", "ibm", "management", False),
+        ("qctrl/other", "qctrl", "management", False),
+        ("ibm", "qctrl", "management", False),
+        ("custom", None, "management", True),
+        ("qctrl", None, "management", False),
+        ("true,custom", "qctrl", "management", False),
+        ("", None, "management", False),
+        ("qctrl,,ibm", "ibm", "management", True),
+        ("custom", "custom", "management", False),
+        ("custom/management", "custom", "management", True),
+    ],
+)
+def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(
+    setting, job_program_provider_name, job_program_title, expected
+):
+    author = User.objects.create_user(username="carol")
+    provider = Provider.objects.create(name=job_program_provider_name) if job_program_provider_name else None
+    program = Program.objects.create(title=job_program_title, provider=provider, author=author)
+    job = Job(author=author, program=program)
+    Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, setting)
+
+    assert mirror_enabled_for(job) is expected
+
+
+def test_a_job_without_program_is_not_mirrored_by_a_list():
+    Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
+
+    assert mirror_enabled_for(Job()) is False

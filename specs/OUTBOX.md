@@ -424,7 +424,7 @@ The `workload` channel is an example of exactly this: it carries the final statu
 (`PUT /functions/{function_id}`). `JobTransitionService` enqueues the envelope that `build_workload_payload` builds,
 in the transaction of the terminal transition, `WorkloadSender` sends it, and it has its own `Destination` and
 `scheduler.outbox.workload.*` keys. Only a job that was created in the Runtime API gets this: when `RunFunctionUseCase`
-mirrors a new Fleets job (flag `workloads.mirror.enabled`, a filler or a job without instance CRN is never mirrored),
+mirrors a new Fleets job (flag `workloads.mirror.enabled`, `true`, `false` or a list of providers, `provider/title` functions and `custom`; a filler or a job without instance CRN is never mirrored),
 it records the job in the `WorkloadMirror` table, and the enqueue (and the `QISKIT_FUNCTIONS_IDENTIFIER` variable of
 its container) depend on that row, not on the flag. So turning the flag off stops new jobs from being mirrored, and the
 jobs already mirrored still report their final status. If the builder rejects the job (it has no program), the error

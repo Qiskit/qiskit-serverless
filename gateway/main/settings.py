@@ -598,9 +598,10 @@ DYNAMIC_CONFIG_DEFAULTS = {
     },
     "workloads.mirror.enabled": {
         "default": "false",
-        "type": "boolean",
+        "type": "string",
         "description": "Mirror the Fleets jobs created from now on to the Runtime API as workloads (a failure rejects "
-        "the job).",
+        "the job). 'true' mirrors every job and 'false' none. Otherwise a comma separated list, ignoring case, of "
+        "providers (qctrl), functions (qctrl/management) and 'custom' (functions without a provider).",
     },
     "scheduler.outbox.workload.budget_ms": {
         "default": "3000",
