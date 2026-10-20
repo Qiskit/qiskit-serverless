@@ -4,9 +4,10 @@ import json
 import pytest
 from django.contrib.auth.models import User
 
-from core.domain.workload_payload import build_workload_payload
+from core.config_key import ConfigKey
+from core.domain.workload_payload import build_workload_payload, mirror_enabled_for
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Program, Provider
+from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program, Provider
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
@@ -145,3 +146,30 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
     assert {status: build_workload_payload(_simple_job(status))["body"]["status"] for status in expected} == expected
     with pytest.raises(KeyError):
         build_workload_payload(_simple_job("EXPLODED"))
+
+
+@pytest.mark.parametrize(
+    "setting, provider_name, expected",
+    [
+        ("true", "qctrl", True),
+        ("TRUE", None, True),
+        ("false", "qctrl", False),
+        ("QCtrl", "qctrl", True),
+        ("ibm, qctrl", "QCtrl", True),
+        ("qctrl/management", "qctrl", True),
+        ("qctrl/other", "qctrl", False),
+        ("ibm", "qctrl", False),
+        ("custom", None, True),
+        ("qctrl", None, False),
+        ("true,custom", "qctrl", False),
+        ("", None, False),
+    ],
+)
+def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(setting, provider_name, expected):
+    author = User.objects.create_user(username="carol")
+    provider = Provider.objects.create(name=provider_name) if provider_name else None
+    program = Program.objects.create(title="Management", provider=provider, author=author)
+    job = Job(author=author, program=program)
+    Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, setting)
+
+    assert mirror_enabled_for(job) is expected

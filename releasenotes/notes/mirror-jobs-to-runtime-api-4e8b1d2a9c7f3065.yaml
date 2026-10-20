@@ -8,7 +8,10 @@ features:
     setting was turned on is not mirrored, and turning the setting off does not
     stop the jobs already mirrored from reporting their final status. Inside the
     container of a mirrored job, the environment variable
-    ``QISKIT_FUNCTIONS_IDENTIFIER`` holds the job id.
+    ``QISKIT_FUNCTIONS_IDENTIFIER`` holds the job id. Instead of ``true`` the
+    setting can be a comma separated list of providers (``qctrl``), functions
+    (``qctrl/management``) and ``custom`` (functions without a provider), and
+    only the jobs of those are mirrored.
 upgrade:
   - |
     While ``workloads.mirror.enabled`` is on, running a Fleets function with an
