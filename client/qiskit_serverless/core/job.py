@@ -32,6 +32,7 @@ from abc import ABC, abstractmethod
 import json
 import logging
 import os
+import random
 import time
 import warnings
 from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
@@ -58,7 +59,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
-from qiskit_serverless.utils.errors import JobEvent, format_err_event
+from qiskit_serverless.utils.errors import JobEvent, format_err_event, is_transient_error
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
@@ -300,8 +301,59 @@ class Job:
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_status = ["CANCELED", "DONE", "ERROR"]
-        return self.status() in terminal_status
+        return self.status() in FINAL_STATUSES
+
+    def wait_for_final_state(
+        self, timeout: Optional[float] = None, poll_interval: Optional[float] = None, verbose: bool = False
+    ) -> str:
+        """Wait until the job is DONE, ERROR or CANCELED, and return that status.
+
+        By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the
+        status changes. A fixed ``poll_interval`` (at least 1 s) replaces that schedule. Short network errors and
+        429, 502, 503 or 504 answers are retried.
+
+        Args:
+            timeout: seconds to wait. ``None`` waits until the job ends.
+            poll_interval: fixed seconds between checks instead of the adaptive schedule.
+            verbose: print one line per status change.
+
+        Raises:
+            TimeoutError: if the job does not end within ``timeout``. The job keeps running.
+        """
+        start = time.monotonic()
+        deadline = None if timeout is None else start + timeout
+        if verbose:
+            print(f"Waiting for job {self.job_id}", flush=True)
+        last_status = None
+        step = 0
+        while True:
+            status = self._status_with_retries(deadline)
+            if status != last_status:
+                if verbose:
+                    print(f"{_elapsed(start)}  {status}", flush=True)
+                if _restarts_schedule(last_status, status):
+                    step = 0
+                last_status = status
+            if status in FINAL_STATUSES:
+                return status
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError(f"Job {self.job_id} is still {status} after {timeout} s.")
+            time.sleep(_next_wait(step, poll_interval, deadline))
+            step += 1
+
+    def _status_with_retries(self, deadline: Optional[float]) -> str:
+        """status(), retried with backoff on transient errors until the deadline or WAIT_RETRY_SECONDS of failures."""
+        give_up = time.monotonic() + WAIT_RETRY_SECONDS if deadline is None else deadline
+        step = 0
+        while True:
+            try:
+                return self.status()
+            except QiskitServerlessException as error:
+                if not is_transient_error(error) or time.monotonic() >= give_up:
+                    raise
+                logging.warning("Status check for job %s failed, retrying: %s", self.job_id, error)
+                time.sleep(_next_wait(step, None, give_up))
+                step += 1
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
@@ -466,6 +518,38 @@ STATUS_MAP = {
 }
 
 INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
+
+FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
+WAIT_SCHEDULE_SECONDS = (1, 2, 4, 8, 16, 32, 60)
+WAIT_JITTER = 0.1
+WAIT_RETRY_SECONDS = 300
+MIN_POLL_INTERVAL_SECONDS = 1
+
+
+def _restarts_schedule(previous: Optional[str], status: str) -> bool:
+    """A new main status, or entering post-processing, starts the schedule again. Other sub-statuses do not."""
+    if previous is None:
+        return False
+    if status == STATUS_MAP[Job.POST_PROCESSING]:
+        return True
+    return previous.split(":")[0] != status.split(":")[0]
+
+
+def _next_wait(step: int, poll_interval: Optional[float], deadline: Optional[float]) -> float:
+    """Seconds to sleep before the next check, cut at the deadline."""
+    if poll_interval is not None:
+        wait = max(float(poll_interval), MIN_POLL_INTERVAL_SECONDS)
+    else:
+        base = WAIT_SCHEDULE_SECONDS[min(step, len(WAIT_SCHEDULE_SECONDS) - 1)]
+        wait = base * random.uniform(1 - WAIT_JITTER, 1 + WAIT_JITTER)
+    if deadline is not None:
+        wait = min(wait, max(deadline - time.monotonic(), 0))
+    return wait
+
+
+def _elapsed(start: float) -> str:
+    seconds = int(time.monotonic() - start)
+    return f"{seconds // 3600}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
 
 
 def _map_status_from_serveless(status: str) -> str:

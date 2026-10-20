@@ -1,0 +1,175 @@
+# This code is a Qiskit project.
+#
+# (C) Copyright IBM 2026.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+"""Tests for Job.wait_for_final_state()."""
+
+from unittest.mock import Mock, patch
+
+import pytest
+
+from qiskit_serverless.core.job import Job
+from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless.utils.errors import ErrorCodes
+
+
+class FakeClock:
+    """A clock that only moves when the code under test sleeps."""
+
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps = []
+
+    def monotonic(self):
+        """Current time in seconds."""
+        return self.now
+
+    def sleep(self, seconds):
+        """Record the sleep and move the clock."""
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+@pytest.fixture(name="clock")
+def fixture_clock():
+    """Patch time and jitter in the job module."""
+    clock = FakeClock()
+    with (
+        patch("qiskit_serverless.core.job.time.monotonic", clock.monotonic),
+        patch("qiskit_serverless.core.job.time.sleep", clock.sleep),
+        patch("qiskit_serverless.core.job.random.uniform", return_value=1.0),
+    ):
+        yield clock
+
+
+def _job(*answers):
+    """A job whose status checks return the given status, sub_status pairs or raise the given errors."""
+    service = Mock()
+    service.get_job_data.side_effect = [
+        answer if isinstance(answer, Exception) else {"status": answer[0], "sub_status": answer[1]}
+        for answer in answers
+    ]
+    return Job(job_id="job-1", job_service=service), service
+
+
+def test_waits_with_the_adaptive_schedule_and_returns_the_final_status(clock):
+    """Checks at once, backs off, starts again on a change, and returns DONE."""
+    job, _ = _job(
+        ("QUEUED", None),
+        ("QUEUED", None),
+        ("RUNNING", None),
+        ("RUNNING", None),
+        ("RUNNING", None),
+        ("SUCCEEDED", None),
+    )
+
+    assert job.wait_for_final_state() == "DONE"
+    assert clock.sleeps == [1, 2, 1, 2, 4]
+
+
+def test_a_sub_status_does_not_restart_the_schedule_but_post_processing_does(clock):
+    """Only a new main status or post-processing goes back to 1 s."""
+    job, _ = _job(
+        ("RUNNING", None),
+        ("RUNNING", None),
+        ("RUNNING", "MAPPING"),
+        ("RUNNING", "POST_PROCESSING"),
+        ("SUCCEEDED", None),
+    )
+
+    job.wait_for_final_state()
+
+    assert clock.sleeps == [1, 2, 4, 1]
+
+
+def test_the_schedule_stops_growing_at_60_seconds(clock):
+    """After 32 s every wait is 60 s."""
+    job, _ = _job(*([("RUNNING", None)] * 9), ("SUCCEEDED", None))
+
+    job.wait_for_final_state()
+
+    assert clock.sleeps == [1, 2, 4, 8, 16, 32, 60, 60, 60]
+
+
+def test_poll_interval_replaces_the_schedule_and_has_a_floor_of_one_second(clock):
+    """A fixed interval is used as given, and anything under 1 s becomes 1 s."""
+    job, _ = _job(("RUNNING", None), ("RUNNING", None), ("STOPPED", None))
+    assert job.wait_for_final_state(poll_interval=10) == "CANCELED"
+    assert clock.sleeps == [10, 10]
+
+    clock.sleeps.clear()
+    job, _ = _job(("RUNNING", None), ("FAILED", None))
+    assert job.wait_for_final_state(poll_interval=0.1) == "ERROR"
+    assert clock.sleeps == [1]
+
+
+def test_a_timeout_raises_after_one_last_check_and_never_cancels_the_job(clock):
+    """The last sleep is cut at the deadline, then one more check, then TimeoutError."""
+    job, service = _job(*([("RUNNING", None)] * 5))
+
+    with pytest.raises(TimeoutError):
+        job.wait_for_final_state(timeout=5)
+
+    assert clock.sleeps == [1, 2, 2]
+    assert service.get_job_data.call_count == 4
+    service.stop.assert_not_called()
+
+
+def test_a_transient_error_is_retried_and_does_not_count_as_a_status_change(clock):
+    """A dropped connection or a 503 is retried, and the wait ends normally."""
+    job, _ = _job(
+        ("RUNNING", None),
+        QiskitServerlessException("down", code=ErrorCodes.CONN1001),
+        QiskitServerlessException("busy", code=503),
+        ("SUCCEEDED", None),
+    )
+
+    assert job.wait_for_final_state() == "DONE"
+    assert clock.sleeps == [1, 1, 2]
+
+
+@pytest.mark.parametrize("code", [500, 401])
+def test_any_other_error_raises_at_once(clock, code):
+    """A plain 500 or an auth error is not retried."""
+    job, service = _job(("RUNNING", None), QiskitServerlessException("no", code=code))
+
+    with pytest.raises(QiskitServerlessException):
+        job.wait_for_final_state()
+
+    assert clock.sleeps == [1]
+    assert service.get_job_data.call_count == 2
+
+
+def test_retries_stop_after_five_minutes_of_errors_in_a_row(clock):
+    """With no timeout, a long outage ends the wait instead of retrying forever."""
+    service = Mock()
+    service.get_job_data.side_effect = QiskitServerlessException("down", code=ErrorCodes.CONN1001)
+    job = Job(job_id="job-1", job_service=service)
+
+    with pytest.raises(QiskitServerlessException):
+        job.wait_for_final_state()
+
+    assert clock.now == 300
+
+
+def test_verbose_prints_one_line_per_status_change(clock, capsys):
+    """A header, then one line each time the status changes."""
+    job, _ = _job(("QUEUED", None), ("QUEUED", None), ("RUNNING", None), ("SUCCEEDED", None))
+
+    job.wait_for_final_state(verbose=True)
+
+    assert capsys.readouterr().out.splitlines() == [
+        "Waiting for job job-1",
+        "0:00:00  QUEUED",
+        "0:00:03  RUNNING",
+        "0:00:04  DONE",
+    ]
+    assert clock.sleeps == [1, 2, 1]

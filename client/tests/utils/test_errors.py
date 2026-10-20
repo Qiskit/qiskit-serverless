@@ -24,6 +24,7 @@ from qiskit_serverless.utils.errors import (
 
 
 def test_is_transient_error_retries_only_short_failures():
+    """Connection errors and 503 are transient. A 500, an auth error and a missing code are not."""
     assert is_transient_error(QiskitServerlessException("down", code=ErrorCodes.CONN1001))
     assert is_transient_error(QiskitServerlessException("busy", code=503))
     assert not is_transient_error(QiskitServerlessException("bug", code=500))
