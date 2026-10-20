@@ -210,6 +210,7 @@ class TestSafeJsonRequest:
             safe_json_request(lambda: mock_response)
 
         assert "401" in str(context.value)
+        assert context.value._code == 401  # pylint: disable=protected-access
 
     def test_failed_request_with_json_error(self):
         """Test with failed request and JSON decode error."""

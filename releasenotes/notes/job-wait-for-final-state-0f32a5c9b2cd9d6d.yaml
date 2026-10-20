@@ -9,13 +9,15 @@ features:
         # 'DONE'
 
     It checks the status after 1, 2, 4, 8, 16 and 32 seconds, then every 60
-    seconds, and starts again from 1 second when the status changes. So a short
-    job is seen within seconds, and a long job makes fewer requests than a loop
-    that checks every few seconds. If the status does not change for a while,
-    the end can be seen up to about 60 seconds late. ``poll_interval`` sets a
-    fixed interval instead, of at least 1 second.
+    seconds, and starts again from 1 second when the main status changes or the
+    job enters post-processing. So a short job is seen within seconds, and a
+    long job makes fewer requests than a loop that checks every few seconds. If
+    the status does not change for a while, the end can be seen up to about 60
+    seconds late. ``poll_interval`` sets a fixed interval instead, of at least 1
+    second.
 
     A ``timeout`` raises ``TimeoutError`` and never cancels the job. Short
     network errors and ``429``, ``502``, ``503`` or ``504`` answers are retried,
-    for up to 5 minutes in a row when there is no timeout. ``verbose=True``
-    prints one line per status change.
+    until the timeout, or for up to 5 minutes in a row when there is no timeout.
+    If they last that long, the last error is raised. ``verbose=True`` prints
+    one line per status change.

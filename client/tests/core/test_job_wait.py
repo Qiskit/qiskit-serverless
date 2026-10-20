@@ -40,7 +40,7 @@ class FakeClock:
 
 @pytest.fixture(name="clock")
 def fixture_clock():
-    """Patch time and jitter in the job module."""
+    """Patch time.monotonic, time.sleep and random.uniform for the whole test."""
     clock = FakeClock()
     with (
         patch("qiskit_serverless.core.job.time.monotonic", clock.monotonic),
@@ -157,6 +157,18 @@ def test_retries_stop_after_five_minutes_of_errors_in_a_row(clock):
         job.wait_for_final_state()
 
     assert clock.now == 300
+
+
+def test_an_outage_at_the_timeout_raises_the_last_error(clock):
+    """With a timeout, the retries stop at the deadline and the real error is raised."""
+    service = Mock()
+    service.get_job_data.side_effect = QiskitServerlessException("busy", code=503)
+    job = Job(job_id="job-1", job_service=service)
+
+    with pytest.raises(QiskitServerlessException, match="busy"):
+        job.wait_for_final_state(timeout=10)
+
+    assert clock.now == 10
 
 
 def test_verbose_prints_one_line_per_status_change(clock, capsys):

@@ -64,6 +64,8 @@ from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class Configuration:  # pylint: disable=too-many-instance-attributes
@@ -309,16 +311,19 @@ class Job:
         """Wait until the job is DONE, ERROR or CANCELED, and return that status.
 
         By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the
-        status changes. A fixed ``poll_interval`` (at least 1 s) replaces that schedule. Short network errors and
-        429, 502, 503 or 504 answers are retried.
+        main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces
+        that schedule. Short network errors and 429, 502, 503 or 504 answers are retried.
 
         Args:
-            timeout: seconds to wait. ``None`` waits until the job ends.
+            timeout: seconds to wait. ``None`` waits until the job ends. One status request can add up to its own
+                request timeout on top.
             poll_interval: fixed seconds between checks instead of the adaptive schedule.
-            verbose: print one line per status change.
+            verbose: print a header, then one line per status change.
 
         Raises:
             TimeoutError: if the job does not end within ``timeout``. The job keeps running.
+            QiskitServerlessException: on any other error, or when the retried errors last until ``timeout``, or
+                for 5 minutes in a row when there is no timeout.
         """
         start = time.monotonic()
         deadline = None if timeout is None else start + timeout
@@ -351,7 +356,7 @@ class Job:
             except QiskitServerlessException as error:
                 if not is_transient_error(error) or time.monotonic() >= give_up:
                     raise
-                logging.warning("Status check for job %s failed, retrying: %s", self.job_id, error)
+                logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
                 time.sleep(_next_wait(step, None, give_up))
                 step += 1
 
