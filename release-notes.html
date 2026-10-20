@@ -319,7 +319,10 @@ created, and its final status is sent when it ends. A job created before the
 setting was turned on is not mirrored, and turning the setting off does not
 stop the jobs already mirrored from reporting their final status. Inside the
 container of a mirrored job, the environment variable
-<code class="docutils literal notranslate"><span class="pre">QISKIT_FUNCTIONS_IDENTIFIER</span></code> holds the job id.</p></li>
+<code class="docutils literal notranslate"><span class="pre">QISKIT_FUNCTIONS_IDENTIFIER</span></code> holds the job id. Instead of <code class="docutils literal notranslate"><span class="pre">true</span></code> the
+setting can be a comma separated list of providers (<code class="docutils literal notranslate"><span class="pre">qctrl</span></code>), functions
+(<code class="docutils literal notranslate"><span class="pre">qctrl/management</span></code>) and <code class="docutils literal notranslate"><span class="pre">custom</span></code> (functions without a provider), and
+only the jobs of those are mirrored.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The scheduler exports three new metrics:
