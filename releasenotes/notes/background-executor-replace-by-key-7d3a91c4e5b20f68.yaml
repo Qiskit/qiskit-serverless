@@ -1,0 +1,7 @@
+---
+other:
+  - |
+    The ``outcome`` label ``skipped`` of ``background_executor_tasks_total`` is
+    now ``canceled``, and there is a new outcome ``replaced``.
+    ``BackgroundExecutor.submit`` accepts an optional ``key``: a task that is
+    still waiting with the same key in the same pool is replaced by the new one.

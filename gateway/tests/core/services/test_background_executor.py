@@ -306,12 +306,12 @@ def test_shutdown_counts_the_queued_tasks_it_cancels(release):
     assert started.wait(WAIT)
     assert executor.submit(RUNTIME, lambda: None) is not None
     assert executor.submit(RUNTIME, lambda: None) is not None
-    skipped_before = _sample("background_executor_tasks_total", {**labels, "outcome": "skipped"}) or 0
+    canceled_before = _sample("background_executor_tasks_total", {**labels, "outcome": "canceled"}) or 0
 
     threading.Timer(0.3, release.set).start()  # shutdown cancels the queue first, then waits for the running task
     executor.shutdown()
 
-    assert _sample("background_executor_tasks_total", {**labels, "outcome": "skipped"}) == skipped_before + 2
+    assert _sample("background_executor_tasks_total", {**labels, "outcome": "canceled"}) == canceled_before + 2
     assert _sample("background_executor_pending", labels) == 0
 
 
@@ -446,3 +446,138 @@ def test_a_submit_that_races_with_a_shutdown_is_dropped_and_counted(small_pool):
     assert executor.submit(RUNTIME, lambda: None) is None
 
     assert _sample("background_executor_dropped_total", labels) == before + 1
+
+
+def _occupy_the_only_thread(release):
+    """Start one task that holds the single thread, so whatever is submitted next stays queued."""
+    started = threading.Event()
+    executor.submit(RUNTIME, lambda: (started.set(), release.wait(WAIT)))
+    assert started.wait(WAIT)
+
+
+def _tasks(outcome):
+    return _sample("background_executor_tasks_total", {"pool": RUNTIME.value, "outcome": outcome}) or 0
+
+
+def test_a_task_with_the_same_key_replaces_the_waiting_one(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    ran = []
+    first = executor.submit(RUNTIME, ran.append, "A", key="k")
+    second = executor.submit(RUNTIME, ran.append, "B", key="k")
+
+    assert first.cancelled() and not second.cancelled()
+    assert executor.status(RUNTIME).queued == 1
+    assert _sample("background_executor_pending", {"pool": RUNTIME.value}) == 2  # the running task and B
+
+    release.set()
+    second.result(WAIT)
+    assert ran == ["B"]
+    done, _ = wait([first], timeout=WAIT)
+    assert done  # whoever waits for the replaced future is released
+
+
+def test_replacement_keeps_the_position_of_the_replaced_task(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    ran = []
+    executor.submit(RUNTIME, ran.append, "X")
+    executor.submit(RUNTIME, ran.append, "A", key="k")
+    last = executor.submit(RUNTIME, ran.append, "Y")
+
+    executor.submit(RUNTIME, ran.append, "B", key="k")
+    release.set()
+    last.result(WAIT)
+
+    assert ran == ["X", "B", "Y"]
+
+
+def test_a_replacement_is_accepted_when_the_pool_is_full(release):
+    executor.init(max_workers=1, max_pending=_limit(2))
+    _occupy_the_only_thread(release)
+    assert executor.submit(RUNTIME, lambda: None, key="k") is not None  # one running, one waiting: full
+
+    assert executor.would_accept(RUNTIME, "k") is True
+    assert executor.submit(RUNTIME, lambda: None, key="k") is not None
+    assert executor.would_accept(RUNTIME, "other") is False
+    assert executor.would_accept(RUNTIME) is False
+    assert executor.submit(RUNTIME, lambda: None, key="other") is None
+    assert executor.submit(RUNTIME, lambda: None) is None
+
+
+def test_would_accept_is_true_below_the_limit_and_fails_loudly_before_init():
+    executor.init(max_workers=1, max_pending=_limit(1))
+
+    assert executor.would_accept(RUNTIME) is True
+
+    executor.shutdown()
+    with pytest.raises(BackgroundExecutorNotInitializedError):
+        executor.would_accept(RUNTIME)
+
+
+def test_the_same_key_in_another_pool_does_not_replace(two_pools, release):
+    executor.init(max_workers=1, max_pending=20)
+    executor.submit(two_pools.BIG, release.wait, WAIT)  # holds the only thread
+    big = executor.submit(two_pools.BIG, lambda: None, key="k")
+
+    small = executor.submit(two_pools.SMALL, lambda: None, key="k")
+
+    assert not big.cancelled() and not small.cancelled()
+
+
+def test_a_running_task_is_not_replaced(release):
+    executor.init(max_workers=2, max_pending=_limit(5))
+    started = threading.Event()
+    first = executor.submit(RUNTIME, lambda: (started.set(), release.wait(WAIT)), key="k")
+    assert started.wait(WAIT)
+
+    second = executor.submit(RUNTIME, lambda: "B", key="k")
+
+    assert second.result(WAIT) == "B"  # it ran while the first one was still running
+    assert not first.done()
+    release.set()
+    first.result(WAIT)
+    assert not first.cancelled()
+
+
+def test_outcomes_are_canceled_and_replaced(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    canceled_before, replaced_before = _tasks("canceled"), _tasks("replaced")
+    executor.submit(RUNTIME, lambda: None, key="k")
+    executor.submit(RUNTIME, lambda: None, key="k")  # replaces the first
+    cancelled_by_caller = executor.submit(RUNTIME, lambda: None)
+
+    cancelled_by_caller.cancel()
+
+    assert _tasks("replaced") == replaced_before + 1
+    assert _tasks("canceled") == canceled_before + 1  # only the one the caller cancelled
+    assert _sample("background_executor_tasks_total", {"pool": RUNTIME.value, "outcome": "skipped"}) is None
+
+
+def test_shutdown_after_a_replacement_cancels_only_the_waiting_task_once(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    canceled_before = _tasks("canceled")
+    replaced = executor.submit(RUNTIME, lambda: None, key="k")
+    waiting = executor.submit(RUNTIME, lambda: None, key="k")
+
+    threading.Timer(0.3, release.set).start()
+    executor.shutdown()
+    _, not_done = wait([replaced, waiting], timeout=WAIT)
+
+    assert not not_done and replaced.cancelled() and waiting.cancelled()
+    assert _tasks("canceled") == canceled_before + 1  # the replaced one counts as replaced, not as canceled
+    assert _sample("background_executor_pending", {"pool": RUNTIME.value}) == 0
+
+
+def test_without_a_key_nothing_changes(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    ran = []
+    futures = [executor.submit(RUNTIME, ran.append, n) for n in (1, 2)]
+
+    release.set()
+    wait(futures, timeout=WAIT)
+
+    assert ran == [1, 2]

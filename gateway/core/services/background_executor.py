@@ -40,6 +40,11 @@ returns.
 The future of a task that ran is resolved after its slot is free, so ``status`` right after a ``wait`` already counts
 it. A task cancelled with ``future.cancel()`` while it is still queued gives its slot back at once.
 
+``submit`` takes an optional ``key``. A task still waiting in the same pool under the same key is replaced by the new
+one, which takes its place in the queue and uses no new slot, so it is accepted even when the pool is full; the old
+future is cancelled and counted as ``replaced``. A task that already started is never replaced. Without a key nothing
+changes. ``would_accept(pool, key)`` says whether a ``submit`` with that key would be accepted now.
+
 Tasks must be short and must not depend on the caller's request or transaction. A task that raises is logged, and the
 exception is kept in its future. The pool's threads open their own database connections, which are closed when each task
 ends.
@@ -60,9 +65,10 @@ limits multiply by the number of gunicorn workers.
 Metrics are published on the default prometheus_client registry, which the gateway (django_prometheus) and the
 scheduler already expose. ``background_executor_workers`` is the configured number of threads. Per pool:
 ``background_executor_max_pending`` (its limit), ``background_executor_pending`` (accepted and unfinished, running
-included), ``background_executor_running``, ``background_executor_tasks_total{outcome}`` (completed, failed or skipped
-at shutdown, or cancelled by the caller while queued), ``background_executor_dropped_total{reason}`` (full or
-shut_down, only for a ``submit`` that races with a ``shutdown``) and
+included), ``background_executor_running``, ``background_executor_tasks_total{outcome}`` (completed, failed, canceled
+while queued by ``shutdown`` or by the caller, or replaced by a task with the same key),
+``background_executor_dropped_total{reason}`` (full or shut_down, only for a ``submit`` that races with a
+``shutdown``) and
 ``background_executor_task_duration_seconds``. Compare ``pending`` with ``max_pending`` and watch ``dropped_total`` to
 size the pool. Every process reports its own numbers: the gateway has several, so aggregate across them in the query.
 
@@ -151,9 +157,16 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
                 self.queues[pool].remove(item)
             except ValueError:
                 return
-            _TASKS.labels(pool.value, "skipped").inc()
+            _TASKS.labels(pool.value, "canceled").inc()
             _PENDING.labels(pool.value).dec()
         future.set_running_or_notify_cancel()  # wakes whoever waits for it
+
+    def waiting_index(self, pool: BackgroundPool, key: str) -> int | None:
+        """Position in the queue of ``pool`` of the task waiting under ``key``, or None. Call it with ``cond`` held."""
+        for index, item in enumerate(self.queues[pool]):
+            if item[4] == key:
+                return index
+        return None
 
     def pending(self, pool: BackgroundPool) -> int:
         """Tasks of ``pool`` accepted and not finished: waiting plus running."""
@@ -174,7 +187,7 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
                     pool = self._next_pool()
                 if self.stopping:
                     return
-                future, fn, args, kwargs = self.queues[pool].popleft()
+                future, fn, args, kwargs, _key = self.queues[pool].popleft()
                 self.running[pool] += 1
                 self.clock += 1
                 self.served[pool] = self.clock
@@ -186,12 +199,12 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
     def _execute(self, pool: BackgroundPool, future: Future, fn: Callable, args: tuple, kwargs: dict) -> None:
         if future.cancelled():  # cancelled just after a thread took it: free the slot, then wake the waiters
             try:
-                self._finish(pool, "skipped")
+                self._finish(pool, "canceled")
             finally:
                 future.set_running_or_notify_cancel()
             return
         if not future.set_running_or_notify_cancel():  # cancelled in the instant between the two calls
-            self._finish(pool, "skipped")
+            self._finish(pool, "canceled")
             return
         result, error, outcome = None, None, "completed"
         _RUNNING.labels(pool.value).inc()
@@ -269,26 +282,59 @@ class BackgroundExecutor:
             raise BackgroundExecutorNotInitializedError("BackgroundExecutor.init() was not called in this process")
         return cycle
 
-    def submit(self, pool: BackgroundPool, fn: Callable, *args, **kwargs) -> Future | None:
+    def submit(self, pool: BackgroundPool, fn: Callable, *args, key: str | None = None, **kwargs) -> Future | None:
         """Run ``fn(*args, **kwargs)`` on a thread and return at once with its ``Future``. Returns None, without
         running it, when the ``pool`` already has its share of tasks pending. Raises
-        BackgroundExecutorNotInitializedError if ``init`` was not called in this process."""
+        BackgroundExecutorNotInitializedError if ``init`` was not called in this process.
+
+        ``key`` is not passed to ``fn``. If a task of the same ``pool`` and ``key`` is still waiting, the new one takes
+        its place in the queue and the old future is cancelled: no new slot is used, so it is accepted even when the
+        pool is full. A task that already started is never replaced."""
         cycle = self._current_cycle()
         future: Future = Future()
+        item = (future, fn, args, kwargs, key)
+        replaced: Future | None = None
         with cycle.cond:
-            reason = "shut_down" if cycle.stopping else "full" if cycle.pending(pool) >= cycle.pool_limit else None
-            if reason is None:
-                item = (future, fn, args, kwargs)
+            index = None if key is None or cycle.stopping else cycle.waiting_index(pool, key)
+            if cycle.stopping:
+                reason = "shut_down"
+            elif index is not None:
+                replaced = cycle.queues[pool][index][0]
+                cycle.queues[pool][index] = item  # same position and same slot, so _PENDING does not change
+                _TASKS.labels(pool.value, "replaced").inc()
+                reason = None
+            elif cycle.pending(pool) >= cycle.pool_limit:
+                reason = "full"
+            else:
                 cycle.queues[pool].append(item)
                 _PENDING.labels(pool.value).inc()
-                future.add_done_callback(lambda _future: cycle.forget_if_cancelled(pool, item))
                 cycle.cond.notify()
-                return future
+                reason = None
+            if reason is None:  # under the lock, so a shutdown cannot cancel it before the callback is in place
+                future.add_done_callback(lambda _future: cycle.forget_if_cancelled(pool, item))
+        if reason is None:
+            if replaced is not None:
+                # Its done callback finds the item gone from the queue and counts nothing, so release the waiters here.
+                replaced.cancel()
+                replaced.set_running_or_notify_cancel()
+            return future
         _DROPPED.labels(pool.value, reason).inc()
         logger.warning(
             "background pool %s is %s, task dropped", pool.value, "shut down" if reason == "shut_down" else "full"
         )
         return None
+
+    def would_accept(self, pool: BackgroundPool, key: str | None = None) -> bool:
+        """True if ``submit(pool, ..., key=key)`` would be accepted right now: the pool is below its limit, or a task
+        with that ``key`` is waiting in it and would be replaced. Raises BackgroundExecutorNotInitializedError if
+        ``init`` was not called in this process."""
+        cycle = self._current_cycle()
+        with cycle.cond:
+            if cycle.stopping:
+                return False
+            return cycle.pending(pool) < cycle.pool_limit or (
+                key is not None and cycle.waiting_index(pool, key) is not None
+            )
 
     def status(self, pool: BackgroundPool) -> PoolStatus:
         """How loaded ``pool`` is right now. Raises BackgroundExecutorNotInitializedError if ``init`` was not called in
@@ -317,7 +363,7 @@ class BackgroundExecutor:
                 cycle.stopping = True
                 for queue in cycle.queues.values():
                     for future, *_ in list(queue):
-                        future.cancel()  # its done callback takes it out of the queue and counts it as skipped
+                        future.cancel()  # its done callback takes it out of the queue and counts it as canceled
                 cycle.cond.notify_all()
             for thread in cycle.threads:
                 if thread is not threading.current_thread():  # a task may call shutdown itself
