@@ -307,6 +307,11 @@
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The scheduler no longer submits a queued Fleets job whose account, plan and
+subscription are blocked. The job stays <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> and does not take a free
+slot from other users, and it is submitted normally once the block is lifted.</p></li>
+</ul>
+<ul class="simple">
 <li><p>Fleets jobs can now be mirrored to the Runtime API as workloads. While the
 <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> setting is on (it is off by default), each new
 Fleets job that has an instance CRN is sent to the Runtime API when it is
