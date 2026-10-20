@@ -22,3 +22,10 @@ features:
     there is no timeout. Any other error, or one that lasts that long, is
     raised. ``verbose=True`` prints one line per status change and per retried
     error, and the error message if the job ends in ``ERROR``.
+  - |
+    :meth:`~qiskit_serverless.core.job.Job.status` now asks the service only
+    until the job reaches ``DONE``, ``ERROR`` or ``CANCELED``, and then returns
+    that status without a request, because a final status cannot change. So
+    calling :meth:`~qiskit_serverless.core.job.Job.result` or
+    :meth:`~qiskit_serverless.core.job.Job.error_message` on a finished job no
+    longer sends the same status request again and again.
