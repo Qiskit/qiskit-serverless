@@ -380,6 +380,15 @@ IBM support.</p></li>
 <section id="other-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-other-notes"></span><h3>Other Notes<a class="headerlink" href="#other-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_operation_duration_seconds</span></code>, a
+histogram of how long it takes to read the status of a Fleets job, to upload
+the files of a job when submitting it, to request an IAM token and to send a
+workload to the Runtime API. It is labeled by operation and by status: ok,
+timeout or error, or the HTTP code for the Runtime API call. Only the
+requests that really reach IAM are timed, not the ones answered from the
+token cache. The gateway does not record it.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_task_items_total</span></code> (jobs submitted
 and jobs whose status was checked, per task),
 <code class="docutils literal notranslate"><span class="pre">scheduler_fleets_jobs_skipped_by_breaker_total</span></code> (jobs a Code Engine
