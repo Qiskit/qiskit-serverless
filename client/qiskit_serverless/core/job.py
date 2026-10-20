@@ -330,35 +330,34 @@ class Job:
         if verbose:
             print(f"Waiting for job {self.job_id}", flush=True)
         last_status = None
+        failing_since = None
         step = 0
         while True:
-            status = self._status_with_retries(deadline)
+            try:
+                status = self.status()
+                failing_since = None
+            except QiskitServerlessException as error:
+                if failing_since is None:
+                    failing_since = time.monotonic()
+                give_up = failing_since + _WAIT_RETRY_SECONDS if deadline is None else deadline
+                if not is_transient_error(error) or time.monotonic() >= give_up:
+                    raise
+                logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
+                time.sleep(_next_wait(step, give_up, poll_interval))
+                step += 1
+                continue
             if status != last_status:
                 if verbose:
                     print(f"{_elapsed(start)}  {status}", flush=True)
-                if _restarts_schedule(last_status, status):
+                if last_status is not None and _restarts_schedule(last_status, status):
                     step = 0
                 last_status = status
             if status in FINAL_STATUSES:
                 return status
             if deadline is not None and time.monotonic() >= deadline:
                 raise TimeoutError(f"Job {self.job_id} is still {status} after {timeout} s.")
-            time.sleep(_next_wait(step, poll_interval, deadline))
+            time.sleep(_next_wait(step, deadline, poll_interval))
             step += 1
-
-    def _status_with_retries(self, deadline: Optional[float]) -> str:
-        """status(), retried with backoff on transient errors until the deadline or WAIT_RETRY_SECONDS of failures."""
-        give_up = time.monotonic() + WAIT_RETRY_SECONDS if deadline is None else deadline
-        step = 0
-        while True:
-            try:
-                return self.status()
-            except QiskitServerlessException as error:
-                if not is_transient_error(error) or time.monotonic() >= give_up:
-                    raise
-                logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
-                time.sleep(_next_wait(step, None, give_up))
-                step += 1
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
@@ -525,28 +524,26 @@ STATUS_MAP = {
 INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
 
 FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
-WAIT_SCHEDULE_SECONDS = (1, 2, 4, 8, 16, 32, 60)
-WAIT_JITTER = 0.1
-WAIT_RETRY_SECONDS = 300
-MIN_POLL_INTERVAL_SECONDS = 1
+_WAIT_SCHEDULE_SECONDS = (1, 2, 4, 8, 16, 32, 60)
+_WAIT_JITTER = 0.1
+_WAIT_RETRY_SECONDS = 300
+_MIN_POLL_INTERVAL_SECONDS = 1
 
 
-def _restarts_schedule(previous: Optional[str], status: str) -> bool:
+def _restarts_schedule(previous: str, status: str) -> bool:
     """A new main status, or entering post-processing, starts the schedule again. Other sub-statuses do not."""
-    if previous is None:
-        return False
     if status == STATUS_MAP[Job.POST_PROCESSING]:
         return True
-    return previous.split(":")[0] != status.split(":")[0]
+    return _map_status_to_serverless(previous)[0] != _map_status_to_serverless(status)[0]
 
 
-def _next_wait(step: int, poll_interval: Optional[float], deadline: Optional[float]) -> float:
+def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[float] = None) -> float:
     """Seconds to sleep before the next check, cut at the deadline."""
     if poll_interval is not None:
-        wait = max(float(poll_interval), MIN_POLL_INTERVAL_SECONDS)
+        wait = max(float(poll_interval), _MIN_POLL_INTERVAL_SECONDS)
     else:
-        base = WAIT_SCHEDULE_SECONDS[min(step, len(WAIT_SCHEDULE_SECONDS) - 1)]
-        wait = base * random.uniform(1 - WAIT_JITTER, 1 + WAIT_JITTER)
+        base = _WAIT_SCHEDULE_SECONDS[min(step, len(_WAIT_SCHEDULE_SECONDS) - 1)]
+        wait = base * random.uniform(1 - _WAIT_JITTER, 1 + _WAIT_JITTER)
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait

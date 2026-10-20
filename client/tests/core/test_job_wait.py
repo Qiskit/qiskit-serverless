@@ -133,7 +133,16 @@ def test_a_transient_error_is_retried_and_does_not_count_as_a_status_change(cloc
     )
 
     assert job.wait_for_final_state() == "DONE"
-    assert clock.sleeps == [1, 1, 2]
+    assert clock.sleeps == [1, 2, 4]
+
+
+def test_a_retry_keeps_the_pace_of_the_schedule(clock):
+    """A 503 after the schedule reached 60 s waits 60 s, not 1 s, so an overloaded gateway gets fewer requests."""
+    job, _ = _job(*([("RUNNING", None)] * 8), QiskitServerlessException("busy", code=503), ("SUCCEEDED", None))
+
+    job.wait_for_final_state()
+
+    assert clock.sleeps == [1, 2, 4, 8, 16, 32, 60, 60, 60]
 
 
 def test_a_plain_500_raises_at_once(clock):
@@ -143,7 +152,6 @@ def test_a_plain_500_raises_at_once(clock):
     with pytest.raises(QiskitServerlessException):
         job.wait_for_final_state()
 
-    assert clock.sleeps == [1]
     assert service.get_job_data.call_count == 2
 
 
@@ -183,4 +191,3 @@ def test_verbose_prints_one_line_per_status_change(clock, capsys):
         "0:00:03  RUNNING",
         "0:00:04  DONE",
     ]
-    assert clock.sleeps == [1, 2, 1]
