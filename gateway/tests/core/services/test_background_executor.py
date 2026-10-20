@@ -463,8 +463,8 @@ def test_a_task_with_the_same_key_replaces_the_waiting_one(release):
     executor.init(max_workers=1, max_pending=_limit(5))
     _occupy_the_only_thread(release)
     ran = []
-    first = executor.submit(RUNTIME, ran.append, "A", key="k")
-    second = executor.submit(RUNTIME, ran.append, "B", key="k")
+    first = executor.submit(RUNTIME, ran.append, "A", replace_key="k")
+    second = executor.submit(RUNTIME, ran.append, "B", replace_key="k")
 
     assert first.cancelled() and not second.cancelled()
     assert executor.status(RUNTIME).queued == 1
@@ -482,10 +482,10 @@ def test_replacement_keeps_the_position_of_the_replaced_task(release):
     _occupy_the_only_thread(release)
     ran = []
     executor.submit(RUNTIME, ran.append, "X")
-    executor.submit(RUNTIME, ran.append, "A", key="k")
+    executor.submit(RUNTIME, ran.append, "A", replace_key="k")
     last = executor.submit(RUNTIME, ran.append, "Y")
 
-    executor.submit(RUNTIME, ran.append, "B", key="k")
+    executor.submit(RUNTIME, ran.append, "B", replace_key="k")
     release.set()
     last.result(WAIT)
 
@@ -495,13 +495,13 @@ def test_replacement_keeps_the_position_of_the_replaced_task(release):
 def test_a_replacement_is_accepted_when_the_pool_is_full(release):
     executor.init(max_workers=1, max_pending=_limit(2))
     _occupy_the_only_thread(release)
-    assert executor.submit(RUNTIME, lambda: None, key="k") is not None  # one running, one waiting: full
+    assert executor.submit(RUNTIME, lambda: None, replace_key="k") is not None  # one running, one waiting: full
 
     assert executor.would_accept(RUNTIME, "k") is True
-    assert executor.submit(RUNTIME, lambda: None, key="k") is not None
+    assert executor.submit(RUNTIME, lambda: None, replace_key="k") is not None
     assert executor.would_accept(RUNTIME, "other") is False
     assert executor.would_accept(RUNTIME) is False
-    assert executor.submit(RUNTIME, lambda: None, key="other") is None
+    assert executor.submit(RUNTIME, lambda: None, replace_key="other") is None
     assert executor.submit(RUNTIME, lambda: None) is None
 
 
@@ -518,9 +518,9 @@ def test_would_accept_is_true_below_the_limit_and_fails_loudly_before_init():
 def test_the_same_key_in_another_pool_does_not_replace(two_pools, release):
     executor.init(max_workers=1, max_pending=20)
     executor.submit(two_pools.BIG, release.wait, WAIT)  # holds the only thread
-    big = executor.submit(two_pools.BIG, lambda: None, key="k")
+    big = executor.submit(two_pools.BIG, lambda: None, replace_key="k")
 
-    small = executor.submit(two_pools.SMALL, lambda: None, key="k")
+    small = executor.submit(two_pools.SMALL, lambda: None, replace_key="k")
 
     assert not big.cancelled() and not small.cancelled()
 
@@ -528,10 +528,10 @@ def test_the_same_key_in_another_pool_does_not_replace(two_pools, release):
 def test_a_running_task_is_not_replaced(release):
     executor.init(max_workers=2, max_pending=_limit(5))
     started = threading.Event()
-    first = executor.submit(RUNTIME, lambda: (started.set(), release.wait(WAIT)), key="k")
+    first = executor.submit(RUNTIME, lambda: (started.set(), release.wait(WAIT)), replace_key="k")
     assert started.wait(WAIT)
 
-    second = executor.submit(RUNTIME, lambda: "B", key="k")
+    second = executor.submit(RUNTIME, lambda: "B", replace_key="k")
 
     assert second.result(WAIT) == "B"  # it ran while the first one was still running
     assert not first.done()
@@ -544,8 +544,8 @@ def test_outcomes_are_canceled_and_replaced(release):
     executor.init(max_workers=1, max_pending=_limit(5))
     _occupy_the_only_thread(release)
     canceled_before, replaced_before = _tasks("canceled"), _tasks("replaced")
-    executor.submit(RUNTIME, lambda: None, key="k")
-    executor.submit(RUNTIME, lambda: None, key="k")  # replaces the first
+    executor.submit(RUNTIME, lambda: None, replace_key="k")
+    executor.submit(RUNTIME, lambda: None, replace_key="k")  # replaces the first
     cancelled_by_caller = executor.submit(RUNTIME, lambda: None)
 
     cancelled_by_caller.cancel()
@@ -559,8 +559,8 @@ def test_shutdown_after_a_replacement_cancels_only_the_waiting_task_once(release
     executor.init(max_workers=1, max_pending=_limit(5))
     _occupy_the_only_thread(release)
     canceled_before = _tasks("canceled")
-    replaced = executor.submit(RUNTIME, lambda: None, key="k")
-    waiting = executor.submit(RUNTIME, lambda: None, key="k")
+    replaced = executor.submit(RUNTIME, lambda: None, replace_key="k")
+    waiting = executor.submit(RUNTIME, lambda: None, replace_key="k")
 
     threading.Timer(0.3, release.set).start()
     executor.shutdown()
@@ -581,3 +581,37 @@ def test_without_a_key_nothing_changes(release):
     wait(futures, timeout=WAIT)
 
     assert ran == [1, 2]
+
+
+def test_replace_key_is_not_passed_to_the_task_but_a_key_argument_of_the_task_is(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    seen = []
+    future = executor.submit(RUNTIME, lambda **kwargs: seen.append(kwargs), key="for-the-task", replace_key="k")
+
+    release.set()
+    future.result(WAIT)
+
+    assert seen == [{"key": "for-the-task"}]
+
+
+def test_a_keyed_submit_that_races_with_a_shutdown_is_dropped_and_replaces_nothing(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    waiting = executor.submit(RUNTIME, lambda: None, replace_key="k")
+    replaced_before = _tasks("replaced")
+    cycle = executor._cycle  # pylint: disable=protected-access
+    with cycle.cond:
+        cycle.stopping = True  # what shutdown() does just before it clears the queues
+
+    assert executor.submit(RUNTIME, lambda: None, replace_key="k") is None
+
+    assert not waiting.cancelled()
+    assert _tasks("replaced") == replaced_before
+
+
+def test_a_keyed_submit_is_dropped_when_the_pool_limit_is_zero():
+    executor.init(max_workers=1, max_pending=0)
+
+    assert executor.submit(RUNTIME, lambda: None, replace_key="k") is None
+    assert executor.would_accept(RUNTIME, "k") is False
