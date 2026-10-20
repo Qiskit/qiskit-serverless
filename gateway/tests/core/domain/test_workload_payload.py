@@ -149,29 +149,34 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
 
 
 @pytest.mark.parametrize(
-    "setting, provider_name, expected",
+    "setting, provider_name, title, expected",
     [
-        ("true", "qctrl", True),
-        ("TRUE", None, True),
-        ("false", "qctrl", False),
-        ("QCtrl", "qctrl", True),
-        ("ibm, qctrl", "QCtrl", True),
-        ("qctrl/management", "qctrl", True),
-        ("qctrl/other", "qctrl", False),
-        ("ibm", "qctrl", False),
-        ("custom", None, True),
-        ("qctrl", None, False),
-        ("true,custom", "qctrl", False),
-        ("", None, False),
-        ("qctrl,,ibm", "ibm", True),
-        ("custom", "custom", False),
-        ("custom/management", "custom", True),
+        ("true", "qctrl", "management", True),
+        ("TRUE", None, "management", True),
+        ("false", "qctrl", "management", False),
+        ("QCtrl", "qctrl", "management", True),
+        ("ibm, qctrl", "QCtrl", "management", True),
+        ("qctrl/management", "qctrl", "management", True),
+        ("qctrl/management", "qctrl", "Management", True),
+        ("qctrl/management", "qctrl", "management2", False),
+        ("qctrl/management", "qctrl", "my-management", False),
+        ("qctrl/management", "qctrl", "manage", False),
+        ("qctrl/management", "ibm", "management", False),
+        ("qctrl/other", "qctrl", "management", False),
+        ("ibm", "qctrl", "management", False),
+        ("custom", None, "management", True),
+        ("qctrl", None, "management", False),
+        ("true,custom", "qctrl", "management", False),
+        ("", None, "management", False),
+        ("qctrl,,ibm", "ibm", "management", True),
+        ("custom", "custom", "management", False),
+        ("custom/management", "custom", "management", True),
     ],
 )
-def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(setting, provider_name, expected):
+def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(setting, provider_name, title, expected):
     author = User.objects.create_user(username="carol")
     provider = Provider.objects.create(name=provider_name) if provider_name else None
-    program = Program.objects.create(title="Management", provider=provider, author=author)
+    program = Program.objects.create(title=title, provider=provider, author=author)
     job = Job(author=author, program=program)
     Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, setting)
 
