@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    The scheduler no longer submits a queued Fleets job whose account, plan and
+    subscription are blocked. The job stays ``QUEUED`` and does not take a free
+    slot from other users, and it is submitted normally once the block is lifted.
