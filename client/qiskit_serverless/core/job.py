@@ -548,6 +548,7 @@ def _next_wait(step: int, poll_interval: Optional[float], deadline: Optional[flo
 
 
 def _elapsed(start: float) -> str:
+    """Time since start as H:MM:SS."""
     seconds = int(time.monotonic() - start)
     return f"{seconds // 3600}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
 

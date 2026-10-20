@@ -183,7 +183,7 @@ def safe_json_request(
         parsed json response
     """
     error_message: Optional[str] = None
-    error_code: Optional[str] = None
+    error_code: Optional[Union[int, str]] = None
     try:
         response = request()
     except (

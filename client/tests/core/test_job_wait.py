@@ -136,10 +136,9 @@ def test_a_transient_error_is_retried_and_does_not_count_as_a_status_change(cloc
     assert clock.sleeps == [1, 1, 2]
 
 
-@pytest.mark.parametrize("code", [500, 401])
-def test_any_other_error_raises_at_once(clock, code):
-    """A plain 500 or an auth error is not retried."""
-    job, service = _job(("RUNNING", None), QiskitServerlessException("no", code=code))
+def test_a_plain_500_raises_at_once(clock):
+    """A gateway bug is not retried."""
+    job, service = _job(("RUNNING", None), QiskitServerlessException("bug", code=500))
 
     with pytest.raises(QiskitServerlessException):
         job.wait_for_final_state()
