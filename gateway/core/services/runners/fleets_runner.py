@@ -188,6 +188,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except (BotoConnectionError, BotoHTTPClientError, ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach COS or Code Engine", ex) from ex
+        except RetryableError as ex:
+            raise RunnerRetryableError(str(ex), ex) from ex
         except Exception as ex:
             logger.error("Failed to upload job_id=[%s] to COS: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex

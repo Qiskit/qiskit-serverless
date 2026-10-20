@@ -19,10 +19,12 @@ from contextlib import contextmanager
 from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
+from urllib3.exceptions import MaxRetryError, ReadTimeoutError
 
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud import get_cos_client
 from core.ibm_cloud.clients import COS_PUBLIC_URL_TEMPLATE
+from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
@@ -205,7 +207,9 @@ def test_get_cos_client_fetches_hmac_from_ce_secret() -> None:
 
         get_cos_client(project)
 
-    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(project_id="proj-id", name="cos-hmac")
+    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(
+        project_id="proj-id", name="cos-hmac", _request_timeout=(1, 3)
+    )
 
 
 def test_get_cos_client_passes_hmac_creds_to_cos_client() -> None:
@@ -312,6 +316,30 @@ def test_get_cos_client_raises_when_ce_secret_not_found() -> None:
         mock_secrets_api_cls.return_value.get_secret.side_effect = ApiException(status=404, reason="Not Found")
 
         with pytest.raises(ValueError, match="not found"):
+            get_cos_client(project)
+
+
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (ApiException(status=429, reason="Too Many Requests"), RetryableError),
+        (MaxRetryError(None, "/", reason=ReadTimeoutError(None, "/", "Read timed out.")), RetryableError),
+        (ApiException(status=403, reason="Forbidden"), ApiException),
+    ],
+)
+def test_get_cos_client_raises_unavailable_only_for_a_transient_secret_error(error, expected) -> None:
+    project = _make_mock_project()
+
+    with (
+        patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
+        patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+        mock_secrets_api_cls.return_value.get_secret.side_effect = error
+
+        with pytest.raises(expected):
             get_cos_client(project)
 
 
