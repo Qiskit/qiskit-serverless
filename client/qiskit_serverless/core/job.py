@@ -318,7 +318,8 @@ class Job:
             timeout: seconds to wait. ``None`` waits until the job ends. One status request can add up to its own
                 request timeout on top.
             poll_interval: fixed seconds between checks instead of the adaptive schedule.
-            verbose: print a header, then one line per status change.
+            verbose: print a header, one line per status change and per retried error, and the error message
+                if the job ends in ERROR.
 
         Raises:
             TimeoutError: if the job does not end within ``timeout``. The job keeps running.
@@ -343,6 +344,9 @@ class Job:
                 if not is_transient_error(error) or time.monotonic() >= give_up:
                     raise
                 logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
+                if verbose:
+                    code = getattr(error, "_code", None)
+                    print(f"{_elapsed(start)}  status check failed ({code}), retrying", flush=True)
                 time.sleep(_next_wait(step, give_up, poll_interval))
                 step += 1
                 continue
@@ -353,11 +357,23 @@ class Job:
                     step = 0
                 last_status = status
             if status in FINAL_STATUSES:
+                if verbose and status == "ERROR":
+                    self._print_error_message()
                 return status
             if deadline is not None and time.monotonic() >= deadline:
                 raise TimeoutError(f"Job {self.job_id} is still {status} after {timeout} s.")
             time.sleep(_next_wait(step, deadline, poll_interval))
             step += 1
+
+    def _print_error_message(self):
+        """Print why the job failed. A failure to fetch it does not change the result of the wait."""
+        try:
+            message = self.error_message()
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.info("Getting the error message for job %s failed.", self.job_id, exc_info=True)
+            message = "Something went wrong getting the error message."
+        if message:
+            print(message, flush=True)
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"

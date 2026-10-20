@@ -20,4 +20,5 @@ features:
     network errors and ``429``, ``502``, ``503`` or ``504`` answers are retried
     at the same pace, until the timeout, or for up to 5 minutes in a row when
     there is no timeout. Any other error, or one that lasts that long, is
-    raised. ``verbose=True`` prints one line per status change.
+    raised. ``verbose=True`` prints one line per status change and per retried
+    error, and the error message if the job ends in ``ERROR``.

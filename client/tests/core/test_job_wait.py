@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from qiskit_serverless.core.job import Job
+from qiskit_serverless.core.job_event import JobEvent
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.errors import ErrorCodes
 
@@ -191,3 +192,33 @@ def test_verbose_prints_one_line_per_status_change(clock, capsys):
         "0:00:03  RUNNING",
         "0:00:04  DONE",
     ]
+
+
+def test_verbose_prints_a_retried_error_with_its_code(clock, capsys):
+    """A retried status check shows its error code."""
+    job, _ = _job(("RUNNING", None), QiskitServerlessException("busy", code=503), ("SUCCEEDED", None))
+
+    job.wait_for_final_state(verbose=True)
+
+    assert "0:00:01  status check failed (503), retrying" in capsys.readouterr().out.splitlines()
+
+
+def test_verbose_prints_the_error_message_when_the_job_fails(clock, capsys):
+    """On ERROR, verbose fetches and prints why the job failed."""
+    job, service = _job(("RUNNING", None), ("FAILED", None), ("FAILED", None))
+    service.events.return_value = [
+        JobEvent("ERROR", "API", "SEND_ERROR", "now", {"message": "bad input", "code": 400, "exception": "E"})
+    ]
+
+    assert job.wait_for_final_state(verbose=True) == "ERROR"
+
+    assert "| Message: bad input" in capsys.readouterr().out
+
+
+def test_a_failure_getting_the_error_message_still_returns_error(clock, capsys):
+    """If the error message cannot be fetched, verbose says so and the wait still returns ERROR."""
+    job, _ = _job(("FAILED", None), QiskitServerlessException("down", code=ErrorCodes.CONN1001))
+
+    assert job.wait_for_final_state(verbose=True) == "ERROR"
+
+    assert capsys.readouterr().out.splitlines()[-1] == "Something went wrong getting the error message."
