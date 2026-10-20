@@ -76,8 +76,6 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         do not add a lock around it."""
         try:
             token = self._authenticator.token_manager.get_token()
-            self._note_token(token)
-            return token
         except ApiException as exc:
             self._forget_failed_request()
             if exc.status_code in _KEY_REJECTED:
@@ -89,6 +87,12 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
             self._forget_failed_request()
             logger.error("Could not get an IAM token: %s", type(exc).__name__)
             raise RetryableError("Could not get an IAM token") from exc
+        try:
+            self._note_token(token)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # The token is valid, so a refresher that cannot start must not fail the caller (the SDK refresh remains).
+            logger.warning("Could not start the IAM token refresher: %s", type(exc).__name__)
+        return token
 
     def invalidate(self, token: str) -> None:
         """Drop ``token`` from the cache, so the next ``get_token`` asks IAM for a new one. Use it when the API rejects
