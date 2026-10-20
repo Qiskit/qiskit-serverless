@@ -359,6 +359,14 @@ so a busy scheduler could reach the Code Engine API rate limit by itself.
 A rotated HMAC secret is picked up within 60 seconds.</p></li>
 </ul>
 <ul class="simple">
+<li><p>A request that reads or writes a Code Engine Fleets job’s files in COS now
+answers 503 “please retry” when Code Engine rate limits the gateway, answers
+a 5xx, or does not answer in time. It used to answer 500. This covers running
+a function, and reading its logs, result and files. Reading the COS HMAC
+secret from Code Engine now has a request timeout, so such a request no
+longer hangs.</p></li>
+</ul>
+<ul class="simple">
 <li><p>A failed request for an IAM token that the caller retries is now logged as
 a warning instead of an error. The wait for IAM is 3 seconds to connect
 and 5 seconds to read, as it was for Code Engine and COS before they shared
