@@ -189,6 +189,7 @@ class Job:
         self.job_id = job_id
         self._job_service = job_service
         self.raw_data = raw_data or {}
+        self._final_status: Optional[str] = None
 
     @property
     def fleet_id(self) -> Optional[str]:
@@ -196,7 +197,15 @@ class Job:
         return self.raw_data.get("fleet_id")
 
     def status(self):
-        """Returns status of the job."""
+        """Returns status of the job. A final status cannot change, so it is fetched only once."""
+        if self._final_status is None:
+            status = self._fetch_status()
+            if status not in _FINAL_STATUSES:
+                return status
+            self._final_status = status
+        return self._final_status
+
+    def _fetch_status(self) -> str:
         fresh_data = self._job_service.get_job_data(self.job_id)
         if isinstance(fresh_data, dict):
             self.raw_data.update(fresh_data)

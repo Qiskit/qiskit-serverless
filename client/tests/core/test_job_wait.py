@@ -227,8 +227,22 @@ def test_a_failed_job_without_verbose_makes_no_extra_request(clock, capsys):
 
 def test_a_failure_getting_the_error_message_still_returns_error(clock, capsys):
     """If the error message cannot be fetched, verbose says so and the wait still returns ERROR."""
-    job, _ = _job(("FAILED", None), QiskitServerlessException("down", code=ErrorCodes.CONN1001))
+    job, service = _job(("FAILED", None))
+    service.events.side_effect = QiskitServerlessException("down", code=ErrorCodes.CONN1001)
 
     assert job.wait_for_final_state(verbose=True) == "ERROR"
 
     assert capsys.readouterr().out.splitlines()[-1] == "Something went wrong getting the error message."
+
+
+def test_a_final_status_is_fetched_only_once(clock):
+    """After a final status, status() and the methods that call it make no more status requests."""
+    job, service = _job(("FAILED", None))
+    service.events.return_value = []
+    service.result.return_value = "it failed"
+
+    assert job.wait_for_final_state() == "ERROR"
+    with pytest.raises(QiskitServerlessException, match="it failed"):
+        job.result(wait=True)
+
+    assert service.get_job_data.call_count == 1
