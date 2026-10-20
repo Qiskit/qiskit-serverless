@@ -198,12 +198,12 @@ class Job:
 
     def status(self):
         """Returns status of the job. A final status cannot change, so it is fetched only once."""
-        if self._final_status is None:
-            status = self._fetch_status()
-            if status not in _FINAL_STATUSES:
-                return status
+        if self._final_status is not None:
+            return self._final_status
+        status = self._fetch_status()
+        if status in _FINAL_STATUSES:
             self._final_status = status
-        return self._final_status
+        return status
 
     def _fetch_status(self) -> str:
         fresh_data = self._job_service.get_job_data(self.job_id)
