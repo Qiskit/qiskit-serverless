@@ -163,6 +163,9 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
         ("qctrl", None, False),
         ("true,custom", "qctrl", False),
         ("", None, False),
+        ("qctrl,,ibm", "ibm", True),
+        ("custom", "custom", False),
+        ("custom/management", "custom", True),
     ],
 )
 def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(setting, provider_name, expected):
@@ -173,3 +176,9 @@ def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(sett
     Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, setting)
 
     assert mirror_enabled_for(job) is expected
+
+
+def test_a_job_without_program_is_not_mirrored_by_a_list():
+    Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
+
+    assert mirror_enabled_for(Job()) is False

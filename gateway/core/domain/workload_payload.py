@@ -50,7 +50,8 @@ def mirror_enabled_for(job: Job) -> bool:
     if program.provider is None:
         return CUSTOM_FUNCTIONS in entries
     provider = program.provider.name.lower()
-    return provider in entries or f"{provider}/{program.title.lower()}" in entries
+    # ``custom`` is reserved, so a provider that is named like that can only be listed as ``custom/<title>``
+    return provider in entries - {CUSTOM_FUNCTIONS} or f"{provider}/{program.title.lower()}" in entries
 
 
 def is_mirrored(job: Job) -> bool:
