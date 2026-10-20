@@ -125,7 +125,8 @@ def raise_for_non_ok_response(response: requests.Response) -> None:
         format_err_msg(
             response.status_code,
             details,
-        )
+        ),
+        code=response.status_code,
     )
 
 
@@ -182,6 +183,7 @@ def safe_json_request(
         parsed json response
     """
     error_message: Optional[str] = None
+    error_code: Optional[str] = None
     try:
         response = request()
     except (
@@ -191,18 +193,20 @@ def safe_json_request(
         # The request never got a response: a dropped connection, a TLS error, or a
         # timeout. This is usually transient and a retry succeeds, so it must not be
         # reported as a configuration or authentication problem.
+        error_code = ErrorCodes.CONN1001
         error_message = format_err_msg(
-            ErrorCodes.CONN1001,
+            error_code,
             str(connection_exception.args),
         )
     except requests.exceptions.RequestException as request_exception:
+        error_code = ErrorCodes.AUTH1001
         error_message = format_err_msg(
-            ErrorCodes.AUTH1001,
+            error_code,
             str(request_exception.args),
         )
 
     if error_message:
-        raise QiskitServerlessException(error_message)
+        raise QiskitServerlessException(error_message, code=error_code)
 
     try:
         json_data = json.loads(response.text)
@@ -217,7 +221,8 @@ def safe_json_request(
                 format_err_msg(
                     response.status_code,
                     _body_snippet(response.text),
-                )
+                ),
+                code=response.status_code,
             ) from json_error
         # A successful (2xx) response with an empty body is a truncated or blank
         # success from the service or an intermediary. It is transient and a retry
@@ -228,7 +233,8 @@ def safe_json_request(
                 format_err_msg(
                     ErrorCodes.EMPTY1001,
                     str(json_error.args),
-                )
+                ),
+                code=ErrorCodes.EMPTY1001,
             ) from json_error
         # A successful (2xx) response whose non-empty body we cannot decode is a
         # genuine violation of the server contract: report it as a decoding error.
@@ -236,7 +242,8 @@ def safe_json_request(
             format_err_msg(
                 ErrorCodes.JSON1001,
                 str(json_error.args),
-            )
+            ),
+            code=ErrorCodes.JSON1001,
         ) from json_error
 
     if response is not None and not response.ok:
@@ -254,7 +261,8 @@ def safe_json_request(
             format_err_msg(
                 response.status_code,
                 str(error_msg),
-            )
+            ),
+            code=response.status_code,
         )
 
     return json_data

@@ -245,6 +245,7 @@ class TestSafeJsonRequest:
         message = str(context.value)
         assert ErrorCodes.CONN1001 in message
         assert ErrorCodes.AUTH1001 not in message
+        assert context.value._code == ErrorCodes.CONN1001  # pylint: disable=protected-access
 
     def test_request_with_ssl_error_reports_connection_code(self):
         """An SSL error (e.g. an unexpected EOF mid-read) is a dropped connection,
@@ -353,6 +354,7 @@ class TestSafeJsonRequest:
         exception_str = str(context.value)
         assert "502" in exception_str
         assert "empty response body" in exception_str
+        assert context.value._code == 502  # pylint: disable=protected-access
 
     def test_successful_request_with_non_json_body_reports_json_error(self):
         """A 2xx response whose body is not JSON is a server-contract violation
