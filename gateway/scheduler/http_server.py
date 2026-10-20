@@ -73,8 +73,8 @@ class SchedulerHttpServer:
 
     def _wait_for_server(self, timeout: float = 1.0) -> bool:
         """Wait until the server is accepting connections."""
-        start = time.time()
-        while time.time() - start < timeout:
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
             try:
                 with socket.create_connection((self._host, self._port), timeout=0.1):
                     return True
