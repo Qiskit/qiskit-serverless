@@ -11,28 +11,8 @@ from prometheus_client import (
 from scheduler.metrics.duration_max_collector import DurationMaxCollector
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
-TICK_BUCKETS = (
-    0.01,
-    0.025,
-    0.05,
-    0.1,
-    0.5,
-    1,
-    2,
-    5,
-    10,
-    30,
-    60,
-    120,
-    300,
-    600,
-    1200,
-    1800,
-    3600,
-    7200,
-    14400,
-    float("inf"),
-)
+_TICK_BUCKETS_UP_TO_30_MIN = (0.01, 0.025, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1200, 1800)
+TICK_BUCKETS = _TICK_BUCKETS_UP_TO_30_MIN + (3600, 7200, 14400, float("inf"))
 CLOUD_CALL_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, float("inf"))
 
 
@@ -252,12 +232,12 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def observe_task_duration(self, task_name: str, elapsed_seconds: float) -> None:
         """Record execution time for one task."""
         self.task_duration.labels(task_name=task_name).observe(elapsed_seconds)
-        self.duration_max.record_task(task_name, elapsed_seconds)
+        self.duration_max.record(task_name, elapsed_seconds)
 
     def observe_scheduler_iteration(self, elapsed_seconds: float) -> None:
         """Register scheduler loop metrics for one full iteration."""
         self.loop_duration.observe(elapsed_seconds)
-        self.duration_max.record_loop(elapsed_seconds)
+        self.duration_max.record(None, elapsed_seconds)
         self.last_tick.set_to_current_time()
 
     def observe_queue_wait_time(self, wait_seconds: float, compute_type: str) -> None:

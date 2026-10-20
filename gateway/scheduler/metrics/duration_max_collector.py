@@ -12,62 +12,47 @@ WINDOW_SECONDS = 120
 
 
 class DurationMaxCollector(Collector):
-    """Keeps the samples of the last WINDOW_SECONDS and reports their maximum at scrape time.
-
-    A histogram cannot tell the slowest event, and its last bucket hides anything longer than the top bound.
-    Samples are recorded by the scheduler loop thread and read by the HTTP server thread, so they sit behind a lock.
-    """
+    """Keeps the samples of the last WINDOW_SECONDS and reports their maximum at scrape time. A histogram cannot tell
+    the slowest event. The loop thread records and the HTTP server thread reads, so the samples sit behind a lock.
+    The key is the task name, or None for the whole loop."""
 
     def __init__(self, registry: CollectorRegistry):
         self._lock = threading.Lock()
-        self._loop: deque = deque()
-        self._tasks: dict[str, deque] = defaultdict(deque)
+        self._samples: dict[str | None, deque] = defaultdict(deque)
         registry.register(self)
 
-    def record_loop(self, elapsed_seconds: float) -> None:
-        """Record the duration of one loop iteration."""
+    def record(self, name: str | None, elapsed_seconds: float) -> None:
+        """Record the duration of one task execution, or of one loop iteration when name is None."""
         with self._lock:
-            self._add(self._loop, elapsed_seconds)
+            now = time.monotonic()
+            self._samples[name].append((now, elapsed_seconds))
+            self._prune(name, now)
 
-    def record_task(self, task_name: str, elapsed_seconds: float) -> None:
-        """Record the duration of one task execution."""
-        with self._lock:
-            self._add(self._tasks[task_name], elapsed_seconds)
-
-    @staticmethod
-    def _add(samples: deque, elapsed_seconds: float) -> None:
-        now = time.monotonic()
-        samples.append((now, elapsed_seconds))
-        DurationMaxCollector._prune(samples, now)
-
-    @staticmethod
-    def _prune(samples: deque, now: float) -> None:
+    def _prune(self, name: str | None, now: float) -> deque:
+        samples = self._samples[name]
         while samples and now - samples[0][0] > WINDOW_SECONDS:
             samples.popleft()
-
-    @staticmethod
-    def _max(samples: deque, now: float) -> float | None:
-        DurationMaxCollector._prune(samples, now)
-        return max((value for _, value in samples), default=None)
+        return samples
 
     def collect(self):
-        loop_gauge = GaugeMetricFamily(
+        loop = GaugeMetricFamily(
             "scheduler_loop_duration_max_seconds",
             f"Longest scheduler loop iteration among those recorded in the last {WINDOW_SECONDS} seconds.",
         )
-        task_gauge = GaugeMetricFamily(
+        tasks = GaugeMetricFamily(
             "scheduler_task_duration_max_seconds",
             f"Longest execution of a scheduler task among those recorded in the last {WINDOW_SECONDS} seconds.",
             labels=["task_name"],
         )
         with self._lock:
             now = time.monotonic()
-            loop_max = self._max(self._loop, now)
-            if loop_max is not None:
-                loop_gauge.add_metric([], loop_max)
-            for task_name, samples in self._tasks.items():
-                task_max = self._max(samples, now)
-                if task_max is not None:
-                    task_gauge.add_metric([task_name], task_max)
-        yield loop_gauge
-        yield task_gauge
+            for name in list(self._samples):
+                samples = self._prune(name, now)
+                if not samples:
+                    del self._samples[name]
+                elif name is None:
+                    loop.add_metric([], max(value for _, value in samples))
+                else:
+                    tasks.add_metric([name], max(value for _, value in samples))
+        yield loop
+        yield tasks
