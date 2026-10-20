@@ -61,7 +61,7 @@ def _job(*answers):
     return Job(job_id="job-1", job_service=service), service
 
 
-def test_waits_with_the_adaptive_schedule_and_returns_the_final_status(clock):
+def test_waits_with_the_backoff_and_returns_the_final_status(clock):
     """Checks at once, backs off, starts again on a change, and returns DONE."""
     job, _ = _job(
         ("QUEUED", None),
@@ -76,7 +76,7 @@ def test_waits_with_the_adaptive_schedule_and_returns_the_final_status(clock):
     assert clock.sleeps == [1, 2, 1, 2, 4]
 
 
-def test_a_sub_status_does_not_restart_the_schedule_but_post_processing_does(clock):
+def test_a_sub_status_does_not_reset_the_backoff_but_post_processing_does(clock):
     """Only a new main status or post-processing goes back to 1 s."""
     job, _ = _job(
         ("RUNNING", None),
@@ -91,7 +91,7 @@ def test_a_sub_status_does_not_restart_the_schedule_but_post_processing_does(clo
     assert clock.sleeps == [1, 2, 4, 1]
 
 
-def test_the_schedule_stops_growing_at_60_seconds(clock):
+def test_the_backoff_stops_growing_at_60_seconds(clock):
     """After 32 s every wait is 60 s."""
     job, _ = _job(*([("RUNNING", None)] * 9), ("SUCCEEDED", None))
 
@@ -100,7 +100,7 @@ def test_the_schedule_stops_growing_at_60_seconds(clock):
     assert clock.sleeps == [1, 2, 4, 8, 16, 32, 60, 60, 60]
 
 
-def test_poll_interval_replaces_the_schedule_and_has_a_floor_of_one_second(clock):
+def test_poll_interval_replaces_the_backoff_and_has_a_floor_of_one_second(clock):
     """A fixed interval is used as given, and anything under 1 s becomes 1 s."""
     job, _ = _job(("RUNNING", None), ("RUNNING", None), ("STOPPED", None))
     assert job.wait_for_final_state(poll_interval=10) == "CANCELED"
@@ -137,8 +137,8 @@ def test_a_transient_error_is_retried_and_does_not_count_as_a_status_change(cloc
     assert clock.sleeps == [1, 2, 4]
 
 
-def test_a_retry_keeps_the_pace_of_the_schedule(clock):
-    """A 503 after the schedule reached 60 s waits 60 s, not 1 s, so an overloaded gateway gets fewer requests."""
+def test_a_retry_keeps_the_pace_of_the_backoff(clock):
+    """A 503 after the backoff reached 60 s waits 60 s, not 1 s, so an overloaded gateway gets fewer requests."""
     job, _ = _job(*([("RUNNING", None)] * 8), QiskitServerlessException("busy", code=503), ("SUCCEEDED", None))
 
     job.wait_for_final_state()

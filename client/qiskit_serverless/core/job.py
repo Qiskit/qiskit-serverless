@@ -66,6 +66,12 @@ from qiskit_serverless.utils import ServerlessRuntimeService
 
 logger = logging.getLogger(__name__)
 
+_FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
+_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 32, 60)
+_BACKOFF_JITTER = 0.1
+_RETRY_SECONDS = 300
+_MIN_POLL_INTERVAL_SECONDS = 1
+
 
 @dataclass
 class Configuration:  # pylint: disable=too-many-instance-attributes
@@ -303,7 +309,7 @@ class Job:
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        return self.status() in FINAL_STATUSES
+        return self.status() in _FINAL_STATUSES
 
     def wait_for_final_state(
         self, timeout: Optional[float] = None, poll_interval: Optional[float] = None, verbose: bool = False
@@ -312,12 +318,12 @@ class Job:
 
         By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the
         main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces
-        that schedule. Short network errors and 429, 502, 503 or 504 answers are retried.
+        that backoff. Short network errors and 429, 502, 503 or 504 answers are retried.
 
         Args:
             timeout: seconds to wait. ``None`` waits until the job ends. One status request can add up to its own
                 request timeout on top.
-            poll_interval: fixed seconds between checks instead of the adaptive schedule.
+            poll_interval: fixed seconds between checks instead of the backoff.
             verbose: print a header, one line per status change and per retried error, and the error message
                 if the job ends in ERROR.
 
@@ -325,6 +331,14 @@ class Job:
             TimeoutError: if the job does not end within ``timeout``. The job keeps running.
             QiskitServerlessException: on any other error, or when the retried errors last until ``timeout``, or
                 for 5 minutes in a row when there is no timeout.
+
+        Example:
+            >>> job.wait_for_final_state(timeout=600, verbose=True)
+            Waiting for job 3f2a1c0e-6b1d-4c0e-9a51-2f0c4d1e7a90
+            0:00:00  QUEUED
+            0:02:10  RUNNING
+            0:41:44  DONE
+            'DONE'
         """
         start = time.monotonic()
         deadline = None if timeout is None else start + timeout
@@ -340,7 +354,7 @@ class Job:
             except QiskitServerlessException as error:
                 if failing_since is None:
                     failing_since = time.monotonic()
-                give_up = failing_since + _WAIT_RETRY_SECONDS if deadline is None else deadline
+                give_up = failing_since + _RETRY_SECONDS if deadline is None else deadline
                 if not is_transient_error(error) or time.monotonic() >= give_up:
                     raise
                 logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
@@ -353,10 +367,10 @@ class Job:
             if status != last_status:
                 if verbose:
                     print(f"{_elapsed(start)}  {status}", flush=True)
-                if last_status is not None and _restarts_schedule(last_status, status):
+                if last_status is not None and _resets_backoff(last_status, status):
                     step = 0
                 last_status = status
-            if status in FINAL_STATUSES:
+            if status in _FINAL_STATUSES:
                 if verbose and status == "ERROR":
                     self._print_error_message()
                 return status
@@ -539,15 +553,9 @@ STATUS_MAP = {
 
 INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
 
-FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
-_WAIT_SCHEDULE_SECONDS = (1, 2, 4, 8, 16, 32, 60)
-_WAIT_JITTER = 0.1
-_WAIT_RETRY_SECONDS = 300
-_MIN_POLL_INTERVAL_SECONDS = 1
 
-
-def _restarts_schedule(previous: str, status: str) -> bool:
-    """A new main status, or entering post-processing, starts the schedule again. Other sub-statuses do not."""
+def _resets_backoff(previous: str, status: str) -> bool:
+    """A new main status, or entering post-processing, resets the backoff. Other sub-statuses do not."""
     if status == STATUS_MAP[Job.POST_PROCESSING]:
         return True
     return _map_status_to_serverless(previous)[0] != _map_status_to_serverless(status)[0]
@@ -558,8 +566,8 @@ def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[flo
     if poll_interval is not None:
         wait = max(float(poll_interval), _MIN_POLL_INTERVAL_SECONDS)
     else:
-        base = _WAIT_SCHEDULE_SECONDS[min(step, len(_WAIT_SCHEDULE_SECONDS) - 1)]
-        wait = base * random.uniform(1 - _WAIT_JITTER, 1 + _WAIT_JITTER)
+        base = _BACKOFF_SECONDS[min(step, len(_BACKOFF_SECONDS) - 1)]
+        wait = base * random.uniform(1 - _BACKOFF_JITTER, 1 + _BACKOFF_JITTER)
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait
