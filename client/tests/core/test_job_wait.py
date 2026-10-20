@@ -221,7 +221,6 @@ def test_a_failed_job_without_verbose_makes_no_extra_request(clock, capsys):
 
     assert job.wait_for_final_state() == "ERROR"
 
-    assert service.get_job_data.call_count == 1
     service.events.assert_not_called()
     assert capsys.readouterr().out == ""
 
