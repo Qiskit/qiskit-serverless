@@ -16,7 +16,7 @@ from opentelemetry import trace
 
 from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Program
+from core.models import BlockedCloudResource, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import get_runner, AbstractRunner, RunnerError, RunnerRetryableError
@@ -309,11 +309,14 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
         entry["author"] for entry in running_jobs_per_user if entry["running_jobs_count"] >= jobs_per_user
     ]
 
+    queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
+    blocked = BlockedCloudResource.blocked_jobs_filter() if runner == Program.FLEETS else None
+    if blocked is not None:
+        # Held in QUEUED, and never picked: a picked job would take a slot it cannot use
+        queued = queued.exclude(blocked)
+
     author_date_pull = (
-        Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
-        .exclude(author__in=users_at_max_capacity)
-        .values("author")
-        .annotate(job_date=Min("created"))[:max_limit]
+        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))[:max_limit]
     )
 
     if len(author_date_pull) == 0:

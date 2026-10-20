@@ -46,3 +46,11 @@ class SystemMetricsCollector(Collector):
             "Total network bytes received",
             value=net.bytes_recv,
         )
+
+        # Live threads of this process (librdkafka's included on Linux). The background executor's worker count is
+        # only the configured size, so this is the number to compare with the container's PID limit.
+        yield GaugeMetricFamily(
+            "scheduler_process_threads",
+            "Live threads of the scheduler process",
+            value=psutil.Process().num_threads(),
+        )

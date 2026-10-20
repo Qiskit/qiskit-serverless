@@ -9,7 +9,9 @@ import pytest
 import requests
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.token_managers.iam_token_manager import IAMTokenManager
+from prometheus_client import CollectorRegistry
 
+from core import external_call_metrics
 from core.clients.iam_token_provider import IamTokenProvider
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
@@ -29,7 +31,7 @@ def test_gives_the_token_and_bounds_the_request_to_iam(authenticator):
 
     assert provider.get_token() == "iam-token"
     authenticator.assert_called_once_with("operator-key", url=IAM_URL)
-    assert authenticator.return_value.token_manager.http_config == {"timeout": 3}
+    assert authenticator.return_value.token_manager.http_config == {"timeout": (3, 5)}
 
 
 def test_the_timeout_is_set_when_it_is_built(authenticator):
@@ -119,6 +121,44 @@ def test_invalidate_makes_the_next_call_ask_iam_for_a_new_token_but_only_for_the
         assert provider.get_token() == second
 
     assert request_token.call_count == 2
+
+
+def _recorded(registry: CollectorRegistry, status: str) -> float:
+    return (
+        registry.get_sample_value(
+            "scheduler_operation_duration_seconds_count", {"operation": "iam_token", "status": status}
+        )
+        or 0.0
+    )
+
+
+def test_only_the_requests_that_reach_iam_are_timed_and_not_the_ones_answered_from_the_cache():
+    registry = CollectorRegistry()
+    external_call_metrics.enable(registry)
+    try:
+        provider = IamTokenProvider("operator-key", IAM_URL)
+        token = _jwt()
+        with patch.object(IAMTokenManager, "request_token", return_value={"access_token": token, "expires_in": 3600}):
+            for _ in range(5):
+                provider.get_token()
+    finally:
+        external_call_metrics.disable()
+
+    assert _recorded(registry, "ok") == 1
+
+
+def test_a_request_to_iam_that_fails_is_timed_as_an_error():
+    registry = CollectorRegistry()
+    external_call_metrics.enable(registry)
+    try:
+        provider = IamTokenProvider("operator-key", IAM_URL)
+        with patch.object(IAMTokenManager, "request_token", side_effect=requests.ConnectionError("down")):
+            with pytest.raises(RetryableError):
+                provider.get_token()
+    finally:
+        external_call_metrics.disable()
+
+    assert _recorded(registry, "error") == 1
 
 
 def test_threads_sharing_a_provider_get_the_same_token_with_one_request_to_iam():
