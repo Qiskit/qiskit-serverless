@@ -629,17 +629,53 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "The longest a workload outbox row waits between two tries, however many times it has failed.",
     },
+    "scheduler.fleets.cleanup.enabled": {
+        "default": "true",
+        "type": "boolean",
+        "description": "Enable deletion of the fleets of terminal Fleets jobs, so a Code Engine project "
+        "does not reach its 1000-fleet limit.",
+    },
+    "scheduler.fleets.cleanup.retention_hours": {
+        "default": "336",
+        "type": "integer",
+        "description": "How long a fleet is kept after the job reached a terminal status, so Code Engine "
+        "support can still inspect it. Two weeks by default.",
+    },
+    "scheduler.fleets.cleanup.force_at_percent": {
+        "default": "80",
+        "type": "integer",
+        "description": "Once a Code Engine project holds this much of scheduler.fleets.quota_per_project, its "
+        "oldest terminal fleets are deleted whatever the retention window says. 100 turns this off.",
+    },
+    "scheduler.fleets.cleanup.budget_ms": {
+        "default": "500",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the fleet cleanup, in milliseconds. Each delete "
+        "is a Code Engine round trip, and the loop is single threaded.",
+    },
+    "scheduler.fleets.cleanup.max_deletes_per_cycle": {
+        "default": "20",
+        "type": "integer",
+        "description": "How many fleets one cleanup cycle deletes. The scheduler loop is about a second, so "
+        "this is also the delete rate against one Code Engine project.",
+    },
+    "scheduler.fleets.quota_per_project": {
+        "default": "1000",
+        "type": "integer",
+        "description": "How many fleets one Code Engine project can hold. Only the cleanup reads it, so it is "
+        "not the LIMITS_MAX_FLEETS concurrency cap.",
+    },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
-        "timeouts) before the scheduler stops submitting and cancelling Fleets jobs in that region.",
+        "description": "Consecutive failures of one dependency, Code Engine or COS, in one region (429, 5xx, "
+        "connection errors, timeouts) before the scheduler stops calling that dependency there. The two are "
+        "counted separately: Code Engine pauses submits, cancels and fleet deletes, COS pauses submits only.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
-        "breaker trips.",
+        "description": "How long the scheduler stops calling a dependency in a region once its breaker trips.",
     },
     "scheduler.blocked_jobs_stop.enabled": {
         "default": "true",

@@ -122,6 +122,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             labelnames=("kind",),
             registry=self.registry,
         )
+        self.held_fleets = Gauge(
+            "scheduler_held_fleets",
+            "Fleets not yet deleted, per Code Engine project name, counting every job status. "
+            "A project holds at most 1000.",
+            labelnames=("project",),
+            registry=self.registry,
+        )
         self.job_execution_duration = Histogram(
             "scheduler_job_execution_duration_seconds",
             "Time successful jobs spend executing from RUNNING to SUCCEEDED.",
@@ -300,6 +307,14 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_blocked_account_consumer_lag(self, region: str, topic: str, lag: int) -> None:
         """Set how many messages of a topic the blocked-account-plan consumer of a region is behind."""
         self.blocked_account_consumer_lag.labels(region=region, topic=topic).set(lag)
+
+    def clear_held_fleets(self) -> None:
+        """Remove all label combinations from held_fleets to avoid stale values."""
+        self.held_fleets.clear()
+
+    def set_held_fleets(self, count: int, project: str) -> None:
+        """Set the number of fleets not yet deleted in one Code Engine project."""
+        self.held_fleets.labels(project=project).set(count)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""
