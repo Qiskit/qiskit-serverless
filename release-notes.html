@@ -307,6 +307,13 @@
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>The backoffice “Stop job” button now works on a Fleets job. It cancels the
+job’s Code Engine fleet and records <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code>, and the scheduler confirms
+the stop like any other. Before, the button was only shown for Ray jobs, so a
+Fleets job could not be stopped from the backoffice at all. The job is billed
+for what it really ran, the same as a stop from the client.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler no longer submits a queued Fleets job whose account, plan and
 subscription are blocked. The job stays <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> and does not take a free
 slot from other users, and it is submitted normally once the block is lifted.</p></li>
@@ -346,6 +353,13 @@ runtime without a deploy.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">qiskit-paulice==0.2.1</span></code> has been added to the dynamic dependencies allowlist
 bundled in the custom functions image. Qiskit Functions that declare it as a
 dependency can now use it.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A stop from the backoffice no longer writes <code class="docutils literal notranslate"><span class="pre">STOPPED</span></code> on the job row by
+hand. It goes through the same transition service as every other stop, so an
+operator sees an error instead of a silent write when Code Engine cannot be
+reached. The Qiskit Runtime jobs a job started are not cancelled from the
+backoffice: that needs the caller’s own service credentials.</p></li>
 </ul>
 <ul class="simple">
 <li><p>While <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> is on, running a Fleets function with an
