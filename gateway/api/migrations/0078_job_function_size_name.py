@@ -7,7 +7,7 @@ from django.db.models.functions import Upper
 
 
 def backfill_function_size_name(apps, schema_editor):
-    """Copy each job's current size label into its snapshot (#1971).
+    """Copy each job's current size label into its snapshot, function_size_name.
 
     A row renamed before this ran copies the new label, which is the best that can be recovered. A job whose
     row was already deleted has a null FK and stays null. Upper() because this reads the raw column, which

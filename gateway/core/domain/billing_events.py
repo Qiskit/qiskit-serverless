@@ -27,7 +27,8 @@ class BillingEvents:
         """
         Build a license fee for a provider program. Rules:
         - The job.program, job.program.provider and job.function_size_name CAN'T be None (or AttributeError will be
-          raised). The size is the snapshot taken at creation, not the live job.function_size row (#1971).
+          raised). The size is the snapshot taken at creation, not the live job.function_size row, which can be
+          renamed or deleted while the job runs.
         - #1899 job_started_at can be None if the job reaches SUCCEEDED without ever passing through RUNNING
           (a direct PENDING -> SUCCEEDED transition).
         - The function size is lowercased, the billing service's metric table keys are lowercase.
