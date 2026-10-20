@@ -26,12 +26,21 @@ jobs:
         include:
           - label: ray-node/Dockerfile          # label kept to match the required check name
             dockerfile: docker-images/ray-node/Dockerfile
+            target: ""                           # default (only) stage
             python: "3.12"
+          # The CPU Fleets runtime. --target selector is required: selector-gpu is
+          # the last stage of that Dockerfile, so a bare build would resolve to the
+          # CUDA image. There is deliberately no selector-gpu leg here — it pulls
+          # ~2.5 GB of CUDA wheels for ~4.6 GB installed, which a stock
+          # ubuntu-latest runner has no room for and every PR would wait on. The
+          # release pipeline build-tests that stage instead.
           - label: fleet-node/Dockerfile         # not required in CI
             dockerfile: docker-images/fleet-node/Dockerfile
+            target: selector
             python: "3.12"
           - label: gateway/Dockerfile            # unchanged (label == path)
             dockerfile: gateway/Dockerfile
+            target: ""                           # default (only) stage
             python: "3.12"
     steps:
       - name: Checkout
@@ -43,6 +52,9 @@ jobs:
         with:
           context: .
           file: ./${{ matrix.dockerfile }}
+          # Empty means the default (last) stage, which is what the two
+          # single-stage Dockerfiles want.
+          target: ${{ matrix.target }}
           load: true
           tags: image:test
       - name: Inspect

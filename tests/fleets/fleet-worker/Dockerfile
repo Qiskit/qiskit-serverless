@@ -19,6 +19,11 @@
 # "Build fleet-node selector image" step) and tagged fleet-node:latest. It is the
 # selector stage, not base: that is the image the gateway deploys for imageless
 # Fleets jobs, so the test runs against the same runtime production does.
+#
+# selector is the CPU one of the two shipped runtimes. The GPU sibling
+# (selector-gpu) adds only the CUDA wheels, which this suite cannot exercise —
+# the test worker is an ordinary container with no GPU — so tracking the CPU
+# image costs the suite no coverage and saves it ~4.6 GB.
 ARG BASE_IMAGE=fleet-node:latest
 FROM ${BASE_IMAGE}
 
