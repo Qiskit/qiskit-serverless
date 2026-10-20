@@ -332,7 +332,7 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
         runner = MagicMock()
-        runner.running_since.return_value = None
+        runner.get_running_timestamp.return_value = None
 
         task.to_running(job, runner)
 
@@ -347,7 +347,7 @@ class TestToRunning:
         job = _make_fleets_job(status=Job.PENDING)
         started = datetime.now(timezone.utc) - timedelta(seconds=4)
         runner = MagicMock()
-        runner.running_since.return_value = started
+        runner.get_running_timestamp.return_value = started
 
         task.to_running(job, runner)
 
@@ -361,12 +361,12 @@ class TestToRunning:
         job = _make_fleets_job(status=Job.PENDING)
         calls = []
         runner = MagicMock()
-        runner.running_since.side_effect = lambda: calls.append("running_since")
+        runner.get_running_timestamp.side_effect = lambda: calls.append("get_running_timestamp")
         task.transitions.pending_to_running.side_effect = lambda *a, **k: calls.append("pending_to_running")
 
         task.to_running(job, runner)
 
-        assert calls == ["running_since", "pending_to_running"]
+        assert calls == ["get_running_timestamp", "pending_to_running"]
 
     def test_does_not_send_in_progress_when_the_job_already_turned_terminal(self):
         """A user-initiated stop can race this poll and win it first: the transition then
@@ -401,7 +401,7 @@ class TestToRunning:
 
         task.to_running(job, runner)
 
-        runner.running_since.assert_not_called()
+        runner.get_running_timestamp.assert_not_called()
 
 
 class TestStopJobIfTimeout:

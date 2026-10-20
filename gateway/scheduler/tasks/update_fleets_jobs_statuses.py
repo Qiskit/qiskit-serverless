@@ -167,7 +167,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 Job.RUNNING,
             )
             # Read before the transition opens its transaction: no network call with the job locked
-            running_at = runner.running_since()
+            running_at = runner.get_running_timestamp()
             try:
                 self.transitions.pending_to_running(
                     job,

@@ -100,16 +100,19 @@ class TestTransition:
         assert event.created == started
         assert JobEvent.objects.first_running_at(job.id) == started
 
-    def test_pending_to_running_without_the_start_time_stamps_the_event_now(self, service):
+    def test_pending_to_running_without_the_start_time_stamps_the_event_now_and_warns(self, service, caplog):
+        """Count of the times Code Engine gave no start time: the fallback must be visible in the logs."""
         author = User.objects.create_user(username="running-at-author-2")
         job = Job.objects.create(author=author, status=Job.PENDING)
         before = datetime.now(timezone.utc)
 
-        event = service.pending_to_running(
-            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
-        )
+        with caplog.at_level(logging.WARNING):
+            event = service.pending_to_running(
+                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            )
 
         assert before <= event.created <= datetime.now(timezone.utc)
+        assert "has no running time from Code Engine" in caplog.text
 
     def test_a_start_time_in_the_future_is_taken_as_now(self, service):
         """The task store has its own clock: it can be ahead of the gateway's."""

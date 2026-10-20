@@ -1315,7 +1315,7 @@ def _object(key, last_modified):
 
 
 class TestRunningSince:
-    """running_since() reads when Code Engine wrote the ``running`` key, and never raises."""
+    """get_running_timestamp() reads when Code Engine wrote the ``running`` key, and never raises."""
 
     _STARTED = datetime(2026, 8, 26, 19, 10, 14, tzinfo=timezone.utc)
 
@@ -1331,12 +1331,12 @@ class TestRunningSince:
             {"v3": [_object(_V3_PENDING, self._STARTED - timedelta(seconds=30)), _object(_V3_RUNNING, self._STARTED)]}
         )
 
-        assert runner.running_since() == self._STARTED
+        assert runner.get_running_timestamp() == self._STARTED
 
     def test_it_is_timezone_aware(self):
         runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
 
-        assert runner.running_since().utcoffset() == timedelta(0)
+        assert runner.get_running_timestamp().utcoffset() == timedelta(0)
 
     def test_it_is_the_earliest_of_several_running_keys(self):
         """A retry writes another running key: the job started running with the first one."""
@@ -1345,40 +1345,40 @@ class TestRunningSince:
             {"v3": [_object(retry, self._STARTED + timedelta(seconds=40)), _object(_V3_RUNNING, self._STARTED)]}
         )
 
-        assert runner.running_since() == self._STARTED
+        assert runner.get_running_timestamp() == self._STARTED
 
     def test_it_is_none_while_the_task_is_only_pending(self):
         runner = self._runner({"v3": [_object(_V3_PENDING, self._STARTED)]})
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
 
     def test_it_is_none_when_nothing_is_written_yet(self):
         runner = self._runner({"v3": [], "v2": []})
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
 
     def test_it_reads_the_legacy_layout_when_the_current_one_is_empty(self):
         legacy = f"{_V2}running/{_WORKER}/{_T1}/{_T0}/{_TASK}"
         runner = self._runner({"v3": [], "v2": [_object(legacy, self._STARTED)]})
 
-        assert runner.running_since() == self._STARTED
+        assert runner.get_running_timestamp() == self._STARTED
 
     def test_it_is_none_for_a_key_without_a_modification_time(self):
         runner = self._runner({"v3": [_object(_V3_RUNNING, None)]})
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
 
     def test_it_is_none_for_a_time_without_timezone(self, caplog):
         """Nothing downstream can compare it with a time that has one, and it could be any timezone."""
         runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED.replace(tzinfo=None))]})
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
         assert "without timezone" in caplog.text
 
     def test_it_lists_once_and_reads_no_object(self):
         runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
 
-        runner.running_since()
+        runner.get_running_timestamp()
 
         runner._cos.list_with_metadata.assert_called_once()  # pylint: disable=protected-access
         runner._cos.list_keys.assert_not_called()  # pylint: disable=protected-access
@@ -1386,14 +1386,14 @@ class TestRunningSince:
     def test_it_is_none_without_a_fleet(self):
         runner, _ = _make_runner(fleet_id=None)
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
         runner._cos.list_with_metadata.assert_not_called()  # pylint: disable=protected-access
 
     def test_it_is_none_when_the_task_store_bucket_is_not_configured(self):
         runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
         runner._project.cos_bucket_task_store_name = None  # pylint: disable=protected-access
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
 
     def test_a_cos_error_gives_none_instead_of_raising(self, caplog):
         runner, _ = _make_runner(fleet_id="fleet-123")
@@ -1401,20 +1401,20 @@ class TestRunningSince:
             {"Error": {"Code": "AccessDenied"}}, "ListObjectsV2"
         )
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
         assert "COS listing failed" in caplog.text
 
     def test_an_unexpected_error_gives_none_instead_of_raising(self):
         runner, _ = _make_runner(fleet_id="fleet-123")
         runner._cos.list_with_metadata.side_effect = RuntimeError("boom")  # pylint: disable=protected-access
 
-        assert runner.running_since() is None
+        assert runner.get_running_timestamp() is None
 
     def test_a_failure_does_not_probe_the_other_layout(self):
         """Like status(): an unreachable COS would only fail the same way again."""
         runner, _ = _make_runner(fleet_id="fleet-123")
         runner._cos.list_with_metadata.side_effect = RuntimeError("boom")  # pylint: disable=protected-access
 
-        runner.running_since()
+        runner.get_running_timestamp()
 
         runner._cos.list_with_metadata.assert_called_once()  # pylint: disable=protected-access

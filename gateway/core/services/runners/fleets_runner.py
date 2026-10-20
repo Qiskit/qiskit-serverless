@@ -346,7 +346,7 @@ class FleetsRunner(AbstractRunner):
         self._warn_unresolved_state(prefix, keys, found)
         return None
 
-    def running_since(self) -> datetime | None:
+    def get_running_timestamp(self) -> datetime | None:
         """When Code Engine started running the task, read from the task store, or ``None``.
 
         It is the earliest modification time of the ``running`` keys, the first one when a retry wrote
