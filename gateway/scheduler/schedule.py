@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Model
-from django.db.models import F, Q, Window
+from django.db.models import F, Q, QuerySet, Window
 from django.db.models.aggregates import Count, Min
 from django.db.models.functions import RowNumber
 
@@ -17,7 +17,7 @@ from opentelemetry import trace
 
 from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Config, Job, JobEvent, Program
+from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import get_runner, AbstractRunner, RunnerError, RunnerRetryableError
@@ -311,11 +311,14 @@ def get_jobs_to_schedule_fair_share(
 
     users_at_max_capacity = [author for author, count in running_jobs_per_user.items() if count >= jobs_per_user]
 
+    queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
+    blocked = BlockedCloudResource.blocked_jobs_filter() if runner == Program.FLEETS else None
+    if blocked is not None:
+        # Held in QUEUED, and never picked: a picked job would take a slot it cannot use
+        queued = queued.exclude(blocked)
+
     author_date_pull = (
-        Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
-        .exclude(author__in=users_at_max_capacity)
-        .values("author")
-        .annotate(job_date=Min("created"))[:max_limit]
+        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))[:max_limit]
     )
 
     if len(author_date_pull) == 0:
@@ -329,7 +332,7 @@ def get_jobs_to_schedule_fair_share(
         budgets = {
             entry["author"]: jobs_per_user - running_jobs_per_user.get(entry["author"], 0) for entry in author_date_list
         }
-        return _jobs_in_rounds(budgets, per_user, gpu, runner, slots)
+        return _jobs_in_rounds(queued, budgets, per_user, slots)
 
     job_filter = Q()
     for entry in author_date_list:
@@ -338,10 +341,10 @@ def get_jobs_to_schedule_fair_share(
     return Job.objects.filter(job_filter)
 
 
-def _jobs_in_rounds(budgets: dict, per_user: int, gpu: bool, runner: str, slots: int) -> List[Job]:
+def _jobs_in_rounds(queued: QuerySet, budgets: dict, per_user: int, slots: int) -> List[Job]:
     """Each user's oldest queued jobs within their budget, the first job of every user before any second one."""
     ranked = (
-        Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner, author__in=budgets)
+        queued.filter(author__in=budgets)
         .with_program()
         .select_related("program__code_engine_project")
         .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
