@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from prometheus_client import CollectorRegistry
 
+from core import external_call_metrics
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.clients.functions_operator_client import FunctionsOperatorClient
@@ -62,6 +64,26 @@ def test_a_token_error_is_raised_as_it_is_and_nothing_is_sent(client, token_prov
         client.put_function(FUNCTION_ID, BODY)
 
     put.assert_not_called()
+
+
+def test_the_status_code_of_the_answer_is_what_gets_recorded_and_a_refused_put_is_not_ok(client, put):
+    registry = CollectorRegistry()
+    external_call_metrics.enable(registry)
+    try:
+        client.put_function(FUNCTION_ID, BODY)
+        put.return_value = MagicMock(status_code=500, text="boom")
+        with pytest.raises(RetryableError):
+            client.put_function(FUNCTION_ID, BODY)
+    finally:
+        external_call_metrics.disable()
+
+    def recorded(status):
+        labels = {"operation": "runtime_api_put", "status": status}
+        return registry.get_sample_value("scheduler_operation_duration_seconds_count", labels)
+
+    assert recorded("200") == 1
+    assert recorded("500") == 1
+    assert recorded("ok") is None
 
 
 def test_202_is_a_success(client, put):
