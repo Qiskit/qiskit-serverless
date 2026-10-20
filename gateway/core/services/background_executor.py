@@ -11,8 +11,8 @@ pool, as in ``ThreadPoolExecutor(max_workers=...)``; here they are always thread
 ``BackgroundPool`` name, and every pool gets the same share: it may have at most
 ``settings.BACKGROUND_EXECUTOR_MAX_PENDING`` divided by the number of pools tasks submitted and unfinished (queued or
 running). The next one is dropped and ``submit`` returns None, unless it replaces a waiting task (see ``replace_key``
-below). Dropping is by design: this is not a queue. Nothing
-needs configuring when a pool is added: the share is recomputed from the enum.
+below). Dropping is by design: this is not a queue. Nothing needs configuring when a pool is added: the share is
+recomputed from the enum.
 
 The threads are shared, not split. A thread that becomes free serves the pool with the fewest tasks running, among the
 pools with tasks waiting (the one served least recently breaks a tie). So a slow service that holds every thread
@@ -134,6 +134,10 @@ _DURATION = Histogram(
 )
 
 
+def _nothing() -> None:
+    """What a released task holds in place of its function."""
+
+
 class _Task:
     """A task accepted by ``submit``. ``replaced`` is set, under the lock of the cycle, when a newer task took its place
     in the queue: its done callback then has nothing to do."""
@@ -142,16 +146,21 @@ class _Task:
 
     def __init__(self, fn: Callable, args: tuple, kwargs: dict, replace_key: str | None) -> None:
         self.future: Future = Future()
-        self.fn: Callable | None = fn
-        self.args: tuple | None = args
-        self.kwargs: dict | None = kwargs
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
         self.replace_key = replace_key
         self.replaced = False
 
+    def release(self) -> None:
+        """Let go of what it was going to run, which can be large: the done callback keeps the task alive for as long
+        as the caller keeps the future."""
+        self.fn, self.args, self.kwargs = _nothing, (), {}
+
     def replace(self) -> None:
-        """Mark it as replaced and let go of what it was going to run, which can be large."""
+        """Mark it as replaced, so its done callback has nothing to do, and release it."""
         self.replaced = True
-        self.fn = self.args = self.kwargs = None
+        self.release()
 
 
 class _Cycle:  # pylint: disable=too-many-instance-attributes
@@ -186,6 +195,7 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
                 return
             _TASKS.labels(pool.value, "canceled").inc()
             _PENDING.labels(pool.value).dec()
+        task.release()
         task.future.set_running_or_notify_cancel()  # wakes whoever waits for it
 
     def waiting_index(self, pool: BackgroundPool, replace_key: str) -> int | None:
@@ -243,6 +253,8 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
                 self._execute(pool, task.future, task.fn, task.args, task.kwargs)
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.exception("background thread failed while finishing a task")  # keep the thread alive
+            finally:
+                task.release()
 
     def _execute(self, pool: BackgroundPool, future: Future, fn: Callable, args: tuple, kwargs: dict) -> None:
         if future.cancelled():  # cancelled just after a thread took it: free the slot, then wake the waiters

@@ -6,8 +6,4 @@ features:
     new one, which takes its place in the queue and needs no new slot. There is
     a new outcome ``replaced`` in ``background_executor_tasks_total``, and
     ``BackgroundExecutor.would_accept`` tells whether a ``submit`` would be
-    accepted.
-upgrade:
-  - |
-    The ``outcome`` label ``skipped`` of ``background_executor_tasks_total`` is
-    now ``canceled``. Update any dashboard or alert that queries the old value.
+    accepted. The outcome ``skipped`` of that metric is now called ``canceled``.
