@@ -1,0 +1,9 @@
+---
+other:
+  - |
+    The scheduler now exposes ``scheduler_loop_duration_max_seconds`` and
+    ``scheduler_task_duration_max_seconds`` (per task), the exact longest
+    duration among the samples of the last 120 seconds, so one very slow loop
+    can be read in Grafana without averaging. The buckets of
+    ``scheduler_loop_duration_seconds`` and ``scheduler_task_duration_seconds``
+    now go up to 14400 seconds.
