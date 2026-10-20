@@ -633,6 +633,7 @@ class JobAdmin(admin.ModelAdmin):
         "status_badge",
         "runner_column",
         "compute_profile_column",
+        "function_size_column",
         "created_column",
         "updated_column",
     ]
@@ -896,19 +897,19 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Compute Profile")
     def compute_profile_column(self, obj):
-        """Fleets compute profile, clicking it searches the changelist for it; function size below. Empty for Ray."""
+        """Fleets compute profile, clicking it searches the changelist for it. Empty for Ray."""
         if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
             return ""
-        lines = [
-            format_html(
-                '<a href="{}" class="qs-cell-link">{}</a>',
-                self._search_link(obj.compute_profile_fk_id),
-                obj.compute_profile_fk,
-            )
-        ]
-        if obj.function_size_name:
-            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size_name))
-        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+        return format_html(
+            '<a href="{}" class="qs-cell-link">{}</a>',
+            self._search_link(obj.compute_profile_fk_id),
+            obj.compute_profile_fk,
+        )
+
+    @admin.display(description="Running Size")
+    def function_size_column(self, obj):
+        """The size the job ran with (the snapshot, not the live size row). Empty when no size applies."""
+        return obj.function_size_name or ""
 
     @admin.display(description="Program")
     def get_program(self, obj):
