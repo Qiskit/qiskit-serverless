@@ -238,8 +238,6 @@ class JobTransitionService:
 
     def _enqueue_license_fee(self, job: Job, job_started_at: datetime | None) -> None:
         """The license fee message. The caller has checked the job owes it."""
-        # This branch goes away once function_size stops being nullable (tracked by @ElePT).
-
         # Reads the snapshot, so a size row renamed or deleted after creation no longer changes the fee.
         # Only jobs created with no size reach this branch now. It goes away once function_size_name stops
         # being nullable (tracked by @ElePT).
