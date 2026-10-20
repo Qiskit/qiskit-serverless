@@ -215,6 +215,17 @@ def test_verbose_prints_the_error_message_when_the_job_fails(clock, capsys):
     assert "| Message: bad input" in capsys.readouterr().out
 
 
+def test_a_failed_job_without_verbose_makes_no_extra_request(clock, capsys):
+    """The error message is fetched only in verbose mode, so the default stays one request per check."""
+    job, service = _job(("FAILED", None))
+
+    assert job.wait_for_final_state() == "ERROR"
+
+    assert service.get_job_data.call_count == 1
+    service.events.assert_not_called()
+    assert capsys.readouterr().out == ""
+
+
 def test_a_failure_getting_the_error_message_still_returns_error(clock, capsys):
     """If the error message cannot be fetched, verbose says so and the wait still returns ERROR."""
     job, _ = _job(("FAILED", None), QiskitServerlessException("down", code=ErrorCodes.CONN1001))
