@@ -255,7 +255,8 @@ class TestRunFunctionUseCase:
         assert job.function_size_name is None
 
     def test_size_snapshot_survives_a_later_rename_and_delete_of_the_size_row(self, user, ce_project, monkeypatch):
-        """#1971: the snapshot is captured once at creation; later catalog edits never reach the job."""
+        """End to end through RunFunctionUseCase: the snapshot is written once at creation and is not tied to the size
+        row. Renaming the row (M -> L) and then deleting it (FK goes null) both leave function_size_name as "M"."""
         function = make_fleets_function(user, ce_project)
         profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         size = FunctionSize.objects.create(function=function, function_size="M", compute_profile=profile)

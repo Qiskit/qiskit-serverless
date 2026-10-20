@@ -1,4 +1,4 @@
-"""Tests for the 0078 backfill of Job.function_size_name from the job's current size row (#1971)."""
+"""Tests for the 0078 backfill of Job.function_size_name from the job's current size row."""
 
 import importlib
 
@@ -15,6 +15,8 @@ backfill_function_size_name = importlib.import_module(
 
 @pytest.mark.django_db
 def test_backfill_copies_the_current_size_label_and_leaves_jobs_without_a_row_null():
+    """Migration 0078 backfill, happy path: a job with a size row gets that row's label copied into
+    function_size_name, and a job with no size row (Ray, or a row already deleted) is left null."""
     author = User.objects.create_user(username="alice")
     program = Program.objects.create(title="my-fn", author=author, runner=Program.FLEETS)
     profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
@@ -30,7 +32,9 @@ def test_backfill_copies_the_current_size_label_and_leaves_jobs_without_a_row_nu
 
 @pytest.mark.django_db
 def test_backfill_uppercases_a_legacy_lowercase_size_row():
-    """The backfill reads the raw column, which skips FunctionSize.from_db(), so it uppercases itself."""
+    """Migration 0078 backfill, legacy data: a size row still stored lowercase ("m") is copied as "M". The backfill
+    reads the raw column, which skips FunctionSize.from_db(), so without Upper() the job would be billed under a
+    different key than a job created after the upgrade."""
     author = User.objects.create_user(username="alice")
     program = Program.objects.create(title="my-fn", author=author, runner=Program.FLEETS)
     profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")

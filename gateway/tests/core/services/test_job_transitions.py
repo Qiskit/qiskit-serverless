@@ -253,8 +253,9 @@ class TestBillingOutbox:
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
     def test_missing_size_snapshot_despite_a_provider_waives_the_fee_and_logs(self, service, user, caplog):
-        """A job created with no size snapshot is an anomaly, not the normal no-provider case, so it
-        gets a log line even though the fee is waived the same way."""
+        """The guard in _enqueue_license_fee: a provider job with no snapshot (legacy rows from before the backfill)
+        gets no license fee message, and an ERROR log line. It is an anomaly, not the normal no-provider case, so it
+        must be visible."""
         job = _licensed_fleets_job(user, Job.PENDING)
         Job.objects.filter(pk=job.pk).update(function_size_name=None)
         job.refresh_from_db()
@@ -266,8 +267,8 @@ class TestBillingOutbox:
         assert "waiving the fee" in caplog.text
 
     def test_size_row_deleted_while_active_still_owes_the_fee_at_the_original_size(self, service, user):
-        """#1971: a re-upload deletes the job's size row (FK SET_NULL) while it runs. The snapshot keeps
-        the fee, where the FK alone used to waive it."""
+        """A re-upload deletes the job's size row (FK SET_NULL) while the job is running. At the terminal transition a
+        license fee is still enqueued, priced at the size the job ran with, instead of being waived."""
         job = _licensed_fleets_job(user, Job.PENDING)
         job.function_size.delete()
         job.refresh_from_db()
@@ -279,7 +280,8 @@ class TestBillingOutbox:
         assert fee.payload["data"]["metric_type"].endswith("_my-fn_m")
 
     def test_size_row_renamed_while_active_bills_the_size_the_job_ran_with(self, service, user):
-        """#1971: the backoffice renames the job's size row M -> L while it runs; the fee stays at M."""
+        """The backoffice renames the job's size row M -> L while the job is running. The enqueued license fee is
+        still for M, the size the job ran with, not charged at L's rate."""
         job = _licensed_fleets_job(user, Job.PENDING)
         FunctionSize.objects.filter(pk=job.function_size_id).update(function_size="L")
         job.refresh_from_db()

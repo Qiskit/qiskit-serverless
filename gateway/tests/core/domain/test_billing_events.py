@@ -199,7 +199,8 @@ class TestBuildLicenseFee:
         assert message["data"]["metric_type"] == "license_ibm-dev_my-fn_m"
 
     def test_metric_type_reads_the_snapshot_not_the_renamed_size_row(self):
-        """#1971: the row was renamed M -> L after the job was created; the job is still billed as M."""
+        """Renaming size: the job's size row now says L, but the job ran as M. The license fee key must be built from
+        the snapshot (_m), not from the live row (_l), or the job is charged at the wrong size's rate."""
         provider = Provider(name="ibm-dev")
         program = Program(title="my-fn", provider=provider)
         renamed = FunctionSize(function_size="L", compute_profile=ComputeProfile(compute_profile_id="16x128"))
@@ -210,7 +211,8 @@ class TestBuildLicenseFee:
         assert message["data"]["metric_type"] == "license_ibm-dev_my-fn_m"
 
     def test_built_from_the_snapshot_after_the_size_row_was_deleted(self):
-        """#1971: a re-upload deleted the row (FK SET_NULL); the snapshot still prices the job."""
+        """deleting size: the size row is gone (FK None). build_license_fee must not touch the FK at all; it builds the
+        key from the snapshot alone. Before, this raised AttributeError on job.function_size.function_size."""
         provider = Provider(name="ibm-dev")
         program = Program(title="my-fn", provider=provider)
         job = _job(program=program, function_size=None, function_size_name="M")
