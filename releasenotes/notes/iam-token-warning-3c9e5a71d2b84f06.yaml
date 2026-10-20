@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    A failed request for an IAM token that the caller retries is now logged as
+    a warning instead of an error. The wait for IAM is 3 seconds to connect
+    and 5 seconds to read, as it was for Code Engine and COS before they shared
+    the IAM token provider, instead of 3 seconds for both. A rejected API key
+    is still logged as an error.

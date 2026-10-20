@@ -20,6 +20,7 @@ from api.domain.exceptions.invalid_access_exception import InvalidAccessExceptio
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.domain.exceptions.not_found_exception import NotFoundError
 from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from core.domain.exceptions.retryable_error import RetryableError
 
 logger = logging.getLogger("api.api.v1.exception_handler")
 
@@ -47,7 +48,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
     - InvalidAccessException -> 403 FORBIDDEN
-    - EngineUnavailableException -> 503 SERVICE UNAVAILABLE
+    - EngineUnavailableException, RetryableError -> 503 SERVICE UNAVAILABLE
     - ValidationError, InvalidArgumentsException, FunctionConfigurationException -> 400 BAD REQUEST
     - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
     - All other exceptions -> 500 INTERNAL SERVER ERROR
@@ -75,6 +76,12 @@ def endpoint_handle_exceptions(view_func: Callable):
         except EngineUnavailableException as error:
             return Response(
                 {"message": error.message},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except RetryableError as error:
+            logger.warning("IBM Cloud unavailable in view: %s", error)
+            return Response(
+                {"message": "Service temporarily unavailable, please retry."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except InvalidAccessException as error:

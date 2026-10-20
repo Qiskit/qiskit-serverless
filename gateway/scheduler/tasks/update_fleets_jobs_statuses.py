@@ -8,6 +8,7 @@ from django.conf import settings
 
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -52,7 +53,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         runner: FleetsRunner = cast(FleetsRunner, get_runner(job))
 
         try:
-            new_status = runner.status()
+            # The whole read of one job, which can be two COS listings (current and legacy layout)
+            with observe_operation(FLEET_STATUS_READ):
+                new_status = runner.status()
         except (RunnerError, ValueError) as ex:
             # status() raises on configuration and data problems, never on a job that failed: a
             # deleted program, an inactive project, an unconfigured bucket, a bad COS secret.
@@ -246,6 +249,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
 
         counter = 0
+        checked = 0
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
@@ -256,6 +260,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping status update cycle")
                 return
+            checked += 1
             try:
                 if self.update_job_status(job):
                     counter += 1
@@ -264,5 +269,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
                 )
 
+        # Every job whose status was read, not only the ones that changed: a job still RUNNING counts, and so does
+        # one whose status could not be read, which is the slow one when COS is degraded.
+        self.metrics.increment_task_items(self.name, checked)
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)

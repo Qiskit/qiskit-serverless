@@ -41,6 +41,19 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             registry=self.registry,
             buckets=TICK_BUCKETS,
         )
+        self.task_items_total = Counter(
+            "scheduler_task_items_total",
+            "Items a scheduler task handled (jobs submitted, jobs whose status was checked). Divide the rate of "
+            "scheduler_task_duration_seconds_sum by the rate of this to get the cost per item.",
+            labelnames=("task_name",),
+            registry=self.registry,
+        )
+        self.fleets_jobs_skipped_by_breaker_total = Counter(
+            "scheduler_fleets_jobs_skipped_by_breaker_total",
+            "Queued Fleets jobs left QUEUED in a tick because their region's circuit breaker was open.",
+            labelnames=("region",),
+            registry=self.registry,
+        )
         self.start_time = Gauge(
             "scheduler_start_timestamp_seconds",
             "Unix timestamp when the scheduler process started.",
@@ -225,6 +238,15 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def observe_queue_wait_time(self, wait_seconds: float, compute_type: str) -> None:
         """Record queue wait time for a scheduled job."""
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
+
+    def increment_task_items(self, task_name: str, count: int = 1) -> None:
+        """Count the items a task handled in a tick. A zero count is not recorded."""
+        if count > 0:
+            self.task_items_total.labels(task_name=task_name).inc(count)
+
+    def increment_fleets_jobs_skipped_by_breaker(self, region: str | None, count: int = 1) -> None:
+        """Count queued Fleets jobs not submitted because their region's breaker was open."""
+        self.fleets_jobs_skipped_by_breaker_total.labels(region=region or "none").inc(count)
 
     def increment_outbox_send(self, channel: str, outcome: str) -> None:
         """Count one outbox send attempt. outcome: "success", "failure" (a later try may work) or "unrecoverable"."""
