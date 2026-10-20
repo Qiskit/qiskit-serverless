@@ -38,6 +38,7 @@ from core.services.runners.abstract_runner import (
     RunnerRetryableError,
 )
 from core.domain.exceptions.retryable_error import RetryableError
+from core.external_call_metrics import FLEET_SUBMIT_UPLOAD, observe_operation
 from core.ibm_cloud import get_ce_auth, get_cos_client
 from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
@@ -157,7 +158,8 @@ class FleetsRunner(AbstractRunner):
             if not self._is_cos_configured():
                 raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
             paths = build_job_paths(self.job)
-            self._upload_program_to_cos(paths)
+            with observe_operation(FLEET_SUBMIT_UPLOAD):
+                self._upload_program_to_cos(paths)
             logger.info(
                 "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
                 self.job.id,
@@ -188,6 +190,8 @@ class FleetsRunner(AbstractRunner):
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except (BotoConnectionError, BotoHTTPClientError, ReadTimeoutError, ProtocolError) as ex:
             raise RunnerRetryableError("Unable to reach COS or Code Engine", ex) from ex
+        except RetryableError as ex:
+            raise RunnerRetryableError(str(ex), ex) from ex
         except Exception as ex:
             logger.error("Failed to upload job_id=[%s] to COS: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex

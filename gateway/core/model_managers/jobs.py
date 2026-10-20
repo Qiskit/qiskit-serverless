@@ -43,6 +43,10 @@ class JobFilters:
 class JobQuerySet(QuerySet):
     """Job events query set to transform into a manager."""
 
+    def with_program(self) -> Self:
+        """Fetch the job's program and its provider in the same query."""
+        return self.select_related("program__provider")
+
     def user_jobs_page(
         self,
         user: AbstractUser,

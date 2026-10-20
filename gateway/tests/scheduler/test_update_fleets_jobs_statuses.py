@@ -1,7 +1,7 @@
 """Unit tests for UpdateFleetsJobsStatuses."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -444,14 +444,21 @@ class TestStopJobIfTimeout:
         task.transitions.try_stop.assert_called_once()
         assert job.status == Job.STOPPING
 
-    def test_nothing_left_to_cancel_still_reaches_stopped(self):
-        """stop() answers False when nothing will ever confirm a stop, so the row must end here."""
+    def test_a_fleet_already_gone_is_still_counted(self):
+        """stop() writes STOPPED itself when Code Engine has no fleet left, so to_terminal here would
+        be STOPPED to STOPPED, which is rejected and counts nothing."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
+        def _wrote_stopped(job, **kwargs):  # pylint: disable=unused-argument
+            job.update_fields({"status": Job.STOPPED})
+            return False
+
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        task.transitions.try_stop.side_effect = lambda job, **kw: False
+        task.transitions.try_stop.side_effect = _wrote_stopped
+        # what the real service answers for STOPPED -> STOPPED
+        task.transitions.to_terminal.side_effect = InvalidJobTransitionException("STOPPED -> STOPPED")
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
@@ -462,6 +469,7 @@ class TestStopJobIfTimeout:
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
+        task.metrics.increment_jobs_terminal.assert_called_once_with(provider=ANY, final_status=Job.STOPPED)
 
     @pytest.mark.parametrize(
         "error",
@@ -610,6 +618,23 @@ class TestRun:
             task.run()
 
         mock_logger.info.assert_called_with("Updated %s Fleets jobs.", 2)
+
+    def test_counts_every_job_checked_and_not_only_the_ones_that_changed(self):
+        task = _make_task()
+        changed = _make_fleets_job()
+        unreadable = _make_fleets_job()
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", side_effect=[True, False]),
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [changed, unreadable]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            task.run()
+
+        task.metrics.increment_task_items.assert_called_once_with(task.name, 2)
 
 
 class TestEventStreamsIntegration:

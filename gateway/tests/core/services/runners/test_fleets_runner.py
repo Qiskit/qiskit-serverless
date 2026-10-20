@@ -631,6 +631,7 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
             RunnerError,
         ),
         (ReadTimeoutError(endpoint_url="https://cos"), RunnerRetryableError),
+        (RetryableError("Code Engine API error: Too Many Requests"), RunnerRetryableError),
     ],
 )
 def test_submit_raises_the_error_type_for_each_cos_failure(error, expected):
