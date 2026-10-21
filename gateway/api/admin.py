@@ -908,8 +908,8 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Running Size")
     def function_size_column(self, obj):
-        """The size the job ran with (the snapshot, not the live size row). Empty when no size applies."""
-        return obj.function_size_name or ""
+        """The size the job ran with (the snapshot, else the live size row). Empty when no size applies."""
+        return obj.size_label or ""
 
     @admin.display(description="Program")
     def get_program(self, obj):

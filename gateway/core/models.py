@@ -729,7 +729,9 @@ class Job(models.Model):
         help_text=(
             "Size label the job ran with, captured at creation time and never changed, so it survives a "
             "rename or delete of the function_size row. Null when run by a non-Fleets runner or sized by the "
-            "deployment default profile."
+            "deployment default profile. A job created by a pod that predates this field (during a rollout) "
+            "has it null while function_size is set: readers use Job.size_label, which falls back to the "
+            "function_size row."
         ),
     )
 
@@ -791,6 +793,18 @@ class Job(models.Model):
         Returns ``None`` for Ray jobs and any row with no FK set.
         """
         return self.compute_profile_fk_id
+
+    @property
+    def size_label(self) -> str | None:
+        """The size the job ran with, uppercase, or None when no size applies.
+
+        Reads the snapshot (``function_size_name``). A job created by a pod that predates the snapshot has none, so
+        it falls back to the live ``function_size`` row's label.
+        """
+        label = self.function_size_name
+        if not label and self.function_size is not None:
+            label = self.function_size.function_size
+        return label.upper() if label else None
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
