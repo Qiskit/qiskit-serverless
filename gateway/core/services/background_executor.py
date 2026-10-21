@@ -117,6 +117,22 @@ class BackgroundPool(Enum):
     RUNTIME_API = "runtime_api"  # calls to the Runtime API
 
 
+class TaskOutcome(Enum):
+    """How a task ended: the ``outcome`` label of ``background_executor_tasks_total``."""
+
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELED = "canceled"  # while queued, by ``shutdown`` or by the caller
+    REPLACED = "replaced"  # while queued, by a task with the same ``replace_key``
+
+
+class DropReason(Enum):
+    """Why ``submit`` did not accept a task: the ``reason`` label of ``background_executor_dropped_total``."""
+
+    FULL = "full"
+    SHUT_DOWN = "shut_down"
+
+
 _WORKERS = Gauge("background_executor_workers", "Configured number of threads of this process.")
 _MAX_PENDING = Gauge(
     "background_executor_max_pending", "Limit of accepted and unfinished tasks of the pool.", labelnames=("pool",)
@@ -193,7 +209,7 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
                 self.queues[pool].remove(task)
             except ValueError:
                 return
-            _TASKS.labels(pool.value, "canceled").inc()
+            _TASKS.labels(pool.value, TaskOutcome.CANCELED.value).inc()
             _PENDING.labels(pool.value).dec()
         task.release()
         task.future.set_running_or_notify_cancel()  # wakes whoever waits for it
@@ -206,21 +222,22 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
                 return index
         return None
 
-    def enqueue(self, pool: BackgroundPool, task: _Task) -> tuple[str | None, _Task | None]:
+    def enqueue(self, pool: BackgroundPool, task: _Task) -> tuple[DropReason | None, _Task | None]:
         """Accept ``task`` or say why not. Returns ``(drop reason, None)`` when it is dropped, otherwise
         ``(None, the task it replaced or None)``. Call it with ``cond`` held."""
         if self.stopping:
-            return "shut_down", None
+            return DropReason.SHUT_DOWN, None
         index = None if task.replace_key is None else self.waiting_index(pool, task.replace_key)
         if index is not None:  # same position and same slot, so _PENDING does not change
             old = self.queues[pool][index]
             self.queues[pool][index] = task
             old.replace()
             # one the caller had already cancelled (its callback is still waiting for the lock) counts as canceled
-            _TASKS.labels(pool.value, "canceled" if old.future.cancelled() else "replaced").inc()
+            outcome = TaskOutcome.CANCELED if old.future.cancelled() else TaskOutcome.REPLACED
+            _TASKS.labels(pool.value, outcome.value).inc()
             return None, old
         if self.pending(pool) >= self.pool_limit:
-            return "full", None
+            return DropReason.FULL, None
         self.queues[pool].append(task)
         _PENDING.labels(pool.value).inc()
         self.cond.notify()
@@ -259,20 +276,20 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
     def _execute(self, pool: BackgroundPool, future: Future, fn: Callable, args: tuple, kwargs: dict) -> None:
         if future.cancelled():  # cancelled just after a thread took it: free the slot, then wake the waiters
             try:
-                self._finish(pool, "canceled")
+                self._finish(pool, TaskOutcome.CANCELED)
             finally:
                 future.set_running_or_notify_cancel()
             return
         if not future.set_running_or_notify_cancel():  # cancelled in the instant between the two calls
-            self._finish(pool, "canceled")
+            self._finish(pool, TaskOutcome.CANCELED)
             return
-        result, error, outcome = None, None, "completed"
+        result, error, outcome = None, None, TaskOutcome.COMPLETED
         _RUNNING.labels(pool.value).inc()
         started = time.monotonic()
         try:
             result = fn(*args, **kwargs)
         except BaseException as exc:  # pylint: disable=broad-exception-caught
-            error, outcome = exc, "failed"
+            error, outcome = exc, TaskOutcome.FAILED
             logger.warning("background task %s failed: %r", getattr(fn, "__qualname__", fn), exc, exc_info=True)
         finally:
             _RUNNING.labels(pool.value).dec()
@@ -286,9 +303,9 @@ class _Cycle:  # pylint: disable=too-many-instance-attributes
             else:
                 future.set_result(result)
 
-    def _finish(self, pool: BackgroundPool, outcome: str) -> None:
+    def _finish(self, pool: BackgroundPool, outcome: TaskOutcome) -> None:
         try:
-            _TASKS.labels(pool.value, outcome).inc()
+            _TASKS.labels(pool.value, outcome.value).inc()
             _PENDING.labels(pool.value).dec()
             connections.close_all()
         finally:
@@ -360,10 +377,8 @@ class BackgroundExecutor:
             if reason is None:  # under the lock, so a shutdown cannot cancel it before the callback is in place
                 task.future.add_done_callback(lambda _future: cycle.forget_if_cancelled(pool, task))
         if reason is not None:
-            _DROPPED.labels(pool.value, reason).inc()
-            logger.warning(
-                "background pool %s is %s, task dropped", pool.value, "shut down" if reason == "shut_down" else "full"
-            )
+            _DROPPED.labels(pool.value, reason.value).inc()
+            logger.warning("background pool %s is %s, task dropped", pool.value, reason.value.replace("_", " "))
             return None
         if replaced is not None:  # its done callback skips it, so release whoever waits for it here
             replaced.future.cancel()
