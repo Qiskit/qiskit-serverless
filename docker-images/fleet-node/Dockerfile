@@ -141,8 +141,11 @@ USER 1000:1000
 # explicit: 'auto' resolves to CPU here anyway since there is no nvc++, but
 # pinning it keeps the build deterministic if NVHPC ever lands in this image.
 # No libomp: its -lomp branch is macOS-only, Linux builds -fopenmp against
-# libgomp. setup.py embeds -Wl,--rpath for each library dir, so the extension
-# locates libmpi and libopenblas itself at runtime.
+# libgomp. setup.py embeds -Wl,--rpath for each library dir, which is how the
+# extension locates libmpi at runtime -- but an rpath only fixes where the loader
+# looks, not whether the library is there: the shipped stage still has to install
+# a package that actually provides libopenblas.so.0. It did not, until the
+# openblas-serial note in the selector stage below.
 #
 # --- Vayesta ---
 # It is not on PyPI, so it is installed from the release tarball, and its metadata
@@ -206,7 +209,30 @@ RUN echo "https://github.com/BoothGroup/Vayesta/archive/refs/tags/v1.0.1.tar.gz 
 # below instead.
 FROM deps AS selector
 USER 0
-RUN microdnf install -y openblas libgomp git-core && \
+# openblas-serial, NOT openblas: the base openblas package in the UBI9 appstream
+# ships documentation and licences only -- nine files, zero shared objects -- so
+# installing it left `import sbd._core_cpu` failing on "libopenblas.so.0: cannot
+# open shared object file". The soname lives in the threading-variant
+# subpackages, and only the serial one spells it libopenblas.so.0: openblas-openmp
+# provides libopenblaso.so.0 and openblas-threads libopenblasp.so.0 (note the
+# extra letter), neither of which satisfies the -lopenblas link that builder
+# records in the extension's DT_NEEDED. openblas-threads is not in appstream at
+# all. Verified against
+# cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream -- the same
+# metadata microdnf resolves here.
+#
+# Serial is also the right variant on its own merits, not merely the one that
+# links: sbd-eigensolver gets its parallelism from -fopenmp/libgomp (see the
+# builder notes above), and an OpenMP-threaded BLAS under an OpenMP-threaded
+# caller nests thread teams and oversubscribes a CPU-limited Code Engine
+# container. It is also the smallest of the three.
+#
+# The base package still arrives: openblas-serial Requires openblas(x86-64).
+#
+# This went unnoticed because builder installs openblas-devel, which Requires
+# every variant and so pulled openblas-serial in transitively -- the extension
+# linked and imported there, and only the shipped stage lacked the soname.
+RUN microdnf install -y openblas-serial libgomp git-core && \
     microdnf clean all
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ \
                     /usr/local/lib/python3.12/site-packages/
