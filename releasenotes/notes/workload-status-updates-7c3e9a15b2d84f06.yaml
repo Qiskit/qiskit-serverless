@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    The scheduler can now send the Pending, Running and Stopping statuses of a
+    mirrored job to the Runtime API, best effort. It is off until the
+    ``workloads.mirror.status_updates.enabled`` setting is set to ``true``.
