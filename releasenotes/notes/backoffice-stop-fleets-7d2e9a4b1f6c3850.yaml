@@ -1,0 +1,15 @@
+---
+features:
+  - |
+    The backoffice "Stop job" button now works on a Fleets job. It cancels the
+    job's Code Engine fleet and records ``STOPPING``, and the scheduler confirms
+    the stop like any other. Before, the button was only shown for Ray jobs, so a
+    Fleets job could not be stopped from the backoffice at all. The job is billed
+    for what it really ran, the same as a stop from the client.
+upgrade:
+  - |
+    A stop from the backoffice no longer writes ``STOPPED`` on the job row by
+    hand. It goes through the same transition service as every other stop, so an
+    operator sees an error instead of a silent write when Code Engine cannot be
+    reached. The Qiskit Runtime jobs a job started are not cancelled from the
+    backoffice: that needs the caller's own service credentials.

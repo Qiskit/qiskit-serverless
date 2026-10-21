@@ -45,7 +45,10 @@ from core.models import (
     Job,
     RuntimeJob,
 )
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.services.job_transitions import JobTransitionService
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage.job_file_explorer import JobFileExplorer
 
 logger = logging.getLogger("gateway.admin")
@@ -746,24 +749,41 @@ class JobAdmin(admin.ModelAdmin):
         return custom_urls + super().get_urls()
 
     def stop_job_view(self, request, job_id):
-        """Stop job button target: sets a non-terminal Ray job's status to STOPPED, nothing else.
-        Hit via JS fetch, not a form submit, so it never runs the Job change form (which
-        requires fields some jobs don't have, and would save unrelated edits on the page)."""
+        """Stop job button target. Hit via JS fetch, not a form submit, so it never runs the Job
+        change form (which requires fields some jobs don't have, and would save unrelated edits on
+        the page). The Qiskit Runtime jobs this job started are not cancelled: that needs the
+        caller's own service credentials, which the admin does not have."""
         job = get_object_or_404(Job, pk=job_id)
         if not self.has_change_permission(request, job):
             raise PermissionDenied
-        if request.method == "POST" and self._can_stop(job):
-            job.status = Job.STOPPED
-            job.save(update_fields=["status", "updated", "version"])
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.BACKOFFICE,
-                context=JobEventContext.STOP_JOB,
-                status=job.status,
-            )
-            messages.success(request, "Job stopped.")
-        else:
+        if request.method != "POST" or not self._can_stop(job):
             messages.error(request, "This job can't be stopped from here.")
+            return redirect(reverse("admin:api_job_change", args=[job.pk]))
+
+        transitions = JobTransitionService()
+        try:
+            # The fork is what each engine owes: Ray has no cancel to confirm, Fleets does. A
+            # stop strategy per runner is tracked separately.
+            if job.runner == Program.RAY:
+                transitions.to_stopped(job, origin=JobEventOrigin.BACKOFFICE, context=JobEventContext.STOP_JOB)
+                messages.success(request, "Job stopped.")
+            else:
+                written = transitions.stop(job, origin=JobEventOrigin.BACKOFFICE, context=JobEventContext.STOP_JOB)
+                if written == Job.STOPPING:
+                    messages.success(
+                        request,
+                        "Stop requested. The scheduler confirms it within minutes, and a job that finished "
+                        "first ends as it really did.",
+                    )
+                else:
+                    # stop() returns STOPPING or STOPPED, nothing else
+                    messages.success(request, "Job stopped, there was no fleet left to cancel.")
+        except RunnerRetryableError:
+            messages.error(request, "Code Engine did not answer. Try again.")
+        except RunnerError:
+            messages.error(request, "Cannot cancel: the job's Code Engine project is unusable.")
+        except InvalidJobTransitionException:
+            messages.warning(request, "The job already left that status, nothing was changed.")
         return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
     def job_timeline_view(self, request):
@@ -935,11 +955,12 @@ class JobAdmin(admin.ModelAdmin):
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     def _can_stop(self, job):
-        return job.runner == Program.RAY and job.status not in Job.TERMINAL_STATUSES
+        """STOPPING is excluded with the terminal statuses: its cancel is already in flight."""
+        return job.status not in Job.TERMINAL_STATUSES and job.status != Job.STOPPING
 
     @admin.display(description="Actions")
     def job_actions(self, obj):
-        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the change
+        """Stop job button for a job that can still be stopped; posts via a separate fetch (not the change
         form, which requires fields some jobs don't have and would save unrelated page edits).
         Click handling lives in job_stop_button.js, not an onclick attribute, since the CSP here
         (script-src 'none') silently blocks inline event handlers.
