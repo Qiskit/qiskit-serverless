@@ -516,7 +516,7 @@ class FleetHandler:
             ApiException: If get_fleet fails with a non-404/non-429 error.
             AssertionError: If timeout is reached before a target state is observed.
         """
-        deadline = time.time() + timeout_seconds
+        deadline = time.monotonic() + timeout_seconds
 
         while True:
             try:
@@ -538,7 +538,7 @@ class FleetHandler:
                     continue
                 raise
 
-            if time.time() >= deadline:
+            if time.monotonic() >= deadline:
                 raise AssertionError(f"Timed out waiting for fleet {fleet_id} to reach one of {target_states}.")
             time.sleep(poll_interval_seconds)
 
