@@ -28,7 +28,7 @@ build-ray-node:
 #
 # --target selector is required, not decoration: selector-gpu is the last stage
 # of docker-images/fleet-node/Dockerfile, so a bare build here would produce the
-# ~4.6 GB CUDA image instead of the CPU runtime.
+# 9.9 GB CUDA image instead of the 3.4 GB CPU runtime.
 build-fleet-node:
 	docker build --target selector -t $(fleetNodeImageName):$(version) -t fleet-node:latest -f ./docker-images/fleet-node/Dockerfile .
 
@@ -41,7 +41,7 @@ build-fleet-selector:
 
 # The CUDA Fleets runtime: the same workload stack as fleet-selector plus the
 # CUDA wheels, for jobs on a GPU compute profile. Published separately so a CPU
-# job does not pull ~2.5 GB of wheels it never imports — Fleets pulls the image
+# job does not pull the 6.5 GB of wheels it never imports — Fleets pulls the image
 # once per job. x86_64 only: gpu4pyscf-cuda12x publishes no aarch64 wheel, so
 # this target cannot be built on Apple Silicon without --platform emulation.
 build-fleet-selector-gpu:

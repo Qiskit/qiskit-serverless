@@ -34,7 +34,7 @@ jobs:
         # does not build FROM-referenced bases, so build it first.
         #
         # selector, not the sibling selector-gpu: that one differs only by the
-        # CUDA wheels, which need a GPU to exercise and would add ~4.6 GB to a
+        # CUDA wheels, which need a GPU to exercise and would add 6.5 GB to a
         # runner that has to hold this whole compose stack.
         run: docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
       - name: Build containers
