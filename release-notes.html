@@ -458,6 +458,11 @@ requests that really reach IAM are timed, not the ones answered from the
 token cache. The gateway does not record it.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The IAM token used for Cloud Object Storage and the Runtime API is now
+renewed in a background thread when less than 40% of its life, or 10
+minutes, is left, so a request no longer waits for the renewal.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_task_items_total</span></code> (jobs submitted
 and jobs whose status was checked, per task),
 <code class="docutils literal notranslate"><span class="pre">scheduler_fleets_jobs_skipped_by_breaker_total</span></code> (jobs a Code Engine
