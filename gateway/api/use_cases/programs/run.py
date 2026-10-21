@@ -19,13 +19,11 @@ from api.utils import active_jobs_limit_reached, build_env_variables
 from core.clients.functions_operator_client import get_functions_operator_client
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
-from core.config_key import ConfigKey
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
-from core.domain.workload_payload import build_workload_payload, should_be_mirrored
+from core.domain.workload_payload import build_workload_payload, mirror_enabled_for, should_be_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
-    Config,
     FunctionSize,
     Job,
     JobConfig,
@@ -204,6 +202,7 @@ class RunFunctionUseCase:
             compute_profile_fk=runner_config.compute_profile_fk,
             size_source=runner_config.size_source,
             function_size=runner_config.function_size,
+            function_size_name=runner_config.function_size.function_size if runner_config.function_size else None,
             instance_crn=data.instance,
             account_id=data.account_id,
             plan_id=data.plan_id,
@@ -248,7 +247,7 @@ class RunFunctionUseCase:
                 # the Runtime API took the job (a timeout), so if the http call fails, the job is stored as FAILED
                 # instead of being rolled back, to keep a record of the id the Runtime API may have.
                 # Later, that FAILED status should reach the Runtime API through the outbox, once the thread pool is in.
-                if should_be_mirrored(job) and Config.get_bool(ConfigKey.WORKLOADS_MIRROR_ENABLED):
+                if should_be_mirrored(job) and mirror_enabled_for(job):
                     payload = build_workload_payload(job)
                     try:
                         get_functions_operator_client().put_function(**payload, timeout=MIRROR_PUT_TIMEOUT_SECONDS)

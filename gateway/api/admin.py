@@ -45,7 +45,10 @@ from core.models import (
     Job,
     RuntimeJob,
 )
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.services.job_transitions import JobTransitionService
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage.job_file_explorer import JobFileExplorer
 
 logger = logging.getLogger("gateway.admin")
@@ -621,6 +624,7 @@ class JobAdmin(admin.ModelAdmin):
         "program__provider__name",
         "fleet_id",
         "compute_profile_fk__compute_profile_id",
+        "function_size_name",
         "status",
         "instance_crn",
     ]
@@ -632,6 +636,7 @@ class JobAdmin(admin.ModelAdmin):
         "status_badge",
         "runner_column",
         "compute_profile_column",
+        "function_size_column",
         "created_column",
         "updated_column",
     ]
@@ -641,14 +646,13 @@ class JobAdmin(admin.ModelAdmin):
         "program",
         "program__provider",
         "compute_profile_fk",
-        "function_size",
     ]
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
-    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions"]
+    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions", "function_size_name"]
     fieldsets = [
         (
             "Info",
@@ -676,6 +680,7 @@ class JobAdmin(admin.ModelAdmin):
                     "fleet_id",
                     "compute_profile_fk",
                     "size_source",
+                    "function_size_name",
                     "function_size",
                     "ce_project_name",
                     "ce_region",
@@ -744,24 +749,41 @@ class JobAdmin(admin.ModelAdmin):
         return custom_urls + super().get_urls()
 
     def stop_job_view(self, request, job_id):
-        """Stop job button target: sets a non-terminal Ray job's status to STOPPED, nothing else.
-        Hit via JS fetch, not a form submit, so it never runs the Job change form (which
-        requires fields some jobs don't have, and would save unrelated edits on the page)."""
+        """Stop job button target. Hit via JS fetch, not a form submit, so it never runs the Job
+        change form (which requires fields some jobs don't have, and would save unrelated edits on
+        the page). The Qiskit Runtime jobs this job started are not cancelled: that needs the
+        caller's own service credentials, which the admin does not have."""
         job = get_object_or_404(Job, pk=job_id)
         if not self.has_change_permission(request, job):
             raise PermissionDenied
-        if request.method == "POST" and self._can_stop(job):
-            job.status = Job.STOPPED
-            job.save(update_fields=["status", "updated", "version"])
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.BACKOFFICE,
-                context=JobEventContext.STOP_JOB,
-                status=job.status,
-            )
-            messages.success(request, "Job stopped.")
-        else:
+        if request.method != "POST" or not self._can_stop(job):
             messages.error(request, "This job can't be stopped from here.")
+            return redirect(reverse("admin:api_job_change", args=[job.pk]))
+
+        transitions = JobTransitionService()
+        try:
+            # The fork is what each engine owes: Ray has no cancel to confirm, Fleets does. A
+            # stop strategy per runner is tracked separately.
+            if job.runner == Program.RAY:
+                transitions.to_stopped(job, origin=JobEventOrigin.BACKOFFICE, context=JobEventContext.STOP_JOB)
+                messages.success(request, "Job stopped.")
+            else:
+                written = transitions.stop(job, origin=JobEventOrigin.BACKOFFICE, context=JobEventContext.STOP_JOB)
+                if written == Job.STOPPING:
+                    messages.success(
+                        request,
+                        "Stop requested. The scheduler confirms it within minutes, and a job that finished "
+                        "first ends as it really did.",
+                    )
+                else:
+                    # stop() returns STOPPING or STOPPED, nothing else
+                    messages.success(request, "Job stopped, there was no fleet left to cancel.")
+        except RunnerRetryableError:
+            messages.error(request, "Code Engine did not answer. Try again.")
+        except RunnerError:
+            messages.error(request, "Cannot cancel: the job's Code Engine project is unusable.")
+        except InvalidJobTransitionException:
+            messages.warning(request, "The job already left that status, nothing was changed.")
         return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
     def job_timeline_view(self, request):
@@ -895,19 +917,19 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Compute Profile")
     def compute_profile_column(self, obj):
-        """Fleets compute profile, clicking it searches the changelist for it; function size below. Empty for Ray."""
+        """Fleets compute profile, clicking it searches the changelist for it. Empty for Ray."""
         if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
             return ""
-        lines = [
-            format_html(
-                '<a href="{}" class="qs-cell-link">{}</a>',
-                self._search_link(obj.compute_profile_fk_id),
-                obj.compute_profile_fk,
-            )
-        ]
-        if obj.function_size is not None:
-            lines.append(format_html('<span class="qs-runner-meta">{}</span>', obj.function_size.function_size))
-        return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
+        return format_html(
+            '<a href="{}" class="qs-cell-link">{}</a>',
+            self._search_link(obj.compute_profile_fk_id),
+            obj.compute_profile_fk,
+        )
+
+    @admin.display(description="Running Size")
+    def function_size_column(self, obj):
+        """The size the job ran with (the snapshot, else the live size row). Empty when no size applies."""
+        return obj.size_label or ""
 
     @admin.display(description="Program")
     def get_program(self, obj):
@@ -933,11 +955,12 @@ class JobAdmin(admin.ModelAdmin):
         return format_html_join(mark_safe("<br>"), "{}", ((line,) for line in lines))
 
     def _can_stop(self, job):
-        return job.runner == Program.RAY and job.status not in Job.TERMINAL_STATUSES
+        """STOPPING is excluded with the terminal statuses: its cancel is already in flight."""
+        return job.status not in Job.TERMINAL_STATUSES and job.status != Job.STOPPING
 
     @admin.display(description="Actions")
     def job_actions(self, obj):
-        """Stop job button for non-terminal Ray jobs; posts via a separate fetch (not the change
+        """Stop job button for a job that can still be stopped; posts via a separate fetch (not the change
         form, which requires fields some jobs don't have and would save unrelated page edits).
         Click handling lives in job_stop_button.js, not an onclick attribute, since the CSP here
         (script-src 'none') silently blocks inline event handlers.

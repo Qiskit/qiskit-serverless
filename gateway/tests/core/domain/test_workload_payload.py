@@ -4,9 +4,10 @@ import json
 import pytest
 from django.contrib.auth.models import User
 
-from core.domain.workload_payload import build_workload_payload
+from core.config_key import ConfigKey
+from core.domain.workload_payload import build_workload_payload, mirror_enabled_for
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import ComputeProfile, FunctionSize, Job, JobEvent, Program, Provider
+from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program, Provider
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
@@ -47,6 +48,7 @@ def test_builds_the_full_envelope_for_a_finished_job():
         instance_crn=CRN,
         compute_profile_fk=profile,
         function_size=size,
+        function_size_name=size.function_size,
     )
     running = _add_status_event(job, Job.RUNNING)
     ended = _add_status_event(job, Job.SUCCEEDED)
@@ -69,6 +71,33 @@ def test_builds_the_full_envelope_for_a_finished_job():
         },
     }
     assert json.loads(json.dumps(payload)) == payload  # it is stored as JSON by the next PR
+
+
+def test_size_is_the_snapshot_after_the_size_row_is_renamed_or_deleted():
+    """The Runtime API mirror's "size" is the snapshot. After the row is renamed (M -> L) it still says M, and after
+    the row is deleted (FK None) it still says M instead of dropping to None."""
+    alice = User.objects.create_user(username="alice")
+    program = Program.objects.create(title="sampler", author=alice)
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
+    job = Job.objects.create(
+        author=alice,
+        program=program,
+        runner=Program.FLEETS,
+        status=Job.RUNNING,
+        instance_crn=CRN,
+        compute_profile_fk=profile,
+        function_size=size,
+        function_size_name=size.function_size,
+    )
+
+    FunctionSize.objects.filter(pk=size.pk).update(function_size="L")
+    job.refresh_from_db()
+    assert build_workload_payload(job)["body"]["size"] == "M"
+
+    size.delete()
+    job.refresh_from_db()
+    assert build_workload_payload(job)["body"]["size"] == "M"
 
 
 def test_optional_fields_are_present_and_none_when_the_job_has_no_value_for_them():
@@ -145,3 +174,46 @@ def test_every_job_status_maps_and_an_unknown_one_raises():
     assert {status: build_workload_payload(_simple_job(status))["body"]["status"] for status in expected} == expected
     with pytest.raises(KeyError):
         build_workload_payload(_simple_job("EXPLODED"))
+
+
+@pytest.mark.parametrize(
+    "setting, job_program_provider_name, job_program_title, expected",
+    [
+        ("true", "qctrl", "management", True),
+        ("TRUE", None, "management", True),
+        ("false", "qctrl", "management", False),
+        ("QCtrl", "qctrl", "management", True),
+        ("ibm, qctrl", "QCtrl", "management", True),
+        ("qctrl/management", "qctrl", "management", True),
+        ("qctrl/management", "qctrl", "Management", True),
+        ("qctrl/management", "qctrl", "management2", False),
+        ("qctrl/management", "qctrl", "my-management", False),
+        ("qctrl/management", "qctrl", "manage", False),
+        ("qctrl/management", "ibm", "management", False),
+        ("qctrl/other", "qctrl", "management", False),
+        ("ibm", "qctrl", "management", False),
+        ("custom", None, "management", True),
+        ("qctrl", None, "management", False),
+        ("true,custom", "qctrl", "management", False),
+        ("", None, "management", False),
+        ("qctrl,,ibm", "ibm", "management", True),
+        ("custom", "custom", "management", False),
+        ("custom/management", "custom", "management", True),
+    ],
+)
+def test_the_mirror_setting_can_be_a_list_of_providers_functions_and_custom(
+    setting, job_program_provider_name, job_program_title, expected
+):
+    author = User.objects.create_user(username="carol")
+    provider = Provider.objects.create(name=job_program_provider_name) if job_program_provider_name else None
+    program = Program.objects.create(title=job_program_title, provider=provider, author=author)
+    job = Job(author=author, program=program)
+    Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, setting)
+
+    assert mirror_enabled_for(job) is expected
+
+
+def test_a_job_without_program_is_not_mirrored_by_a_list():
+    Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
+
+    assert mirror_enabled_for(Job()) is False

@@ -26,11 +26,12 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
+from core.external_call_metrics import IAM_TOKEN, observe_operation
 
 logger = logging.getLogger("core.IamTokenProvider")
 
 _KEY_REJECTED = {400, 401, 403}
-_DEFAULT_TIMEOUT = 3  # seconds
+_DEFAULT_TIMEOUT = (3, 5)  # seconds, (connect, read)
 
 REFRESH_MIN_SECONDS = 600
 REFRESH_FRACTION = 0.4
@@ -44,12 +45,13 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         self,
         api_key: str,
         iam_url: str,
-        timeout: float = _DEFAULT_TIMEOUT,
+        timeout: float | tuple[float, float] = _DEFAULT_TIMEOUT,
         clock: Callable[[], float] = time.time,
         wait: Optional[Callable[[float], bool]] = None,
     ) -> None:
         """``timeout`` (seconds, greater than zero) bounds the request to IAM; the SDK waits 60 s by default. It is
-        fixed here and not per call, because the token manager is shared by every thread that asks for a token.
+        a number or a ``(connect, read)`` pair, as in ``requests``. It is fixed here and not per call, because the
+        token manager is shared by every thread that asks for a token.
         ``clock`` and ``wait`` are for tests: ``wait(seconds)`` sleeps and returns True when the refresher must stop.
         Raises RuntimeApiError if ``api_key`` is empty or malformed."""
         if not api_key:
@@ -74,18 +76,25 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         """A valid token. A background thread renews it before it gets close to expiry, and the SDK caches it and lets
         one thread at a time ask IAM if it has to (first call, or the thread could not renew), so ask on every use and
         do not add a lock around it."""
+        token_manager = self._authenticator.token_manager
         try:
-            token = self._authenticator.token_manager.get_token()
+            with observe_operation(IAM_TOKEN) as observation:
+                cached = token_manager.token_info
+                token = token_manager.get_token()
+                # The SDK answers from its cache nearly every time, which would fill the histogram with zeros and hide
+                # the few real requests. It stores a new token_info object only when it asked IAM, so a sample is
+                # kept only then.
+                observation.discard = token_manager.token_info is cached
         except ApiException as exc:
             self._forget_failed_request()
             if exc.status_code in _KEY_REJECTED:
                 logger.error("IAM rejected the API key with status %s", exc.status_code)
                 raise RuntimeApiError(f"IAM rejected the API key (status {exc.status_code})") from exc
-            logger.error("Could not get an IAM token, status %s", exc.status_code)
+            logger.warning("Could not get an IAM token, status %s", exc.status_code)
             raise RetryableError("Could not get an IAM token") from exc
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self._forget_failed_request()
-            logger.error("Could not get an IAM token: %s", type(exc).__name__)
+            logger.warning("Could not get an IAM token: %s", type(exc).__name__)
             raise RetryableError("Could not get an IAM token") from exc
         try:
             self._note_token(token)

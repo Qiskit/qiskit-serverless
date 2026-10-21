@@ -12,7 +12,10 @@ The Runtime API replaces the whole row on every call, so ``body`` always carries
 ones the job has no value for.
 """
 
-from core.models import Job, JobEvent, Program, WorkloadMirror
+from core.config_key import ConfigKey
+from core.models import Config, Job, JobEvent, Program, WorkloadMirror
+
+CUSTOM_FUNCTIONS = "custom"  # entry of the mirror setting that stands for the functions without a provider
 
 # Seven job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
 # running until it is STOPPED.
@@ -30,6 +33,25 @@ _STATUS = {
 def should_be_mirrored(job: Job) -> bool:
     """Only Fleets jobs with an instance CRN are mirrored to the Runtime API, and never a filler job."""
     return job.runner == Program.FLEETS and not job.filler and bool(job.instance_crn)
+
+
+def mirror_enabled_for(job: Job) -> bool:
+    """Whether the ``workloads.mirror.enabled`` setting lets this job be mirrored. The setting is ``true`` (every job),
+    ``false`` (none) or a comma separated list, compared ignoring case, of provider names (``qctrl``), functions
+    (``qctrl/management``, as ``provider/title``) and ``custom`` (the functions without a provider). ``true`` and
+    ``false`` only count when they are the whole value."""
+    value = Config.get(ConfigKey.WORKLOADS_MIRROR_ENABLED).strip().lower()
+    if value in ("true", "false"):
+        return value == "true"
+    program = job.program
+    if program is None:
+        return False
+    entries = {entry.strip() for entry in value.split(",")}
+    if program.provider is None:
+        return CUSTOM_FUNCTIONS in entries
+    provider = program.provider.name.lower()
+    # ``custom`` is reserved, so a provider that is named like that can only be listed as ``custom/<title>``
+    return provider in entries - {CUSTOM_FUNCTIONS} or f"{provider}/{program.title.lower()}" in entries
 
 
 def is_mirrored(job: Job) -> bool:
@@ -61,7 +83,7 @@ def build_workload_payload(job: Job) -> dict:
             "user_id": job.author.username,
             "status": _STATUS[job.status],
             "compute_profile": job.compute_profile_id,
-            "size": job.function_size.function_size.upper() if job.function_size else None,
+            "size": job.size_label,
             "created_at": created_at.isoformat() if created_at else None,
             "running_at": running_at.isoformat() if running_at else None,
             "ended_at": ended_at.isoformat() if ended_at else None,

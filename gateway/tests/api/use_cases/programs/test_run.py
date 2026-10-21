@@ -173,6 +173,7 @@ class TestRunFunctionUseCase:
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
+        assert job.function_size_name is None
 
     def test_fleets_job_resolves_compute_profile_from_function_size(self, user, ce_project, monkeypatch):
         """A requested ``function_size`` resolves through the function's catalog to its profile."""
@@ -190,6 +191,7 @@ class TestRunFunctionUseCase:
         # different size mapping to the same profile stays distinguishable).
         assert job.size_source == Job.SIZE_SOURCE_REQUESTED
         assert job.function_size == size
+        assert Job.objects.get(pk=job.pk).function_size_name == size.function_size
 
     def test_run_rejects_unknown_function_size(self, user, ce_project):
         """A size the function does not declare is a 400; no Job is persisted."""
@@ -221,6 +223,7 @@ class TestRunFunctionUseCase:
         # same size, which would record REQUESTED.
         assert job.size_source == Job.SIZE_SOURCE_DEFAULT_SIZE
         assert job.function_size == size
+        assert Job.objects.get(pk=job.pk).function_size_name == size.function_size
 
     def test_fleets_job_keeps_the_instance_crn_of_the_request(self, user, ce_project, monkeypatch):
         """The CRN of the request is stored on the job, so a Fleets job always knows its instance."""
@@ -249,6 +252,26 @@ class TestRunFunctionUseCase:
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
+        assert job.function_size_name is None
+
+    def test_size_snapshot_survives_a_later_rename_and_delete_of_the_size_row(self, user, ce_project, monkeypatch):
+        """End to end through RunFunctionUseCase: the snapshot is written once at creation and is not tied to the size
+        row. Renaming the row (M -> L) and then deleting it (FK goes null) both leave function_size_name as "M"."""
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=function, function_size="M", compute_profile=profile)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
+
+        size.function_size = "L"
+        size.save()
+        assert Job.objects.get(pk=job.pk).function_size_name == "M"
+
+        size.delete()
+        stored = Job.objects.get(pk=job.pk)
+        assert stored.function_size is None
+        assert stored.function_size_name == "M"
 
 
 class TestWorkloadMirror:
@@ -285,6 +308,26 @@ class TestWorkloadMirror:
 
         put_function.assert_not_called()
         assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_job_that_the_mirror_list_does_not_name_is_created_but_not_sent(
+        self, user, fleets_accessible, put_function
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,ibm/sampler")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_job_of_a_custom_function_is_sent_when_the_mirror_list_has_custom(
+        self, user, fleets_accessible, put_function
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_called_once()
+        assert WorkloadMirror.objects.filter(job=job).exists()
 
     def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")

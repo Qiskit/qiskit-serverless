@@ -42,6 +42,12 @@ class TestBlock:
 
         assert len(_rows()) == 2
 
+    def test_the_account_is_stored_without_its_prefix(self):
+        """Jobs store the bare account id from the IAM token, so the row must match it."""
+        _handle(_event(account="a/acc-1"))
+
+        assert _rows() == [("acc-1", "plan-1", "sub-1")]
+
 
 @pytest.mark.django_db
 class TestUnblock:
@@ -57,6 +63,12 @@ class TestUnblock:
 
         assert _rows() == [("acc-1", "plan-1", "other")]
 
+    def test_a_prefixed_deleted_event_removes_the_row(self):
+        _handle(_event(account="a/acc-1"))
+        _handle(_event(account="a/acc-1", deleted=True))
+
+        assert not _rows()
+
 
 @pytest.mark.django_db
 class TestInvalid:
@@ -71,6 +83,12 @@ class TestInvalid:
 
         with pytest.raises(InvalidEventError, match=field):
             _handle(event)
+
+        assert not _rows()
+
+    def test_an_account_that_is_only_the_prefix_is_missing(self):
+        with pytest.raises(InvalidEventError, match="account_id"):
+            _handle(_event(account="a/"))
 
         assert not _rows()
 

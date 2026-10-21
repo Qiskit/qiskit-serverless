@@ -1,0 +1,14 @@
+---
+fixes:
+  - |
+    A Fleets job now keeps the size it ran with. The new ``Job.function_size_name`` column stores the size
+    label when the job is created, and the license fee, the Runtime API mirror payload,
+    ``ENV_JOB_FUNCTION_SIZE`` and the admin job pages read it instead of the ``Job.function_size`` row. Before,
+    renaming that row in the backoffice, or deleting it by re-uploading the function with a different sizes
+    map, changed the size of every job still running with it, so the license fee was charged at the new
+    size's rate or waived. ``Job.function_size`` is kept as a link to the catalog row.
+upgrade:
+  - |
+    Migration ``0078`` fills ``function_size_name`` for existing jobs with the current label of their size
+    row. A row renamed before the upgrade gives its new label, because the old one was never stored. Jobs
+    whose row was already deleted stay without a size.
