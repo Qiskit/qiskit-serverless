@@ -26,11 +26,13 @@
 # deps and builder are intermediate: deps is the shared pip layer both selectors
 # rest on, builder holds the C/C++ toolchain and never ships.
 #
-# The CUDA wheels are ~2.5 GB compressed, and Fleets pulls the image once per
-# job, so they are confined to selector-gpu: a CPU job must not pay that pull
-# cost for wheels it never imports. Nothing enforces that split at runtime, so
-# the selector stage asserts it carries no CUDA payload and selector-gpu asserts
-# every library gpu4pyscf dlopens resolves — see those stages.
+# The CUDA wheels are ~2.5 GB compressed and account for 6.5 GB of the image on
+# disk (measured: selector 3.4 GB, selector-gpu 9.9 GB), and Fleets pulls the
+# image once per job, so they are confined to selector-gpu: a CPU job must not
+# pay that pull cost for wheels it never imports. Nothing enforces that split at
+# runtime, so the selector stage asserts it carries no CUDA payload and
+# selector-gpu asserts every library gpu4pyscf dlopens resolves — see those
+# stages.
 #
 # selector-gpu is the LAST stage, so a build with no --target resolves to the GPU
 # image. CPU builds must pass --target selector explicitly; build-fleet-node and
@@ -245,7 +247,7 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3"
 
 # This image must carry no CUDA payload: that is the whole point of the split,
-# and ~2.5 GB of pull time per CPU job rests on it. Asserted rather than trusted
+# and 6.5 GB of pull per CPU job rests on it. Asserted rather than trusted
 # because the ways it could come back are all quiet ones -- a GPU pin added to
 # the shared requirements file instead of the -gpu one, or builder moved onto the
 # GPU side, in which case the COPYs above would drag a CUDA tree in here without

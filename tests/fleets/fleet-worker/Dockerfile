@@ -23,7 +23,7 @@
 # selector is the CPU one of the two shipped runtimes. The GPU sibling
 # (selector-gpu) adds only the CUDA wheels, which this suite cannot exercise —
 # the test worker is an ordinary container with no GPU — so tracking the CPU
-# image costs the suite no coverage and saves it ~4.6 GB.
+# image costs the suite no coverage and saves it 6.5 GB.
 ARG BASE_IMAGE=fleet-node:latest
 FROM ${BASE_IMAGE}
 

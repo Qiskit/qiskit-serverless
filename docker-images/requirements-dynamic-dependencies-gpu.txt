@@ -15,7 +15,8 @@
 # shared file also feeds ray-node, which has an arm64 local-dev variant it would
 # break.
 #
-# These wheels are ~2.5 GB compressed, roughly 4.6 GB installed, so this file is
+# These wheels are ~2.5 GB compressed and add 6.5 GB to the image on disk
+# (measured: the CPU selector is 3.4 GB, selector-gpu 9.9 GB), so this file is
 # the bulk of the GPU image, and the whole of what the CPU image saves by not
 # carrying it. The nvidia-* block below is most of that: cublas 855 MB installed,
 # cusolver 495 MB, cusparse 487 MB, cufft 294 MB, nvrtc 227 MB, curand 167 MB,
