@@ -31,7 +31,7 @@ jobs:
           # The CPU Fleets runtime. --target selector is required: selector-gpu is
           # the last stage of that Dockerfile, so a bare build would resolve to the
           # CUDA image. There is deliberately no selector-gpu leg here — it pulls
-          # ~2.5 GB of CUDA wheels for ~4.6 GB installed, which a stock
+          # ~2.5 GB of CUDA wheels for a 9.9 GB image, which a stock
           # ubuntu-latest runner has no room for and every PR would wait on. The
           # release pipeline build-tests that stage instead.
           - label: fleet-node/Dockerfile         # not required in CI

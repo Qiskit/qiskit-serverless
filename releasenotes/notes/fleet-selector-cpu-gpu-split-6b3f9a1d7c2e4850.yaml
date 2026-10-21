@@ -4,8 +4,8 @@ features:
     The Fleets runtime is now published as two images instead of one. The CUDA
     stack moved out of ``fleet-selector`` into a new ``fleet-selector-gpu``
     image built from the same workload stack, so a job that does not use a GPU
-    no longer pulls the CUDA wheels. Fleets pulls the runtime image once per
-    job, and those wheels are about 2.5 GB compressed, so this is pull latency
+    no longer pulls the CUDA wheels. That takes the CPU image from 9.9 GB to
+    3.4 GB on disk, and Fleets pulls the runtime image once per job, so it is
     saved on every CPU job. Build them with ``make build-fleet-selector`` and
     ``make build-fleet-selector-gpu``.
 upgrade:
