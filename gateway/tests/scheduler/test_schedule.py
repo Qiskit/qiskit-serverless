@@ -16,7 +16,7 @@ from rest_framework.test import APITestCase
 
 from core.model_managers.job_events import JobEventContext, JobEventType
 from core.config_key import ConfigKey
-from core.models import Config, Job, ComputeResource, JobEvent, Program
+from core.models import BlockedCloudResource, Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import RunnerError, RunnerRetryableError
@@ -143,6 +143,58 @@ class TestScheduleApi(APITestCase):
         fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
 
         assert real_job in fleets_jobs
+
+    def _queued(self, user, runner=Program.FLEETS, **identity):
+        program = TestUtils.create_program(program_title="Program", author=user)
+        fields = {"account_id": "acct", "plan_id": "plan", "subscription_id": "sub", **identity}
+        return TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=runner, **fields)
+
+    def test_fair_share_holds_back_a_blocked_fleets_job_and_picks_the_authors_next_one(self):
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        user = TestUtils.get_user_and_username("blocked_user")[0]
+        blocked = self._queued(user)
+        other_account = self._queued(user, account_id="other")
+
+        fleets_jobs = list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS))
+
+        assert fleets_jobs == [other_account]
+        assert blocked not in fleets_jobs
+
+    def test_fair_share_only_holds_back_an_exact_match(self):
+        """A NULL on the job only matches a NULL on the row, so a full triple does not block it."""
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        jobs = [
+            self._queued(TestUtils.get_user_and_username("plan_user")[0], plan_id="other"),
+            self._queued(TestUtils.get_user_and_username("sub_user")[0], subscription_id="other"),
+            self._queued(TestUtils.get_user_and_username("null_user")[0], subscription_id=None),
+        ]
+
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        assert set(fleets_jobs) == set(jobs)
+
+    def test_fair_share_releases_a_job_once_its_block_is_removed(self):
+        rule = BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        job = self._queued(TestUtils.get_user_and_username("released_user")[0])
+        assert not get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+
+        rule.delete()
+
+        assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)) == [job]
+
+    def test_fair_share_does_not_hold_back_ray_jobs(self):
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        job = self._queued(TestUtils.get_user_and_username("ray_user")[0], runner=Program.RAY)
+
+        assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.RAY)) == [job]
+
+    def test_blocked_authors_do_not_take_the_free_slots(self):
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        for name in ("blocked_a", "blocked_b"):
+            self._queued(TestUtils.get_user_and_username(name)[0])
+        free = self._queued(TestUtils.get_user_and_username("free_user")[0], account_id="other")
+
+        assert list(get_jobs_to_schedule_fair_share(slots=1, gpu=False, runner=Program.FLEETS)) == [free]
 
     @patch("scheduler.schedule.get_runner")
     def test_execute_ray_job_success(self, mock_get_runner_client):

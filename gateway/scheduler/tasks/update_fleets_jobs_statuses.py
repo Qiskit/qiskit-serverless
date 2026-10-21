@@ -8,6 +8,7 @@ from django.conf import settings
 
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -52,7 +53,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         runner: FleetsRunner = cast(FleetsRunner, get_runner(job))
 
         try:
-            new_status = runner.status()
+            # The whole read of one job, which can be two COS listings (current and legacy layout)
+            with observe_operation(FLEET_STATUS_READ):
+                new_status = runner.status()
         except (RunnerError, ValueError) as ex:
             # status() raises on configuration and data problems, never on a job that failed: a
             # deleted program, an inactive project, an unconfigured bucket, a bad COS secret.
