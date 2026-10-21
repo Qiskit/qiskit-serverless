@@ -381,18 +381,12 @@ class Job:
                 if failing_since is None:
                     failing_since = time.monotonic()
                 give_up = failing_since + _RETRY_SECONDS if deadline is None else deadline
-                if not is_transient_error(error) or time.monotonic() >= give_up:
-                    raise
-                logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
-                if verbose:
-                    code = getattr(error, "_code", None)
-                    print(f"{_elapsed(start)}  status check failed ({code}), retrying", flush=True)
+                self._raise_unless_retried(error, give_up, start, verbose)
                 time.sleep(_next_wait(step, give_up, poll_interval))
                 step += 1
                 continue
             if status != last_status:
-                if verbose:
-                    print(f"{_elapsed(start)}  {status}", flush=True)
+                _say(verbose, start, status)
                 if last_status is not None and _resets_backoff(last_status, status):
                     step = 0
                 last_status = status
@@ -404,6 +398,13 @@ class Job:
                 raise TimeoutError(f"Job {self.job_id} is still {status} after {timeout} s.")
             time.sleep(_next_wait(step, deadline, poll_interval))
             step += 1
+
+    def _raise_unless_retried(self, error: QiskitServerlessException, give_up: float, start: float, verbose: bool):
+        """Raise the error unless it is transient and there is time left to retry."""
+        if not is_transient_error(error) or time.monotonic() >= give_up:
+            raise error
+        logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
+        _say(verbose, start, f"status check failed ({getattr(error, '_code', None)}), retrying")
 
     def _print_error_message(self):
         """Print why the job failed. A failure to fetch it does not change the result of the wait."""
@@ -597,6 +598,12 @@ def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[flo
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait
+
+
+def _say(verbose: bool, start: float, text: str):
+    """Print the time since start and the text, in verbose mode."""
+    if verbose:
+        print(f"{_elapsed(start)}  {text}", flush=True)
 
 
 def _elapsed(start: float) -> str:
