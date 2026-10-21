@@ -362,6 +362,11 @@ reached. The Qiskit Runtime jobs a job started are not cancelled from the
 backoffice: that needs the caller’s own service credentials.</p></li>
 </ul>
 <ul class="simple">
+<li><p>Migration <code class="docutils literal notranslate"><span class="pre">0078</span></code> fills <code class="docutils literal notranslate"><span class="pre">function_size_name</span></code> for existing jobs with the current label of their size
+row. A row renamed before the upgrade gives its new label, because the old one was never stored. Jobs
+whose row was already deleted stay without a size.</p></li>
+</ul>
+<ul class="simple">
 <li><p>While <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> is on, running a Fleets function with an
 instance CRN can fail with a <code class="docutils literal notranslate"><span class="pre">503</span></code> error, and no job is created, if the
 Runtime API does not accept the job. Retrying the request later is safe.</p></li>
@@ -394,6 +399,14 @@ a warning instead of an error. The wait for IAM is 3 seconds to connect
 and 5 seconds to read, as it was for Code Engine and COS before they shared
 the IAM token provider, instead of 3 seconds for both. A rejected API key
 is still logged as an error.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A Fleets job now keeps the size it ran with. The new <code class="docutils literal notranslate"><span class="pre">Job.function_size_name</span></code> column stores the size
+label when the job is created, and the license fee, the Runtime API mirror payload,
+<code class="docutils literal notranslate"><span class="pre">ENV_JOB_FUNCTION_SIZE</span></code> and the admin job pages read it instead of the <code class="docutils literal notranslate"><span class="pre">Job.function_size</span></code> row. Before,
+renaming that row in the backoffice, or deleting it by re-uploading the function with a different sizes
+map, changed the size of every job still running with it, so the license fee was charged at the new
+size’s rate or waived. <code class="docutils literal notranslate"><span class="pre">Job.function_size</span></code> is kept as a link to the catalog row.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Authentication now writes only the user’s groups that changed, so a
