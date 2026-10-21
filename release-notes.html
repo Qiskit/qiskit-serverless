@@ -339,6 +339,13 @@ only the jobs of those are mirrored.</p></li>
 as a <code class="docutils literal notranslate"><span class="pre">status=&quot;429&quot;</span></code> series. The gateway does not record them.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The scheduler exposes <code class="docutils literal notranslate"><span class="pre">scheduler_loop_duration_max_seconds</span></code> and
+<code class="docutils literal notranslate"><span class="pre">scheduler_task_duration_max_seconds</span></code> (per task): the longest duration
+among the loops and tasks that ended in the last 120 seconds, so one very
+slow loop can be read in Grafana without averaging. A loop that is still
+running does not show up until it ends.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now cancels the <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> Fleets jobs whose
 account, plan and subscription are blocked, so a resource whose non-quantum
 allowance is exhausted stops consuming Code Engine capacity. The job goes
@@ -374,6 +381,10 @@ Runtime API does not accept the job. Retrying the request later is safe.</p></li
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">scheduler_loop_duration_seconds</span></code> and <code class="docutils literal notranslate"><span class="pre">scheduler_task_duration_seconds</span></code>
 now have buckets up to 30 minutes. The old buckets stopped at 10 seconds.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_loop_duration_seconds</span></code> and <code class="docutils literal notranslate"><span class="pre">scheduler_task_duration_seconds</span></code>
+have three more buckets, 3600, 7200 and 14400 seconds.</p></li>
 </ul>
 </section>
 <section id="bug-fixes">
