@@ -45,8 +45,8 @@ class Main:
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
 
-        # One service for every task that changes a job status, so the Kafka producers are created once.
-        # Only the scheduler sends the intermediate workload statuses
+        # One service for every task that changes a job status, so the Kafka producers are created once, and only the
+        # scheduler sends the intermediate workload statuses.
         transitions = JobTransitionService(workload_mirror=WorkloadStatusMirror())
         # one breaker per Code Engine region, shared by every task that calls it
         breakers = CodeEngineBreakers()

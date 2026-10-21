@@ -31,7 +31,8 @@ _DB_OUTAGE = (OperationalError, InterfaceError)
 
 _MIRROR = Counter(
     "workload_status_mirror_total",
-    "Intermediate workload statuses sent to the Runtime API, by status and outcome.",
+    "Intermediate workload statuses by status and outcome. sent also counts a PUT that the Runtime API accepted and "
+    "ignored (202, for example a workload that is already terminal).",
     labelnames=("status", "outcome"),
 )
 for _status in _STATUSES:
@@ -60,7 +61,10 @@ class WorkloadStatusMirror:
 
     def send(self, job: Job) -> None:
         """Send the status of ``job``, which the caller has already committed. It never raises, except for a database
-        outage, which must reach the scheduler."""
+        outage, which must reach the scheduler. The checks go from the cheapest to the dearest: the job itself (no
+        query), the Config switch (cached), the mirror row (one query), the pool, and last the payload."""
+        if not should_be_mirrored(job):
+            return
         try:
             if not Config.get_bool(ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED):
                 return
@@ -72,7 +76,7 @@ class WorkloadStatusMirror:
 
         status = _STATUS.get(job.status)
         try:
-            if not should_be_mirrored(job) or not is_mirrored(job):
+            if not is_mirrored(job):
                 return
             replace_key = f"job:{job.id}"
             executor = get_background_executor()

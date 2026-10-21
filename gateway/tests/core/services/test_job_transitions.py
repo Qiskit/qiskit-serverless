@@ -676,6 +676,10 @@ class TestStop:
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
 
 
+def _outside_tx(job):
+    assert connection.in_atomic_block is False
+
+
 @pytest.mark.django_db(transaction=True)
 class TestStatusMirror:
     """The status of a mirrored job is sent once the transaction of the transition is over, never inside it."""
@@ -683,12 +687,8 @@ class TestStatusMirror:
     @pytest.fixture
     def mirror(self):
         mirror = MagicMock()
-        mirror.send.side_effect = lambda job: self._assert_outside_transaction()
+        mirror.send.side_effect = _outside_tx
         return mirror
-
-    @staticmethod
-    def _assert_outside_transaction():
-        assert connection.in_atomic_block is False
 
     @pytest.fixture
     def mirrored_service(self, sender, mirror):

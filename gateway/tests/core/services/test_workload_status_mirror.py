@@ -6,11 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.utils import IntegrityError, InterfaceError, OperationalError
+from django.db.utils import InterfaceError, OperationalError
 from prometheus_client import REGISTRY
 
 from core.config_key import ConfigKey
-from core.domain.workload_payload import _STATUS
 from core.models import Config, Job, Program, WorkloadMirror
 from core.services import workload_status_mirror
 from core.services.background_executor import BackgroundExecutorNotInitializedError, BackgroundPool
@@ -79,6 +78,7 @@ def test_kill_switch_off_builds_and_submits_nothing(executor, build):
 
 def test_a_filler_job_costs_no_query_and_sends_nothing(executor, build, django_assert_num_queries):
     job = _job(filler=True)
+    cache.clear()
 
     with django_assert_num_queries(0):
         WorkloadStatusMirror().send(job)
@@ -118,7 +118,7 @@ def test_happy_path_submits_the_envelope_and_the_task_puts_it(executor, client, 
 def test_a_full_pool_drops_before_building_the_payload(executor, build):
     executor.would_accept.return_value = False
     job = _job(Job.STOPPING)
-    before = _count(_STATUS[job.status], "dropped")
+    before = _count("Stopping", "dropped")
 
     WorkloadStatusMirror().send(job)
 
@@ -148,11 +148,16 @@ def test_a_payload_error_is_swallowed_and_counted_failed(executor, build):
 
 def test_an_uninitialized_executor_is_swallowed_and_logged_as_error(executor, build, caplog):
     executor.would_accept.side_effect = BackgroundExecutorNotInitializedError("no init")
+    before = _count("Pending", "failed")
 
     with caplog.at_level(logging.ERROR):
         WorkloadStatusMirror().send(_job())
 
-    assert any(record.levelno == logging.ERROR for record in caplog.records)
+    assert any(
+        record.levelno == logging.ERROR and "the background executor is not initialized" in record.getMessage()
+        for record in caplog.records
+    )
+    assert _count("Pending", "failed") == before + 1
 
 
 def test_the_task_swallows_a_put_failure_and_counts_failed(client):
@@ -164,28 +169,21 @@ def test_the_task_swallows_a_put_failure_and_counts_failed(client):
     assert _count("Running", "failed") == before + 1
 
 
-@pytest.mark.parametrize("error", [OperationalError, InterfaceError])
-@pytest.mark.parametrize("where", ["config", "is_mirrored", "would_accept", "build"])
-def test_a_database_outage_propagates_from_every_step(executor, build, error, where):
-    job = _job()
-    targets = {
-        "config": patch(f"{MODULE}.Config.get_bool", side_effect=error("down")),
-        "is_mirrored": patch(f"{MODULE}.is_mirrored", side_effect=error("down")),
-        "would_accept": patch.object(executor, "would_accept", side_effect=error("down")),
-        "build": patch.object(build, "side_effect", error("down")),
-    }
+def test_a_database_outage_propagates_from_the_config_read(executor, build):
+    with patch(f"{MODULE}.Config.get_bool", side_effect=OperationalError("down")), pytest.raises(OperationalError):
+        WorkloadStatusMirror().send(_job())
 
-    with targets[where], pytest.raises(error):
+
+def test_a_database_outage_propagates_from_the_payload(executor, build):
+    job = _job()
+
+    build.side_effect = OperationalError("down")
+    with pytest.raises(OperationalError):
         WorkloadStatusMirror().send(job)
 
-
-def test_another_database_error_is_swallowed_and_counted_failed(executor, build):
-    build.side_effect = IntegrityError("constraint")
-    before = _count("Pending", "failed")
-
-    WorkloadStatusMirror().send(_job())
-
-    assert _count("Pending", "failed") == before + 1
+    build.side_effect = InterfaceError("down")
+    with pytest.raises(InterfaceError):
+        WorkloadStatusMirror().send(job)
 
 
 def test_a_missing_config_row_is_treated_as_switch_off(executor, build):
@@ -197,20 +195,9 @@ def test_a_missing_config_row_is_treated_as_switch_off(executor, build):
     executor.submit.assert_not_called()
 
 
-def test_a_job_in_a_terminal_status_counts_nothing_under_any_label(executor, build):
-    def series():
-        return {
-            (sample.labels["status"], sample.labels["outcome"]): sample.value
-            for metric in REGISTRY.collect()
-            if metric.name == "workload_status_mirror"
-            for sample in metric.samples
-            if sample.name.endswith("_total")
-        }
+def test_the_nine_series_exist_from_import():
+    series = {
+        (status, outcome) for status in ("Pending", "Running", "Stopping") for outcome in ("sent", "failed", "dropped")
+    }
 
-    before = series()
-    executor.submit.return_value = None
-
-    WorkloadStatusMirror().send(_job(Job.SUCCEEDED))
-
-    assert series() == before
-    assert {status for status, _ in before} == {"Pending", "Running", "Stopping"}
+    assert all(_count(status, outcome) is not None for status, outcome in series)

@@ -6,7 +6,8 @@ RUNNING), and it does the status change plus whatever that transition needs, so 
 - What must not be lost is stored in the Outbox table inside the same database transaction as the status
   change, and the scheduler sends it later (see specs/OUTBOX.md).
 - What is best effort is sent to Kafka right after that transaction, and dropped with a log if it fails. The
-  intermediate status of a mirrored job (Pending, Running, Stopping) is sent to the Runtime API the same way.
+  intermediate status of a mirrored job (Pending, Running, Stopping) is also sent to the Runtime API after that
+  transaction. It is dropped with a log if it cannot be sent, except for a database outage, which is re-raised.
 """
 
 import logging
@@ -112,7 +113,8 @@ class JobTransitionService:
         context: JobEventContext,
         runner: AbstractRunner | None = None,
     ) -> str:
-        """Stop a Fleets job and return the status written. The cancel runs before the transaction.
+        """Stop a Fleets job and return the status written. The cancel runs before the transaction. A database error
+        can now arrive after the STOPPING status was written, when the status is mirrored.
 
         Args:
             runner: Reuse this runner instead of building one, so a retrying caller fetches the IAM
