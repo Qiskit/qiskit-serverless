@@ -17,13 +17,13 @@ from core.models import Config, Job, JobEvent, Program, WorkloadMirror
 
 CUSTOM_FUNCTIONS = "custom"  # entry of the mirror setting that stands for the functions without a provider
 
-# Seven job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
-# running until it is STOPPED.
+# Seven job states here, seven labels on the Runtime API side. The order the Runtime API enforces is
+# Queued < Pending < Running < Stopping < the terminal ones.
 _STATUS = {
     Job.QUEUED: "Queued",
-    Job.PENDING: "Queued",
+    Job.PENDING: "Pending",
     Job.RUNNING: "Running",
-    Job.STOPPING: "Running",
+    Job.STOPPING: "Stopping",
     Job.SUCCEEDED: "Completed",
     Job.FAILED: "Failed",
     Job.STOPPED: "Cancelled",
