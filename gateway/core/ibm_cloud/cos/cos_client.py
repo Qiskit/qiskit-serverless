@@ -345,10 +345,10 @@ class COSClient:
             ClientError: If an unexpected S3 error occurs.
         """
         s3 = self._s3_hmac
-        deadline = time.time() + timeout_seconds
+        deadline = time.monotonic() + timeout_seconds
         last_exc = None
 
-        while time.time() < deadline:
+        while time.monotonic() < deadline:
             try:
                 s3.head_object(Bucket=bucket, Key=key)
                 return

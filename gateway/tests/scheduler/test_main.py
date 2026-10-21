@@ -1,7 +1,7 @@
 """Unit tests for scheduler main loop."""
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from django.db.utils import OperationalError
 
 from prometheus_client import CollectorRegistry
@@ -189,6 +189,29 @@ class TestMain:
         args = self.scheduler_main.metrics.observe_scheduler_iteration.call_args[0]
         (elapsed,) = args
         assert elapsed >= 0
+
+    def test_loop_duration_does_not_depend_on_the_wall_clock(self):
+        """A wall clock jump of one hour during the tick must not show up in the observed durations."""
+        wall_clock = [1_000_000.0]
+
+        def jump_and_stop():
+            wall_clock[0] += 3600
+            self.scheduler_main.kill_signal.received = True
+
+        task = MagicMock()
+        task.name = "jumpy"
+        task.run.side_effect = jump_and_stop
+
+        self.scheduler_main.tasks = [task]
+        self.scheduler_main.metrics = MagicMock()
+
+        with patch("time.time", side_effect=lambda: wall_clock[0]):
+            self.scheduler_main.run()
+
+        (elapsed,) = self.scheduler_main.metrics.observe_scheduler_iteration.call_args[0]
+        _, task_elapsed = self.scheduler_main.metrics.observe_task_duration.call_args[0]
+        assert elapsed < 60
+        assert task_elapsed < 60
 
     def test_liveness_unhealthy_after_db_errors(self):
         """After UNHEALTHY_THRESHOLD consecutive DB errors, liveness should return 503."""
