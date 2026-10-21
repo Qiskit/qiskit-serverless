@@ -230,13 +230,13 @@ def test_the_first_token_starts_one_refresher_thread(authenticator, providers):
     token_manager.expire_time = time.time() + 3600
     provider = IamTokenProvider("operator-key", IAM_URL)
     providers.append(provider)
-    before = threading.active_count()
 
     provider.get_token()
+    thread = provider._thread  # pylint: disable=protected-access
     provider.get_token()
 
-    assert threading.active_count() == before + 1
-    assert provider._thread.daemon  # pylint: disable=protected-access
+    assert provider._thread is thread  # pylint: disable=protected-access
+    assert thread.daemon and thread.is_alive()
 
 
 def test_no_thread_starts_when_the_expiry_is_unknown(authenticator, providers):
@@ -300,6 +300,38 @@ def test_a_background_renewal_is_timed_like_any_other_request_to_iam(authenticat
         external_call_metrics.disable()
 
     assert _recorded(registry, "ok") == 1
+
+
+def test_the_next_deadline_uses_the_lifetime_of_the_renewed_token(authenticator, providers):
+    clock = _Clock()
+    provider, token_manager = _provider(authenticator, providers, clock, ttl=3600, max_waits=3)
+    _renews_with(token_manager, clock, ttl=1200)
+
+    provider._refresh_loop()  # pylint: disable=protected-access
+
+    assert clock.waits[:2] == [2160, 600]
+
+
+def test_a_token_that_arrives_already_expired_is_not_renewed_in_a_tight_loop(authenticator, providers):
+    clock = _Clock()
+    provider, token_manager = _provider(authenticator, providers, clock, ttl=3600, max_waits=3)
+    _renews_with(token_manager, clock, ttl=-10)
+
+    provider._refresh_loop()  # pylint: disable=protected-access
+
+    assert clock.waits[1] >= 30
+
+
+def test_invalidate_wakes_a_sleeping_refresher_and_close_stops_it(authenticator, providers):
+    provider = IamTokenProvider("operator-key", IAM_URL)
+    providers.append(provider)
+    token_manager = authenticator.return_value.token_manager
+    token_manager.access_token = "tok"
+
+    provider.invalidate("tok")
+    assert provider._wait_for_wake_or_stop(5) is False  # pylint: disable=protected-access
+    provider.close()
+    assert provider._wait_for_wake_or_stop(5) is True  # pylint: disable=protected-access
 
 
 def test_a_failed_renewal_is_retried_every_30_seconds_and_the_thread_survives(authenticator, providers):

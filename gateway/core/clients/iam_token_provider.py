@@ -115,9 +115,11 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         a token (401): the SDK would otherwise keep giving the same one until it is near expiry. It only acts if
         ``token`` is still the cached one, so a late caller cannot discard the fresh token another thread just got."""
         token_manager = self._authenticator.token_manager
-        if token_manager.access_token == token:
+        with token_manager.lock:  # the check and the write are one step, or a token renewed in between would be dropped
+            if token_manager.access_token != token:
+                return
             token_manager.expire_time = 0
-            self._wake.set()  # the refresher renews now instead of sleeping until the old deadline
+        self._wake.set()  # the refresher renews now instead of sleeping until the old deadline
 
     def close(self) -> None:
         """Stop the refresher thread. The provider still works, but the token is no longer renewed in the background."""
@@ -128,7 +130,7 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         """Measure the lifetime of a token the first time it is seen (``expire_time`` minus now, never assumed). False
         if the expiry is unknown, so there is nothing to schedule."""
         expire_time = self._authenticator.token_manager.expire_time
-        if not isinstance(expire_time, (int, float)):
+        if not isinstance(expire_time, (int, float)) or expire_time <= 0:
             return False
         if token != self._seen_token:
             with self._state_lock:
@@ -172,8 +174,9 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         """Thread body: sleep until the deadline, renew, repeat. A failure is retried every 30 s, and the loop only ends
         when asked to stop."""
         token_manager = self._authenticator.token_manager
+        min_wait = 0  # after a renewal, so a token that is already expired when it arrives cannot make a tight loop
         while True:
-            if self._wait(max(self._refresh_deadline() - self._clock(), 0)):
+            if self._wait(max(self._refresh_deadline() - self._clock(), min_wait)):
                 return
             if self._clock() < self._refresh_deadline():
                 continue  # woken early, or the token was renewed by someone else meanwhile
@@ -181,6 +184,7 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
                 try:
                     token_manager.refresh_time = 0  # make the SDK renew even though its own 80% mark is not reached
                     self._record_token(self._fetch())
+                    min_wait = RETRY_SECONDS
                     break
                 except Exception as exc:  # pylint: disable=broad-exception-caught
                     self._forget_failed_request()
@@ -196,9 +200,10 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
 
 
 # This is a singleton actually
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=8)
 def get_iam_token_provider(api_key: str, iam_url: str) -> IamTokenProvider:
-    """Singleton per credentials: the provider for this ``api_key`` and ``iam_url``, built the first time it is asked
+    """Singleton per credentials (a few are kept, because each one owns a refresher thread that an evicted provider
+    would leave running): the provider for this ``api_key`` and ``iam_url``, built the first time it is asked
     for (``lru_cache`` is the lazy singleton). The SDK caches the token on the provider, so building one per call would
     fetch a token and throw that cache away. Nothing is cached when the key is rejected, so the next call tries again.
     """
