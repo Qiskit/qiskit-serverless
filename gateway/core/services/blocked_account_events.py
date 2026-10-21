@@ -12,6 +12,7 @@ Kafka tombstones (a null value) never reach this handler: recovery is always a d
 
 import logging
 
+from core.domain.crn import ACCOUNT_PREFIX
 from core.ibm_cloud.event_streams.kafka_consumer import InvalidEventError
 from core.models import BlockedCloudResource
 
@@ -67,6 +68,9 @@ class BlockedAccountEventsService:
         missing: list[str] = []
         for column, event_field in cls.ACCOUNT_PLAN_SUBSCRIPTION_FIELDS.items():
             value = payload.get(event_field)
+            if column == "account" and isinstance(value, str):
+                # Jobs store the bare account id from the IAM token, so the row has to match it
+                value = value.removeprefix(ACCOUNT_PREFIX)
             if value is None or value == "":
                 missing.append(event_field)
                 continue

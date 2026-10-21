@@ -1,5 +1,7 @@
 """Tests for the Job admin: read-only status fields and the Stop job button."""
 
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -7,6 +9,7 @@ from rest_framework.test import APITestCase
 from api.admin import JobAdmin
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Program
+from core.services.runners import RunnerError, RunnerRetryableError
 
 
 class TestJobAdmin(APITestCase):
@@ -136,19 +139,119 @@ class TestJobAdmin(APITestCase):
         job.refresh_from_db()
         assert job.status == Job.STOPPED
 
-    def test_stop_job_button_does_nothing_for_fleets_job(self):
-        """The Stop job button is a Ray-only action: it must not touch a Fleets job."""
+    def test_stop_job_button_stops_a_fleets_job(self):
+        """The button cancels the fleet and records STOPPING. The scheduler confirms it later."""
 
         user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
         program = Program.objects.create(title=f"{user.username}-custom", author=user, runner=Program.FLEETS)
         job = Job.objects.create(
-            status=Job.RUNNING, sub_status=None, author_id=user.pk, program=program, runner=Program.FLEETS
+            status=Job.RUNNING,
+            sub_status=None,
+            author_id=user.pk,
+            program=program,
+            runner=Program.FLEETS,
+            fleet_id="fleet-123",
+        )
+
+        runner = MagicMock()
+        runner.stop.return_value = True
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
+            self._post_stop(job, user)
+
+        job.refresh_from_db()
+        assert job.status == Job.STOPPING
+        runner.stop.assert_called_once()
+        event = JobEvent.objects.get(job_id=job.id)
+        assert event.origin == JobEventOrigin.BACKOFFICE
+        assert event.context == JobEventContext.STOP_JOB
+
+    def test_stop_job_button_ends_a_fleets_job_with_no_fleet(self):
+        """Nothing to cancel, so the row goes straight to STOPPED and the scheduler never sees it."""
+
+        user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
+        program = Program.objects.create(title=f"{user.username}-custom", author=user, runner=Program.FLEETS)
+        job = Job.objects.create(
+            status=Job.QUEUED, sub_status=None, author_id=user.pk, program=program, runner=Program.FLEETS
         )
 
         self._post_stop(job, user)
 
         job.refresh_from_db()
-        assert job.status == Job.RUNNING
+        assert job.status == Job.STOPPED
+        event = JobEvent.objects.get(job_id=job.id)
+        assert event.origin == JobEventOrigin.BACKOFFICE
+
+    def test_stop_job_button_is_not_offered_on_a_stopping_job(self):
+        """The cancel is already in flight, so a second one would write nothing."""
+
+        user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
+        program = Program.objects.create(title=f"{user.username}-custom", author=user, runner=Program.FLEETS)
+        job = Job.objects.create(
+            status=Job.STOPPING, sub_status=None, author_id=user.pk, program=program, runner=Program.FLEETS
+        )
+
+        assert JobAdmin(Job, None).job_actions(job) == "-"
+
+        self._post_stop(job, user)
+
+        job.refresh_from_db()
+        assert job.status == Job.STOPPING
+        assert JobEvent.objects.filter(job_id=job.id).count() == 0
+
+    def test_a_cancel_that_did_not_land_leaves_the_fleets_job_alone(self):
+        """Writing a status here would claim a stop that never reached Code Engine."""
+
+        user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
+        program = Program.objects.create(title=f"{user.username}-custom", author=user, runner=Program.FLEETS)
+
+        for error in (RunnerRetryableError("Too Many Requests"), RunnerError("project 'p' is not active")):
+            with self.subTest(error=type(error).__name__):
+                job = Job.objects.create(
+                    status=Job.RUNNING,
+                    sub_status=None,
+                    author_id=user.pk,
+                    program=program,
+                    runner=Program.FLEETS,
+                    fleet_id="fleet-123",
+                )
+                runner = MagicMock()
+                runner.stop.side_effect = error
+                with patch("core.services.job_transitions.get_runner", return_value=runner):
+                    self._post_stop(job, user)
+
+                job.refresh_from_db()
+                assert job.status == Job.RUNNING
+                assert JobEvent.objects.filter(job_id=job.id).count() == 0
+
+    def test_a_job_that_ended_between_the_check_and_the_write_is_left_alone(self):
+        """_can_stop reads the status, then _change_status re-reads it under a lock. A job that
+        ended in between is refused there, and the admin reports it instead of raising."""
+
+        user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
+        program = Program.objects.create(title=f"{user.username}-custom", author=user, runner=Program.FLEETS)
+        job = Job.objects.create(
+            status=Job.RUNNING,
+            sub_status=None,
+            author_id=user.pk,
+            program=program,
+            runner=Program.FLEETS,
+            fleet_id="fleet-123",
+        )
+
+        runner = MagicMock()
+
+        def end_the_job_then_report_the_cancel():
+            # the window: _can_stop has passed, the locked re-read has not happened yet
+            Job.objects.filter(pk=job.pk).update(status=Job.SUCCEEDED)
+            return True
+
+        runner.stop.side_effect = end_the_job_then_report_the_cancel
+        with patch("core.services.job_transitions.get_runner", return_value=runner):
+            response = self._post_stop(job, user)
+
+        assert response.status_code == 302
+        job.refresh_from_db()
+        assert job.status == Job.SUCCEEDED
         assert JobEvent.objects.filter(job_id=job.id).count() == 0
 
     def test_stop_job_button_does_nothing_for_terminal_job(self):
