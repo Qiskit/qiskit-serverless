@@ -307,6 +307,14 @@
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BackgroundExecutor.submit</span></code> accepts an optional <code class="docutils literal notranslate"><span class="pre">replace_key</span></code>: a task
+that is still waiting with the same key in the same pool is replaced by the
+new one, which takes its place in the queue and needs no new slot. There is
+a new outcome <code class="docutils literal notranslate"><span class="pre">replaced</span></code> in <code class="docutils literal notranslate"><span class="pre">background_executor_tasks_total</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">BackgroundExecutor.would_accept</span></code> tells whether a <code class="docutils literal notranslate"><span class="pre">submit</span></code> would be
+accepted. The outcome <code class="docutils literal notranslate"><span class="pre">skipped</span></code> of that metric is now called <code class="docutils literal notranslate"><span class="pre">canceled</span></code>.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The backoffice “Stop job” button now works on a Fleets job. It cancels the
 job’s Code Engine fleet and records <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code>, and the scheduler confirms
 the stop like any other. Before, the button was only shown for Ray jobs, so a
