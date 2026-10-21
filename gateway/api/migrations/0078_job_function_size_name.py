@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             name="function_size_name",
             field=models.CharField(
                 blank=True,
-                help_text="Size label the job ran with, captured at creation time and never changed, so it survives a rename or delete of the function_size row. Null when run by a non-Fleets runner or sized by the deployment default profile.",
+                help_text="Size label the job ran with, captured at creation time and never changed, so it survives a rename or delete of the function_size row. Null when run by a non-Fleets runner or sized by the deployment default profile. A job created by a pod that predates this field (during a rollout) has it null while function_size is set: readers use Job.size_label, which falls back to the function_size row.",
                 max_length=64,
                 null=True,
             ),
