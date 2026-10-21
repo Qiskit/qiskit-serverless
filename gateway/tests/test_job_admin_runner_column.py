@@ -154,7 +154,9 @@ def test_compute_profile_column_is_empty_for_a_ray_job():
 
 
 @pytest.mark.django_db
-def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_size_name_for_fleets():
+def test_compute_profile_column_searches_by_the_profile_and_shows_only_the_profile_for_fleets():
+    """Compute Profile column, Fleets job: a single link that searches the changelist by the profile. The size is no
+    longer shown here (it has its own Running Size column), so there is no second line."""
     user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
     program = Program.objects.create(title="prog1", author=user, provider=None)
     profile = ComputeProfile.objects.create(compute_profile_id="24x120x1l40", cpu="24", memory="120")
@@ -165,6 +167,7 @@ def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_s
         status=Job.RUNNING,
         compute_profile_fk=profile,
         function_size=size,
+        function_size_name=size.function_size,
     )
 
     html = JobAdmin(Job, None).compute_profile_column(job)
@@ -172,11 +175,78 @@ def test_compute_profile_column_searches_by_the_profile_and_shows_the_function_s
     assert f'href="{_search_url("24x120x1l40")}"' in html
     assert 'class="qs-cell-link"' in html
     assert ">24x120x1l40<" in html
+
+
+@pytest.mark.django_db
+def test_function_size_column_shows_the_size_name_of_a_fleets_job():
+    """Running Size column, Fleets job: shows the size name itself ("MEDIUM"), not the size row's primary key and not
+    str(FunctionSize), which is "program (size)"."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    program = Program.objects.create(title="prog1", author=user, provider=None)
+    profile = ComputeProfile.objects.create(compute_profile_id="24x120x1l40", cpu="24", memory="120")
+    size = FunctionSize.objects.create(function=program, function_size="medium", compute_profile=profile)
+    job = Job.objects.create(
+        author=user,
+        runner=Program.FLEETS,
+        status=Job.RUNNING,
+        compute_profile_fk=profile,
+        function_size=size,
+        function_size_name=size.function_size,
+    )
+
     # The size's own name, not its primary key nor the "program (size)" label of str(FunctionSize).
-    assert '<span class="qs-runner-meta">MEDIUM</span>' in html
-    assert str(size.pk) not in html
-    assert html.count("<br>") == 1
-    assert "&lt;br&gt;" not in html
+    assert JobAdmin(Job, None).function_size_column(job) == "MEDIUM"
+
+
+@pytest.mark.django_db
+def test_function_size_column_is_empty_for_a_ray_job():
+    """Running Size column, Ray job: no size applies, so the cell is empty instead of showing "None"."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    job = Job.objects.create(author=user, runner=Program.RAY, status=Job.RUNNING)
+
+    assert JobAdmin(Job, None).function_size_column(job) == ""
+
+
+@pytest.mark.django_db
+def test_function_size_column_shows_the_size_snapshot_not_the_renamed_or_deleted_row():
+    """This tests reads the snapshot, not the live size row. Renaming the row (M -> L) and then
+    deleting it both leave the cell showing M."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    program = Program.objects.create(title="prog1", author=user, provider=None)
+    profile = ComputeProfile.objects.create(compute_profile_id="24x120x1l40", cpu="24", memory="120")
+    size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
+    job = Job.objects.create(
+        author=user,
+        runner=Program.FLEETS,
+        status=Job.RUNNING,
+        compute_profile_fk=profile,
+        function_size=size,
+        function_size_name=size.function_size,
+    )
+
+    FunctionSize.objects.filter(pk=size.pk).update(function_size="L")
+    job.refresh_from_db()
+    assert JobAdmin(Job, None).function_size_column(job) == "M"
+
+    size.delete()
+    job.refresh_from_db()
+    assert JobAdmin(Job, None).function_size_column(job) == "M"
+
+
+@pytest.mark.django_db
+def test_the_changelist_search_finds_a_job_by_its_size_snapshot():
+    """Changelist search: function_size_name is in JobAdmin.search_fields, so searching "XLARGE" returns the XLARGE job
+    and not the S one."""
+    user = User.objects.create_superuser(username="admin", password="x", email="a@a.com")
+    job = Job.objects.create(author=user, runner=Program.FLEETS, status=Job.RUNNING, function_size_name="XLARGE")
+    other = Job.objects.create(author=user, runner=Program.FLEETS, status=Job.RUNNING, function_size_name="S")
+    client = Client()
+    client.force_login(user)
+
+    content = client.get(_search_url("XLARGE")).content.decode()
+
+    assert str(job.pk) in content
+    assert str(other.pk) not in content
 
 
 @pytest.mark.django_db
@@ -226,4 +296,10 @@ def test_changelist_shows_short_sortable_timestamps():
     assert "field-updated_column" in body
     assert timezone.localtime(job.created).strftime("%y/%m/%d %H:%M:%S") in body
     # Sorting by clicking the header still works, so the column keeps its ordering field.
-    assert client.get("/backoffice/api/job/?o=6").status_code == 200
+    assert client.get(f"/backoffice/api/job/?o={_column_index('created_column')}").status_code == 200
+
+
+def _column_index(name):
+    """The changelist's ?o= value for a column. JobAdmin has actions, so Django puts the action checkbox column
+    first and every list_display column sits one position later."""
+    return JobAdmin.list_display.index(name) + 1

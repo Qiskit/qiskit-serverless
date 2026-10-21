@@ -1,0 +1,6 @@
+---
+other:
+  - |
+    The IAM token used for Cloud Object Storage and the Runtime API is now
+    renewed in a background thread when less than 40% of its life, or 10
+    minutes, is left, so a request no longer waits for the renewal.
