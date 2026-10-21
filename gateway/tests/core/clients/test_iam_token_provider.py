@@ -272,6 +272,36 @@ def test_a_short_ttl_uses_the_10_minute_floor(authenticator, providers):
     assert clock.waits[0] == 600
 
 
+def test_a_token_that_lives_less_than_the_floor_is_renewed_at_half_its_life_and_not_in_a_loop(authenticator, providers):
+    clock = _Clock()
+    provider, token_manager = _provider(authenticator, providers, clock, ttl=300, max_waits=2)
+    _renews_with(token_manager, clock, ttl=300)
+
+    provider._refresh_loop()  # pylint: disable=protected-access
+
+    assert clock.waits[0] == 150
+
+
+def test_a_background_renewal_is_timed_like_any_other_request_to_iam(authenticator, providers):
+    registry = CollectorRegistry()
+    external_call_metrics.enable(registry)
+    try:
+        clock = _Clock()
+        provider, token_manager = _provider(authenticator, providers, clock, max_waits=2)
+
+        def renew():
+            token_manager.token_info = {"renewed": True}
+            token_manager.expire_time = clock.now + 3600
+            return "renewed"
+
+        token_manager.get_token.side_effect = renew
+        provider._refresh_loop()  # pylint: disable=protected-access
+    finally:
+        external_call_metrics.disable()
+
+    assert _recorded(registry, "ok") == 1
+
+
 def test_a_failed_renewal_is_retried_every_30_seconds_and_the_thread_survives(authenticator, providers):
     clock = _Clock()
     provider, token_manager = _provider(authenticator, providers, clock, ttl=3600, max_waits=4)

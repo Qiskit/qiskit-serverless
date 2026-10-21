@@ -76,15 +76,8 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         """A valid token. A background thread renews it before it gets close to expiry, and the SDK caches it and lets
         one thread at a time ask IAM if it has to (first call, or the thread could not renew), so ask on every use and
         do not add a lock around it."""
-        token_manager = self._authenticator.token_manager
         try:
-            with observe_operation(IAM_TOKEN) as observation:
-                cached = token_manager.token_info
-                token = token_manager.get_token()
-                # The SDK answers from its cache nearly every time, which would fill the histogram with zeros and hide
-                # the few real requests. It stores a new token_info object only when it asked IAM, so a sample is
-                # kept only then.
-                observation.discard = token_manager.token_info is cached
+            token = self._fetch()
         except ApiException as exc:
             self._forget_failed_request()
             if exc.status_code in _KEY_REJECTED:
@@ -97,11 +90,25 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
             logger.warning("Could not get an IAM token: %s", type(exc).__name__)
             raise RetryableError("Could not get an IAM token") from exc
         try:
-            self._note_token(token)
+            if self._record_token(token):
+                self._ensure_refresher()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             # The token is valid, so a refresher that cannot start must not fail the caller (the SDK refresh remains).
             logger.warning("Could not start the IAM token refresher: %s", type(exc).__name__)
         return token
+
+    def _fetch(self) -> str:
+        """Ask the SDK for the token and time the call. Used by callers and by the refresher, so every request to IAM
+        is in the histogram."""
+        token_manager = self._authenticator.token_manager
+        with observe_operation(IAM_TOKEN) as observation:
+            cached = token_manager.token_info
+            token = token_manager.get_token()
+            # The SDK answers from its cache nearly every time, which would fill the histogram with zeros and hide the
+            # few real requests. It stores a new token_info object only when it asked IAM, so a sample is kept only
+            # then.
+            observation.discard = token_manager.token_info is cached
+            return token
 
     def invalidate(self, token: str) -> None:
         """Drop ``token`` from the cache, so the next ``get_token`` asks IAM for a new one. Use it when the API rejects
@@ -117,11 +124,6 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         self._stopped = True
         self._wake.set()
 
-    def _note_token(self, token: str) -> None:
-        """Remember the lifetime of a token and make sure the refresher runs. The common case is one comparison."""
-        if self._record_token(token):
-            self._ensure_refresher()
-
     def _record_token(self, token: str) -> bool:
         """Measure the lifetime of a token the first time it is seen (``expire_time`` minus now, never assumed). False
         if the expiry is unknown, so there is nothing to schedule."""
@@ -134,14 +136,16 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
                 self._ttl = max(expire_time - self._clock(), 0.0)
         return True
 
+    def _refresher_alive(self) -> bool:
+        thread = self._thread
+        return thread is not None and self._thread_pid == os.getpid() and thread.is_alive()
+
     def _ensure_refresher(self) -> None:
         """Start the refresher if this process has none. A forked child inherits the provider but not its thread."""
-        thread = self._thread
-        if thread is not None and self._thread_pid == os.getpid() and thread.is_alive():
+        if self._refresher_alive():
             return
         with self._state_lock:
-            thread = self._thread
-            if self._stopped or (thread is not None and self._thread_pid == os.getpid() and thread.is_alive()):
+            if self._stopped or self._refresher_alive():
                 return
             if self._thread_pid not in (None, os.getpid()):
                 self._wake = threading.Event()  # a forked child must not share the parent's event state
@@ -151,11 +155,12 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
 
     def _refresh_deadline(self) -> float:
         """Epoch seconds at which the token must be renewed: when less than ``max(40% of its lifetime, 10 minutes)``
-        is left. A token without expiry (dropped by ``invalidate``) is due now."""
+        is left, but never earlier than half of its lifetime, or a token that lives 10 minutes or less would be renewed
+        in a loop. A token without expiry (dropped by ``invalidate``) is due now."""
         expire_time = self._authenticator.token_manager.expire_time
         if expire_time <= 0:
             return self._clock()
-        return expire_time - max(REFRESH_FRACTION * self._ttl, REFRESH_MIN_SECONDS)
+        return expire_time - min(max(REFRESH_FRACTION * self._ttl, REFRESH_MIN_SECONDS), self._ttl / 2)
 
     def _wait_for_wake_or_stop(self, seconds: float) -> bool:
         """Sleep up to ``seconds``, or less if ``invalidate`` or ``close`` wakes the thread. True means stop."""
@@ -175,7 +180,7 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
             while True:
                 try:
                     token_manager.refresh_time = 0  # make the SDK renew even though its own 80% mark is not reached
-                    self._record_token(token_manager.get_token())
+                    self._record_token(self._fetch())
                     break
                 except Exception as exc:  # pylint: disable=broad-exception-caught
                     self._forget_failed_request()
