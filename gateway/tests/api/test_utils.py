@@ -51,6 +51,7 @@ class TestUtils:
         job.runner = runner
         job.compute_profile_id = compute_profile
         job.function_size_name = function_size
+        job.size_label = function_size
 
         if not arguments:
             arguments = {}

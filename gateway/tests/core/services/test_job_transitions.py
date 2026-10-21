@@ -253,11 +253,11 @@ class TestBillingOutbox:
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
     def test_missing_size_snapshot_despite_a_provider_waives_the_fee_and_logs(self, service, user, caplog):
-        """The guard in _enqueue_license_fee: a provider job with no snapshot (legacy rows from before the backfill)
-        gets no license fee message, and an ERROR log line. It is an anomaly, not the normal no-provider case, so it
-        must be visible."""
+        """The guard in _enqueue_license_fee: a provider job with neither a snapshot nor a size row gets no license
+        fee message, and an ERROR log line. It is an anomaly, not the normal no-provider case, so it must be
+        visible."""
         job = _licensed_fleets_job(user, Job.PENDING)
-        Job.objects.filter(pk=job.pk).update(function_size_name=None)
+        Job.objects.filter(pk=job.pk).update(function_size_name=None, function_size=None)
         job.refresh_from_db()
 
         with caplog.at_level(logging.ERROR):
@@ -265,6 +265,18 @@ class TestBillingOutbox:
 
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
         assert "waiving the fee" in caplog.text
+
+    def test_missing_size_snapshot_bills_the_size_row_label(self, service, user):
+        """A job created by a pod that predates the snapshot (a rollout) has a size row but no snapshot. Its license
+        fee is still enqueued, priced at the size row's label, instead of being waived."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        Job.objects.filter(pk=job.pk).update(function_size_name=None)
+        job.refresh_from_db()
+
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
+        assert fee.payload["data"]["metric_type"].endswith("_my-fn_m")
 
     def test_size_row_deleted_while_active_still_owes_the_fee_at_the_original_size(self, service, user):
         """A re-upload deletes the job's size row (FK SET_NULL) while the job is running. At the terminal transition a
