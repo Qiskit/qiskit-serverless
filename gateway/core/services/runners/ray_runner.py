@@ -729,8 +729,8 @@ def _wait_for_cluster_ready(cluster_name: str, job_id: str) -> tuple[str, bool]:
     """Wait for cluster to become available."""
     url = f"http://{cluster_name}-head-svc:8265/"
     max_time = settings.RAY_CLUSTER_MAX_READINESS_TIME
-    start_time = time.time()
-    while time.time() - start_time < max_time:
+    start_time = time.monotonic()
+    while time.monotonic() - start_time < max_time:
         try:
             response = requests.get(url, timeout=5)
             if response.ok:
@@ -738,7 +738,7 @@ def _wait_for_cluster_ready(cluster_name: str, job_id: str) -> tuple[str, bool]:
                     "[_wait_for_cluster_ready] job_id=%s cluster=%s elapsed=%.1fs Cluster ready",
                     job_id,
                     cluster_name,
-                    time.time() - start_time,
+                    time.monotonic() - start_time,
                 )
                 return url, True
 
@@ -751,7 +751,7 @@ def _wait_for_cluster_ready(cluster_name: str, job_id: str) -> tuple[str, bool]:
             )
         time.sleep(0.5)
 
-    elapsed = time.time() - start_time
+    elapsed = time.monotonic() - start_time
     logger.warning(
         "[_wait_for_cluster_ready] job_id=%s cluster=%s elapsed=%.1fs Cluster not ready after %s timeout",
         job_id,
@@ -803,7 +803,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
     if settings.RAY_CLUSTER_MODE_LOCAL:
         return True
 
-    start_time = time.time()
+    start_time = time.monotonic()
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
     config.load_incluster_config()
@@ -819,7 +819,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
             + "RayCluster NotFoundError when deleting (return true): %s",
             job_id,
             cluster_name,
-            time.time() - start_time,
+            time.monotonic() - start_time,
             sanitized,
         )
         # Returns true because the intention of killing the cluster was achieved
@@ -829,7 +829,7 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
             "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs RayCluster deletion failed: %s. Return false",
             job_id,
             cluster_name,
-            time.time() - start_time,
+            time.monotonic() - start_time,
             str(ex),
         )
         return False
@@ -909,6 +909,6 @@ def _kill_ray_cluster(cluster_name: str, job_id=None) -> bool:
         "[_kill_ray_cluster] job_id=%s cluster=%s elapsed=%.1fs completed",
         job_id,
         cluster_name,
-        time.time() - start_time,
+        time.monotonic() - start_time,
     )
     return success

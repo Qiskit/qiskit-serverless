@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    The scheduler now measures the duration of its loop, its tasks and its
+    internal waits with a monotonic clock instead of the wall clock, so a clock
+    adjustment (NTP correction, VM pause) can no longer show up as a very long
+    loop or task in the scheduler metrics. The ``scheduler_start_timestamp_seconds``
+    and ``scheduler_last_tick_timestamp_seconds`` metrics stay on the wall clock.
