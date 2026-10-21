@@ -184,7 +184,7 @@ def test_wait_until_object_exists_retries_on_404() -> None:
     not_found = ClientError({"Error": {"Code": "404", "Message": "Not Found"}}, "HeadObject")
     mock_s3.head_object.side_effect = [not_found, not_found, {}]
 
-    with patch("time.time", side_effect=[0, 1, 3, 5]), patch("time.sleep") as mock_sleep:
+    with patch("time.monotonic", side_effect=[0, 1, 3, 5]), patch("time.sleep") as mock_sleep:
         client.wait_until_object_exists(bucket="b", key="k", timeout_seconds=10, poll_interval=2)
 
     assert mock_s3.head_object.call_count == 3
@@ -197,7 +197,7 @@ def test_wait_until_object_exists_raises_timeout() -> None:
     not_found = ClientError({"Error": {"Code": "404", "Message": "Not Found"}}, "HeadObject")
     mock_s3.head_object.side_effect = not_found
 
-    with patch("time.time", side_effect=[0, 11]), patch("time.sleep"):
+    with patch("time.monotonic", side_effect=[0, 11]), patch("time.sleep"):
         with pytest.raises(TimeoutError, match="did not become available"):
             client.wait_until_object_exists(bucket="b", key="k", timeout_seconds=10, poll_interval=2)
 

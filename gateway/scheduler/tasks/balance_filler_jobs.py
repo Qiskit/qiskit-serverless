@@ -257,6 +257,7 @@ class BalanceFillerJobs(SchedulerTask):
             compute_profile_fk=program.default_size.compute_profile,
             size_source=Job.SIZE_SOURCE_NONE,
             function_size=program.default_size,
+            function_size_name=program.default_size.function_size,
             status=Job.QUEUED,
             env_vars="{}",
             ce_project_name=project.project_name,
