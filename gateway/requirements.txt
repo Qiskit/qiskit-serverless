@@ -4,7 +4,7 @@ django-allow-cidr>=0.8.0, <1
 django-csp>=4.0, <5
 django_prometheus>=2.5.0, <3
 ray[default]>=2.59.0, <3
-Django>=6.0.8, <7
+Django>=6.1.2, <7
 gunicorn>=26.2.0, <27
 requests>=2.34.2, <3
 psycopg2-binary>=2.9.13, <3
@@ -18,7 +18,7 @@ django-pglock>=1.8.0, <2
 drf-yasg>=1.21.18, <2
 # Django dependency, but we need a newer version (IBMQ#246)
 sqlparse>=0.6.0, <1
-qiskit>=2.5.2, <3
+qiskit>=2.6.0, <3
 qiskit-ibm-runtime>=0.50.0, <0.51.0
 tzdata>=2026.5
 django-cors-headers>=4.9.0, <5
