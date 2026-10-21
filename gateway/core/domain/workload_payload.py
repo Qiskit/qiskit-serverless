@@ -83,7 +83,7 @@ def build_workload_payload(job: Job) -> dict:
             "user_id": job.author.username,
             "status": _STATUS[job.status],
             "compute_profile": job.compute_profile_id,
-            "size": job.function_size.function_size.upper() if job.function_size else None,
+            "size": job.size_label,
             "created_at": created_at.isoformat() if created_at else None,
             "running_at": running_at.isoformat() if running_at else None,
             "ended_at": ended_at.isoformat() if ended_at else None,

@@ -50,10 +50,8 @@ class TestUtils:
         job.trial = trial
         job.runner = runner
         job.compute_profile_id = compute_profile
-        if function_size is None:
-            job.function_size = None
-        else:
-            job.function_size.function_size = function_size
+        job.function_size_name = function_size
+        job.size_label = function_size
 
         if not arguments:
             arguments = {}
