@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import connection
+from django.db.utils import OperationalError
 
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -672,3 +674,86 @@ class TestStop:
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+class TestStatusMirror:
+    """The status of a mirrored job is sent once the transaction of the transition is over, never inside it."""
+
+    @pytest.fixture
+    def mirror(self):
+        mirror = MagicMock()
+        mirror.send.side_effect = lambda job: self._assert_outside_transaction()
+        return mirror
+
+    @staticmethod
+    def _assert_outside_transaction():
+        assert connection.in_atomic_block is False
+
+    @pytest.fixture
+    def mirrored_service(self, sender, mirror):
+        return JobTransitionService(sender=sender, workload_mirror=mirror)
+
+    def test_queued_to_pending_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.QUEUED)
+
+        mirrored_service.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS)
+
+        mirror.send.assert_called_once_with(job)
+
+    def test_pending_to_running_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+
+        mirrored_service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        mirror.send.assert_called_once_with(job)
+
+    def test_stopping_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.RUNNING)
+
+        result = mirrored_service.stop(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.STOP_JOB,
+            runner=MagicMock(**{"stop.return_value": True}),
+        )
+
+        assert result == Job.STOPPING
+        mirror.send.assert_called_once_with(job)
+
+    def test_a_database_error_of_the_mirror_leaves_the_status_written(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        mirror.send.side_effect = OperationalError("down")
+
+        with pytest.raises(OperationalError):
+            mirrored_service.pending_to_running(
+                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            )
+
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+
+    def test_nothing_is_sent_by_the_other_paths(self, mirrored_service, mirror, user):
+        running = _licensed_fleets_job(user, Job.RUNNING)
+        JobEvent.objects.add_status_event(
+            job_id=running.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+        mirrored_service.running_to_running(running)
+        no_fleet = _licensed_fleets_job(user, Job.RUNNING, fleet_id=None)
+        assert (
+            mirrored_service.stop(no_fleet, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPED
+        )
+        mirrored_service.to_succeeded(
+            running, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+        terminal = _licensed_fleets_job(user, Job.SUCCEEDED)
+        with pytest.raises(InvalidJobTransitionException):
+            mirrored_service.queued_to_pending(
+                terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS
+            )
+
+        mirror.send.assert_not_called()
