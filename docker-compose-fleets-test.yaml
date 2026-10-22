@@ -155,7 +155,7 @@ services:
       context: ./
       dockerfile: tests/fleets/fleet-worker/Dockerfile
       # Built FROM the fleets runtime base. Build it first:
-      #   make build-fleet-node   (tags fleet-node:latest)
+      #   make build-fleet-node-local   (tags fleet-node:latest, CPU stage)
       args:
         BASE_IMAGE: ${FLEET_NODE_IMAGE:-fleet-node:latest}
     privileged: true

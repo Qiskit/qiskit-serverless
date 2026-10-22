@@ -16,13 +16,18 @@ upgrade:
     workload stack plus the CUDA wheels. The image builds assert this in both
     directions, so neither half can drift back into the other unnoticed.
 
-    The gateway does not yet choose between the two: ``FLEETS_DEFAULT_IMAGE``
-    is still a single value, and an imageless Fleets job continues to get
-    whatever it points at. Point it at the GPU image for a deployment whose
-    functions need CUDA until the compute-profile-based choice lands. Provider
-    images (``program.image``) are unaffected.
+    No job changes the image it runs on. ``fleet-node``, which
+    ``FLEETS_DEFAULT_IMAGE`` and the chart's ``ce.fleetsDefaultImage`` resolve
+    to, is still built with the CUDA wheels, exactly as it was before the
+    split: the gateway cannot yet choose an image per compute profile, so a
+    job on a GPU profile has to keep getting a CUDA-capable default. The two
+    new images are published alongside it, ready for that choice to land.
+    Provider images (``program.image``) are unaffected.
 
     Builds of ``docker-images/fleet-node/Dockerfile`` that relied on the
-    default stage now resolve to the GPU image, since ``selector-gpu`` is last
-    in the file. Pass ``--target selector`` for the CPU runtime; the Makefile
-    targets and both CI workflows already do.
+    default stage still resolve to a CUDA image, since ``selector-gpu`` is now
+    last in the file. Pass ``--target selector`` for the CPU runtime. Local
+    fleets-test setups should use the new ``make build-fleet-node-local``,
+    which builds that stage and tags it ``fleet-node:latest``;
+    ``make build-fleet-node`` now builds the published GPU image and no longer
+    writes that local tag.

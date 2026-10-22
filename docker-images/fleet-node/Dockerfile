@@ -35,10 +35,15 @@
 # stages.
 #
 # selector-gpu is the LAST stage, so a build with no --target resolves to the GPU
-# image. CPU builds must pass --target selector explicitly; build-fleet-node and
-# build-fleet-selector in the Makefile and both CI workflows do. The order is
-# forced -- selector-gpu is FROM selector, so it cannot be declared first -- which
-# is why the default is the GPU image rather than the more obvious CPU one.
+# image. CPU builds must pass --target selector explicitly; build-fleet-selector
+# and build-fleet-node-local in the Makefile and both CI workflows do. The order
+# is forced -- selector-gpu is FROM selector, so it cannot be declared first --
+# which is why the default is the GPU image rather than the more obvious CPU one.
+#
+# Note which image is which name: fleet-node, the image FLEETS_DEFAULT_IMAGE
+# resolves to, is built from selector-gpu and carries CUDA, because that is what
+# it carried before this file was split and the gateway cannot yet choose per
+# compute profile. See the build-fleet-node comment in the Makefile.
 #
 # Build from repo root (client/ must be in the build context):
 #   docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .        # CPU runtime
