@@ -381,7 +381,7 @@ class Job:
                 if failing_since is None:
                     failing_since = time.monotonic()
                 give_up = failing_since + _RETRY_SECONDS if deadline is None else deadline
-                self._raise_unless_retried(error, give_up, start, verbose)
+                self._raise_unless_transient(error, give_up, start, verbose)
                 time.sleep(_next_wait(step, give_up, poll_interval))
                 step += 1
                 continue
@@ -399,7 +399,9 @@ class Job:
             time.sleep(_next_wait(step, deadline, poll_interval))
             step += 1
 
-    def _raise_unless_retried(self, error: QiskitServerlessException, give_up: float, start: float, verbose: bool):
+    def _raise_unless_transient(
+        self, error: QiskitServerlessException, give_up: float, start: float, verbose: bool
+    ) -> None:
         """Raise the error unless it is transient and there is time left to retry."""
         if not is_transient_error(error) or time.monotonic() >= give_up:
             raise error
@@ -594,7 +596,7 @@ def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[flo
         wait = max(float(poll_interval), _MIN_POLL_INTERVAL_SECONDS)
     else:
         base = _BACKOFF_SECONDS[min(step, len(_BACKOFF_SECONDS) - 1)]
-        wait = base * random.uniform(1 - _BACKOFF_JITTER, 1 + _BACKOFF_JITTER)
+        wait = min(base * random.uniform(1 - _BACKOFF_JITTER, 1 + _BACKOFF_JITTER), _BACKOFF_SECONDS[-1])
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait

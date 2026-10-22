@@ -10,7 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Tests for Job.wait_for_final_state()."""
+"""Tests for Job.wait_for_final_state() and Job.result(), which waits with it."""
 
 from unittest.mock import Mock, patch
 
@@ -296,3 +296,21 @@ def test_result_maxwait_with_timeout_raises():
 
     with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
         job.result(maxwait=3, timeout=10)
+
+
+def test_result_retries_a_503_while_waiting(clock):
+    """A 503 during the wait is retried, and the results are still returned."""
+    job, service = _job(("RUNNING", None), QiskitServerlessException("busy", code=503), ("SUCCEEDED", None))
+    service.result.return_value = "{}"
+
+    assert job.result() == {}
+
+
+def test_the_jitter_never_waits_longer_than_30_seconds(clock):
+    """The longest wait stays at 30 s even with the highest jitter."""
+    job, _ = _job(*([("RUNNING", None)] * 6), ("SUCCEEDED", None))
+
+    with patch("qiskit_serverless.core.job.random.uniform", return_value=1.1):
+        job.wait_for_final_state()
+
+    assert max(clock.sleeps) == 30

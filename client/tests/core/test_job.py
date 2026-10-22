@@ -241,9 +241,6 @@ class TestJobResult:
     def test_result_with_wait_until_terminal(self, mock_sleep):
         """Test result() waiting for job to reach terminal state."""
         mock_service = Mock()
-        # Simulate job transitioning from RUNNING to SUCCEEDED
-        # The while loop calls in_terminal_state() which calls status() internally
-        # Just return RUNNING multiple times, then SUCCEEDED
         mock_service.status.return_value = Job.RUNNING
 
         # After 2 iterations, change to SUCCEEDED
@@ -271,7 +268,6 @@ class TestJobResult:
     def test_result_with_wait_and_verbose(self, _mock_sleep, capsys):
         """Test result() with verbose printing enabled."""
         mock_service = Mock()
-        # Need extra status calls for in_terminal_state checks
         mock_service.status.side_effect = [
             Job.RUNNING,
             Job.RUNNING,  # First iteration
@@ -290,7 +286,6 @@ class TestJobResult:
     def test_result_with_custom_cadence(self, mock_sleep):
         """Test result() with custom cadence parameter."""
         mock_service = Mock()
-        # Need extra status calls for in_terminal_state checks
         mock_service.status.side_effect = [
             Job.RUNNING,
             Job.RUNNING,  # First iteration
