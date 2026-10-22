@@ -32,6 +32,7 @@ from abc import ABC, abstractmethod
 import json
 import logging
 import os
+import random
 import time
 import warnings
 from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
@@ -58,10 +59,18 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
-from qiskit_serverless.utils.errors import JobEvent, format_err_event
+from qiskit_serverless.utils.errors import JobEvent, format_err_event, is_transient_error
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
+
+logger = logging.getLogger(__name__)
+
+_FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
+_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 32, 60)
+_BACKOFF_JITTER = 0.1
+_RETRY_SECONDS = 300
+_MIN_POLL_INTERVAL_SECONDS = 1
 
 
 @dataclass
@@ -180,6 +189,7 @@ class Job:
         self.job_id = job_id
         self._job_service = job_service
         self.raw_data = raw_data or {}
+        self._final_status: Optional[str] = None
 
     @property
     def fleet_id(self) -> Optional[str]:
@@ -187,7 +197,15 @@ class Job:
         return self.raw_data.get("fleet_id")
 
     def status(self):
-        """Returns status of the job."""
+        """Returns status of the job. A final status cannot change, so it is fetched only once."""
+        if self._final_status is not None:
+            return self._final_status
+        status = self._fetch_status()
+        if status in _FINAL_STATUSES:
+            self._final_status = status
+        return status
+
+    def _fetch_status(self) -> str:
         fresh_data = self._job_service.get_job_data(self.job_id)
         if isinstance(fresh_data, dict):
             self.raw_data.update(fresh_data)
@@ -300,8 +318,85 @@ class Job:
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_status = ["CANCELED", "DONE", "ERROR"]
-        return self.status() in terminal_status
+        return self.status() in _FINAL_STATUSES
+
+    def wait_for_final_state(
+        self, timeout: Optional[float] = None, poll_interval: Optional[float] = None, verbose: bool = False
+    ) -> str:
+        """Wait until the job is DONE, ERROR or CANCELED, and return that status.
+
+        By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the
+        main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces
+        that backoff. Short network errors and 429, 502, 503 or 504 answers are retried.
+
+        Args:
+            timeout: seconds to wait. ``None`` waits until the job ends. One status request can add up to its own
+                request timeout on top.
+            poll_interval: fixed seconds between checks instead of the backoff.
+            verbose: print a header, one line per status change and per retried error, and the error message
+                if the job ends in ERROR.
+
+        Raises:
+            TimeoutError: if the job does not end within ``timeout``. The job keeps running.
+            QiskitServerlessException: on any other error, or when the retried errors last until ``timeout``, or
+                for 5 minutes in a row when there is no timeout.
+
+        Example:
+            >>> job.wait_for_final_state(timeout=600, verbose=True)
+            Waiting for job 3f2a1c0e-6b1d-4c0e-9a51-2f0c4d1e7a90
+            0:00:00  QUEUED
+            0:02:10  RUNNING
+            0:41:44  DONE
+            'DONE'
+        """
+        start = time.monotonic()
+        deadline = None if timeout is None else start + timeout
+        if verbose:
+            print(f"Waiting for job {self.job_id}", flush=True)
+        last_status = None
+        failing_since = None
+        step = 0
+        while True:
+            try:
+                status = self.status()
+                failing_since = None
+            except QiskitServerlessException as error:
+                if failing_since is None:
+                    failing_since = time.monotonic()
+                give_up = failing_since + _RETRY_SECONDS if deadline is None else deadline
+                if not is_transient_error(error) or time.monotonic() >= give_up:
+                    raise
+                logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
+                if verbose:
+                    code = getattr(error, "_code", None)
+                    print(f"{_elapsed(start)}  status check failed ({code}), retrying", flush=True)
+                time.sleep(_next_wait(step, give_up, poll_interval))
+                step += 1
+                continue
+            if status != last_status:
+                if verbose:
+                    print(f"{_elapsed(start)}  {status}", flush=True)
+                if last_status is not None and _resets_backoff(last_status, status):
+                    step = 0
+                last_status = status
+            if status in _FINAL_STATUSES:
+                if verbose and status == "ERROR":
+                    self._print_error_message()
+                return status
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError(f"Job {self.job_id} is still {status} after {timeout} s.")
+            time.sleep(_next_wait(step, deadline, poll_interval))
+            step += 1
+
+    def _print_error_message(self):
+        """Print why the job failed. A failure to fetch it does not change the result of the wait."""
+        try:
+            message = self.error_message()
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.info("Getting the error message for job %s failed.", self.job_id, exc_info=True)
+            message = "Something went wrong getting the error message."
+        if message:
+            print(message, flush=True)
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
@@ -466,6 +561,31 @@ STATUS_MAP = {
 }
 
 INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
+
+
+def _resets_backoff(previous: str, status: str) -> bool:
+    """A new main status, or entering post-processing, resets the backoff. Other sub-statuses do not."""
+    if status == STATUS_MAP[Job.POST_PROCESSING]:
+        return True
+    return _map_status_to_serverless(previous)[0] != _map_status_to_serverless(status)[0]
+
+
+def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[float] = None) -> float:
+    """Seconds to sleep before the next check, cut at the deadline."""
+    if poll_interval is not None:
+        wait = max(float(poll_interval), _MIN_POLL_INTERVAL_SECONDS)
+    else:
+        base = _BACKOFF_SECONDS[min(step, len(_BACKOFF_SECONDS) - 1)]
+        wait = base * random.uniform(1 - _BACKOFF_JITTER, 1 + _BACKOFF_JITTER)
+    if deadline is not None:
+        wait = min(wait, max(deadline - time.monotonic(), 0))
+    return wait
+
+
+def _elapsed(start: float) -> str:
+    """Time since start as H:MM:SS."""
+    seconds = int(time.monotonic() - start)
+    return f"{seconds // 3600}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
 
 
 def _map_status_from_serveless(status: str) -> str:
