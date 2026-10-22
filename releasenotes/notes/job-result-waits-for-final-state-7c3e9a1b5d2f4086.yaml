@@ -10,11 +10,6 @@ features:
         job.result(timeout=600)
 upgrade:
   - |
-    :meth:`~qiskit_serverless.core.job.Job.wait_for_final_state` now checks the
-    status after 1, 2, 4, 8 and 16 seconds, then every 30 seconds, instead of
-    every 60 seconds. So a long job is seen at most about 30 seconds after it
-    ends, like with the old ``result()``.
-  - |
     :meth:`~qiskit_serverless.core.job.Job.result` no longer checks every 30
     seconds by default. It checks after 1, 2, 4, 8 and 16 seconds, then every
     30 seconds, so a short job returns within seconds. ``cadence`` still sets a
