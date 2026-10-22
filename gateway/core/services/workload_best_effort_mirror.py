@@ -32,7 +32,8 @@ _DB_OUTAGE = (OperationalError, InterfaceError)
 _MIRROR = Counter(
     "workload_best_effort_mirror_total",
     "Intermediate workload statuses by status and outcome. sent also counts a PUT that the Runtime API accepted and "
-    "ignored (202, for example a workload that is already terminal).",
+    "ignored (202, for example a workload that is already terminal). A status replaced in the queue by a newer one of "
+    "the same job is not counted here (the executor counts it as replaced), so the sum can be below the transitions.",
     labelnames=("status", "outcome"),
 )
 for _status in _STATUSES:

@@ -114,8 +114,7 @@ class JobTransitionService:
         context: JobEventContext,
         runner: AbstractRunner | None = None,
     ) -> str:
-        """Stop a Fleets job and return the status written. The cancel runs before the transaction. A database error
-        can now arrive after the STOPPING status was written, when the status is mirrored.
+        """Stop a Fleets job and return the status written. The cancel runs before the transaction.
 
         Args:
             runner: Reuse this runner instead of building one, so a retrying caller fetches the IAM
@@ -132,6 +131,7 @@ class JobTransitionService:
             FleetAppearedError: If a fleet appeared while this was deciding. Nothing is written,
                 so the caller asks again with the fresh row and cancels that fleet.
             InvalidJobTransitionException: If the row left a status the new one is reachable from.
+            OperationalError, InterfaceError: From the workload mirror, after the STOPPING status was written.
         """
         if job.runner != Program.FLEETS:
             raise ValueError(f"Job {job.id}: stop is for Fleets jobs, got runner={job.runner}")

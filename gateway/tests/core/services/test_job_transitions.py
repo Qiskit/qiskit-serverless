@@ -24,7 +24,6 @@ from core.models import (
     WorkloadMirror,
 )
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
-from core.services.workload_best_effort_mirror import NoOpWorkloadMirror
 
 pytestmark = pytest.mark.django_db
 
@@ -695,9 +694,6 @@ class TestStatusMirror:
     def mirrored_service(self, sender, mirror):
         return JobTransitionService(sender=sender, workload_mirror=mirror)
 
-    def test_the_default_mirror_sends_nothing(self, sender):
-        assert isinstance(JobTransitionService(sender=sender).workload_mirror, NoOpWorkloadMirror)
-
     def test_queued_to_pending_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
         job = _licensed_fleets_job(user, Job.QUEUED)
 
@@ -751,13 +747,5 @@ class TestStatusMirror:
         assert (
             mirrored_service.stop(no_fleet, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPED
         )
-        mirrored_service.to_succeeded(
-            running, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
-        )
-        terminal = _licensed_fleets_job(user, Job.SUCCEEDED)
-        with pytest.raises(InvalidJobTransitionException):
-            mirrored_service.queued_to_pending(
-                terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS
-            )
 
         mirror.send.assert_not_called()

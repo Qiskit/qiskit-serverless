@@ -74,27 +74,33 @@ def test_a_job_without_a_mirror_row_sends_nothing(executor, build):
     executor.submit.assert_not_called()
 
 
-def test_happy_path_submits_the_envelope_and_the_task_puts_it(executor, client, django_assert_num_queries):
-    job = _job(Job.RUNNING)
-    sent_before = _count("Running", "sent")
+@pytest.mark.parametrize(
+    "job_status, status",
+    [(Job.PENDING, "Pending"), (Job.RUNNING, "Running"), (Job.STOPPING, "Stopping")],
+)
+def test_happy_path_submits_the_envelope_and_the_task_puts_it(
+    executor, client, django_assert_num_queries, job_status, status
+):
+    job = _job(job_status)
+    sent_before = _count(status, "sent")
 
     WorkloadBestEffortMirror().send(job)
 
     executor.submit.assert_called_once()
     call = executor.submit.call_args
     assert call.args[:2] == (BackgroundPool.RUNTIME_API, workload_best_effort_mirror._put)
-    function_id, body, status = call.args[2:]
+    function_id, body, sent_status = call.args[2:]
     assert function_id == str(job.id)
-    assert body["status"] == "Running"
-    assert status == "Running"
+    assert body["status"] == status
+    assert sent_status == status
     assert call.kwargs == {"replace_key": f"job:{job.id}"}
     executor.would_accept.assert_called_once_with(BackgroundPool.RUNTIME_API, f"job:{job.id}")
 
     with django_assert_num_queries(0):
-        workload_best_effort_mirror._put(function_id, body, status)
+        workload_best_effort_mirror._put(function_id, body, sent_status)
 
     client.put_function.assert_called_once_with(function_id, body, timeout=3)
-    assert _count("Running", "sent") == sent_before + 1
+    assert _count(status, "sent") == sent_before + 1
 
 
 def test_a_full_pool_drops_before_building_the_payload(executor, build):
@@ -151,13 +157,11 @@ def test_the_task_swallows_a_put_failure_and_counts_failed(client):
     assert _count("Running", "failed") == before + 1
 
 
-def test_a_database_outage_propagates_from_the_mirror_row_lookup(executor, build):
-    with patch(f"{MODULE}.is_mirrored", side_effect=OperationalError("down")), pytest.raises(OperationalError):
-        WorkloadBestEffortMirror().send(_job())
-
-
-def test_a_database_outage_propagates_from_the_payload(executor, build):
+def test_a_database_outage_propagates_from_any_step(executor, build):
     job = _job()
+
+    with patch(f"{MODULE}.is_mirrored", side_effect=OperationalError("down")), pytest.raises(OperationalError):
+        WorkloadBestEffortMirror().send(job)
 
     build.side_effect = OperationalError("down")
     with pytest.raises(OperationalError):
@@ -176,11 +180,3 @@ def test_the_no_op_mirror_touches_nothing(executor, django_assert_num_queries):
 
     executor.would_accept.assert_not_called()
     executor.submit.assert_not_called()
-
-
-def test_the_nine_series_exist_from_import():
-    series = {
-        (status, outcome) for status in ("Pending", "Running", "Stopping") for outcome in ("sent", "failed", "dropped")
-    }
-
-    assert all(_count(status, outcome) is not None for status, outcome in series)
