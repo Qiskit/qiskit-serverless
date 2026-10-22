@@ -101,14 +101,13 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         """Ask the SDK for the token and time the call. Used by callers and by the refresher, so every request to IAM
         is in the histogram."""
         token_manager = self._authenticator.token_manager
-        with observe_operation(IAM_TOKEN) as observation:
-            cached = token_manager.token_info
-            token = token_manager.get_token()
-            # The SDK answers from its cache nearly every time, which would fill the histogram with zeros and hide the
-            # few real requests. It stores a new token_info object only when it asked IAM, so a sample is kept only
-            # then.
-            observation.discard = token_manager.token_info is cached
-            return token
+        # The SDK answers from its cache nearly every time, which would fill the histogram with zeros and hide the
+        # few real requests. It asks IAM only when the token is expired or due for a refresh, so only then is it timed.
+        # (Both checks are private to the SDK; a refresher renewing in between only costs one wrong sample.)
+        # pylint: disable=protected-access
+        asks_iam = token_manager._is_token_expired() or token_manager._token_needs_refresh()
+        with observe_operation(IAM_TOKEN, enabled=asks_iam):
+            return token_manager.get_token()
 
     def invalidate(self, token: str) -> None:
         """Drop ``token`` from the cache, so the next ``get_token`` asks IAM for a new one. Use it when the API rejects

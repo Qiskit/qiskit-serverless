@@ -9,6 +9,7 @@ scrape would read one random worker and the numbers would be wrong. ``core`` can
 the histogram is created by ``enable()``, which only ``run_scheduler`` calls. In the gateway nothing is recorded.
 """
 
+import functools
 import socket
 import time
 from contextlib import contextmanager
@@ -17,16 +18,23 @@ from typing import Iterator
 
 from prometheus_client import REGISTRY, CollectorRegistry, Histogram
 
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+
 # The values of the ``operation`` label, a closed list so the cardinality stays fixed.
 FLEET_STATUS_READ = "fleet_status_read"
 FLEET_SUBMIT_UPLOAD = "fleet_submit_upload"
 FLEET_SUBMIT = "fleet_submit"
 RUNTIME_API_PUT = "runtime_api_put"
 IAM_TOKEN = "iam_token"
+JOB_TRANSITION_QUEUED_TO_PENDING = "job_transition_queued_to_pending"
+JOB_TRANSITION_PENDING_TO_RUNNING = "job_transition_pending_to_running"
+JOB_IN_PROGRESS_EVENT = "job_in_progress_event"
+JOB_TRANSITION_TO_TERMINAL = "job_transition_to_terminal"
 
 STATUS_OK = "ok"
 STATUS_TIMEOUT = "timeout"
 STATUS_ERROR = "error"
+STATUS_REJECTED = "rejected"
 
 _DURATION: Histogram | None = None
 
@@ -35,11 +43,9 @@ _DURATION: Histogram | None = None
 class Observation:
     """What the ``with`` block of ``observe_operation`` hands to its caller. The status is ``ok``, ``timeout`` or
     ``error`` by how the block ended, unless the caller sets it: an HTTP call answers with a code and does not raise
-    on a 4xx or a 5xx, so it sets the code, as the request metrics of Code Engine and COS do. A caller that only finds
-    out afterwards that nothing was really done (an answer from a cache) sets ``discard`` and no sample is recorded."""
+    on a 4xx or a 5xx, so it sets the code, as the request metrics of Code Engine and COS do."""
 
     status: str | None = None
-    discard: bool = False
 
 
 def enable(registry: CollectorRegistry = REGISTRY) -> None:
@@ -75,9 +81,9 @@ def _is_timeout(exc: BaseException) -> bool:
 
 
 @contextmanager
-def observe_operation(operation: str) -> Iterator[Observation]:
-    """Time the block and record it under ``operation``, if recording is enabled. The exception, if any, is raised
-    again untouched."""
+def observe_operation(operation: str, enabled: bool = True) -> Iterator[Observation]:
+    """Time the block and record it under ``operation``, if recording is enabled. With ``enabled=False`` the block
+    runs but no sample is recorded. The exception, if any, is raised again untouched."""
     observation = Observation()
     started = time.perf_counter()
     status = STATUS_OK
@@ -87,7 +93,27 @@ def observe_operation(operation: str) -> Iterator[Observation]:
         status = STATUS_TIMEOUT if _is_timeout(exc) else STATUS_ERROR
         raise
     finally:
-        if _DURATION is not None and not observation.discard:
+        if _DURATION is not None and enabled:
             _DURATION.labels(operation=operation, status=observation.status or status).observe(
                 time.perf_counter() - started
             )
+
+
+def observer_method(operation: str):
+    """Record how long the whole method took under ``operation``, in the
+    scheduler (gateway recording is off and this does nothing)"""
+
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(*args, **kwargs):
+            with observe_operation(operation) as observation:
+                try:
+                    return method(*args, **kwargs)
+                except InvalidJobTransitionException:
+                    # The job was already moved by someone else (a user stopped it): an expected race, not a failure.
+                    observation.status = STATUS_REJECTED
+                    raise
+
+        return wrapper
+
+    return decorator
