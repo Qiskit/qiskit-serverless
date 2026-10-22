@@ -98,17 +98,16 @@ class CodeEngineBreakers(RegionBreakers):
 
 
 class FleetsBreakers:
-    """One breaker per dependency per region: it answers whether that dependency is functional.
+    """One breaker per dependency per region, plus one for the fleet cleanup.
 
-    Submit needs COS and then Code Engine. The cancel and the fleet delete need only Code Engine. So the
-    Code Engine breaker is shared by all three and the COS one belongs to submit alone. Which operation
-    made the call does not matter, but which dependency answered does: a working delete says nothing
-    about COS.
+    Submit needs COS and then Code Engine, the cancel needs only Code Engine, so those two share the Code
+    Engine breaker. The cleanup has its own, so background deletes cannot pause a user's submit.
     """
 
     def __init__(self) -> None:
         self.cos = RegionBreakers()
         self.code_engine = CodeEngineBreakers()
+        self.cleanup = RegionBreakers()
 
     def paused(self, region: str | None) -> bool:
         """Whether either dependency of this region is paused."""
@@ -296,18 +295,18 @@ class FleetsJobCanceller:
 
 
 class FleetsFleetDeleter:
-    """Deletes the fleets of terminal jobs behind the same Code Engine breakers the submitter uses."""
+    """Deletes the fleets of terminal jobs behind a breaker of its own."""
 
     def __init__(self, breakers: FleetsBreakers):
         self.breakers = breakers
 
     def paused(self, region: str | None) -> bool:
-        """Whether Code Engine in this region is paused."""
-        return self.breakers.code_engine.paused(region)
+        """Whether fleet deletes in this region are paused."""
+        return self.breakers.cleanup.paused(region)
 
     def paused_regions(self) -> list[str | None]:
-        """The regions whose Code Engine breaker is open right now."""
-        return self.breakers.code_engine.paused_regions()
+        """The regions whose cleanup breaker is open right now."""
+        return self.breakers.cleanup.paused_regions()
 
     def delete(self, job: Job) -> bool:
         """Deletes a job's fleet. ``True`` when the fleet is gone.
@@ -321,8 +320,8 @@ class FleetsFleetDeleter:
         return get_runner(job).free_resources()
 
     def record_cycle(self, region: str | None, *, code_engine_answered: bool) -> None:
-        """Counts one cleanup cycle for a region, the way a cancel counts one call."""
-        breaker = self.breakers.code_engine.get_breaker(region)
+        """Counts one cleanup cycle for a region on the cleanup breaker."""
+        breaker = self.breakers.cleanup.get_breaker(region)
         if code_engine_answered:
             breaker.record_success()
         else:
