@@ -93,21 +93,21 @@ class RegionBreakers:
         return [region for region in list(self.breakers) if self.breakers[region].is_open]
 
 
-class CodeEngineBreakers(RegionBreakers):
-    """One circuit breaker per Code Engine region, shared by every scheduler call to that region."""
-
-
 class FleetsBreakers:
     """One breaker per region for COS, for Code Engine (shared by submit and cancel), and for the fleet cleanup."""
 
     def __init__(self) -> None:
         self.cos = RegionBreakers()
-        self.code_engine = CodeEngineBreakers()
+        self.code_engine = RegionBreakers()
         self.cleanup = RegionBreakers()
 
     def paused(self, region: str | None) -> bool:
         """Whether either dependency of this region is paused."""
         return self.cos.paused(region) or self.code_engine.paused(region)
+
+    def registries(self) -> dict[str, RegionBreakers]:
+        """Each registry by the name the breaker gauge uses for it."""
+        return {"code_engine": self.code_engine, "cos": self.cos, "cleanup": self.cleanup}
 
 
 class FleetsJobSubmitter:

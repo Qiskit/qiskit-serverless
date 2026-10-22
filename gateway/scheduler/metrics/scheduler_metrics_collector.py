@@ -221,8 +221,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.fleets_breaker_open = Gauge(
             "scheduler_fleets_breaker_open",
-            "1 while the Code Engine circuit breaker of a region is open, 0 otherwise.",
-            labelnames=("region",),
+            "1 while a circuit breaker of a region is open, 0 otherwise: code_engine, cos or cleanup.",
+            labelnames=("dependency", "region"),
             registry=self.registry,
         )
 
@@ -283,9 +283,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         """Record whether a given outbox channel's circuit breaker is currently open."""
         self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
 
-    def set_fleets_breaker_open(self, is_open: bool, region: str | None) -> None:
-        """Record whether the Code Engine circuit breaker of a region is open."""
-        self.fleets_breaker_open.labels(region=region or "none").set(1 if is_open else 0)
+    def set_fleets_breaker_open(self, is_open: bool, dependency: str, region: str | None) -> None:
+        """Record whether one circuit breaker of a region is open."""
+        self.fleets_breaker_open.labels(dependency=dependency, region=region or "none").set(1 if is_open else 0)
 
     def observe_code_engine_call(self, endpoint: str, status: str, seconds: float) -> None:
         """Record one Code Engine API call."""

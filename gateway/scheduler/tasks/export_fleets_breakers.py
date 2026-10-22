@@ -1,17 +1,18 @@
-"""Export the state of the Code Engine circuit breakers."""
+"""Export the state of the Fleets circuit breakers."""
 
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import CodeEngineBreakers
+from scheduler.schedule import FleetsBreakers
 from .task import SchedulerTask
 
 
 class ExportFleetsBreakers(SchedulerTask):
-    """Set the breaker gauge of every region, after every task that calls Code Engine."""
+    """Set the breaker gauge of every dependency and region, after every task that uses them."""
 
-    def __init__(self, metrics: SchedulerMetrics, breakers: CodeEngineBreakers):
+    def __init__(self, metrics: SchedulerMetrics, breakers: FleetsBreakers):
         self.metrics = metrics
         self.breakers = breakers
 
     def run(self):
-        for region, breaker in self.breakers.breakers.items():
-            self.metrics.set_fleets_breaker_open(breaker.is_open, region)
+        for dependency, registry in self.breakers.registries().items():
+            for region, breaker in registry.breakers.items():
+                self.metrics.set_fleets_breaker_open(breaker.is_open, dependency, region)

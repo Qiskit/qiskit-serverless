@@ -68,7 +68,7 @@ class Main:
             FreeRayResources(self.kill_signal, self.metrics),
             FreeFleetsResources(self.kill_signal, self.metrics, breakers),
             # last, so it sees the breakers every Fleets task touched in this tick
-            ExportFleetsBreakers(self.metrics, breakers.code_engine),
+            ExportFleetsBreakers(self.metrics, breakers),
         ]
 
     def start_http_server(self):

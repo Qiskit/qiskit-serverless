@@ -78,7 +78,7 @@ class TestMain:
         assert len({id(task.submitter) for task in tasks}) == 1
 
     def test_the_tasks_that_call_code_engine_share_one_fleets_breakers(self):
-        """Submit, cancel and delete hold one FleetsBreakers, and the exporter reads its Code Engine registry."""
+        """Submit, cancel, delete and the breaker exporter all hold one FleetsBreakers."""
         sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs, StopBlockedFleetsJobs)
         submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
         cancellers = [task.canceller for task in self.scheduler_main.tasks if isinstance(task, sharing)]
@@ -90,7 +90,7 @@ class TestMain:
         holders = submitters + cancellers + deleters
         assert len({id(owner.breakers) for owner in holders}) == 1
         assert isinstance(exporter, ExportFleetsBreakers)
-        assert exporter.breakers is holders[0].breakers.code_engine
+        assert exporter.breakers is holders[0].breakers
 
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""
