@@ -29,3 +29,7 @@ Qiskit Serverless exceptions
 
 class QiskitServerlessException(Exception):
     """General QiskitServerless exception."""
+
+    def __init__(self, *args, code=None):
+        super().__init__(*args)
+        self._code = code
