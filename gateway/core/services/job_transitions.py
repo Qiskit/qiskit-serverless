@@ -17,6 +17,14 @@ from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.workload_payload import build_workload_payload, is_mirrored
+from core.external_call_metrics import (
+    JOB_IN_PROGRESS_EVENT,
+    JOB_TRANSITION_PENDING_TO_RUNNING,
+    JOB_TRANSITION_QUEUED_TO_PENDING,
+    JOB_TRANSITION_TO_TERMINAL,
+    observe_operation,
+    observer_method,
+)
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -79,6 +87,7 @@ class JobTransitionService:
         the Gateway (stop jobs only) has NoOpSender)"""
         self.sender = sender if sender is not None else build_kafka_sender()
 
+    @observer_method(JOB_TRANSITION_QUEUED_TO_PENDING)
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -86,6 +95,7 @@ class JobTransitionService:
         with transaction.atomic():
             return self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
 
+    @observer_method(JOB_TRANSITION_PENDING_TO_RUNNING)
     def pending_to_running(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -101,7 +111,8 @@ class JobTransitionService:
 
         job_started_at: the first RUNNING time, if the caller already has it. Otherwise it is read from the events.
         """
-        self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
+        with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
+            self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
 
     def stop(
         self,
@@ -162,6 +173,7 @@ class JobTransitionService:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
         return transition(job, origin=origin, context=context, job_fields=job_fields)
 
+    @observer_method(JOB_TRANSITION_TO_TERMINAL)
     def to_succeeded(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -188,6 +200,7 @@ class JobTransitionService:
         """The job was stopped, by a user or by the scheduler."""
         return self.to_stopped_or_failed(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
 
+    @observer_method(JOB_TRANSITION_TO_TERMINAL)
     def to_stopped_or_failed(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
     ) -> JobEvent:

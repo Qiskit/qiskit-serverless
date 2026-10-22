@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    The scheduler now records how long it takes to submit one Fleets job, as
+    the new ``fleet_submit`` operation of
+    ``scheduler_operation_duration_seconds``. It covers the whole submit, from
+    the Code Engine request to the job reaching ``PENDING``, and records one
+    sample per attempt, failed ones included, with status ``ok``, ``timeout``
+    or ``error``.
