@@ -107,10 +107,7 @@ class JobTransitionService:
         best effort in-progress event is sent."""
         # It is not a transition, so it is not timed with the others. A filler job sends nothing and returns at once:
         # that sample would be near zero and skew the histogram, so it is not recorded.
-        if job.filler:
-            self._send_job_in_progress(job, job_started=False)
-            return
-        with observe_operation(JOB_IN_PROGRESS_EVENT):
+        with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
             self._send_job_in_progress(job, job_started=False)
 
     def stop(

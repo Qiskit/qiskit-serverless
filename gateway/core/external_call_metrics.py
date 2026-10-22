@@ -80,9 +80,10 @@ def _is_timeout(exc: BaseException) -> bool:
 
 
 @contextmanager
-def observe_operation(operation: str) -> Iterator[Observation]:
-    """Time the block and record it under ``operation``, if recording is enabled. The exception, if any, is raised
-    again untouched."""
+def observe_operation(operation: str, enabled: bool = True) -> Iterator[Observation]:
+    """Time the block and record it under ``operation``, if recording is enabled. With ``enabled=False`` the block
+    runs but no sample is recorded, for a call that is known beforehand to be not worth a sample. The exception, if
+    any, is raised again untouched."""
     observation = Observation()
     started = time.perf_counter()
     status = STATUS_OK
@@ -92,7 +93,7 @@ def observe_operation(operation: str) -> Iterator[Observation]:
         status = STATUS_TIMEOUT if _is_timeout(exc) else STATUS_ERROR
         raise
     finally:
-        if _DURATION is not None:
+        if _DURATION is not None and enabled:
             _DURATION.labels(operation=operation, status=observation.status or status).observe(
                 time.perf_counter() - started
             )

@@ -105,10 +105,9 @@ class IamTokenProvider:  # pylint: disable=too-many-instance-attributes
         # few real requests. It asks IAM only when the token is expired or due for a refresh, so only then is it timed.
         # (Both checks are private to the SDK; a refresher renewing in between only costs one wrong sample.)
         # pylint: disable=protected-access
-        if token_manager._is_token_expired() or token_manager._token_needs_refresh():
-            with observe_operation(IAM_TOKEN):
-                return token_manager.get_token()
-        return token_manager.get_token()
+        asks_iam = token_manager._is_token_expired() or token_manager._token_needs_refresh()
+        with observe_operation(IAM_TOKEN, enabled=asks_iam):
+            return token_manager.get_token()
 
     def invalidate(self, token: str) -> None:
         """Drop ``token`` from the cache, so the next ``get_token`` asks IAM for a new one. Use it when the API rejects
