@@ -199,8 +199,8 @@ def my_view(request): ...
 
 An endpoint that must not use the API key sets its own backend with `@authentication_classes([...])`, between
 `@endpoint` and `@permission_classes`. `GET /jobs/{id}/status/` does this with `JobStatusTokenBackend`
-(`api/services/authentication/job_status_token.py`), so it never runs `AuthenticationUseCase`. Its view reads
-`request.auth` as a `JobStatusTokenAuth`, not as a `CustomAuthentication`, so it has no `accessible_functions`.
+(`api/services/authentication/job_status_token.py`), so it never runs `AuthenticationUseCase`. Its
+`request.auth` is the token's job id, not a `CustomAuthentication`, so it has no `accessible_functions`.
 
 ---
 

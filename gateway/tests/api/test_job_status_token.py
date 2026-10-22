@@ -1,27 +1,23 @@
 """Tests for the job status token and GET /jobs/{id}/status/."""
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from django.contrib.auth.models import User
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.services.authentication.job_status_token import issue_job_status_token
-from core.domain.authorization.function_access_result import FunctionAccessResult
+from api.services.authentication.job_status_token import JOB_STATUS_TOKEN_HEADER, issue_job_status_token
 from core.models import Job
 from tests.utils import TestUtils
 
 
 def _retrieve(user, job):
     client = APIClient()
-    token = MagicMock()
-    token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
-    client.force_authenticate(user=user, token=token)
+    TestUtils.authorize_client(user, client)
     return client.get(reverse("v1:retrieve", args=[job.id]) + "?with_result=false")
 
 
@@ -33,7 +29,7 @@ def _status(job, token=None, **headers):
 
 @pytest.fixture(name="author")
 def fixture_author(db):
-    return User.objects.create(username="token_author")
+    return TestUtils.get_user_and_username("token_author")[0]
 
 
 @pytest.fixture(name="program")
@@ -50,7 +46,7 @@ def test_retrieve_gives_the_author_a_token_for_a_job_that_has_not_ended(author, 
     response = _retrieve(author, job)
 
     assert response.status_code == status.HTTP_200_OK
-    assert response["X-Job-Status-Token"]
+    assert response[JOB_STATUS_TOKEN_HEADER]
     assert response["Cache-Control"] == "no-store"
 
 
@@ -58,20 +54,20 @@ def test_retrieve_gives_no_token_for_an_ended_job(author, job):
     job.status = Job.SUCCEEDED
     job.save()
 
-    assert "X-Job-Status-Token" not in _retrieve(author, job)
+    assert JOB_STATUS_TOKEN_HEADER not in _retrieve(author, job)
 
 
 def test_retrieve_gives_no_token_to_someone_who_is_not_the_author(job):
-    admin = User.objects.create(username="token_admin", is_staff=True, is_superuser=True)
+    admin = TestUtils.get_user_and_username("token_admin", is_staff=True)[0]
     with patch("api.use_cases.jobs.retrieve.JobAccessPolicies.can_access", return_value=True):
         response = _retrieve(admin, job)
 
     assert response.status_code == status.HTTP_200_OK
-    assert "X-Job-Status-Token" not in response
+    assert JOB_STATUS_TOKEN_HEADER not in response
 
 
 def test_status_reads_the_job_in_one_query_with_no_api_key_auth(author, job):
-    token = _retrieve(author, job)["X-Job-Status-Token"]
+    token = _retrieve(author, job)[JOB_STATUS_TOKEN_HEADER]
 
     with (
         patch("api.authentication.AuthenticationUseCase") as api_key_auth,
@@ -112,6 +108,6 @@ def test_status_refuses_a_token_of_an_inactive_user(author, job):
 
 
 def test_status_refuses_a_token_of_someone_who_is_not_the_author(job):
-    other = User.objects.create(username="token_other")
+    other = TestUtils.get_user_and_username("token_other")[0]
 
     assert _status(job, issue_job_status_token(other.id, job.id)).status_code == status.HTTP_404_NOT_FOUND

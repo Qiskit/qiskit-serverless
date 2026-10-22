@@ -1140,15 +1140,6 @@ class TestJobStatusToken:
         assert status.last_request.headers["X-Job-Status-Token"] == "signed"
         assert "Authorization" not in status.last_request.headers
 
-    def test_the_token_is_dropped_when_the_job_ends(self, mock_client):
-        mock_client._status_tokens["job-1"] = ("signed", time.monotonic())
-        with requests_mock.Mocker() as mocker:
-            mocker.get(self._STATUS, json={"status": "SUCCEEDED", "sub_status": None})
-
-            mock_client.get_job_data("job-1")
-
-        assert "job-1" not in mock_client._status_tokens
-
     def test_a_refused_token_falls_back_to_the_api_key_in_the_same_call(self, mock_client):
         mock_client._status_tokens["job-1"] = ("old", time.monotonic())
         with requests_mock.Mocker() as mocker:

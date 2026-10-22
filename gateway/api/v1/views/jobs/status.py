@@ -15,11 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
-from api.services.authentication.job_status_token import (
-    JOB_STATUS_TOKEN_HEADER,
-    JobStatusTokenAuth,
-    JobStatusTokenBackend,
-)
+from api.services.authentication.job_status_token import JOB_STATUS_TOKEN_HEADER, JobStatusTokenBackend
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
@@ -57,12 +53,8 @@ logger = logging.getLogger("api.api.v1.views.jobs.status")
 def job_status(request: Request, job_id: UUID) -> Response:
     """Return the status, sub-status and fleet id of the job the token was issued for."""
     user = cast(AbstractUser, request.user)
-    token = cast(JobStatusTokenAuth, request.auth)
-    if token.job_id != str(job_id):
-        raise JobNotFoundException(str(job_id))
-
     job = Job.objects.filter(id=job_id, author_id=user.id).values("status", "sub_status", "fleet_id").first()
-    if job is None:
+    if request.auth != str(job_id) or job is None:
         raise JobNotFoundException(str(job_id))
 
     logger.debug("[jobs-status] user_id=%s job_id=%s status=%s", user.id, job_id, job["status"])
