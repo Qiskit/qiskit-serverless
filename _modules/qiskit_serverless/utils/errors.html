@@ -326,6 +326,14 @@
 
 
 
+<span class="n">TRANSIENT_ERROR_CODES</span> <span class="o">=</span> <span class="p">(</span><span class="n">ErrorCodes</span><span class="o">.</span><span class="n">CONN1001</span><span class="p">,</span> <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">EMPTY1001</span><span class="p">,</span> <span class="mi">429</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_transient_error</span><span class="p">(</span><span class="n">error</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Returns true if a retry of the same request can succeed."""</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="s2">"_code"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">in</span> <span class="n">TRANSIENT_ERROR_CODES</span>
+
+
 <span class="n">DEFAULT_ERROR_MESSAGE</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Something went wrong."</span>
 <span class="n">error_mapping</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ErrorCodeType</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
     <span class="n">ErrorCodes</span><span class="o">.</span><span class="n">AUTH1001</span><span class="p">:</span> <span class="s2">"Connection error. Make sure configuration "</span> <span class="s2">"(host and auth details) is correct."</span><span class="p">,</span>

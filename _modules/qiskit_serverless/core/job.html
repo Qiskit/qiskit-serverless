@@ -329,6 +329,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
@@ -355,10 +356,18 @@
     <span class="n">QiskitObjectsEncoder</span><span class="p">,</span>
     <span class="n">QiskitObjectsDecoder</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobEvent</span><span class="p">,</span> <span class="n">format_err_event</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobEvent</span><span class="p">,</span> <span class="n">format_err_event</span><span class="p">,</span> <span class="n">is_transient_error</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils.http</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_headers</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_jsonable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessRuntimeService</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">_FINAL_STATUSES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"CANCELED"</span><span class="p">,</span> <span class="s2">"DONE"</span><span class="p">,</span> <span class="s2">"ERROR"</span><span class="p">)</span>
+<span class="n">_BACKOFF_SECONDS</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+<span class="n">_BACKOFF_JITTER</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">_RETRY_SECONDS</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="n">_MIN_POLL_INTERVAL_SECONDS</span> <span class="o">=</span> <span class="mi">1</span>
 
 
 <span class="nd">@dataclass</span>
@@ -480,7 +489,8 @@
 <span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span> <span class="o">=</span> <span class="n">job_service</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw_data</span> <span class="ow">or</span> <span class="p">{}</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw_data</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_final_status</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
     <span class="nd">@property</span>
@@ -489,7 +499,15 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fleet_id"</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Returns status of the job."""</span>
+<span class="w">        </span><span class="sd">"""Returns status of the job. A final status cannot change, so it is fetched only once."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_status</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_status</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_status</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="n">_FINAL_STATUSES</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_final_status</span> <span class="o">=</span> <span class="n">status</span>
+        <span class="k">return</span> <span class="n">status</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">fresh_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">get_job_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fresh_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fresh_data</span><span class="p">)</span>
@@ -602,8 +620,85 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">in_terminal_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Checks if job is in terminal state"""</span>
-        <span class="n">terminal_status</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"CANCELED"</span><span class="p">,</span> <span class="s2">"DONE"</span><span class="p">,</span> <span class="s2">"ERROR"</span><span class="p">]</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span> <span class="ow">in</span> <span class="n">terminal_status</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span> <span class="ow">in</span> <span class="n">_FINAL_STATUSES</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_final_state</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Wait until the job is DONE, ERROR or CANCELED, and return that status.</span>
+
+<span class="sd">        By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the</span>
+<span class="sd">        main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces</span>
+<span class="sd">        that backoff. Short network errors and 429, 502, 503 or 504 answers are retried.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout: seconds to wait. ``None`` waits until the job ends. One status request can add up to its own</span>
+<span class="sd">                request timeout on top.</span>
+<span class="sd">            poll_interval: fixed seconds between checks instead of the backoff.</span>
+<span class="sd">            verbose: print a header, one line per status change and per retried error, and the error message</span>
+<span class="sd">                if the job ends in ERROR.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TimeoutError: if the job does not end within ``timeout``. The job keeps running.</span>
+<span class="sd">            QiskitServerlessException: on any other error, or when the retried errors last until ``timeout``, or</span>
+<span class="sd">                for 5 minutes in a row when there is no timeout.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; job.wait_for_final_state(timeout=600, verbose=True)</span>
+<span class="sd">            Waiting for job 3f2a1c0e-6b1d-4c0e-9a51-2f0c4d1e7a90</span>
+<span class="sd">            0:00:00  QUEUED</span>
+<span class="sd">            0:02:10  RUNNING</span>
+<span class="sd">            0:41:44  DONE</span>
+<span class="sd">            'DONE'</span>
+<span class="sd">        """</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+        <span class="n">deadline</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">start</span> <span class="o">+</span> <span class="n">timeout</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Waiting for job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">last_status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">failing_since</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+                <span class="n">failing_since</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">except</span> <span class="n">QiskitServerlessException</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">failing_since</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">failing_since</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+                <span class="n">give_up</span> <span class="o">=</span> <span class="n">failing_since</span> <span class="o">+</span> <span class="n">_RETRY_SECONDS</span> <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">deadline</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_transient_error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="ow">or</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">give_up</span><span class="p">:</span>
+                    <span class="k">raise</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Status check for job </span><span class="si">%s</span><span class="s2"> failed, retrying: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">error</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="n">code</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="s2">"_code"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">_elapsed</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="si">}</span><span class="s2">  status check failed (</span><span class="si">{</span><span class="n">code</span><span class="si">}</span><span class="s2">), retrying"</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">_next_wait</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">give_up</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">))</span>
+                <span class="n">step</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">!=</span> <span class="n">last_status</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">_elapsed</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="si">}</span><span class="s2">  </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">last_status</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">_resets_backoff</span><span class="p">(</span><span class="n">last_status</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+                    <span class="n">step</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">last_status</span> <span class="o">=</span> <span class="n">status</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="n">_FINAL_STATUSES</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">"ERROR"</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_print_error_message</span><span class="p">()</span>
+                <span class="k">return</span> <span class="n">status</span>
+            <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">deadline</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> is still </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> after </span><span class="si">{</span><span class="n">timeout</span><span class="si">}</span><span class="s2"> s."</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">_next_wait</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">deadline</span><span class="p">,</span> <span class="n">poll_interval</span><span class="p">))</span>
+            <span class="n">step</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_print_error_message</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Print why the job failed. A failure to fetch it does not change the result of the wait."""</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_message</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-exception-caught</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Getting the error message for job </span><span class="si">%s</span><span class="s2"> failed."</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s2">"Something went wrong getting the error message."</span>
+        <span class="k">if</span> <span class="n">message</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">"&lt;Job | </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&gt;"</span></div>
@@ -772,6 +867,31 @@
 <span class="p">}</span>
 
 <span class="n">INVERSE_STATUS_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">STATUS_MAP</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_resets_backoff</span><span class="p">(</span><span class="n">previous</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A new main status, or entering post-processing, resets the backoff. Other sub-statuses do not."""</span>
+    <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="n">STATUS_MAP</span><span class="p">[</span><span class="n">Job</span><span class="o">.</span><span class="n">POST_PROCESSING</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="n">_map_status_to_serverless</span><span class="p">(</span><span class="n">previous</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">_map_status_to_serverless</span><span class="p">(</span><span class="n">status</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_next_wait</span><span class="p">(</span><span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">deadline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">poll_interval</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Seconds to sleep before the next check, cut at the deadline."""</span>
+    <span class="k">if</span> <span class="n">poll_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">wait</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">poll_interval</span><span class="p">),</span> <span class="n">_MIN_POLL_INTERVAL_SECONDS</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">_BACKOFF_SECONDS</span><span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">_BACKOFF_SECONDS</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">wait</span> <span class="o">=</span> <span class="n">base</span> <span class="o">*</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">_BACKOFF_JITTER</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">_BACKOFF_JITTER</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">wait</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">wait</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">deadline</span> <span class="o">-</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">(),</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">wait</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_elapsed</span><span class="p">(</span><span class="n">start</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Time since start as H:MM:SS."""</span>
+    <span class="n">seconds</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">seconds</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="mi">3600</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">seconds</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">3600</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="mi">60</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">seconds</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">60</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">"</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_map_status_from_serveless</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>

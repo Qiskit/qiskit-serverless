@@ -26,6 +26,7 @@
       ~Job.runtime_sessions
       ~Job.status
       ~Job.stop
+      ~Job.wait_for_final_state
    
    
 

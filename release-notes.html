@@ -326,6 +326,37 @@ for what it really ran, the same as a stop from the client.</p></li>
 subscription are blocked. The job stays <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> and does not take a free
 slot from other users, and it is submitted normally once the block is lifted.</p></li>
 </ul>
+<ul>
+<li><p>Added <code class="xref py py-meth docutils literal notranslate"><span class="pre">wait_for_final_state()</span></code>, which
+waits until a job is <code class="docutils literal notranslate"><span class="pre">DONE</span></code>, <code class="docutils literal notranslate"><span class="pre">ERROR</span></code> or <code class="docutils literal notranslate"><span class="pre">CANCELED</span></code> and returns that
+status:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">wait_for_final_state</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+<span class="c1"># 'DONE'</span>
+</pre></div>
+</div>
+<p>It checks the status after 1, 2, 4, 8, 16 and 32 seconds, then every 60
+seconds, and starts again from 1 second when the main status changes or the
+job enters post-processing. So a short job is seen within seconds, and a
+long job makes fewer requests than a loop that checks every few seconds. If
+the status does not change for a while, the end can be seen up to about 60
+seconds late. <code class="docutils literal notranslate"><span class="pre">poll_interval</span></code> sets a fixed interval instead, of at least 1
+second.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">timeout</span></code> raises <code class="docutils literal notranslate"><span class="pre">TimeoutError</span></code> and never cancels the job. Short
+network errors and <code class="docutils literal notranslate"><span class="pre">429</span></code>, <code class="docutils literal notranslate"><span class="pre">502</span></code>, <code class="docutils literal notranslate"><span class="pre">503</span></code> or <code class="docutils literal notranslate"><span class="pre">504</span></code> answers are retried
+at the same pace, until the timeout, or for up to 5 minutes in a row when
+there is no timeout. Any other error, or one that lasts that long, is
+raised. <code class="docutils literal notranslate"><span class="pre">verbose=True</span></code> prints one line per status change and per retried
+error, and the error message if the job ends in <code class="docutils literal notranslate"><span class="pre">ERROR</span></code>.</p>
+</li>
+</ul>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">status()</span></code> now asks the service only
+until the job reaches <code class="docutils literal notranslate"><span class="pre">DONE</span></code>, <code class="docutils literal notranslate"><span class="pre">ERROR</span></code> or <code class="docutils literal notranslate"><span class="pre">CANCELED</span></code>, and then returns
+that status without a request, because a final status cannot change. So
+calling <code class="xref py py-meth docutils literal notranslate"><span class="pre">result()</span></code> or
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">error_message()</span></code> on a finished job no
+longer sends the same status request again and again.</p></li>
+</ul>
 <ul class="simple">
 <li><p>Fleets jobs can now be mirrored to the Runtime API as workloads. While the
 <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> setting is on (it is off by default), each new

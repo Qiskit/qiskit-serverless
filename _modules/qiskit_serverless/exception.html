@@ -327,7 +327,11 @@
 <div class="viewcode-block" id="QiskitServerlessException">
 <a class="viewcode-back" href="../../stubs/qiskit_serverless.QiskitServerlessException.html#qiskit_serverless.QiskitServerlessException">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">QiskitServerlessException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""General QiskitServerless exception."""</span></div>
+<span class="w">    </span><span class="sd">"""General QiskitServerless exception."""</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">code</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_code</span> <span class="o">=</span> <span class="n">code</span></div>
 
 </pre></div>
         </article>
