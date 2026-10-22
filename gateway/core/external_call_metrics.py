@@ -99,9 +99,8 @@ def observe_operation(operation: str, enabled: bool = True) -> Iterator[Observat
 
 
 def observer_method(operation: str):
-    """Record how long the whole method took (its transaction and the sends after it) under ``operation``, in the
-    scheduler. In the gateway recording is off and this does nothing. Put it on the method that does the work, never
-    on one that only delegates to another observed method, or the operation would be counted twice."""
+    """Record how long the whole method took under ``operation``, in the
+    scheduler (gateway recording is off and this does nothing)"""
 
     def decorator(method):
         @functools.wraps(method)
