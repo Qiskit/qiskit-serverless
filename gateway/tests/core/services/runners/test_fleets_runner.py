@@ -484,7 +484,6 @@ def test_stop_reports_an_unreachable_code_engine_as_retryable():
 
 
 def test_free_resources_returns_false_without_a_fleet_id():
-    """Nothing to delete, and no Code Engine call to make."""
     runner, mock_handler = _make_runner()
 
     assert runner.free_resources() is False
@@ -528,7 +527,6 @@ def test_free_resources_raises_unavailable_when_the_request_failed(error):
 
 
 def test_free_resources_refuses_a_job_that_is_not_terminal():
-    """Deleting the fleet of a running job kills it, so the runner refuses whatever the caller asks."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     runner.job.status = Job.RUNNING
 
@@ -537,7 +535,6 @@ def test_free_resources_refuses_a_job_that_is_not_terminal():
 
 
 def test_free_resources_warns_when_the_project_did_not_hold_the_fleet():
-    """A 404 may mean the fleet lives in another project, where it still holds a slot."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     mock_handler.delete_job.return_value = False
 
@@ -548,7 +545,6 @@ def test_free_resources_warns_when_the_project_did_not_hold_the_fleet():
 
 
 def test_free_resources_gives_up_when_the_code_engine_host_does_not_resolve():
-    """A region that does not resolve must not jam the breaker: every other delete there would stop."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     mock_handler.delete_job.side_effect = MaxRetryError(None, "/", reason=NameResolutionError(None, None, None))
 
@@ -568,7 +564,6 @@ def test_free_resources_reports_an_iam_failure_as_retryable():
 
 
 def test_free_resources_raises_unavailable_when_the_client_cannot_be_built():
-    """A missing or malformed API key, which is all connect() can still fail on, must not read as permanent."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     runner._connected = False  # pylint: disable=protected-access
 
@@ -579,7 +574,6 @@ def test_free_resources_raises_unavailable_when_the_client_cannot_be_built():
 
 
 def test_submit_sets_fleet_id_with_cos():
-    """submit() sets job.fleet_id when COS is configured."""
     runner, mock_handler = _make_submit_runner()
 
     with _patch_settings():
@@ -590,7 +584,6 @@ def test_submit_sets_fleet_id_with_cos():
 
 
 def test_submit_places_the_fleet_on_the_projects_subnet_pool():
-    """submit() passes the project's subnet_pool_id through as the network placement."""
     runner, mock_handler = _make_submit_runner()
 
     with _patch_settings():
@@ -653,7 +646,6 @@ def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
 
 
 def test_submit_reports_an_iam_failure_as_retryable():
-    """Without this an IAM blip marks the job FAILED, which it never comes back from."""
     runner, mock_handler = _make_submit_runner()
     mock_handler.submit_job.side_effect = RetryableError("Could not get an IAM token")
 
@@ -1421,7 +1413,6 @@ class TestExecutionProject:
         )
 
     def test_falls_back_to_the_program_without_a_snapshot(self):
-        """Jobs created before migration 0053 have no snapshot."""
         project = TestUtils.get_or_create_ce_project(
             project_name="only-project", project_id="only-id", cos_bucket_user_data_name="b3"
         )
@@ -1432,7 +1423,6 @@ class TestExecutionProject:
         assert resolved.project_id == "only-id"
 
     def test_resolves_an_inactive_project(self):
-        """An offboarded project still holds fleets worth deleting."""
         TestUtils.get_or_create_ce_project(
             project_name="gone-project", project_id="gone-id", cos_bucket_user_data_name="b4", active=False
         )
@@ -1446,7 +1436,6 @@ class TestExecutionProject:
         assert resolved.project_id == "gone-id"
 
     def test_free_resources_sends_the_delete_to_the_project_the_job_ran_in(self):
-        """Without the resolved project the handler falls back to the program's, and a 404 there reads as success."""
         TestUtils.get_or_create_ce_project(
             project_name="old-project", project_id="old-id", cos_bucket_user_data_name="b1", region="us-east"
         )
@@ -1477,7 +1466,6 @@ class TestExecutionProject:
         return CodeEngineProject.objects.create(**{**fields, "project_id": project_id, **kwargs})
 
     def test_prefers_the_active_project_when_two_share_a_name(self):
-        """project_name has no unique constraint and sync_ce_project leaves stale rows behind."""
         dead = TestUtils.get_or_create_ce_project(
             project_name="twice", project_id="dead-id", cos_bucket_user_data_name="b7", active=False
         )

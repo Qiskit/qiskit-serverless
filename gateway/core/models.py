@@ -845,12 +845,7 @@ class Job(models.Model):
 
     @property
     def fleet_region(self) -> str | None:
-        """The region this job's fleet lives in: its own snapshot, or its program's project.
-
-        A job with no snapshot has neither ``ce_region`` nor ``ce_project_name``, since migration 0053
-        added both and nothing writes one without the other, so the delete resolves such a job through
-        its program and this returns the same region the request goes to.
-        """
+        """The region this job's fleet lives in: its own snapshot, or its program's project."""
         if self.ce_region:
             return self.ce_region
         project = self.program.code_engine_project if self.program_id else None

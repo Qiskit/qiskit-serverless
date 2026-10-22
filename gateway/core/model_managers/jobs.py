@@ -55,12 +55,7 @@ class JobQuerySet(QuerySet):
         return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)
 
     def with_fleet_region(self) -> Self:
-        """Annotate ``fleet_region_sql``, the SQL twin of the ``Job.fleet_region`` property.
-
-        Its own method rather than part of ``held_fleets``: the held-fleet count calls that too, and
-        the two joins here would take its scan off ``job_fleet_undeleted_idx``. The alias is not
-        ``fleet_region`` so it cannot shadow the property on the rows that come back.
-        """
+        """Annotate ``fleet_region_sql``, the SQL form of ``Job.fleet_region``. Not in held_fleets, for its index."""
         return self.annotate(
             fleet_region_sql=Coalesce(NullIf("ce_region", Value("")), "program__code_engine_project__region")
         )

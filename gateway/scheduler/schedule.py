@@ -98,11 +98,7 @@ class CodeEngineBreakers(RegionBreakers):
 
 
 class FleetsBreakers:
-    """One breaker per dependency per region, plus one for the fleet cleanup.
-
-    Submit needs COS and then Code Engine, the cancel needs only Code Engine, so those two share the Code
-    Engine breaker. The cleanup has its own, so background deletes cannot pause a user's submit.
-    """
+    """One breaker per region for COS, for Code Engine (shared by submit and cancel), and for the fleet cleanup."""
 
     def __init__(self) -> None:
         self.cos = RegionBreakers()
@@ -246,14 +242,14 @@ class FleetsJobSubmitter:
 
 
 class FleetsJobCanceller:
-    """Cancels Fleets jobs in Code Engine behind the same per-region breakers the submitter uses."""
+    """Cancels Fleets jobs in Code Engine behind the Code Engine breaker the submitter uses."""
 
     def __init__(self, transitions: JobTransitionService, breakers: FleetsBreakers | None = None):
         self.transitions = transitions
         self.breakers = breakers or FleetsBreakers()
 
     def paused(self, region: str | None) -> bool:
-        """Whether Code Engine in this region is paused. COS is not read, the cancel never touches it."""
+        """Whether Code Engine in this region is paused."""
         return self.breakers.code_engine.paused(region)
 
     def cancel(self, job: Job, *, context: JobEventContext) -> bool:

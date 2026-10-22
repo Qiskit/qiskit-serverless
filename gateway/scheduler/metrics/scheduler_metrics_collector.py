@@ -124,8 +124,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.held_fleets = Gauge(
             "scheduler_held_fleets",
-            "Fleets not yet deleted, per Code Engine project name, counting every job status. "
-            "A project holds at most 1000.",
+            "Fleets not yet deleted, per Code Engine project name, counting every job status.",
             labelnames=("project",),
             registry=self.registry,
         )

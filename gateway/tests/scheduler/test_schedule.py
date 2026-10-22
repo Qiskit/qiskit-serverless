@@ -763,7 +763,6 @@ class TestFleetsJobCanceller:
 @patch("scheduler.schedule.get_runner")
 @patch("scheduler.schedule.trace")
 def test_a_clean_delete_cycle_does_not_clear_the_cos_failures(mock_trace, mock_get_runner_client):
-    """Deletes never touch COS, so a working delete must not say COS is working."""
     Config.add_defaults()
     Config.set(ConfigKey.FLEETS_BREAKER_FAILURES, "5")
     breakers = FleetsBreakers()
@@ -784,7 +783,6 @@ def test_a_clean_delete_cycle_does_not_clear_the_cos_failures(mock_trace, mock_g
 @patch("scheduler.schedule.get_runner")
 @patch("scheduler.schedule.trace")
 def test_a_cos_outage_leaves_the_cancels_alone(mock_trace, mock_get_runner_client):
-    """A cancel only calls Code Engine. Before the split a COS outage paused it, which this changes."""
     _open_breakers_after_one_failure()
     breakers = FleetsBreakers()
     submitter = FleetsJobSubmitter(MagicMock(), breakers)

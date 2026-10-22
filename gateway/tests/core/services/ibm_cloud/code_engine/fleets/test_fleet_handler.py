@@ -748,7 +748,6 @@ def test_delete_job_raises_on_non_404_error(project_id):
 
 
 def test_delete_job_raises_on_429(project_id):
-    """delete_job raises a 429 instead of retrying, so the caller owns the backoff."""
     with (
         patch(f"{_HANDLER_MOD}.FleetsApi") as mock_fleets_api_cls,
         patch(f"{_HANDLER_MOD}.time") as mock_time,

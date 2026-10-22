@@ -91,7 +91,6 @@ def test_deletes_the_fleet_and_stamps_the_job_past_the_window(fleets_program):
 
 
 def test_does_not_delete_a_fleet_twice(fleets_program):
-    """Re-aged between the cycles, so only fleet_deleted_at can keep it out of the second one."""
     job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
     task = _make_task()
 
@@ -123,7 +122,6 @@ def test_does_not_stamp_a_fleet_it_could_not_delete(fleets_program):
 
 
 def test_gives_up_on_a_fleet_after_three_attempts(fleets_program):
-    """A row that keeps failing must stop consuming a slot in the batch."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="broken")
     task = _make_task()
 
@@ -216,7 +214,6 @@ def test_an_unavailable_engine_ends_the_cycle_after_one_call(fleets_program):
 
 
 def test_a_cycle_that_stopped_on_a_rate_limit_is_a_failure(fleets_program):
-    """Sustained partial rate limiting has to open the breaker instead of oscillating for ever."""
     for index in range(2 * _BREAKER_FAILURES):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + index + 1, fleet_id=f"fleet-{index}")
     task = _make_task()
@@ -231,7 +228,6 @@ def test_a_cycle_that_stopped_on_a_rate_limit_is_a_failure(fleets_program):
 
 
 def test_the_attempt_counts_stay_bounded(fleets_program):
-    """The scheduler is one long-lived replica, so a permanently failing fleet must not grow the dict."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
     task = _make_task()
     task._failed_attempts = {f"old-{n}": 1 for n in range(MAX_TRACKED_FAILURES)}  # pylint: disable=protected-access
@@ -241,20 +237,7 @@ def test_the_attempt_counts_stay_bounded(fleets_program):
     assert len(task._failed_attempts) == MAX_TRACKED_FAILURES  # pylint: disable=protected-access
 
 
-def test_stops_when_the_time_budget_is_spent(fleets_program):
-    """Each delete costs a Code Engine round trip and the scheduler loop is single threaded."""
-    for n in range(3):
-        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + n + 1, fleet_id=f"fleet-{n}")
-
-    with patch(f"{_TASK_MOD}.time.monotonic", side_effect=[0, 999]):
-        free_resources = _run(_make_task())
-
-    free_resources.assert_called_once()
-    assert Job.objects.held_fleets().count() == 2
-
-
-def test_always_deletes_one_even_with_no_budget(fleets_program):
-    """Otherwise a cycle whose queries are slow would make no progress at all, for ever."""
+def test_deletes_one_fleet_and_stops_once_the_time_budget_is_spent(fleets_program):
     Config.set(ConfigKey.FLEETS_CLEANUP_BUDGET_MS, "0")
     for n in range(3):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + n + 1, fleet_id=f"fleet-{n}")
@@ -262,6 +245,7 @@ def test_always_deletes_one_even_with_no_budget(fleets_program):
     free_resources = _run(_make_task())
 
     free_resources.assert_called_once()
+    assert Job.objects.held_fleets().count() == 2
 
 
 def test_deletes_at_most_one_batch_per_cycle(fleets_program):
@@ -274,7 +258,6 @@ def test_deletes_at_most_one_batch_per_cycle(fleets_program):
 
 
 def test_a_failed_region_does_not_stop_the_other_regions(fleets_program):
-    """Without the per-region skip, one bad region stalls every project's cleanup."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="in-us", ce_region="us-east")
     healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
 
@@ -286,10 +269,10 @@ def test_a_failed_region_does_not_stop_the_other_regions(fleets_program):
     assert healthy.fleet_deleted_at is not None
 
 
-def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fleets_program):
-    """These rows carry no ce_region, so only the program fallback shows they belong to the paused region."""
+@pytest.mark.parametrize("ce_region", [None, ""])
+def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fleets_program, ce_region):
     for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
-        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 100 + n, fleet_id=f"legacy-{n}", ce_region=None)
+        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 100 + n, fleet_id=f"legacy-{n}", ce_region=ce_region)
     healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
     task = _make_task()
     assert Job.objects.get(fleet_id="legacy-0").fleet_region == "us-east"
@@ -300,11 +283,10 @@ def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fle
 
     healthy.refresh_from_db()
     assert healthy.fleet_deleted_at is not None
-    assert Job.objects.held_fleets().filter(ce_region__isnull=True).count() == DEFAULT_MAX_DELETES_PER_CYCLE
+    assert Job.objects.held_fleets().filter(fleet_id__startswith="legacy-").count() == DEFAULT_MAX_DELETES_PER_CYCLE
 
 
 def test_a_clean_cycle_clears_the_delete_failures(fleets_program):
-    """Four failures, one cycle that deleted, four more: the streak restarted, so the breaker is closed."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="first", ce_region="us-east")
     second = _terminal_job(fleets_program, age_hours=1, fleet_id="second", ce_region="us-east")
     task = _make_task()
@@ -322,7 +304,6 @@ def test_a_clean_cycle_clears_the_delete_failures(fleets_program):
 
 
 def test_a_cycle_that_never_reached_code_engine_clears_nothing(fleets_program):
-    """A False can be a missing project or a bad host, so it must not pass for a working region."""
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, ce_region="us-east")
     task = _make_task()
     threshold = _BREAKER_FAILURES
@@ -336,24 +317,8 @@ def test_a_cycle_that_never_reached_code_engine_clears_nothing(fleets_program):
     assert task.deleter.paused("us-east") is True
 
 
-def test_an_empty_region_falls_back_like_a_null_one(fleets_program):
-    """The admin can save ce_region as "", and Coalesce alone would read that as the region."""
-    for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
-        _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 100 + n, fleet_id=f"blank-{n}", ce_region="")
-    healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
-    task = _make_task()
-    for _ in range(_BREAKER_FAILURES):
-        task.deleter.record_cycle("us-east", answered=False)
-
-    _run(task)
-
-    healthy.refresh_from_db()
-    assert healthy.fleet_deleted_at is not None
-
-
 @pytest.mark.parametrize("quota, percent", [(0, 80), (2, 0), (2, 100)])
 def test_the_cap_is_off_outside_its_range(fleets_program, quota, percent):
-    """A threshold of 0 would put every project over quota, and 100 means the window is the only rule."""
     _force_at(quota=quota, percent=percent)
     job = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-1")
     _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
@@ -366,13 +331,11 @@ def test_the_cap_is_off_outside_its_range(fleets_program, quota, percent):
 
 
 def _force_at(*, quota, percent):
-    """Make the quota cap trip at `quota * percent / 100` held fleets in one project."""
     Config.set(ConfigKey.FLEETS_QUOTA_PER_PROJECT, str(quota))
     Config.set(ConfigKey.FLEETS_CLEANUP_FORCE_AT_PERCENT, str(percent))
 
 
 def test_deletes_a_fleet_inside_the_window_when_its_project_is_over_the_quota(fleets_program):
-    """Threshold 2 of 4 and 2 held: it needs one delete to get under, so only the oldest goes."""
     _force_at(quota=4, percent=50)
     oldest = _terminal_job(fleets_program, age_hours=2, fleet_id="fleet-1")
     newest = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
@@ -387,7 +350,6 @@ def test_deletes_a_fleet_inside_the_window_when_its_project_is_over_the_quota(fl
 
 
 def test_a_retention_backlog_does_not_starve_the_quota_cap(fleets_program):
-    """The over-quota fleets are the newest, so one shared ordering would always serve the backlog first."""
     _force_at(quota=4, percent=50)
     for n in range(DEFAULT_MAX_DELETES_PER_CYCLE):
         _terminal_job(
@@ -403,7 +365,6 @@ def test_a_retention_backlog_does_not_starve_the_quota_cap(fleets_program):
 
 
 def test_the_cap_takes_no_more_than_the_project_needs(fleets_program):
-    """Threshold 2 of 4 and 5 held: four deletes get it under 2, so a whole batch must not destroy more."""
     _force_at(quota=4, percent=50)
     for n in range(5):
         _terminal_job(fleets_program, age_hours=n + 1, fleet_id=f"fleet-{n}")
@@ -429,7 +390,6 @@ def test_only_the_project_over_the_quota_loses_its_fresh_fleets(fleets_program):
 
 
 def test_never_deletes_a_running_fleet_even_at_the_full_quota(fleets_program):
-    """Over the quota, the terminal fleet goes and the running one stays, because deleting it kills the job."""
     _force_at(quota=4, percent=50)
     running = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-running")
     Job.objects.filter(pk=running.id).update(status=Job.RUNNING)
@@ -445,7 +405,6 @@ def test_never_deletes_a_running_fleet_even_at_the_full_quota(fleets_program):
 
 
 def test_fleets_without_a_project_do_not_trip_the_quota(fleets_program):
-    """Three unassigned fleets would be over the threshold of 2, but they count against no project."""
     _force_at(quota=4, percent=50)
     unassigned = [
         _terminal_job(fleets_program, age_hours=1, fleet_id=f"fleet-{n}", ce_project_name="") for n in range(3)
