@@ -48,6 +48,7 @@ def test_builds_the_full_envelope_for_a_finished_job():
         instance_crn=CRN,
         compute_profile_fk=profile,
         function_size=size,
+        function_size_name=size.function_size,
     )
     running = _add_status_event(job, Job.RUNNING)
     ended = _add_status_event(job, Job.SUCCEEDED)
@@ -70,6 +71,33 @@ def test_builds_the_full_envelope_for_a_finished_job():
         },
     }
     assert json.loads(json.dumps(payload)) == payload  # it is stored as JSON by the next PR
+
+
+def test_size_is_the_snapshot_after_the_size_row_is_renamed_or_deleted():
+    """The Runtime API mirror's "size" is the snapshot. After the row is renamed (M -> L) it still says M, and after
+    the row is deleted (FK None) it still says M instead of dropping to None."""
+    alice = User.objects.create_user(username="alice")
+    program = Program.objects.create(title="sampler", author=alice)
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    size = FunctionSize.objects.create(function=program, function_size="M", compute_profile=profile)
+    job = Job.objects.create(
+        author=alice,
+        program=program,
+        runner=Program.FLEETS,
+        status=Job.RUNNING,
+        instance_crn=CRN,
+        compute_profile_fk=profile,
+        function_size=size,
+        function_size_name=size.function_size,
+    )
+
+    FunctionSize.objects.filter(pk=size.pk).update(function_size="L")
+    job.refresh_from_db()
+    assert build_workload_payload(job)["body"]["size"] == "M"
+
+    size.delete()
+    job.refresh_from_db()
+    assert build_workload_payload(job)["body"]["size"] == "M"
 
 
 def test_optional_fields_are_present_and_none_when_the_job_has_no_value_for_them():

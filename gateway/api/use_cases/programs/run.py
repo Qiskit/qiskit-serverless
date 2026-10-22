@@ -202,6 +202,7 @@ class RunFunctionUseCase:
             compute_profile_fk=runner_config.compute_profile_fk,
             size_source=runner_config.size_source,
             function_size=runner_config.function_size,
+            function_size_name=runner_config.function_size.function_size if runner_config.function_size else None,
             instance_crn=data.instance,
             account_id=data.account_id,
             plan_id=data.plan_id,

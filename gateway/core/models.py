@@ -716,8 +716,22 @@ class Job(models.Model):
         blank=True,
         related_name="jobs",
         help_text=(
-            "Size row the job resolved to at creation; null when sized by the deployment "
-            "default profile or a non-Fleets runner."
+            "Live link to the catalog size row the job resolved to at creation. The row can be renamed "
+            "or deleted later, so this is not a record of the size the job ran with: read "
+            "function_size_name for that. Null when sized by the deployment default profile, a non-Fleets "
+            "runner, or once the row is deleted."
+        ),
+    )
+    function_size_name = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text=(
+            "Size label the job ran with, captured at creation time and never changed, so it survives a "
+            "rename or delete of the function_size row. Null when run by a non-Fleets runner or sized by the "
+            "deployment default profile. A job created by a pod that predates this field (during a rollout) "
+            "has it null while function_size is set: readers use Job.size_label, which falls back to the "
+            "function_size row."
         ),
     )
 
@@ -779,6 +793,18 @@ class Job(models.Model):
         Returns ``None`` for Ray jobs and any row with no FK set.
         """
         return self.compute_profile_fk_id
+
+    @property
+    def size_label(self) -> str | None:
+        """The size the job ran with, uppercase, or None when no size applies.
+
+        Reads the snapshot (``function_size_name``). A job created by a pod that predates the snapshot has none, so
+        it falls back to the live ``function_size`` row's label.
+        """
+        label = self.function_size_name
+        if not label and self.function_size is not None:
+            label = self.function_size.function_size
+        return label.upper() if label else None
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.

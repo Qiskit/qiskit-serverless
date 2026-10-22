@@ -767,7 +767,7 @@ def test_wait_until_state_returns_matched_status(project_id):
         patch(f"{_HANDLER_MOD}.time") as mock_time,
     ):
         mock_fleets_api_cls.return_value = MagicMock()
-        mock_time.time.side_effect = [0, 0, 1]
+        mock_time.monotonic.side_effect = [0, 0, 1]
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         fleet_uuid = "f-00000000-0000-0000-0000-000000000020"
@@ -809,7 +809,7 @@ def test_wait_until_state_backs_off_on_429_then_resolves(project_id):
         patch(f"{_HANDLER_MOD}.time") as mock_time,
     ):
         mock_fleets_api_cls.return_value = MagicMock()
-        mock_time.time.side_effect = [0, 0, 1, 2]
+        mock_time.monotonic.side_effect = [0, 0, 1, 2]
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         fleet_uuid = "f-00000000-0000-0000-0000-000000000022"
@@ -837,7 +837,7 @@ def test_wait_until_state_raises_assertion_on_timeout(project_id):
         patch(f"{_HANDLER_MOD}.time") as mock_time,
     ):
         mock_fleets_api_cls.return_value = MagicMock()
-        mock_time.time.side_effect = [0, 100]
+        mock_time.monotonic.side_effect = [0, 100]
 
         handler = FleetHandler(ce_api_client=MagicMock(), project_id=project_id)
         fleet_uuid = "f-00000000-0000-0000-0000-000000000023"

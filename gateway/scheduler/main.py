@@ -94,7 +94,7 @@ class Main:
         get_background_executor().init()
         try:
             while not self.kill_signal.received:
-                start_time = time.time()
+                start_time = time.monotonic()
                 # The scheduler is single-threaded and reuses the same DB connection indefinitely.
                 # Closing it unconditionally at the start of each iteration ensures the next DB
                 # access always creates a fresh connection, avoiding stale/dropped connections.
@@ -103,7 +103,7 @@ class Main:
                 for task in self.tasks:
                     if self.kill_signal.received:
                         break
-                    task_start = time.time()
+                    task_start = time.monotonic()
                     try:
                         task.run()
                         self.health.clear_db_error()
@@ -122,9 +122,9 @@ class Main:
                         self.metrics.increase_task_error(task.name, ex)
                         logger.exception("Error in %s: %s", task.name, ex)
                     finally:
-                        self.metrics.observe_task_duration(task.name, time.time() - task_start)
+                        self.metrics.observe_task_duration(task.name, time.monotonic() - task_start)
 
-                elapsed = time.time() - start_time
+                elapsed = time.monotonic() - start_time
 
                 # Store the elapsed time and the last time check
                 self.metrics.observe_scheduler_iteration(elapsed)
