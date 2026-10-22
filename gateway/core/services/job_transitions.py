@@ -8,6 +8,7 @@ RUNNING), and it does the status change plus whatever that transition needs, so 
 - What is best effort is sent to Kafka right after that transaction, and dropped with a log if it fails.
 """
 
+import functools
 import logging
 from datetime import datetime, timezone
 
@@ -17,6 +18,13 @@ from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.workload_payload import build_workload_payload, is_mirrored
+from core.external_call_metrics import (
+    JOB_TRANSITION_PENDING_TO_RUNNING,
+    JOB_TRANSITION_QUEUED_TO_PENDING,
+    JOB_TRANSITION_RUNNING_TO_RUNNING,
+    JOB_TRANSITION_TO_TERMINAL,
+    observe_operation,
+)
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -39,6 +47,22 @@ def _is_fee_billable(job: Job) -> bool:
         and bool(job.instance_crn)
         and bool(job.program and job.program.provider)
     )
+
+
+def _timed(operation: str):
+    """Record how long the whole method took (its transaction and the sends after it) under ``operation``, in the
+    scheduler. In the gateway recording is off and this does nothing. Put it on the method that does the work, never
+    on one that only delegates to another timed method, or the transition would be counted twice."""
+
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(*args, **kwargs):
+            with observe_operation(operation):
+                return method(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class FleetAppearedError(RunnerRetryableError):
@@ -76,6 +100,7 @@ class JobTransitionService:
         the Gateway (stop jobs only) has NoOpSender)"""
         self.sender = sender if sender is not None else build_kafka_sender()
 
+    @_timed(JOB_TRANSITION_QUEUED_TO_PENDING)
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -83,6 +108,7 @@ class JobTransitionService:
         with transaction.atomic():
             return self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
 
+    @_timed(JOB_TRANSITION_PENDING_TO_RUNNING)
     def pending_to_running(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -92,6 +118,7 @@ class JobTransitionService:
         self._send_job_in_progress(job, job_started=True)
         return event
 
+    @_timed(JOB_TRANSITION_RUNNING_TO_RUNNING)
     def running_to_running(self, job: Job) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
@@ -156,6 +183,7 @@ class JobTransitionService:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
         return transition(job, origin=origin, context=context, job_fields=job_fields)
 
+    @_timed(JOB_TRANSITION_TO_TERMINAL)
     def to_succeeded(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -182,6 +210,7 @@ class JobTransitionService:
         """The job was stopped, by a user or by the scheduler."""
         return self.to_stopped_or_failed(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
 
+    @_timed(JOB_TRANSITION_TO_TERMINAL)
     def to_stopped_or_failed(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
     ) -> JobEvent:

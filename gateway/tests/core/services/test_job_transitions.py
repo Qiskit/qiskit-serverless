@@ -7,7 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
+from prometheus_client import CollectorRegistry
 
+from core import external_call_metrics
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
@@ -672,3 +674,50 @@ class TestStop:
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+
+class TestTransitionMetrics:
+    """The scheduler measures how long each transition takes, once, and the gateway measures nothing."""
+
+    @staticmethod
+    def _count(registry, operation, status):
+        labels = {"operation": operation, "status": status}
+        return registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) or 0.0
+
+    def test_a_transition_records_one_sample_under_its_operation(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        try:
+            job = Job.objects.create(author=user, status=Job.RUNNING)
+
+            service.to_terminal(
+                job, Job.FAILED, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            )
+
+            assert self._count(registry, "job_transition_to_terminal", "ok") == 1
+        finally:
+            external_call_metrics.disable()
+
+    def test_an_invalid_transition_is_recorded_as_error_and_still_raises(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        try:
+            job = Job.objects.create(author=user, status=Job.SUCCEEDED)
+
+            with pytest.raises(InvalidJobTransitionException):
+                service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+            assert self._count(registry, "job_transition_to_terminal", "error") == 1
+        finally:
+            external_call_metrics.disable()
+
+    def test_nothing_is_recorded_when_recording_is_disabled(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        external_call_metrics.disable()
+        job = Job.objects.create(author=user, status=Job.PENDING)
+
+        service.pending_to_running(job, origin=JobEventOrigin.API, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert self._count(registry, "job_transition_pending_to_running", "ok") == 0
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING

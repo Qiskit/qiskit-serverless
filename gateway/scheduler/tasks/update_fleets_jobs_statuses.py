@@ -8,7 +8,7 @@ from django.conf import settings
 
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
+from core.external_call_metrics import FLEET_STATUS_READ, JOB_TIMEOUT_CHECK, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
@@ -185,7 +185,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
 
         timeout = settings.PROGRAM_TIMEOUT
-        latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+        # Only the query: it runs once per PENDING or RUNNING job on every tick, and the cancel below is not database
+        with observe_operation(JOB_TIMEOUT_CHECK):
+            latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created
         endtime = reference_time + timedelta(hours=timeout)
         # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open

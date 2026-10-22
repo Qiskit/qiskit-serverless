@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    The ``scheduler_operation_duration_seconds`` histogram has new operations that
+    time the database side of ``UpdateFleetsJobsStatuses``: one per job status
+    transition (``job_transition_queued_to_pending``, ``job_transition_pending_to_running``,
+    ``job_transition_running_to_running`` and ``job_transition_to_terminal``) and
+    ``job_timeout_check``, the query that looks for the last event of a job. Together
+    with ``fleet_status_read`` they show how much of the task is database and how
+    much is Cloud Object Storage. The gateway records nothing.
