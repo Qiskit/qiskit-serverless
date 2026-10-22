@@ -121,6 +121,10 @@ job = my_function.run(circuits=circuits)
 job.status()
 # 'DONE'
 
+# or wait until the job ends, checking less often while nothing changes
+job.wait_for_final_state(timeout=600)
+# 'DONE'
+
 # or get logs
 job.logs()
 ```
