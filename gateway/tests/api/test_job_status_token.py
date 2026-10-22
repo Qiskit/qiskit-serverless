@@ -1,10 +1,10 @@
 """Tests for the job status token and GET /jobs/{id}/status/."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
-from django.core import signing
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -80,7 +80,7 @@ def test_status_reads_the_job_in_one_query_with_no_api_key_auth(author, job):
         response = _status(job, token)
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data == {"status": Job.RUNNING, "sub_status": Job.MAPPING}
+    assert response.data == {"status": Job.RUNNING, "sub_status": Job.MAPPING, "fleet_id": None}
     assert response["Cache-Control"] == "no-store"
     assert len(captured) == 2  # the user, then the job
     api_key_auth.assert_not_called()
@@ -92,8 +92,9 @@ def test_status_refuses_a_missing_tampered_or_expired_token_and_an_api_key(autho
     assert _status(job).status_code == status.HTTP_401_UNAUTHORIZED
     assert _status(job, token + "x").status_code == status.HTTP_401_UNAUTHORIZED
     assert _status(job, HTTP_AUTHORIZATION="Bearer an-api-key").status_code == status.HTTP_401_UNAUTHORIZED
-    with patch("api.services.authentication.job_status_token.signing.loads", side_effect=signing.SignatureExpired):
-        assert _status(job, token).status_code == status.HTTP_401_UNAUTHORIZED
+    with patch("django.core.signing.time.time", return_value=time.time() - 301):
+        old_token = issue_job_status_token(author.id, job.id)
+    assert _status(job, old_token).status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_status_refuses_a_token_for_another_job(author, program, job):
@@ -108,3 +109,9 @@ def test_status_refuses_a_token_of_an_inactive_user(author, job):
     author.save()
 
     assert _status(job, token).status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_status_refuses_a_token_of_someone_who_is_not_the_author(job):
+    other = User.objects.create(username="token_other")
+
+    assert _status(job, issue_job_status_token(other.id, job.id)).status_code == status.HTTP_404_NOT_FOUND

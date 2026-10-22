@@ -44,6 +44,7 @@ logger = logging.getLogger("api.api.v1.views.jobs.status")
             properties={
                 "status": openapi.Schema(type=openapi.TYPE_STRING),
                 "sub_status": openapi.Schema(type=openapi.TYPE_STRING, x_nullable=True),
+                "fleet_id": openapi.Schema(type=openapi.TYPE_STRING, x_nullable=True),
             },
         ),
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
@@ -54,13 +55,13 @@ logger = logging.getLogger("api.api.v1.views.jobs.status")
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def job_status(request: Request, job_id: UUID) -> Response:
-    """Return the status and sub-status of the job the token was issued for."""
+    """Return the status, sub-status and fleet id of the job the token was issued for."""
     user = cast(AbstractUser, request.user)
     token = cast(JobStatusTokenAuth, request.auth)
     if token.job_id != str(job_id):
         raise JobNotFoundException(str(job_id))
 
-    job = Job.objects.filter(id=job_id, author_id=user.id).values("status", "sub_status").first()
+    job = Job.objects.filter(id=job_id, author_id=user.id).values("status", "sub_status", "fleet_id").first()
     if job is None:
         raise JobNotFoundException(str(job_id))
 

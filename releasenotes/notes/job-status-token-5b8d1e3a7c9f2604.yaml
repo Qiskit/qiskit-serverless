@@ -4,8 +4,8 @@ features:
     ``GET /api/v1/jobs/{id}/`` now returns a short-lived job status token in
     the ``X-Job-Status-Token`` header, to the author of a job that has not
     ended. The new ``GET /api/v1/jobs/{id}/status/`` accepts only that token,
-    and returns the job ``status`` and ``sub_status`` from one database read,
-    with no IBM Cloud call. The token is valid for 5 minutes.
+    and returns the job ``status``, ``sub_status`` and ``fleet_id`` from two
+    small database reads, with no IBM Cloud call. The token is valid for 5 minutes.
   - |
     :meth:`~qiskit_serverless.core.job.Job.status` and
     :meth:`~qiskit_serverless.core.job.Job.wait_for_final_state` now use the

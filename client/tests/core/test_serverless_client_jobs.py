@@ -1160,6 +1160,15 @@ class TestJobStatusToken:
         assert full.called
         assert "job-1" not in mock_client._status_tokens
 
+    def test_storing_a_token_drops_the_old_ones(self, mock_client):
+        mock_client._status_tokens["old-job"] = ("old", time.monotonic() - 271)
+        with requests_mock.Mocker() as mocker:
+            mocker.get(self._JOB, json={"status": "QUEUED"}, headers={"X-Job-Status-Token": "signed"})
+
+            mock_client.get_job_data("job-1")
+
+        assert list(mock_client._status_tokens) == ["job-1"]
+
     def test_an_old_token_is_not_used(self, mock_client):
         mock_client._status_tokens["job-1"] = ("old", time.monotonic() - 271)
         with requests_mock.Mocker() as mocker:
