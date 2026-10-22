@@ -5,7 +5,8 @@ features:
     the ``X-Job-Status-Token`` header, to the author of a job that has not
     ended. The new ``GET /api/v1/jobs/{id}/status/`` accepts only that token,
     and returns the job ``status``, ``sub_status`` and ``fleet_id`` from two
-    small database reads, with no IBM Cloud call. The token is valid for 5 minutes.
+    small database reads, with no IBM Cloud call. The token is valid for 5
+    minutes.
   - |
     :meth:`~qiskit_serverless.core.job.Job.status` and
     :meth:`~qiskit_serverless.core.job.Job.wait_for_final_state` now use the
@@ -17,5 +18,5 @@ security:
   - |
     A job status token lets its holder read the status of one job for up to 5
     minutes, even if the API key is revoked in that time. It only gives the
-    status and sub-status of a job the user authored. A deactivated user
-    cannot use it.
+    status, sub-status and fleet id of a job the user authored. A deactivated
+    user cannot use it.
