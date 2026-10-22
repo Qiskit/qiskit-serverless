@@ -96,6 +96,7 @@ _trace_functions = trace_decorator_factory("function")
 _STATUS_TOKEN_HEADER = "X-Job-Status-Token"
 # The gateway signs the token for 5 minutes, so the client stops using it 30 s before
 _STATUS_TOKEN_REUSE_SECONDS = 270
+_TERMINAL_STATUSES = (Job.SUCCEEDED, Job.FAILED, Job.STOPPED)
 
 
 class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
@@ -381,13 +382,16 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         cached = self._status_tokens.get(job_id)
         if cached is not None and time.monotonic() - cached[1] < _STATUS_TOKEN_REUSE_SECONDS:
             try:
-                return safe_json_request_as_dict(
+                data = safe_json_request_as_dict(
                     request=lambda: requests.get(
                         f"{self.host}/api/{self.version}/jobs/{job_id}/status/",
                         headers={_STATUS_TOKEN_HEADER: cached[0]},
                         timeout=REQUESTS_TIMEOUT,
                     )
                 )
+                if data.get("status") in _TERMINAL_STATUSES:
+                    self._status_tokens.pop(job_id, None)
+                return data
             except QiskitServerlessException as error:
                 if getattr(error, "_code", None) not in (401, 403, 404):
                     raise
