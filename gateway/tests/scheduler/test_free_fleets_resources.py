@@ -138,6 +138,20 @@ def test_gives_up_on_a_fleet_after_three_attempts(fleets_program):
     assert Job.objects.filter(fleet_id="broken", fleet_deleted_at__isnull=True).exists()
 
 
+def test_counting_new_failures_does_not_forget_a_fleet_already_given_up_on(fleets_program, monkeypatch):
+    monkeypatch.setattr(f"{_TASK_MOD}.MAX_TRACKED_FAILURES", 2)
+    task = _make_task()
+    broken = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 5, fleet_id="broken")
+    for _ in range(MAX_ATTEMPTS_PER_FLEET):
+        _run(task, deleted=False)
+    for n in range(3):
+        task._count_failure(
+            _terminal_job(fleets_program, age_hours=1, fleet_id=f"new-{n}")
+        )  # pylint: disable=protected-access
+
+    assert str(broken.id) in task._giving_up_on()  # pylint: disable=protected-access
+
+
 def test_does_nothing_while_disabled_but_still_reports(fleets_program):
     Config.set(ConfigKey.FLEETS_CLEANUP_ENABLED, "false")
     job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)

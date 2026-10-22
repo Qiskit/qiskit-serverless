@@ -43,6 +43,7 @@ class FreeFleetsResources(SchedulerTask):
         self.metrics = metrics
         self.deleter = FleetsFleetDeleter(breakers or FleetsBreakers())
         self._failed_attempts: dict[str, int] = {}
+        self._given_up: set[str] = set()
 
     def run(self):
         """Delete the fleets past the retention window or over their project's quota, and report what we hold."""
@@ -148,7 +149,7 @@ class FreeFleetsResources(SchedulerTask):
 
     def _giving_up_on(self) -> list[str]:
         """Job ids that failed MAX_ATTEMPTS_PER_FLEET times, so one bad row cannot fill the batch."""
-        return [job_id for job_id, failures in self._failed_attempts.items() if failures >= MAX_ATTEMPTS_PER_FLEET]
+        return list(self._given_up)
 
     def _delete_and_stamp(self, job: Job) -> bool:
         """Delete one job's fleet and stamp it. A failure is counted so a bad row is skipped later."""
@@ -162,10 +163,17 @@ class FreeFleetsResources(SchedulerTask):
 
     def _count_failure(self, job: Job) -> None:
         """Count one failed attempt on a job, and log it, at ERROR once it reached the limit."""
-        while len(self._failed_attempts) >= MAX_TRACKED_FAILURES:
-            self._failed_attempts.pop(next(iter(self._failed_attempts)))
-        failures = self._failed_attempts.get(str(job.id), 0) + 1
-        self._failed_attempts[str(job.id)] = failures
+        job_id = str(job.id)
+        if job_id not in self._failed_attempts:
+            while len(self._failed_attempts) >= MAX_TRACKED_FAILURES:
+                self._failed_attempts.pop(next(iter(self._failed_attempts)))
+        failures = self._failed_attempts.get(job_id, 0) + 1
+        self._failed_attempts[job_id] = failures
+        if failures >= MAX_ATTEMPTS_PER_FLEET:
+            del self._failed_attempts[job_id]
+            if len(self._given_up) >= MAX_TRACKED_FAILURES:
+                self._given_up.pop()
+            self._given_up.add(job_id)
         logger.log(
             logging.ERROR if failures >= MAX_ATTEMPTS_PER_FLEET else logging.WARNING,
             "job_id=%s fleet_id=%s not deleted on attempt %s, it still holds a slot in its project",
