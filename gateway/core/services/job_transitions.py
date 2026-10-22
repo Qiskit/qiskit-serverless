@@ -105,8 +105,6 @@ class JobTransitionService:
     def running_to_running(self, job: Job) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
-        # It is not a transition, so it is not timed with the others. A filler job sends nothing and returns at once:
-        # that sample would be near zero and skew the histogram, so it is not recorded.
         with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
             self._send_job_in_progress(job, job_started=False)
 
