@@ -47,7 +47,7 @@ class Main:
 
         # One service for every task that changes a job status, so the Kafka producers are created once
         transitions = JobTransitionService()
-        # one breaker per dependency per region, with Code Engine shared by every task that calls it
+        # one breaker per dependency per region; submit and cancel share Code Engine, the cleanup has its own
         breakers = FleetsBreakers()
         submitter = FleetsJobSubmitter(transitions, breakers)
         canceller = FleetsJobCanceller(transitions, breakers)

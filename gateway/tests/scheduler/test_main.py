@@ -77,12 +77,8 @@ class TestMain:
         assert len(tasks) == len(sharing)
         assert len({id(task.submitter) for task in tasks}) == 1
 
-    def test_the_tasks_that_call_code_engine_share_one_breaker_registry(self):
-        """A region that stopped answering is one fact, so submit, cancel and delete share one registry.
-
-        The exporter holds the Code Engine registry out of that same object, so the gauge it writes is
-        the breaker the other tasks actually opened.
-        """
+    def test_the_tasks_that_call_code_engine_hold_one_breakers_object(self):
+        """Submit, cancel and delete hold one FleetsBreakers, and the exporter reads its Code Engine registry."""
         sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs, StopBlockedFleetsJobs)
         submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
         cancellers = [task.canceller for task in self.scheduler_main.tasks if isinstance(task, sharing)]
