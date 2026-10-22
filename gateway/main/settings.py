@@ -642,11 +642,11 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
         "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
     },
-    "scheduler.fleets.jobs_per_user_per_tick": {
+    "scheduler.fleets.jobs_per_tick": {
         "default": "5",
         "type": "integer",
-        "description": "How many queued Fleets jobs of one user the scheduler submits in one tick, taken in rounds "
-        "across users. 0 or less means up to gateway.limits.active_jobs_per_user.",
+        "description": "Most queued Fleets jobs the scheduler submits in one tick, for all users together, taken in "
+        "rounds across users. 0 or less stops new Fleets submits.",
     },
     "gateway.limits.active_jobs_per_user": {
         "default": "50",

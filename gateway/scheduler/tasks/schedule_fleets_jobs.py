@@ -15,8 +15,8 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.schedule import (
     FleetsJobSubmitter,
+    fleets_jobs_per_tick,
     fleets_jobs_per_user,
-    fleets_jobs_per_user_per_tick,
     get_jobs_to_schedule_fair_share,
 )
 from scheduler.kill_signal import KillSignal
@@ -63,10 +63,10 @@ class ScheduleFleetsJobs(SchedulerTask):
 
         jobs_per_user = fleets_jobs_per_user()
         jobs = get_jobs_to_schedule_fair_share(
-            slots=free_slots,
+            slots=min(free_slots, fleets_jobs_per_tick()),
             gpu=False,
             runner=Program.FLEETS,
-            per_user=fleets_jobs_per_user_per_tick(jobs_per_user),
+            per_user=jobs_per_user,
             jobs_per_user=jobs_per_user,
         )
 

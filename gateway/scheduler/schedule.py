@@ -359,10 +359,9 @@ def fleets_jobs_per_user() -> int:
     return Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)
 
 
-def fleets_jobs_per_user_per_tick(jobs_per_user: int) -> int:
-    """The scheduler.fleets.jobs_per_user_per_tick Config, where 0 or less means jobs_per_user."""
-    per_user = Config.get_int(ConfigKey.FLEETS_JOBS_PER_USER_PER_TICK, default=5)
-    return per_user if per_user > 0 else jobs_per_user
+def fleets_jobs_per_tick() -> int:
+    """The scheduler.fleets.jobs_per_tick Config, where less than 0 means 0."""
+    return max(Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK, default=5), 0)
 
 
 def check_job_timeout(job: Job):

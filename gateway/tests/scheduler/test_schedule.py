@@ -31,8 +31,8 @@ from scheduler.schedule import (
     first_cancel_refusal,
     FleetsJobCanceller,
     FleetsJobSubmitter,
+    fleets_jobs_per_tick,
     fleets_jobs_per_user,
-    fleets_jobs_per_user_per_tick,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
 )
@@ -185,11 +185,13 @@ class TestScheduleApi(APITestCase):
         jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=False, runner=Program.FLEETS, per_user=2, jobs_per_user=10)
         assert jobs == queued[:2]
 
-    def test_jobs_per_user_per_tick_reads_config_and_maps_zero_or_less_to_the_limit(self):
+    def test_jobs_per_tick_reads_config(self):
         Config.add_defaults()
-        assert fleets_jobs_per_user_per_tick(jobs_per_user=4) == 5
-        Config.set(ConfigKey.FLEETS_JOBS_PER_USER_PER_TICK, "0")
-        assert fleets_jobs_per_user_per_tick(jobs_per_user=4) == 4
+        assert fleets_jobs_per_tick() == 5
+        Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "200")
+        assert fleets_jobs_per_tick() == 200
+        Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "-1")
+        assert fleets_jobs_per_tick() == 0
 
     def test_fleets_jobs_per_user_is_the_active_job_limit(self):
         Config.add_defaults()
