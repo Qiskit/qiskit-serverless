@@ -103,6 +103,7 @@ html[data-theme="dark"] .qs-timeline {
 .qs-timeline .qs-swatch--queued { background: #8a3ffc; }
 .qs-timeline .qs-swatch--pending { background: #f0ad4e; }
 .qs-timeline .qs-swatch--running { background: #5bc0de; }
+.qs-timeline .qs-swatch--stopping { background: #aaaaaa; }
 .qs-timeline .qs-swatch--filler {
   background-color: #94a3b8;
   background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 5px);
