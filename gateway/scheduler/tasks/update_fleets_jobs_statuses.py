@@ -185,7 +185,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
 
         timeout = settings.PROGRAM_TIMEOUT
-        # Only the query: it runs once per PENDING or RUNNING job on every tick, and the cancel below is not database
+        # Only the query: it runs once per PENDING or RUNNING job on every tick, and the cancel below is not database work
         with observe_operation(JOB_LAST_EVENT_QUERY):
             latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created

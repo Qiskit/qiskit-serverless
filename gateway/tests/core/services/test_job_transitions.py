@@ -721,7 +721,7 @@ class TestTransitionMetrics:
         finally:
             external_call_metrics.disable()
 
-    def test_an_invalid_transition_is_recorded_as_error_and_still_raises(self, service, user):
+    def test_an_invalid_transition_is_recorded_as_rejected_and_still_raises(self, service, user):
         registry = CollectorRegistry()
         external_call_metrics.enable(registry)
         try:
@@ -730,7 +730,7 @@ class TestTransitionMetrics:
             with pytest.raises(InvalidJobTransitionException):
                 service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
-            assert self._count(registry, "job_transition_to_terminal", "error") == 1
+            assert self._count(registry, "job_transition_to_terminal", "rejected") == 1
         finally:
             external_call_metrics.disable()
 

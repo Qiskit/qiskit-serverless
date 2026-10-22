@@ -18,9 +18,9 @@ from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.workload_payload import build_workload_payload, is_mirrored
 from core.external_call_metrics import (
+    JOB_IN_PROGRESS_EVENT,
     JOB_TRANSITION_PENDING_TO_RUNNING,
     JOB_TRANSITION_QUEUED_TO_PENDING,
-    JOB_IN_PROGRESS_EVENT,
     JOB_TRANSITION_TO_TERMINAL,
     observe_operation,
     observer_method,
@@ -107,8 +107,10 @@ class JobTransitionService:
         best effort in-progress event is sent."""
         # It is not a transition, so it is not timed with the others. A filler job sends nothing and returns at once:
         # that sample would be near zero and skew the histogram, so it is not recorded.
-        with observe_operation(JOB_IN_PROGRESS_EVENT) as observation:
-            observation.discard = job.filler
+        if job.filler:
+            self._send_job_in_progress(job, job_started=False)
+            return
+        with observe_operation(JOB_IN_PROGRESS_EVENT):
             self._send_job_in_progress(job, job_started=False)
 
     def stop(
