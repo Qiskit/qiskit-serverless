@@ -534,6 +534,29 @@ class TestBestEffortEvents:
         assert "event dropped" in caplog.text
         assert "kafka down" in caplog.text
 
+    def test_the_in_progress_event_is_timed_but_not_for_a_filler_job(self, service, fleets_job):
+        Job.objects.filter(pk=fleets_job.pk).update(status=Job.RUNNING)
+        fleets_job.refresh_from_db()
+        JobEvent.objects.add_status_event(
+            job_id=fleets_job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        labels = {"operation": "job_in_progress_event", "status": "ok"}
+        try:
+            service.running_to_running(fleets_job)
+            assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
+
+            Job.objects.filter(pk=fleets_job.pk).update(filler=True)
+            fleets_job.refresh_from_db()
+            service.running_to_running(fleets_job)
+            assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
+        finally:
+            external_call_metrics.disable()
+
     def test_a_filler_job_sends_nothing(self, service, sender, fleets_job):
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
         fleets_job.refresh_from_db()

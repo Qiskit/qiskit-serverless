@@ -4,7 +4,9 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from prometheus_client import CollectorRegistry
 
+from core import external_call_metrics
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from django.contrib.auth.models import User
 
@@ -402,6 +404,26 @@ class TestStopJobIfTimeout:
 
         task.transitions.try_stop.assert_called_once()
         assert job.status == Job.STOPPING
+
+    def test_the_last_event_query_is_timed_and_a_filler_job_does_not_run_it(self):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        try:
+            task = _make_task()
+            recent = MagicMock()
+            recent.created = datetime.now(timezone.utc)
+
+            with patch(f"{_MOD}.JobEvent") as mock_event:
+                mock_event.objects.filter.return_value.order_by.return_value.first.return_value = recent
+                task.stop_job_if_timeout(_make_fleets_job(status=Job.RUNNING))
+                filler = _make_fleets_job(status=Job.RUNNING)
+                filler.filler = True
+                task.stop_job_if_timeout(filler)
+        finally:
+            external_call_metrics.disable()
+
+        labels = {"operation": "job_last_event_query", "status": "ok"}
+        assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
 
     def test_a_fleet_already_gone_is_still_counted(self):
         """stop() writes STOPPED itself when Code Engine has no fleet left, so to_terminal here would

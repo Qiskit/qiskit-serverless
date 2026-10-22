@@ -21,7 +21,7 @@ from core.domain.workload_payload import build_workload_payload, is_mirrored
 from core.external_call_metrics import (
     JOB_TRANSITION_PENDING_TO_RUNNING,
     JOB_TRANSITION_QUEUED_TO_PENDING,
-    JOB_TRANSITION_RUNNING_TO_RUNNING,
+    JOB_IN_PROGRESS_EVENT,
     JOB_TRANSITION_TO_TERMINAL,
     observe_operation,
 )
@@ -118,11 +118,14 @@ class JobTransitionService:
         self._send_job_in_progress(job, job_started=True)
         return event
 
-    @_timed(JOB_TRANSITION_RUNNING_TO_RUNNING)
     def running_to_running(self, job: Job) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
-        self._send_job_in_progress(job, job_started=False)
+        # It is not a transition, so it is not timed with the others. A filler job sends nothing and returns at once:
+        # that sample would be near zero and skew the histogram, so it is not recorded.
+        with observe_operation(JOB_IN_PROGRESS_EVENT) as observation:
+            observation.discard = job.filler
+            self._send_job_in_progress(job, job_started=False)
 
     def stop(
         self,
