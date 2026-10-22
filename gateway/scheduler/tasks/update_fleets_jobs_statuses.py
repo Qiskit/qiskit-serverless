@@ -9,7 +9,7 @@ from django.conf import settings
 from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import NOT_LOADED, JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
@@ -62,7 +62,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.error(
                 "job_id=%s user_id=%s error=%s Could not read the status, treating it as unknown",
                 job.id,
-                job.author.id,
+                job.author_id,
                 str(ex),
             )
             new_status = None
@@ -93,7 +93,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.error(
                 "job_id=%s user_id=%s status=%s Unknown new job status: %s",
                 job.id,
-                job.author.id,
+                job.author_id,
                 job.status,
                 new_status,
             )
@@ -112,7 +112,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.warning(
                 "job_id=%s user_id=%s stop not confirmed after %ss, writing STOPPED anyway.",
                 job.id,
-                job.author.id,
+                job.author_id,
                 _STOPPING_DEADLINE_SECONDS,
             )
             final_status = Job.STOPPED
@@ -139,7 +139,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
-            job.author.id,
+            job.author_id,
             job.status,
             new_status,
         )
@@ -165,7 +165,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.info(
                 "job_id=%s user_id=%s Changing status from %s to %s",
                 job.id,
-                job.author.id,
+                job.author_id,
                 job.status,
                 Job.RUNNING,
             )
@@ -177,7 +177,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
                 logger.info("job_id=%s transition rejected from %s, skipping RUNNING: %s", job.id, job.status, str(ex))
         else:
-            self.transitions.running_to_running(job)
+            started_at = getattr(job, "first_running_event_created", NOT_LOADED)
+            self.transitions.running_to_running(job, job_started_at=started_at)
 
     def stop_job_if_timeout(self, job: Job) -> bool:
         """Stop a job that has outlived PROGRAM_TIMEOUT. Returns True if it ended the job."""
@@ -185,15 +186,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
 
         timeout = settings.PROGRAM_TIMEOUT
-        latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-        reference_time = latest_event.created if latest_event else job.created
-        endtime = reference_time + timedelta(hours=timeout)
         # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
         # breaker from logging one line per timed-out job per tick.
-        if datetime.now(tz=endtime.tzinfo) < endtime or self.canceller.paused(job.ce_region):
+        if not self._timed_out(job, timeout) or self.canceller.paused(job.ce_region):
             return False
 
-        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author.id, timeout)
+        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author_id, timeout)
         try:
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerRetryableError as ex:
@@ -217,6 +215,27 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # stop() wrote STOPPED itself, so only the counter is left
             self._increment_terminal_counter(job)
         return True
+
+    @staticmethod
+    def _timed_out(job: Job, timeout: int) -> bool:
+        """Whether the job's latest event (or its creation, without one) is more than `timeout` hours old.
+
+        run() loads the latest event time with the job. The running function and the scheduler only add
+        events, so during the pass that time can only fall behind the real one: if it is not past the
+        timeout, the real one is not either, and no query is needed. Otherwise read it again, since an
+        event may have been written after the jobs were loaded. An admin deleting events by hand
+        mid-pass is the exception, and at worst delays the stop to the next pass.
+        """
+        loaded = getattr(job, "last_event_created", NOT_LOADED)
+        if loaded is not NOT_LOADED:
+            known = loaded or job.created
+            if datetime.now(tz=known.tzinfo) < known + timedelta(hours=timeout):
+                return False
+
+        latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+        reference_time = latest_event.created if latest_event else job.created
+        endtime = reference_time + timedelta(hours=timeout)
+        return datetime.now(tz=endtime.tzinfo) >= endtime
 
     def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
         """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
@@ -253,8 +272,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).select_related(
-            "author", "program__provider", "program__code_engine_project", "function_size", "config"
+        # Only what a status pass reads: the runner needs the program and its project, metrics and billing
+        # need the provider, and the Runtime API mirror of a job that ends needs the author. The size comes from
+        # the job's own function_size_name, so the size row is not joined.
+        jobs = (
+            Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
+            .select_related("author", "program__provider", "program__code_engine_project")
+            .with_event_times()
         )
         for job in jobs:
             if self.kill_signal.received:

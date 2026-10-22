@@ -400,15 +400,12 @@ class ProgramAdmin(admin.ModelAdmin):
         "disabled",
     ]
 
+    # provider and author are list_display columns, default_size is read by `sizes_summary`.
+    list_select_related = ["default_size", "provider", "author"]
+
     def get_queryset(self, request):
-        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
-        # so rendering the default's label does not fire a query per row.
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("default_size", "provider", "author")
-            .annotate(declared_sizes_count=Count("function_sizes"))
-        )
+        # Count the size rows once per changelist for `sizes_summary`.
+        return super().get_queryset(request).annotate(declared_sizes_count=Count("function_sizes"))
 
     @admin.display(description="Sizes", ordering="declared_sizes_count")
     def sizes_summary(self, obj):

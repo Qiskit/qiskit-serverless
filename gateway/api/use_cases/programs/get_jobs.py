@@ -35,7 +35,7 @@ class GetJobsUseCase:
             raise FunctionNotFoundException(function=str(program_id))
 
         # the output serializer reads program.provider.name and compute_profile_fk on every row
-        jobs = Job.objects.select_related("program__provider", "compute_profile_fk")
+        jobs = Job.objects.with_program().select_related("compute_profile_fk")
 
         if program.provider and ProviderAccessPolicy.can_list_jobs(
             user=user,

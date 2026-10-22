@@ -48,4 +48,7 @@ class ListFunctionsUseCase:
         if provider:
             queryset = queryset.filter(provider__name=provider)
 
-        return list(queryset.select_related("provider", "default_size").prefetch_related("function_sizes"))
+        # Ordered so the response does not depend on the plan the database picks for the joins.
+        # Titles are only unique per provider, so id breaks ties.
+        queryset = queryset.select_related("provider", "default_size").prefetch_related("function_sizes")
+        return list(queryset.order_by("title", "id"))

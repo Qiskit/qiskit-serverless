@@ -6,4 +6,13 @@ other:
     program jobs endpoints, the Fleets and Ray status loops and the fair-share
     job selection of the scheduler, and the Providers, Job events and Programs
     pages of the backoffice no longer make extra queries that grow with the
-    number of rows. Responses are unchanged.
+    number of rows. The single job endpoints (logs, result, stop, sub status,
+    saving a result, provider logs) and the function lookups load the program
+    and provider with the job or function, and the provider admin check is one
+    query. The Fleets status loop also loads each job's latest and first
+    RUNNING event times with the jobs, instead of reading them one job at a
+    time. The task that stops the Fleets jobs of blocked accounts, plans and
+    subscriptions now reads only the blocked jobs, in one query, instead of
+    checking every PENDING and RUNNING Fleets job against the blocked list one
+    job at a time. Responses are unchanged, except that the function list is now
+    ordered by title, then id.

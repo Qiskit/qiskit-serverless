@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Set, Tuple, Self
 
-from django.db.models import QuerySet
+from django.db.models import OuterRef, QuerySet, Subquery
 from django.contrib.auth.models import AbstractUser
 
 from core.enums.type_filter import TypeFilter
@@ -46,6 +46,27 @@ class JobQuerySet(QuerySet):
     def with_program(self) -> Self:
         """Fetch the job's program and its provider in the same query."""
         return self.select_related("program__provider")
+
+    def with_scheduler_context(self) -> Self:
+        """Fetch what the scheduler reads for each job it submits: the author, the program with its provider
+        and Code Engine project, and the job config."""
+        return self.select_related("author", "program__provider", "program__code_engine_project", "config")
+
+    def with_event_times(self) -> Self:
+        """Load two event times with each job, so a loop over many jobs does not read them one job at a time:
+
+        - ``last_event_created``: when its latest event was written (what the timeout counts from).
+        - ``first_running_event_created``: when it first reached RUNNING (the start time of the usage message).
+
+        Both are None when the job has no such event.
+        """
+        from core.models import JobEvent  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        events = JobEvent.objects.filter(job=OuterRef("pk"))
+        return self.annotate(
+            last_event_created=Subquery(events.order_by("-created").values("created")[:1]),
+            first_running_event_created=Subquery(events.running_status_events().values("created")[:1]),
+        )
 
     def user_jobs_page(
         self,

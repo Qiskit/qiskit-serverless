@@ -25,6 +25,10 @@ from core.services.runners import get_runner, AbstractRunner, RunnerRetryableErr
 
 logger = logging.getLogger("core.JobTransitionService")
 
+# Marks an event time the caller does not have (not passed, or the job was not loaded with it), as opposed to
+# None, which is a real answer (the job never ran). Shared with the scheduler, which loads these times with the jobs.
+NOT_LOADED = object()
+
 
 def _is_usage_billable(job: Job) -> bool:
     """Only real Fleets jobs (no filler) with an instance CRN are billed."""
@@ -92,10 +96,14 @@ class JobTransitionService:
         self._send_job_in_progress(job, job_started=True)
         return event
 
-    def running_to_running(self, job: Job) -> None:
+    def running_to_running(self, job: Job, *, job_started_at=NOT_LOADED) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
-        best effort in-progress event is sent."""
-        self._send_job_in_progress(job, job_started=False)
+        best effort in-progress event is sent.
+
+        job_started_at: when the job first reached RUNNING, if the caller already has it (the scheduler loads it
+        with the job). A job that stays RUNNING never changes that value, so it does not need to be read again.
+        """
+        self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
 
     def stop(
         self,
@@ -266,7 +274,7 @@ class JobTransitionService:
             Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
 
-    def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
+    def _send_job_in_progress(self, job: Job, job_started: bool, job_started_at=NOT_LOADED) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
 
         The sender is asked not to wait for the broker (timeout=0): it does not raise for a message it cannot
@@ -279,7 +287,8 @@ class JobTransitionService:
         try:
             if job.filler:
                 return
-            job_started_at = JobEvent.objects.first_running_at(job.id)
+            if job_started_at is NOT_LOADED:
+                job_started_at = JobEvent.objects.first_running_at(job.id)
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
             # timeout=0: send and return at once, without waiting for the ack or a flush

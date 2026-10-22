@@ -9,7 +9,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from django.contrib.auth.models import User
 
 from core.models import ComputeProfile, Job, JobEvent, Program
-from core.services.job_transitions import JobTransitionService
+from core.services.job_transitions import NOT_LOADED, JobTransitionService
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses, _STOPPING_DEADLINE_SECONDS
@@ -359,7 +359,7 @@ class TestToRunning:
 
         task.to_running(job)
 
-        task.transitions.running_to_running.assert_called_once_with(job)
+        task.transitions.running_to_running.assert_called_once_with(job, job_started_at=NOT_LOADED)
         task.transitions.pending_to_running.assert_not_called()
 
 
@@ -554,7 +554,10 @@ class TestRun:
             patch.object(task, "update_job_status", side_effect=fake_update),
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value.with_event_times.return_value = [
+                job1,
+                job2,
+            ]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
@@ -572,7 +575,10 @@ class TestRun:
             patch(f"{_MOD}.logger") as mock_logger,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value.with_event_times.return_value = [
+                job1,
+                job2,
+            ]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
@@ -589,7 +595,10 @@ class TestRun:
             patch.object(task, "update_job_status", side_effect=[True, False]),
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value.select_related.return_value = [changed, unreadable]
+            mock_job_cls.objects.filter.return_value.select_related.return_value.with_event_times.return_value = [
+                changed,
+                unreadable,
+            ]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
@@ -612,7 +621,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task.transitions.running_to_running.assert_called_once_with(job)
+        task.transitions.running_to_running.assert_called_once_with(job, job_started_at=NOT_LOADED)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
@@ -625,7 +634,10 @@ class TestEventStreamsIntegration:
             patch.object(task, "update_job_status", return_value=True) as mock_update_status,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value.with_event_times.return_value = [
+                job1,
+                job2,
+            ]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
 
             # Simulate update_job_status raising for job1 (publish failure) but succeeding for job2
@@ -983,4 +995,93 @@ class TestStoppingDeadlineAgainstTheDatabase:
             changed = task.update_job_status(job)
 
         assert changed is False, "an older event of another kind started the deadline"
+        assert job.status == Job.STOPPING
+
+
+def _real_fleets_job(username, status=Job.RUNNING, event_status=Job.RUNNING, event_age=timedelta(minutes=5)):
+    """A Fleets job in the database with one status event written `event_age` ago."""
+    job = Job.objects.create(
+        author=User.objects.create_user(username=username),
+        runner=Program.FLEETS,
+        fleet_id=f"fleet-{username}",
+        instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        status=status,
+    )
+    JobEvent.objects.add_status_event(
+        job_id=job.id, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=event_status
+    )
+    JobEvent.objects.filter(job=job).update(created=datetime.now(timezone.utc) - event_age)
+    return job
+
+
+def _run_real_pass(reported_status, on_status=None):
+    """Run one real pass of the task: only the runner is replaced. Returns the sender."""
+    sender = MagicMock()
+    task = _make_task()
+    task.transitions = JobTransitionService(sender=sender)
+    runner = MagicMock()
+    runner.status.side_effect = lambda: (on_status() if on_status else None) or reported_status
+    with patch(f"{_MOD}.get_runner", return_value=runner):
+        task.run()
+    return sender
+
+
+@pytest.mark.django_db
+class TestEventTimesLoadedWithTheJobs:
+    """run() loads each job's latest event and first RUNNING event with the jobs. These check the results
+    match what reading them one job at a time gave."""
+
+    def test_the_usage_start_time_is_the_first_running_event(self):
+        job = _real_fleets_job("usage-start", event_age=timedelta(hours=2))
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+
+        sender = _run_real_pass(Job.RUNNING)
+
+        payload = sender.send.call_args.args[0]
+        assert str(JobEvent.objects.first_running_at(job.id).isoformat()) in str(payload)
+
+    def test_a_job_past_the_timeout_is_stopped(self):
+        job = _real_fleets_job("timed-out", event_age=timedelta(hours=100))
+
+        _run_real_pass(Job.RUNNING)
+
+        job.refresh_from_db()
+        assert job.status == Job.STOPPING
+
+    def test_an_event_written_after_the_jobs_were_loaded_keeps_the_job_running(self):
+        job = _real_fleets_job("fresh-event", event_age=timedelta(hours=100))
+
+        def write_an_event():
+            JobEvent.objects.add_status_event(
+                job_id=job.id, origin=JobEventOrigin.API, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+            )
+
+        _run_real_pass(Job.RUNNING, on_status=write_an_event)
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+
+    def test_a_job_that_starts_after_a_long_wait_is_not_stopped(self):
+        job = _real_fleets_job(
+            "long-pending", status=Job.PENDING, event_status=Job.PENDING, event_age=timedelta(hours=100)
+        )
+
+        _run_real_pass(Job.RUNNING)
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+
+    def test_a_job_with_no_events_counts_from_its_creation(self):
+        job = _real_fleets_job("no-events")
+        JobEvent.objects.filter(job=job).delete()
+        Job.objects.filter(pk=job.pk).update(created=datetime.now(timezone.utc) - timedelta(hours=100))
+
+        _run_real_pass(None)
+
+        job.refresh_from_db()
         assert job.status == Job.STOPPING

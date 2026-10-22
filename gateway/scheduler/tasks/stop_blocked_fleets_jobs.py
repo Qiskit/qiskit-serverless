@@ -25,16 +25,27 @@ class StopBlockedFleetsJobs(SchedulerTask):
         self.canceller = canceller
 
     def run(self) -> None:
-        """Ask once per tick for every blocked job: a cancel that does not land is asked again next tick."""
-        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED) or not BlockedCloudResource.objects.exists():
+        """Ask once per tick for every blocked job: a cancel that does not land is asked again next tick.
+
+        The blocked rows are read once, at the start of the pass, so a row added or removed during the pass
+        counts from the next tick, as in the fair-share selection.
+        """
+        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
+            return
+        blocked = BlockedCloudResource.blocked_jobs_filter()
+        if blocked is None:
             return
 
-        jobs = Job.objects.filter(runner=Program.FLEETS, filler=False, status__in=[Job.PENDING, Job.RUNNING])
+        # Only the blocked jobs, with what a stop reads: the runner needs the program and its project, billing
+        # needs the provider, and the Runtime API mirror of a job that ends needs the author. The size comes from
+        # the job's own function_size_name, so the size row is not joined.
+        jobs = Job.objects.filter(
+            blocked, runner=Program.FLEETS, filler=False, status__in=[Job.PENDING, Job.RUNNING]
+        ).select_related("author", "program__provider", "program__code_engine_project")
         for job in jobs:
             if self.kill_signal.received:
                 return
-            if BlockedCloudResource.blocks(job.account_id, job.plan_id, job.subscription_id):
-                self._stop(job)
+            self._stop(job)
 
     def _stop(self, job: Job) -> None:
         if self.canceller.paused(job.ce_region):

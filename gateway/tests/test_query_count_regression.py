@@ -4,14 +4,14 @@ Each test measures the same call with few and with many rows and asserts the num
 """
 
 import pytest
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, Program, Provider
+from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, JobConfig, Program, Provider
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -22,18 +22,26 @@ LEGACY = FunctionAccessResult(use_legacy_authorization=True)
 @pytest.fixture
 def world():
     owner = User.objects.create_user(username="qc-owner")
-    admin = User.objects.create_user(username="qc-admin")
-    group = Group.objects.create(name="qc-admins")
-    admin.groups.add(group)
+    admin, group = TestUtils.add_user_to_group("qc-admin", "qc-admins")
     project = CodeEngineProject.objects.create(project_name="qc", project_id="qc", region="eu-de")
     provider = Provider.objects.create(name="qc-provider", code_engine_project=project)
     provider.admin_groups.add(group)
     profile = ComputeProfile.objects.create(compute_profile_id="8x32", cpu="8", memory="32")
-    function = Program.objects.create(title="qc-fn", author=owner, provider=provider, runner=Program.FLEETS)
+    function = Program.objects.create(
+        title="qc-fn", author=owner, provider=provider, code_engine_project=project, runner=Program.FLEETS
+    )
     size = FunctionSize.objects.create(function=function, function_size="S", compute_profile=profile)
     function.default_size = size
     function.save()
-    return {"owner": owner, "admin": admin, "provider": provider, "profile": profile, "function": function}
+    return {
+        "owner": owner,
+        "admin": admin,
+        "provider": provider,
+        "profile": profile,
+        "function": function,
+        "size": size,
+        "config": JobConfig.objects.create(workers=2),
+    }
 
 
 def _add_jobs(world, count, status=Job.QUEUED):
@@ -44,6 +52,9 @@ def _add_jobs(world, count, status=Job.QUEUED):
             runner=Program.FLEETS,
             status=status,
             compute_profile_fk=world["profile"],
+            function_size=world["size"],
+            function_size_name="S",  # the snapshot run() takes at creation
+            config=world["config"],
         )
 
 
@@ -111,6 +122,10 @@ def test_scheduler_loop_loads_relations_in_the_query(world):
 
 
 def test_running_jobs_loop_loads_relations_in_the_query(world):
+    """Guards the relation loads only. update_job_status is replaced, so the per-job JobEvent lookups it makes
+    (latest event, first RUNNING event) are not measured here."""
+    from unittest.mock import MagicMock  # pylint: disable=import-outside-toplevel
+
     _add_jobs(world, 5, status=Job.RUNNING)
     with CaptureQueriesContext(connection) as ctx:
         from scheduler.tasks.update_fleets_jobs_statuses import (  # pylint: disable=import-outside-toplevel
@@ -118,9 +133,119 @@ def test_running_jobs_loop_loads_relations_in_the_query(world):
         )
 
         seen = []
+
+        def read_what_a_pass_reads(job):
+            seen.append((job.program.provider.name, job.program.code_engine_project.project_name, job.size_label))
+            return False
+
         task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
         task.kill_signal = type("K", (), {"received": False})()
-        task.update_job_status = lambda job: seen.append((job.author.id, job.program.provider.name)) or False
+        task.metrics = MagicMock()
+        task.update_job_status = read_what_a_pass_reads
         task.run()
     assert len(seen) == 5
     assert len(ctx) == 1
+
+
+def test_scheduler_context_loads_author_program_provider_project_and_config(world):
+    _add_jobs(world, 4, status=Job.RUNNING)
+    jobs = list(Job.objects.filter(status=Job.RUNNING).with_scheduler_context())
+    assert len(jobs) == 4
+    with CaptureQueriesContext(connection) as ctx:
+        for job in jobs:
+            _ = (job.author.id, job.program.provider.name, job.program.code_engine_project.project_name)
+            assert job.config.workers == 2
+    assert len(ctx) == 0
+
+
+def test_with_program_loads_program_and_provider(world):
+    _add_jobs(world, 4)
+    jobs = list(Job.objects.with_program())
+    with CaptureQueriesContext(connection) as ctx:
+        for job in jobs:
+            _ = (job.program.title, job.program.provider.name)
+    assert len(ctx) == 0
+
+
+def test_a_real_status_pass_reads_no_events_per_job(world):
+    """The whole UpdateFleetsJobsStatuses.run(), only the runner replaced: jobs that stay RUNNING cost one query
+    for the pass, however many there are (the latest and first RUNNING events come with the jobs)."""
+    from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
+
+    from core.models import JobEvent  # pylint: disable=import-outside-toplevel
+    from core.services.job_transitions import JobTransitionService  # pylint: disable=import-outside-toplevel
+    from scheduler.tasks.update_fleets_jobs_statuses import (  # pylint: disable=import-outside-toplevel
+        UpdateFleetsJobsStatuses,
+    )
+
+    def add_running(count):
+        _add_jobs(world, count, status=Job.RUNNING)
+        for job in Job.objects.filter(job_events__isnull=True):
+            JobEvent.objects.add_status_event(job_id=job.id, origin="API", context="RUN_PROGRAM", status=Job.RUNNING)
+        Job.objects.update(fleet_id="fleet")
+
+    def one_pass():
+        task = UpdateFleetsJobsStatuses(
+            kill_signal=MagicMock(received=False),
+            metrics=MagicMock(),
+            transitions=JobTransitionService(sender=MagicMock()),
+        )
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+        with patch("scheduler.tasks.update_fleets_jobs_statuses.get_runner", return_value=runner):
+            with CaptureQueriesContext(connection) as ctx:
+                task.run()
+        return len(ctx)
+
+    add_running(2)
+    few = one_pass()
+    add_running(20)
+    assert one_pass() == few == 1
+
+
+def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
+    """StopBlockedFleetsJobs: the blocked rows and the blocked jobs, two queries however many jobs, and nothing
+    more to read the relations a stop needs."""
+    from unittest.mock import MagicMock  # pylint: disable=import-outside-toplevel
+
+    from core.config_key import ConfigKey  # pylint: disable=import-outside-toplevel
+    from core.models import BlockedCloudResource, Config  # pylint: disable=import-outside-toplevel
+    from scheduler.tasks.stop_blocked_fleets_jobs import (  # pylint: disable=import-outside-toplevel
+        StopBlockedFleetsJobs,
+    )
+
+    Config.add_defaults()
+    BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+    seen = []
+
+    def add_blocked(count):
+        _add_jobs(world, count, status=Job.RUNNING)
+        Job.objects.update(account_id="acct", plan_id="plan", subscription_id="sub")
+
+    def one_pass():
+        task = StopBlockedFleetsJobs(kill_signal=MagicMock(received=False), canceller=MagicMock())
+        task.canceller.paused.return_value = False
+
+        def read_what_a_stop_reads(job, **_):
+            seen.append(
+                (job.author.username, job.program.provider.name, job.program.code_engine_project, job.size_label)
+            )
+            return True
+
+        task.canceller.cancel.side_effect = read_what_a_stop_reads
+        Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED)  # warm the config cache, as on a running scheduler
+        with CaptureQueriesContext(connection) as ctx:
+            task.run()
+        return len(ctx)
+
+    add_blocked(2)
+    few = one_pass()
+    add_blocked(20)
+    assert one_pass() == few == 2
+    assert len(seen) == 2 + 22
+
+    # nothing blocked: only the blocked rows are read, no job query
+    BlockedCloudResource.objects.all().delete()
+    seen.clear()
+    assert one_pass() == 1
+    assert not seen

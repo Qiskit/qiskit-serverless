@@ -135,3 +135,15 @@ class TestListFunctionsUseCase:
             for function in result:
                 _ = function.provider.name
                 _ = [size.function_size for size in function.function_sizes.all()]
+
+    def test_functions_are_ordered_by_title_then_id(self, user, provider):
+        other = Provider.objects.create(name="other-provider")
+        for title, owner_provider in [("zeta", provider), ("alpha", provider), ("alpha", other), ("mid", provider)]:
+            Program.objects.create(title=title, author=user, provider=owner_provider)
+        accessible = FunctionAccessResult(use_legacy_authorization=True)
+
+        result = ListFunctionsUseCase().execute(user, accessible, None)
+
+        assert [f.title for f in result] == ["alpha", "alpha", "mid", "zeta"]
+        same_title = [f.id for f in result if f.title == "alpha"]
+        assert same_title == sorted(same_title)
