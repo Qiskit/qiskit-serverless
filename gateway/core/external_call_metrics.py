@@ -9,6 +9,7 @@ scrape would read one random worker and the numbers would be wrong. ``core`` can
 the histogram is created by ``enable()``, which only ``run_scheduler`` calls. In the gateway nothing is recorded.
 """
 
+import functools
 import socket
 import time
 from contextlib import contextmanager
@@ -95,3 +96,19 @@ def observe_operation(operation: str) -> Iterator[Observation]:
             _DURATION.labels(operation=operation, status=observation.status or status).observe(
                 time.perf_counter() - started
             )
+
+
+def observer_method(operation: str):
+    """Record how long the whole method took (its transaction and the sends after it) under ``operation``, in the
+    scheduler. In the gateway recording is off and this does nothing. Put it on the method that does the work, never
+    on one that only delegates to another observed method, or the operation would be counted twice."""
+
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(*args, **kwargs):
+            with observe_operation(operation):
+                return method(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
