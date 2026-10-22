@@ -8,9 +8,8 @@ features:
     they are filler jobs or because their fleet is blocked, not only the ones that
     ``UpdateFleetsJobsStatuses`` finishes. ``job_transition_pending_to_running`` includes
     the ``job_started`` event sent right after the transaction, so it is not database time
-    alone. Other new operations are ``job_in_progress_event`` (the progress event sent for
-    a job that is still running, not a transition, and never for a filler job) and
-    ``job_last_event_query``, the query that looks for the last event of a job. Together
+    alone. Another new operation is ``job_in_progress_event`` (the progress event sent for
+    a job that is still running, not a transition, and never for a filler job). Together
     with ``fleet_status_read`` they show how much of ``UpdateFleetsJobsStatuses`` is
     database and how much is Cloud Object Storage. A transition rejected because the job
     was already moved by someone else (a user stopped it) is recorded with the status

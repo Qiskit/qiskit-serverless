@@ -29,7 +29,6 @@ JOB_TRANSITION_QUEUED_TO_PENDING = "job_transition_queued_to_pending"
 JOB_TRANSITION_PENDING_TO_RUNNING = "job_transition_pending_to_running"
 JOB_IN_PROGRESS_EVENT = "job_in_progress_event"
 JOB_TRANSITION_TO_TERMINAL = "job_transition_to_terminal"
-JOB_LAST_EVENT_QUERY = "job_last_event_query"
 
 STATUS_OK = "ok"
 STATUS_TIMEOUT = "timeout"
