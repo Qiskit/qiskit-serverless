@@ -385,6 +385,32 @@ slow loop can be read in Grafana without averaging. A loop that is still
 running does not show up until it ends.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The scheduler now records how long it takes to submit one Fleets job, as
+the new <code class="docutils literal notranslate"><span class="pre">fleet_submit</span></code> operation of
+<code class="docutils literal notranslate"><span class="pre">scheduler_operation_duration_seconds</span></code>. It covers the whole submit, from
+the Code Engine request to the job reaching <code class="docutils literal notranslate"><span class="pre">PENDING</span></code>, and records one
+sample per attempt, failed ones included, with status <code class="docutils literal notranslate"><span class="pre">ok</span></code>, <code class="docutils literal notranslate"><span class="pre">timeout</span></code>
+or <code class="docutils literal notranslate"><span class="pre">error</span></code>.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">scheduler_operation_duration_seconds</span></code> histogram has new operations that time
+the job status transitions the scheduler makes, wherever they are called from:
+<code class="docutils literal notranslate"><span class="pre">job_transition_queued_to_pending</span></code>, <code class="docutils literal notranslate"><span class="pre">job_transition_pending_to_running</span></code> and
+<code class="docutils literal notranslate"><span class="pre">job_transition_to_terminal</span></code>. The last one also counts the jobs that end because
+they are filler jobs or because their fleet is blocked, not only the ones that
+<code class="docutils literal notranslate"><span class="pre">UpdateFleetsJobsStatuses</span></code> finishes. <code class="docutils literal notranslate"><span class="pre">job_transition_pending_to_running</span></code> includes
+the <code class="docutils literal notranslate"><span class="pre">job_started</span></code> event sent right after the transaction, so it is not database time
+alone. Another new operation is <code class="docutils literal notranslate"><span class="pre">job_in_progress_event</span></code> (the progress event sent for
+a job that is still running, not a transition, and never for a filler job). Together
+with <code class="docutils literal notranslate"><span class="pre">fleet_status_read</span></code> they show how much of <code class="docutils literal notranslate"><span class="pre">UpdateFleetsJobsStatuses</span></code> is
+database and how much is Cloud Object Storage. A transition rejected because the job
+was already moved by someone else (a user stopped it) is recorded with the status
+<code class="docutils literal notranslate"><span class="pre">rejected</span></code> and not <code class="docutils literal notranslate"><span class="pre">error</span></code>. <code class="docutils literal notranslate"><span class="pre">job_transition_to_terminal</span></code> covers a job that
+succeeds, fails or is stopped by <code class="docutils literal notranslate"><span class="pre">to_stopped</span></code>, but not the status written by <code class="docutils literal notranslate"><span class="pre">stop()</span></code>
+(the stop of a job by a user or by the timeout), which also cancels the fleet in Code
+Engine. The gateway records nothing.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now cancels the <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> Fleets jobs whose
 account, plan and subscription are blocked, so a resource whose non-quantum
 allowance is exhausted stops consuming Code Engine capacity. The job goes
