@@ -13,6 +13,7 @@ from core.services.job_transitions import NOT_LOADED, JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
+from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.schedule import FleetsJobCanceller, first_cancel_refusal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -285,6 +286,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             try:
                 if self.update_job_status(job):
                     counter += 1
+            except DB_EXCEPTIONS:
+                # main.py counts DB failures to restart the pod, so never swallow them.
+                raise
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.exception(
                     "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id

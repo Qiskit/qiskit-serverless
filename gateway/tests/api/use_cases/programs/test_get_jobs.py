@@ -1,12 +1,14 @@
 """Unit tests for GetJobsUseCase."""
 
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth.models import User
 
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.get_jobs import GetJobsUseCase
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Program, Provider
+from core.models import Job, Program, Provider
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -40,6 +42,17 @@ class TestGetJobsUseCase:
         assert len(result) == 1
         assert result[0].id == own_job.id
         assert is_provider_listing is False
+
+    def test_returns_newest_job_first(self, user):
+        program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        older = TestUtils.create_job(author=user, program=program)
+        newer = TestUtils.create_job(author=user, program=program)
+        Job.objects.filter(id=older.id).update(created=newer.created - timedelta(minutes=1))
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        jobs, _ = GetJobsUseCase().execute(user, accessible, program.id)
+
+        assert [j.id for j in jobs] == [newer.id, older.id]
 
     def test_provider_admin_sees_all_jobs(self, user, other_user, provider):
         group = TestUtils.get_or_create_group("my-provider")

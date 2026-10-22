@@ -339,10 +339,9 @@ def check_job_timeout(job: Job):
     if job.status in Job.RUNNING_STATUSES:
         timeout = settings.PROGRAM_TIMEOUT
         latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-        if not latest_job_event:
-            # This should never happen since every job should have at least 1 JobEvent (on creation).
-            latest_job_event = job.created
-        endtime = latest_job_event.created + timedelta(hours=timeout)
+        # A job without events counts from its creation.
+        reference_time = latest_job_event.created if latest_job_event else job.created
+        endtime = reference_time + timedelta(hours=timeout)
         now = datetime.now(tz=endtime.tzinfo)
         if endtime < now:
             logger.warning(

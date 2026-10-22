@@ -2,6 +2,7 @@
 
 import uuid
 from collections import deque
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from core.services.runners.ray_runner import FilteredLogs
@@ -28,6 +29,7 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.schedule import (
     _REFUSED_CANCEL_WARNED,
     CodeEngineBreakers,
+    check_job_timeout,
     first_cancel_refusal,
     FleetsJobCanceller,
     FleetsJobSubmitter,
@@ -495,6 +497,18 @@ class TestScheduleApi(APITestCase):
             # The table was filled as following: Job creation, Job status change to running, job stopping
             # due exceeding time limit.
             assert len(job_events) == 3
+
+
+@pytest.mark.django_db
+def test_a_ray_job_without_events_times_out_from_its_creation():
+    user = User.objects.create_user(username="ray-timeout-no-events")
+    resource = ComputeResource.objects.create(title="ray-timeout-no-events", active=True)
+    job = Job.objects.create(author=user, status=Job.RUNNING, compute_resource=resource)
+    Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
+    job.refresh_from_db()
+
+    with override_settings(PROGRAM_TIMEOUT=1):
+        assert check_job_timeout(job) is True
 
 
 @pytest.mark.django_db(transaction=True)

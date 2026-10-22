@@ -7,6 +7,7 @@ import pytest
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from django.contrib.auth.models import User
+from django.db.utils import OperationalError
 
 from core.models import ComputeProfile, Job, JobEvent, Program
 from core.services.job_transitions import NOT_LOADED, JobTransitionService
@@ -710,6 +711,20 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
     mock_timeout.assert_called_once_with(job)
 
 
+@pytest.mark.django_db
+def test_a_db_error_in_the_status_loop_reaches_the_scheduler():
+    """main.py counts DB failures to restart the pod, so run() must not swallow them."""
+    author = User.objects.create_user(username="update-fleets-db-down")
+    Job.objects.create(author=author, runner=Program.FLEETS, fleet_id="fleet-db", status=Job.RUNNING)
+    task = _make_task()
+
+    with (
+        patch.object(task, "update_job_status", side_effect=OperationalError("db down")),
+        pytest.raises(OperationalError),
+    ):
+        task.run()
+
+
 def test_filler_jobs_are_left_out_of_the_job_metrics():
     """A filler job neither counts as a terminal job nor contributes an execution duration."""
     task = _make_task()
@@ -1019,8 +1034,13 @@ def _run_real_pass(reported_status, on_status=None):
     sender = MagicMock()
     task = _make_task()
     task.transitions = JobTransitionService(sender=sender)
+    def status():
+        if on_status:
+            on_status()
+        return reported_status
+
     runner = MagicMock()
-    runner.status.side_effect = lambda: (on_status() if on_status else None) or reported_status
+    runner.status.side_effect = status
     with patch(f"{_MOD}.get_runner", return_value=runner):
         task.run()
     return sender
@@ -1042,7 +1062,7 @@ class TestEventTimesLoadedWithTheJobs:
         sender = _run_real_pass(Job.RUNNING)
 
         payload = sender.send.call_args.args[0]
-        assert str(JobEvent.objects.first_running_at(job.id).isoformat()) in str(payload)
+        assert JobEvent.objects.first_running_at(job.id).isoformat() in str(payload)
 
     def test_a_job_past_the_timeout_is_stopped(self):
         job = _real_fleets_job("timed-out", event_age=timedelta(hours=100))

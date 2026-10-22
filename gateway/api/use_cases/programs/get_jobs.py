@@ -35,7 +35,8 @@ class GetJobsUseCase:
             raise FunctionNotFoundException(function=str(program_id))
 
         # The serializer reads program.provider and compute_profile_fk on each row.
-        jobs = Job.objects.with_program().select_related("compute_profile_fk")
+        # Newest first, like the job list.
+        jobs = Job.objects.with_program().select_related("compute_profile_fk").order_by("-created")
 
         if program.provider and ProviderAccessPolicy.can_list_jobs(
             user=user,

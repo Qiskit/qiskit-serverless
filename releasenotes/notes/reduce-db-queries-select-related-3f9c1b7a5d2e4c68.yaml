@@ -15,4 +15,14 @@ other:
     subscriptions now reads only the blocked jobs, in one query, instead of
     checking every PENDING and RUNNING Fleets job against the blocked list one
     job at a time. Responses are unchanged, except that the function list is now
-    ordered by title, then id.
+    ordered by title, then id, and the jobs of a function
+    (``/programs/<id>/get_jobs``) are now ordered newest first, like the job
+    list.
+fixes:
+  - |
+    The Fleets status loop no longer hides database errors. The scheduler
+    restarts its pod after several database failures in a row, and this loop
+    used to log them as a failed job update instead, which reset the count.
+  - |
+    The Ray timeout check no longer fails for a running job that has no
+    events. It now counts the timeout from the job's creation, as intended.
