@@ -61,13 +61,11 @@ class ScheduleFleetsJobs(SchedulerTask):
             )
             return
 
-        jobs_per_user = fleets_jobs_per_user()
         jobs = get_jobs_to_schedule_fair_share(
             slots=min(free_slots, fleets_jobs_per_tick()),
             gpu=False,
             runner=Program.FLEETS,
-            per_user=jobs_per_user,
-            jobs_per_user=jobs_per_user,
+            jobs_per_user=fleets_jobs_per_user(),
         )
 
         skipped_regions: set[str | None] = set()

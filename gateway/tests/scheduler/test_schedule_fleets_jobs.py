@@ -50,7 +50,7 @@ def test_fleets_execute_called_with_ctx():
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     mock_execute.assert_called_once_with(mock_job, mock_ctx)
-    mock_fair_share.assert_called_once_with(slots=3, gpu=False, runner=Program.FLEETS, per_user=40, jobs_per_user=40)
+    mock_fair_share.assert_called_once_with(slots=3, gpu=False, runner=Program.FLEETS, jobs_per_user=40)
 
 
 def test_a_submit_that_did_not_reach_pending_records_no_queue_wait():

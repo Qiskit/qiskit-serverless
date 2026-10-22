@@ -1,5 +1,6 @@
 """Tests scheduling."""
 
+import random
 import uuid
 from collections import deque
 from unittest.mock import MagicMock, patch
@@ -155,8 +156,9 @@ class TestScheduleApi(APITestCase):
         ]
 
         fair_share = get_jobs_to_schedule_fair_share
-        assert fair_share(slots=10, gpu=False, runner=Program.FLEETS, per_user=10, jobs_per_user=4) == queued[:3]
-        assert fair_share(slots=2, gpu=False, runner=Program.FLEETS, per_user=10, jobs_per_user=4) == queued[:2]
+        assert fair_share(slots=10, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == queued[:3]
+        assert fair_share(slots=2, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == queued[:2]
+        assert fair_share(slots=0, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == []
 
     def test_fair_share_takes_fleets_jobs_in_rounds_across_users(self):
         heavy = TestUtils.get_user_and_username("heavy_user")[0]
@@ -168,22 +170,19 @@ class TestScheduleApi(APITestCase):
         ]
         light_job = TestUtils.create_job(author=light, program=program, status=Job.QUEUED, runner=Program.FLEETS)
 
-        jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=False, runner=Program.FLEETS, per_user=2, jobs_per_user=10)
+        jobs = get_jobs_to_schedule_fair_share(slots=3, gpu=False, runner=Program.FLEETS, jobs_per_user=10)
 
         assert jobs == [heavy_jobs[0], light_job, heavy_jobs[1]]
 
-    def test_fair_share_per_user_does_not_cap_running_jobs(self):
-        user = TestUtils.get_user_and_username("busy_user")[0]
-        program = TestUtils.create_program(program_title="Program", author=user)
-        for _ in range(2):
-            TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS)
-        queued = [
-            TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
-            for _ in range(3)
-        ]
+    def test_fair_share_picks_the_users_from_every_waiting_user(self):
+        for name in ("first_user", "second_user", "third_user"):
+            self._queued(TestUtils.get_user_and_username(name)[0])
 
-        jobs = get_jobs_to_schedule_fair_share(slots=10, gpu=False, runner=Program.FLEETS, per_user=2, jobs_per_user=10)
-        assert jobs == queued[:2]
+        with patch("scheduler.schedule.random.sample", wraps=random.sample) as sample:
+            jobs = get_jobs_to_schedule_fair_share(slots=1, gpu=False, runner=Program.FLEETS)
+
+        assert len(jobs) == 1
+        assert len(sample.call_args.args[0]) == 3
 
     def test_jobs_per_tick_reads_config(self):
         Config.add_defaults()
@@ -249,7 +248,7 @@ class TestScheduleApi(APITestCase):
         self._queued(user)
         other_account = self._queued(user, account_id="other")
 
-        jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, per_user=5, jobs_per_user=10)
+        jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=10)
 
         assert jobs == [other_account]
 

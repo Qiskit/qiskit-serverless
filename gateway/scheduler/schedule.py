@@ -273,7 +273,7 @@ def first_cancel_refusal(job: Job) -> bool:
 
 
 def get_jobs_to_schedule_fair_share(
-    slots: int, gpu: bool, runner: str = Program.RAY, per_user: int = 1, jobs_per_user: int | None = None
+    slots: int, gpu: bool, runner: str = Program.RAY, jobs_per_user: int | None = None
 ) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
 
@@ -281,14 +281,17 @@ def get_jobs_to_schedule_fair_share(
         slots: max number of jobs to return
         gpu: filter jobs by GPU requirement
         runner: filter jobs by runner type
-        per_user: max jobs of one user, taken in rounds across users
-        jobs_per_user: max running jobs of one user, by default LIMITS_JOBS_PER_USER
+        jobs_per_user: max running jobs of one user, by default LIMITS_JOBS_PER_USER. Ray takes one job per user,
+            and Fleets takes several, in rounds across users
 
     Returns:
         list of jobs for execution
     """
 
     # maybe refactor this using big SQL query :thinking:
+
+    if slots < 1:
+        return []
 
     max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
 
@@ -317,22 +320,22 @@ def get_jobs_to_schedule_fair_share(
         # Held in QUEUED, and never picked: a picked job would take a slot it cannot use
         queued = queued.exclude(blocked)
 
-    author_date_pull = (
-        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))[:max_limit]
+    author_date_list = list(
+        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))
     )
 
-    if len(author_date_pull) == 0:
+    if len(author_date_list) == 0:
         return []
 
-    author_date_list = list(author_date_pull)
-    if len(author_date_pull) >= slots:
-        author_date_list = random.sample(author_date_list, k=slots)
+    # Sample from every waiting user, so a small slots value does not give the same users every tick
+    if len(author_date_list) > max_limit:
+        author_date_list = random.sample(author_date_list, k=max_limit)
 
-    if per_user > 1:
+    if runner == Program.FLEETS:
         budgets = {
             entry["author"]: jobs_per_user - running_jobs_per_user.get(entry["author"], 0) for entry in author_date_list
         }
-        return _jobs_in_rounds(queued, budgets, per_user, slots)
+        return _jobs_in_rounds(queued, budgets, slots)
 
     job_filter = Q()
     for entry in author_date_list:
@@ -341,14 +344,14 @@ def get_jobs_to_schedule_fair_share(
     return Job.objects.filter(job_filter)
 
 
-def _jobs_in_rounds(queued: QuerySet, budgets: dict, per_user: int, slots: int) -> List[Job]:
+def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
     """Each user's oldest queued jobs within their budget, the first job of every user before any second one."""
     ranked = (
         queued.filter(author__in=budgets)
         .with_program()
         .select_related("program__code_engine_project")
         .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
-        .filter(rank__lte=per_user)
+        .filter(rank__lte=min(max(budgets.values()), slots))
         .order_by("rank", "created")
     )
     return [job for job in ranked if job.rank <= budgets[job.author_id]][:slots]
