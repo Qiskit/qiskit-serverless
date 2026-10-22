@@ -33,6 +33,9 @@ from core.services.runners import get_runner, AbstractRunner, RunnerRetryableErr
 
 logger = logging.getLogger("core.JobTransitionService")
 
+# The job was already moved by someone else (a user stopped it): an expected race, recorded as rejected and not error.
+_REJECTED = (InvalidJobTransitionException,)
+
 
 def _is_usage_billable(job: Job) -> bool:
     """Only real Fleets jobs (no filler) with an instance CRN are billed."""
@@ -84,7 +87,7 @@ class JobTransitionService:
         the Gateway (stop jobs only) has NoOpSender)"""
         self.sender = sender if sender is not None else build_kafka_sender()
 
-    @observer_method(JOB_TRANSITION_QUEUED_TO_PENDING)
+    @observer_method(JOB_TRANSITION_QUEUED_TO_PENDING, rejected_by=_REJECTED)
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -92,7 +95,7 @@ class JobTransitionService:
         with transaction.atomic():
             return self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
 
-    @observer_method(JOB_TRANSITION_PENDING_TO_RUNNING)
+    @observer_method(JOB_TRANSITION_PENDING_TO_RUNNING, rejected_by=_REJECTED)
     def pending_to_running(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -167,7 +170,7 @@ class JobTransitionService:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
         return transition(job, origin=origin, context=context, job_fields=job_fields)
 
-    @observer_method(JOB_TRANSITION_TO_TERMINAL)
+    @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
     def to_succeeded(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
@@ -194,7 +197,7 @@ class JobTransitionService:
         """The job was stopped, by a user or by the scheduler."""
         return self.to_stopped_or_failed(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
 
-    @observer_method(JOB_TRANSITION_TO_TERMINAL)
+    @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
     def to_stopped_or_failed(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
     ) -> JobEvent:
