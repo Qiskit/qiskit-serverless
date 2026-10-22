@@ -20,6 +20,7 @@ from prometheus_client import REGISTRY, CollectorRegistry, Histogram
 # The values of the ``operation`` label, a closed list so the cardinality stays fixed.
 FLEET_STATUS_READ = "fleet_status_read"
 FLEET_SUBMIT_UPLOAD = "fleet_submit_upload"
+FLEET_SUBMIT = "fleet_submit"
 RUNTIME_API_PUT = "runtime_api_put"
 IAM_TOKEN = "iam_token"
 
