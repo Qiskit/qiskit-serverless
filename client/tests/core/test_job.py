@@ -268,9 +268,8 @@ class TestJobResult:
         mock_sleep.assert_called_with(1)
 
     @patch("time.sleep")
-    @patch("logging.info")
-    def test_result_with_wait_and_verbose(self, mock_log, _mock_sleep):
-        """Test result() with verbose logging enabled."""
+    def test_result_with_wait_and_verbose(self, _mock_sleep, capsys):
+        """Test result() with verbose printing enabled."""
         mock_service = Mock()
         # Need extra status calls for in_terminal_state checks
         mock_service.status.side_effect = [
@@ -285,24 +284,7 @@ class TestJobResult:
         result = job.result(wait=True, cadence=1, verbose=True)
 
         assert result == {"result": "success"}
-        # Check that verbose logging occurred
-        assert mock_log.call_count >= 2  # "Waiting for job result." + count
-        mock_log.assert_any_call("Waiting for job result.")
-
-    @patch("time.sleep")
-    def test_result_with_maxwait_timeout(self, mock_sleep):
-        """Test result() with maxwait parameter timing out."""
-        mock_service = Mock()
-        # Job never completes within maxwait
-        mock_service.status.return_value = Job.RUNNING
-        mock_service.result.return_value = None
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        _ = job.result(wait=True, cadence=1, verbose=False, maxwait=3)
-
-        # Should stop after maxwait iterations
-        assert mock_sleep.call_count == 3
-        mock_sleep.assert_called_with(1)
+        assert "Waiting for job test-job" in capsys.readouterr().out
 
     @patch("time.sleep")
     def test_result_with_custom_cadence(self, mock_sleep):

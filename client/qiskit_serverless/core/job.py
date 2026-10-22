@@ -67,7 +67,7 @@ from qiskit_serverless.utils import ServerlessRuntimeService
 logger = logging.getLogger(__name__)
 
 _FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
-_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 32, 60)
+_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 30)
 _BACKOFF_JITTER = 0.1
 _RETRY_SECONDS = 300
 _MIN_POLL_INTERVAL_SECONDS = 1
@@ -274,25 +274,42 @@ class Job:
 
         return error_result
 
-    def result(self, wait=True, cadence=30, verbose=False, maxwait=0):
-        """Return results of the job.
+    def result(
+        self,
+        wait: bool = True,
+        cadence: Optional[float] = None,
+        verbose: bool = False,
+        maxwait: int = 0,
+        timeout: Optional[float] = None,
+    ):
+        """Return the results of the job, waiting first with :meth:`wait_for_final_state` when ``wait`` is set.
+
         Args:
-            wait: flag denoting whether to wait for the
-                job result to be populated before returning
-            cadence: time to wait between checking if job has
-                been terminated
-            verbose: flag denoting whether to log a heartbeat
-                while waiting for job result to populate
+            wait: wait until the job ends before reading the results.
+            cadence: fixed seconds between status checks instead of the backoff, like ``poll_interval``.
+            verbose: print the status changes while waiting, like :meth:`wait_for_final_state`.
+            maxwait: deprecated, use ``timeout``. Number of checks after which the results are read anyway.
+            timeout: seconds to wait. ``None`` waits until the job ends.
+
+        Raises:
+            TimeoutError: if the job does not end within ``timeout``. The job keeps running.
+            QiskitServerlessException: if the job ends in ERROR, or a status check fails.
         """
-        if wait:
-            if verbose:
-                logging.info("Waiting for job result.")
+        if maxwait:
+            warnings.warn(
+                "`maxwait` is deprecated and will be removed in a future release. Use `timeout` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if timeout is not None:
+                raise ValueError("Pass either `maxwait` or `timeout`, not both.")
+        if wait and maxwait:
             count = 0
-            while not self.in_terminal_state() and (maxwait == 0 or count < maxwait):
+            while not self.in_terminal_state() and count < maxwait:
                 count += 1
-                time.sleep(cadence)
-                if verbose:
-                    logging.info(count)
+                time.sleep(30 if cadence is None else cadence)
+        elif wait:
+            self.wait_for_final_state(timeout=timeout, poll_interval=cadence, verbose=verbose)
 
         if self.status() == "ERROR":
             error_message = self.error_message()
@@ -325,7 +342,7 @@ class Job:
     ) -> str:
         """Wait until the job is DONE, ERROR or CANCELED, and return that status.
 
-        By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the
+        By default it checks after 1, 2, 4, 8 and 16 s, then every 30 s, and starts again from 1 s when the
         main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces
         that backoff. Short network errors and 429, 502, 503 or 504 answers are retried.
 
