@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0077_outbox_unrecoverable"),
+        ("api", "0078_job_function_size_name"),
     ]
 
     operations = [
