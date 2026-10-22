@@ -23,8 +23,8 @@ jobs:
         run: pip install tox>=4.0.0
       - name: Build fleet-node base image
         # The slim stage function providers build their custom Fleets images FROM.
-        # Nothing else in CI builds it (build-containers-test.yaml builds the
-        # selector stage), so build it here to keep it from silently breaking.
+        # Nothing else in CI builds it (build-containers-test.yaml builds the two
+        # selector stages), so build it here to keep it from silently breaking.
         # Also warms the shared layers for the selector build below.
         run: docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .
       - name: Build fleet-node selector image
@@ -35,7 +35,9 @@ jobs:
         #
         # selector, not the sibling selector-gpu: that one differs only by the
         # CUDA wheels, which need a GPU to exercise and would add 6.5 GB to a
-        # runner that has to hold this whole compose stack.
+        # runner that has to hold this whole compose stack. That stage is built
+        # (not run) by its own leg in build-containers-test.yaml, where its
+        # in-build asserts are the check.
         run: docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
       - name: Build containers
         run: docker compose -f docker-compose-fleets-test.yaml build

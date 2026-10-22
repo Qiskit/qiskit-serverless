@@ -18,6 +18,11 @@ jobs:
     # (ray-node/Dockerfile, gateway/Dockerfile) even though the Dockerfiles now live under
     # docker-images/. dockerfile is the real path we build. Drop the label indirection once the
     # ruleset is updated (or once ray-node is removed).
+    #
+    # Per-leg keys: `target` is the Dockerfile stage ("" for the single-stage
+    # files), and `heavy` marks a leg too large to export -- set on the GPU leg
+    # only and left unset (falsy) elsewhere, which is what the step conditions
+    # below read.
     name: Test build containers (${{ matrix.label }}, ${{ matrix.python }})
     runs-on: ubuntu-latest
     strategy:
@@ -30,14 +35,36 @@ jobs:
             python: "3.12"
           # The CPU Fleets runtime. --target selector is required: selector-gpu is
           # the last stage of that Dockerfile, so a bare build would resolve to the
-          # CUDA image. There is deliberately no selector-gpu leg here — it pulls
-          # ~2.5 GB of CUDA wheels for a 9.9 GB image, which a stock
-          # ubuntu-latest runner has no room for and every PR would wait on. The
-          # release pipeline build-tests that stage instead.
+          # CUDA image.
           - label: fleet-node/Dockerfile         # not required in CI
             dockerfile: docker-images/fleet-node/Dockerfile
             target: selector
             python: "3.12"
+          # The CUDA Fleets runtime. Its label is deliberately distinct from the
+          # one above: the check name embeds matrix.label, so this leg shows up as
+          # its own check ("... (fleet-node/Dockerfile (gpu), 3.12)") rather than
+          # changing or colliding with a name the branch ruleset already requires.
+          # It will not be a required check until someone adds that exact string to
+          # the ruleset.
+          #
+          # This leg is the only thing in the public repo that builds selector-gpu,
+          # and the stage carries its own validation: the pin-drift check, the
+          # nvidia ldconfig registration and the nine-soname loader assert are all
+          # RUN steps, so a green build here means all three passed. That is why it
+          # needs no image output -- see the per-leg output handling below.
+          #
+          # It is the slow leg: ~2.5 GB of CUDA wheels for a 9.9 GB image, a few
+          # minutes longer than the others and needing the disk-reclaim step below.
+          # fail-fast is already false, so it cannot cancel the other legs.
+          - label: fleet-node/Dockerfile (gpu)
+            dockerfile: docker-images/fleet-node/Dockerfile
+            target: selector-gpu
+            python: "3.12"
+            # Build without exporting: `cacheonly` runs the build and populates
+            # the cache but writes no image, so the 9.9 GB result never lands in
+            # the daemon's store. The asserts still run -- they are build steps.
+            # This flag also gates the disk-reclaim and Inspect steps below.
+            heavy: true
           - label: gateway/Dockerfile            # unchanged (label == path)
             dockerfile: gateway/Dockerfile
             target: ""                           # default (only) stage
@@ -45,6 +72,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      # Only the GPU leg comes close to filling the runner: the CUDA wheels are
+      # ~2.5 GB downloaded and 9.9 GB installed, against roughly 25 GB free on a
+      # stock ubuntu-latest. Dropping the preinstalled toolchains this repo never
+      # builds against buys ~10 GB and keeps that leg off the edge. Skipped on the
+      # other legs so they stay fast.
+      - name: Reclaim disk
+        if: matrix.heavy
+        run: |
+          echo "before:"; df -h / | tail -1
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/local/share/boost \
+            /usr/share/swift || true
+          echo "after:"; df -h / | tail -1
       - name: Setup buildx
         uses: docker/setup-buildx-action@v4
       - name: Build ${{ matrix.dockerfile }}
@@ -55,8 +99,17 @@ jobs:
           # Empty means the default (last) stage, which is what the two
           # single-stage Dockerfiles want.
           target: ${{ matrix.target }}
-          load: true
+          # The heavy (GPU) leg exports nothing and so is not loaded or
+          # inspected; every other leg loads the image and inspects it.
+          # `load` and `outputs` are mutually exclusive -- setting both makes
+          # buildx export twice, which for this leg is the 9.9 GB we are avoiding.
+          load: ${{ !matrix.heavy }}
+          outputs: ${{ matrix.heavy && 'type=cacheonly' || '' }}
           tags: image:test
       - name: Inspect
+        if: ${{ !matrix.heavy }}
         run: |
           docker image inspect image:test
+      - name: Disk left
+        if: always() && matrix.heavy
+        run: df -h / | tail -1
