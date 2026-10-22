@@ -1015,7 +1015,7 @@ def _real_fleets_job(username, status=Job.RUNNING, event_status=Job.RUNNING, eve
 
 
 def _run_real_pass(reported_status, on_status=None):
-    """Run one real pass of the task: only the runner is replaced. Returns the sender."""
+    """Run one pass with a fake runner and a fake canceller. Returns the sender."""
     sender = MagicMock()
     task = _make_task()
     task.transitions = JobTransitionService(sender=sender)
@@ -1028,8 +1028,7 @@ def _run_real_pass(reported_status, on_status=None):
 
 @pytest.mark.django_db
 class TestEventTimesLoadedWithTheJobs:
-    """run() loads each job's latest event and first RUNNING event with the jobs. These check the results
-    match what reading them one job at a time gave."""
+    """run() loads the event times with the jobs. These check the results match the per-job queries."""
 
     def test_the_usage_start_time_is_the_first_running_event(self):
         job = _real_fleets_job("usage-start", event_age=timedelta(hours=2))

@@ -48,17 +48,16 @@ class JobQuerySet(QuerySet):
         return self.select_related("program__provider")
 
     def with_scheduler_context(self) -> Self:
-        """Fetch what the scheduler reads for each job it submits: the author, the program with its provider
-        and Code Engine project, and the job config."""
+        """Join the author, program, provider, Code Engine project and config that the scheduler reads."""
         return self.select_related("author", "program__provider", "program__code_engine_project", "config")
 
     def with_event_times(self) -> Self:
-        """Load two event times with each job, so a loop over many jobs does not read them one job at a time:
+        """Load two event times with each job, so a loop does not query them per job.
 
-        - ``last_event_created``: when its latest event was written (what the timeout counts from).
-        - ``first_running_event_created``: when it first reached RUNNING (the start time of the usage message).
+        - ``last_event_created``: the latest event, used for the timeout.
+        - ``first_running_event_created``: the first RUNNING event, used for usage.
 
-        Both are None when the job has no such event.
+        None when the job has no such event.
         """
         from core.models import JobEvent  # pylint: disable=import-outside-toplevel, cyclic-import
 

@@ -218,13 +218,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     @staticmethod
     def _timed_out(job: Job, timeout: int) -> bool:
-        """Whether the job's latest event (or its creation, without one) is more than `timeout` hours old.
+        """Whether the job's latest event (or its creation, if it has none) is more than `timeout` hours old.
 
-        run() loads the latest event time with the job. The running function and the scheduler only add
-        events, so during the pass that time can only fall behind the real one: if it is not past the
-        timeout, the real one is not either, and no query is needed. Otherwise read it again, since an
-        event may have been written after the jobs were loaded. An admin deleting events by hand
-        mid-pass is the exception, and at worst delays the stop to the next pass.
+        Events are only added, so the loaded time can only be older than the real one. If it is not past the
+        timeout, no query is needed. Otherwise read it again, since a new event may have been written during
+        the pass.
         """
         loaded = getattr(job, "last_event_created", NOT_LOADED)
         if loaded is not NOT_LOADED:
@@ -272,9 +270,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        # Only what a status pass reads: the runner needs the program and its project, metrics and billing
-        # need the provider, and the Runtime API mirror of a job that ends needs the author. The size comes from
-        # the job's own function_size_name, so the size row is not joined.
+        # Join what a status pass reads: program and project (runner), provider (metrics, billing), author
+        # (Runtime API mirror). The size comes from function_size_name, so its row is not joined.
         jobs = (
             Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
             .select_related("author", "program__provider", "program__code_engine_project")

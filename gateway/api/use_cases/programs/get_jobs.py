@@ -34,7 +34,7 @@ class GetJobsUseCase:
         if program is None:
             raise FunctionNotFoundException(function=str(program_id))
 
-        # the output serializer reads program.provider.name and compute_profile_fk on every row
+        # The serializer reads program.provider and compute_profile_fk on each row.
         jobs = Job.objects.with_program().select_related("compute_profile_fk")
 
         if program.provider and ProviderAccessPolicy.can_list_jobs(

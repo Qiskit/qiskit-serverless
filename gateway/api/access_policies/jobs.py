@@ -255,7 +255,7 @@ class JobAccessPolicies:
         logger.warning(
             "User [%s] has no access to read the events of the job [%s].",
             user.username,
-            job.author,
+            job.id,
         )
         return False
 

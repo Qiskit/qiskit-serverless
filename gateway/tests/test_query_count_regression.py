@@ -53,7 +53,7 @@ def _add_jobs(world, count, status=Job.QUEUED):
             status=status,
             compute_profile_fk=world["profile"],
             function_size=world["size"],
-            function_size_name="S",  # the snapshot run() takes at creation
+            function_size_name="S",  # set by run() when the job is created
             config=world["config"],
         )
 
@@ -63,7 +63,10 @@ def _add_functions(world, count):
         function = Program.objects.create(
             title=f"qc-extra-{Program.objects.count()}-{index}", author=world["owner"], provider=world["provider"]
         )
-        FunctionSize.objects.create(function=function, function_size="S", compute_profile=world["profile"])
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="S", compute_profile=world["profile"]
+        )
+        function.save()
 
 
 def _count(call):
@@ -122,8 +125,7 @@ def test_scheduler_loop_loads_relations_in_the_query(world):
 
 
 def test_running_jobs_loop_loads_relations_in_the_query(world):
-    """Guards the relation loads only. update_job_status is replaced, so the per-job JobEvent lookups it makes
-    (latest event, first RUNNING event) are not measured here."""
+    """Guards the relation loads only. update_job_status is replaced."""
     from unittest.mock import MagicMock  # pylint: disable=import-outside-toplevel
 
     _add_jobs(world, 5, status=Job.RUNNING)
@@ -168,8 +170,7 @@ def test_with_program_loads_program_and_provider(world):
 
 
 def test_a_real_status_pass_reads_no_events_per_job(world):
-    """The whole UpdateFleetsJobsStatuses.run(), only the runner replaced: jobs that stay RUNNING cost one query
-    for the pass, however many there are (the latest and first RUNNING events come with the jobs)."""
+    """A full pass over jobs that stay RUNNING is one query, however many jobs there are."""
     from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
 
     from core.models import JobEvent  # pylint: disable=import-outside-toplevel
@@ -204,8 +205,7 @@ def test_a_real_status_pass_reads_no_events_per_job(world):
 
 
 def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
-    """StopBlockedFleetsJobs: the blocked rows and the blocked jobs, two queries however many jobs, and nothing
-    more to read the relations a stop needs."""
+    """A blocked-jobs pass is two queries (blocked rows, then jobs), however many jobs there are."""
     from unittest.mock import MagicMock  # pylint: disable=import-outside-toplevel
 
     from core.config_key import ConfigKey  # pylint: disable=import-outside-toplevel

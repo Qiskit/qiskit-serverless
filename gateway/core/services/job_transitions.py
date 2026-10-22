@@ -25,8 +25,7 @@ from core.services.runners import get_runner, AbstractRunner, RunnerRetryableErr
 
 logger = logging.getLogger("core.JobTransitionService")
 
-# Marks an event time the caller does not have (not passed, or the job was not loaded with it), as opposed to
-# None, which is a real answer (the job never ran). Shared with the scheduler, which loads these times with the jobs.
+# The event time is unknown, so read it from the events. None is a real value: the job never ran.
 NOT_LOADED = object()
 
 
@@ -100,8 +99,7 @@ class JobTransitionService:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent.
 
-        job_started_at: when the job first reached RUNNING, if the caller already has it (the scheduler loads it
-        with the job). A job that stays RUNNING never changes that value, so it does not need to be read again.
+        job_started_at: the first RUNNING time, if the caller already has it. Otherwise it is read from the events.
         """
         self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
 

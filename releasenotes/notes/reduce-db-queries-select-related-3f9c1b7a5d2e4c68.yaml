@@ -7,9 +7,9 @@ other:
     job selection of the scheduler, and the Providers, Job events and Programs
     pages of the backoffice no longer make extra queries that grow with the
     number of rows. The single job endpoints (logs, result, stop, sub status,
-    saving a result, provider logs) and the function lookups load the program
-    and provider with the job or function, and the provider admin check is one
-    query. The Fleets status loop also loads each job's latest and first
+    saving a result, provider logs) load the program and provider with the job,
+    the function lookups load the provider and default size with the function,
+    and the provider admin check is one query. The Fleets status loop also loads each job's latest and first
     RUNNING event times with the jobs, instead of reading them one job at a
     time. The task that stops the Fleets jobs of blocked accounts, plans and
     subscriptions now reads only the blocked jobs, in one query, instead of

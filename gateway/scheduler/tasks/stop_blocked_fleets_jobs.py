@@ -27,8 +27,7 @@ class StopBlockedFleetsJobs(SchedulerTask):
     def run(self) -> None:
         """Ask once per tick for every blocked job: a cancel that does not land is asked again next tick.
 
-        The blocked rows are read once, at the start of the pass, so a row added or removed during the pass
-        counts from the next tick, as in the fair-share selection.
+        The blocked rows are read once per pass, so a change to them applies from the next tick.
         """
         if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
             return
@@ -36,9 +35,7 @@ class StopBlockedFleetsJobs(SchedulerTask):
         if blocked is None:
             return
 
-        # Only the blocked jobs, with what a stop reads: the runner needs the program and its project, billing
-        # needs the provider, and the Runtime API mirror of a job that ends needs the author. The size comes from
-        # the job's own function_size_name, so the size row is not joined.
+        # Join what a stop reads: program and project (runner), provider (billing), author (Runtime API mirror).
         jobs = Job.objects.filter(
             blocked, runner=Program.FLEETS, filler=False, status__in=[Job.PENDING, Job.RUNNING]
         ).select_related("author", "program__provider", "program__code_engine_project")

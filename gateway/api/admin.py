@@ -400,7 +400,7 @@ class ProgramAdmin(admin.ModelAdmin):
         "disabled",
     ]
 
-    # provider and author are list_display columns, default_size is read by `sizes_summary`.
+    # Columns shown in the list, plus default_size for `sizes_summary`.
     list_select_related = ["default_size", "provider", "author"]
 
     def get_queryset(self, request):
