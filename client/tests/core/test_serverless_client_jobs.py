@@ -13,6 +13,7 @@
 """Tests for ServerlessClient job-related operations."""
 
 import json
+import time
 import warnings
 from unittest.mock import Mock, patch
 
@@ -1120,3 +1121,54 @@ class TestComputeProfile:
                 function.run(compute_profile="4x16")
 
             assert not mock_request.called
+
+
+class TestJobStatusToken:
+    """Test that get_job_data() reads the status with the job status token."""
+
+    _JOB = "https://test-host.com/api/v1/jobs/job-1/"
+    _STATUS = "https://test-host.com/api/v1/jobs/job-1/status/"
+
+    def test_the_next_check_uses_the_token_and_no_api_key(self, mock_client):
+        with requests_mock.Mocker() as mocker:
+            mocker.get(self._JOB, json={"status": "QUEUED"}, headers={"X-Job-Status-Token": "signed"})
+            status = mocker.get(self._STATUS, json={"status": "RUNNING", "sub_status": None})
+
+            assert mock_client.get_job_data("job-1") == {"status": "QUEUED"}
+            assert mock_client.get_job_data("job-1") == {"status": "RUNNING", "sub_status": None}
+
+        assert status.last_request.headers["X-Job-Status-Token"] == "signed"
+        assert "Authorization" not in status.last_request.headers
+
+    def test_a_refused_token_falls_back_to_the_api_key_in_the_same_call(self, mock_client):
+        mock_client._status_tokens["job-1"] = ("old", time.monotonic())
+        with requests_mock.Mocker() as mocker:
+            mocker.get(self._STATUS, status_code=401, json={"detail": "expired"})
+            full = mocker.get(self._JOB, json={"status": "RUNNING"})
+
+            assert mock_client.get_job_data("job-1") == {"status": "RUNNING"}
+
+        assert full.called
+        assert "job-1" not in mock_client._status_tokens
+
+    def test_an_old_token_is_not_used(self, mock_client):
+        mock_client._status_tokens["job-1"] = ("old", time.monotonic() - 271)
+        with requests_mock.Mocker() as mocker:
+            status = mocker.get(self._STATUS, json={"status": "RUNNING"})
+            mocker.get(self._JOB, json={"status": "RUNNING"})
+
+            mock_client.get_job_data("job-1")
+
+        assert not status.called
+
+    def test_a_503_on_the_token_check_is_raised_for_the_retry(self, mock_client):
+        mock_client._status_tokens["job-1"] = ("signed", time.monotonic())
+        with requests_mock.Mocker() as mocker:
+            mocker.get(self._STATUS, status_code=503, json={"message": "busy"})
+            full = mocker.get(self._JOB, json={"status": "RUNNING"})
+
+            with pytest.raises(QiskitServerlessException):
+                mock_client.get_job_data("job-1")
+
+        assert not full.called
+        assert "job-1" in mock_client._status_tokens
