@@ -15,4 +15,14 @@ class Migration(migrations.Migration):
             name="fleet_deleted_at",
             field=models.DateTimeField(blank=True, help_text="When the fleet delete was accepted", null=True),
         ),
+        migrations.AddIndex(
+            model_name="job",
+            index=models.Index(
+                condition=models.Q(
+                    ("fleet_deleted_at__isnull", True), ("fleet_id__isnull", False), ("runner", "fleets")
+                ),
+                fields=["updated"],
+                name="job_fleet_undeleted_idx",
+            ),
+        ),
     ]
