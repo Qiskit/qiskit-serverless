@@ -603,12 +603,6 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "the job). 'true' mirrors every job and 'false' none. Otherwise a comma separated list, ignoring case, of "
         "providers (qctrl), functions (qctrl/management) and 'custom' (functions without a provider).",
     },
-    "workloads.mirror.status_updates.enabled": {
-        "default": "false",
-        "type": "boolean",
-        "description": "Send the Pending, Running and Stopping statuses of a mirrored job to the Runtime API from the "
-        "scheduler, best effort. Independent from workloads.mirror.enabled.",
-    },
     "scheduler.outbox.workload.budget_ms": {
         "default": "3000",
         "type": "integer",

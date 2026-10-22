@@ -5,26 +5,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
-from django.core.cache import cache
 from django.db.utils import InterfaceError, OperationalError
 from prometheus_client import REGISTRY
 
-from core.config_key import ConfigKey
-from core.models import Config, Job, Program, WorkloadMirror
+from core.models import Job, Program, WorkloadMirror
 from core.services import workload_best_effort_mirror
 from core.services.background_executor import BackgroundExecutorNotInitializedError, BackgroundPool
-from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
+from core.services.workload_best_effort_mirror import NoOpWorkloadMirror, WorkloadBestEffortMirror
 
 pytestmark = pytest.mark.django_db
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 MODULE = "core.services.workload_best_effort_mirror"
-
-
-@pytest.fixture(autouse=True)
-def switch_on():
-    Config.add_defaults()
-    Config.set(ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED, "true")
 
 
 @pytest.fixture
@@ -67,18 +59,8 @@ def _count(status, outcome):
     return REGISTRY.get_sample_value("workload_best_effort_mirror_total", {"status": status, "outcome": outcome})
 
 
-def test_kill_switch_off_builds_and_submits_nothing(executor, build):
-    Config.set(ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED, "false")
-
-    WorkloadBestEffortMirror().send(_job())
-
-    build.assert_not_called()
-    executor.submit.assert_not_called()
-
-
 def test_a_filler_job_costs_no_query_and_sends_nothing(executor, build, django_assert_num_queries):
     job = _job(filler=True)
-    cache.clear()
 
     with django_assert_num_queries(0):
         WorkloadBestEffortMirror().send(job)
@@ -169,8 +151,8 @@ def test_the_task_swallows_a_put_failure_and_counts_failed(client):
     assert _count("Running", "failed") == before + 1
 
 
-def test_a_database_outage_propagates_from_the_config_read(executor, build):
-    with patch(f"{MODULE}.Config.get_bool", side_effect=OperationalError("down")), pytest.raises(OperationalError):
+def test_a_database_outage_propagates_from_the_mirror_row_lookup(executor, build):
+    with patch(f"{MODULE}.is_mirrored", side_effect=OperationalError("down")), pytest.raises(OperationalError):
         WorkloadBestEffortMirror().send(_job())
 
 
@@ -186,12 +168,13 @@ def test_a_database_outage_propagates_from_the_payload(executor, build):
         WorkloadBestEffortMirror().send(job)
 
 
-def test_a_missing_config_row_is_treated_as_switch_off(executor, build):
-    Config.objects.filter(name=ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED.value).delete()
-    cache.clear()
+def test_the_no_op_mirror_touches_nothing(executor, django_assert_num_queries):
+    job = _job()
 
-    WorkloadBestEffortMirror().send(_job())
+    with django_assert_num_queries(0):
+        NoOpWorkloadMirror().send(job)
 
+    executor.would_accept.assert_not_called()
     executor.submit.assert_not_called()
 
 

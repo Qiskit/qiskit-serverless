@@ -6,14 +6,14 @@ the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for t
 """
 
 import logging
+from abc import ABC, abstractmethod
 
 from django.db.utils import InterfaceError, OperationalError
 from prometheus_client import Counter
 
 from core.clients.functions_operator_client import get_functions_operator_client
-from core.config_key import ConfigKey
 from core.domain.workload_payload import _STATUS, build_workload_payload, is_mirrored, should_be_mirrored
-from core.models import Config, Job
+from core.models import Job
 from core.services.background_executor import (
     BackgroundExecutorNotInitializedError,
     BackgroundPool,
@@ -56,22 +56,30 @@ def _put(function_id: str, body: dict, status: str) -> None:
     _count(status, "sent")
 
 
-class WorkloadBestEffortMirror:
+class WorkloadMirrorSender(ABC):
+    """Sends the current status of a job to the Runtime API, once the caller has committed it."""
+
+    @abstractmethod
+    def send(self, job: Job) -> None:
+        """Send the status of ``job``. It never raises, except for a database outage."""
+
+
+class NoOpWorkloadMirror(WorkloadMirrorSender):
+    """Sends nothing. It is the default of JobTransitionService, so the gateway, which has no background executor,
+    mirrors no status."""
+
+    def send(self, job: Job) -> None:
+        """Does nothing: no Config, no database and no executor."""
+
+
+class WorkloadBestEffortMirror(WorkloadMirrorSender):
     """Sends the current status of a mirrored job. Building it does no work."""
 
     def send(self, job: Job) -> None:
         """Send the status of ``job``, which the caller has already committed. It never raises, except for a database
         outage, which must reach the scheduler. The checks go from the cheapest to the dearest: the job itself (no
-        query), the Config switch (cached), the mirror row (one query), the pool, and last the payload."""
+        query), the mirror row (one query), the pool, and last the payload."""
         if not should_be_mirrored(job):
-            return
-        try:
-            if not Config.get_bool(ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED):
-                return
-        except _DB_OUTAGE:
-            raise
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning("job_id=%s workload status switch unreadable, treated as off: %s", job.id, type(ex).__name__)
             return
 
         status = _STATUS.get(job.status)

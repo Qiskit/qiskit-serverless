@@ -24,7 +24,7 @@ from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program, WorkloadMirror
 from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
-from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
+from core.services.workload_best_effort_mirror import NoOpWorkloadMirror, WorkloadMirrorSender
 
 logger = logging.getLogger("core.JobTransitionService")
 
@@ -73,13 +73,14 @@ class JobTransitionService:
         Job.STOPPED: set(),
     }
 
-    def __init__(self, sender: Sender | None = None, workload_mirror: WorkloadBestEffortMirror | None = None):
+    def __init__(self, sender: Sender | None = None, workload_mirror: WorkloadMirrorSender | None = None):
         """The sender of the best effort events.
         By default, it creates the sender based on EVENT_STREAMS_ENABLED (so the scheduler has KafkaSender, and
         the Gateway (stop jobs only) has NoOpSender).
-        The workload mirror sends the intermediate statuses to the Runtime API. Only the scheduler passes one."""
+        The workload mirror sends the intermediate statuses to the Runtime API. By default it sends nothing,
+        and only the scheduler passes a real one."""
         self.sender = sender if sender is not None else build_kafka_sender()
-        self.workload_mirror = workload_mirror
+        self.workload_mirror = workload_mirror if workload_mirror is not None else NoOpWorkloadMirror()
 
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
@@ -87,7 +88,7 @@ class JobTransitionService:
         """The job was submitted to its runner. Nothing else is owed."""
         with transaction.atomic():
             event = self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
-        self._mirror_status(job)
+        self.workload_mirror.send(job)
         return event
 
     def pending_to_running(
@@ -97,7 +98,7 @@ class JobTransitionService:
         with transaction.atomic():
             event = self._change_status(job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields)
         self._send_job_in_progress(job, job_started=True)
-        self._mirror_status(job)
+        self.workload_mirror.send(job)
         return event
 
     def running_to_running(self, job: Job) -> None:
@@ -138,7 +139,7 @@ class JobTransitionService:
         if job.fleet_id and (runner or get_runner(job)).stop():
             with transaction.atomic():
                 self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
-            self._mirror_status(job)
+            self.workload_mirror.send(job)
             return Job.STOPPING
 
         # No fleet, or Code Engine says it is already gone. End the job only while that still
@@ -275,12 +276,6 @@ class JobTransitionService:
             payload = build_workload_payload(job)
             Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
-
-    def _mirror_status(self, job: Job) -> None:
-        """Best effort: send the new status of a mirrored job to the Runtime API. Only a database outage reaches the
-        caller."""
-        if self.workload_mirror is not None:
-            self.workload_mirror.send(job)
 
     def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
