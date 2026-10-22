@@ -135,6 +135,7 @@ class JobService(ABC):
 
 PendingType = Literal["PENDING"]
 RunningType = Literal["RUNNING"]
+StoppingType = Literal["STOPPING"]
 StoppedType = Literal["STOPPED"]
 SucceededType = Literal["SUCCEEDED"]
 FailedType = Literal["FAILED"]
@@ -152,6 +153,7 @@ class Job:
 
     PENDING: ClassVar[PendingType] = "PENDING"
     RUNNING: ClassVar[RunningType] = "RUNNING"
+    STOPPING: ClassVar[StoppingType] = "STOPPING"
     STOPPED: ClassVar[StoppedType] = "STOPPED"
     SUCCEEDED: ClassVar[SucceededType] = "SUCCEEDED"
     FAILED: ClassVar[FailedType] = "FAILED"
@@ -168,7 +170,6 @@ class Job:
         job_id: str,
         job_service: JobService,
         raw_data: Optional[Dict[str, Any]] = None,
-        compute_profile: Optional[str] = None,
     ):
         """Job class for async script execution.
 
@@ -178,7 +179,6 @@ class Job:
         """
         self.job_id = job_id
         self._job_service = job_service
-        self.compute_profile = compute_profile
         self.raw_data = raw_data or {}
 
     @property
@@ -453,6 +453,7 @@ def update_status(status: str):
 STATUS_MAP = {
     Job.PENDING: "INITIALIZING",
     Job.RUNNING: "RUNNING",
+    Job.STOPPING: "CANCELING",
     Job.STOPPED: "CANCELED",
     Job.SUCCEEDED: "DONE",
     Job.FAILED: "ERROR",

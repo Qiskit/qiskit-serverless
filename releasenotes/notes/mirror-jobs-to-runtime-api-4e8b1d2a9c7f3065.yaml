@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    Fleets jobs can now be mirrored to the Runtime API as workloads. While the
+    ``workloads.mirror.enabled`` setting is on (it is off by default), each new
+    Fleets job that has an instance CRN is sent to the Runtime API when it is
+    created, and its final status is sent when it ends. A job created before the
+    setting was turned on is not mirrored, and turning the setting off does not
+    stop the jobs already mirrored from reporting their final status. Inside the
+    container of a mirrored job, the environment variable
+    ``QISKIT_FUNCTIONS_IDENTIFIER`` holds the job id. Instead of ``true`` the
+    setting can be a comma separated list of providers (``qctrl``), functions
+    (``qctrl/management``) and ``custom`` (functions without a provider), and
+    only the jobs of those are mirrored.
+upgrade:
+  - |
+    While ``workloads.mirror.enabled`` is on, running a Fleets function with an
+    instance CRN can fail with a ``503`` error, and no job is created, if the
+    Runtime API does not accept the job. Retrying the request later is safe.

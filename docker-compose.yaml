@@ -3,7 +3,7 @@ services:
   ray-head:
     user: "0"
     container_name: ray-head
-    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.36.0}
+    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.37.0}
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -34,13 +34,17 @@ services:
     restart:
       always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U serverlessuser -d serverlessdb"]
       interval: 1s
       timeout: 5s
       retries: 5
+      # First-time init takes about 1.5s native and 6.5s emulated, and the arm64 overrides run
+      # postgres under emulation. Without a start_period, retries x interval marks it unhealthy at
+      # ~9s and compose aborts the whole stack rather than waiting for it to recover.
+      start_period: 30s
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.36.0}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.37.0}
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
@@ -74,7 +78,7 @@ services:
   scheduler:
     user: "root" # root user is needed to write on volumes
     container_name: scheduler
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.36.0}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.37.0}
     entrypoint: "./entrypoint-scheduler.sh"
     environment:
       - DEBUG=0
@@ -104,7 +108,7 @@ services:
     ports:
       - 9000:9090
   loki:
-    image: grafana/loki:2.8.4
+    image: grafana/loki:2.9.17
     profiles: [ "full" ]
     ports:
       - 3100:3100

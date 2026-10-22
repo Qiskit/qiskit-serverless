@@ -15,13 +15,16 @@
 from __future__ import annotations
 
 import io
-from unittest.mock import MagicMock, patch
+from contextlib import contextmanager
+from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
+from urllib3.exceptions import MaxRetryError, ReadTimeoutError
 
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud import get_cos_client
 from core.ibm_cloud.clients import COS_PUBLIC_URL_TEMPLATE
+from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
@@ -204,7 +207,9 @@ def test_get_cos_client_fetches_hmac_from_ce_secret() -> None:
 
         get_cos_client(project)
 
-    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(project_id="proj-id", name="cos-hmac")
+    mock_secrets_api_cls.return_value.get_secret.assert_called_once_with(
+        project_id="proj-id", name="cos-hmac", _request_timeout=(1, 3)
+    )
 
 
 def test_get_cos_client_passes_hmac_creds_to_cos_client() -> None:
@@ -231,6 +236,72 @@ def test_get_cos_client_passes_hmac_creds_to_cos_client() -> None:
     assert creds.secret_access_key == "sk456"
 
 
+@contextmanager
+def _patched_secret_fetch(get_secret_side_effect=None):
+    mock_secret = MagicMock()
+    mock_secret.data = {"access_key_id": "ak123", "secret_access_key": "sk456"}
+    with (
+        patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
+        patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+        patch(f"{_IBM_CLOUD_MOD}.COSClient"),
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+        mock_settings.CE_COS_USE_PUBLIC_ENDPOINT = False
+        get_secret = mock_secrets_api_cls.return_value.get_secret
+        get_secret.return_value = mock_secret
+        get_secret.side_effect = get_secret_side_effect
+        yield get_secret
+
+
+def test_get_cos_client_reuses_the_client_for_the_same_project() -> None:
+    with _patched_secret_fetch() as get_secret:
+        first = get_cos_client(_make_mock_project())
+        second = get_cos_client(_make_mock_project())
+
+    assert first is second
+    get_secret.assert_called_once()
+
+
+def test_get_cos_client_builds_a_client_per_project() -> None:
+    with _patched_secret_fetch() as get_secret:
+        get_cos_client(_make_mock_project(project_id="proj-a"))
+        get_cos_client(_make_mock_project(project_id="proj-b"))
+
+    assert get_secret.call_count == 2
+
+
+def test_get_cos_client_fetches_the_secret_again_after_the_ttl() -> None:
+    with _patched_secret_fetch() as get_secret, patch(f"{_IBM_CLOUD_MOD}.time") as mock_time:
+        mock_time.monotonic.side_effect = [1000.0, 1061.0]
+        get_cos_client(_make_mock_project())
+        get_cos_client(_make_mock_project())
+
+    assert get_secret.call_count == 2
+
+
+def test_get_cos_client_reuses_the_refreshed_client() -> None:
+    """The TTL rebuild must replace the stale entry, or every later call rebuilds again."""
+    with _patched_secret_fetch() as get_secret, patch(f"{_IBM_CLOUD_MOD}.time") as mock_time:
+        mock_time.monotonic.side_effect = [1000.0, 1061.0, 1062.0]
+        get_cos_client(_make_mock_project())
+        get_cos_client(_make_mock_project())
+        get_cos_client(_make_mock_project())
+
+    assert get_secret.call_count == 2
+
+
+def test_get_cos_client_does_not_cache_a_failure() -> None:
+    error = ApiException(status=403, reason="Forbidden")
+    with _patched_secret_fetch(get_secret_side_effect=[error, DEFAULT]) as get_secret:
+        with pytest.raises(ApiException):
+            get_cos_client(_make_mock_project())
+        get_cos_client(_make_mock_project())
+
+    assert get_secret.call_count == 2
+
+
 def test_get_cos_client_raises_when_ce_secret_not_found() -> None:
     """get_cos_client() raises ValueError when CE secret returns 404."""
     project = _make_mock_project()
@@ -245,6 +316,30 @@ def test_get_cos_client_raises_when_ce_secret_not_found() -> None:
         mock_secrets_api_cls.return_value.get_secret.side_effect = ApiException(status=404, reason="Not Found")
 
         with pytest.raises(ValueError, match="not found"):
+            get_cos_client(project)
+
+
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (ApiException(status=429, reason="Too Many Requests"), RetryableError),
+        (MaxRetryError(None, "/", reason=ReadTimeoutError(None, "/", "Read timed out.")), RetryableError),
+        (ApiException(status=403, reason="Forbidden"), ApiException),
+    ],
+)
+def test_get_cos_client_raises_unavailable_only_for_a_transient_secret_error(error, expected) -> None:
+    project = _make_mock_project()
+
+    with (
+        patch(f"{_IBM_CLOUD_MOD}.settings") as mock_settings,
+        patch(f"{_IBM_CLOUD_MOD}.get_ce_auth", return_value=MagicMock()),
+        patch(f"{_IBM_CLOUD_MOD}.SecretsAndConfigmapsApi") as mock_secrets_api_cls,
+    ):
+        mock_settings.IBM_CLOUD_API_KEY = "test-key"
+        mock_settings.CE_HMAC_SECRET_NAME = "cos-hmac"
+        mock_secrets_api_cls.return_value.get_secret.side_effect = error
+
+        with pytest.raises(expected):
             get_cos_client(project)
 
 

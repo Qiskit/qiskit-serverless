@@ -5,21 +5,32 @@ import json
 import time
 from unittest.mock import MagicMock, patch
 import pytest
+import requests
 import responses
 from django.conf import settings
 from django.core.cache import cache
+from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.test import APIClient
 from ibm_platform_services import IamAccessGroupsV2, ResourceControllerV2
-from ibm_cloud_sdk_core import DetailedResponse
+from ibm_cloud_sdk_core import DetailedResponse, ApiException
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
+from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
-from core.models import VIEW_PROGRAM_PERMISSION
+from core.config_key import ConfigKey
+from core.models import PLATFORM_PERMISSION_CUSTOM_RUN, VIEW_PROGRAM_PERMISSION, Job, Program
 
 RESOURCE_PLAN_ID = "test-plan-id"
+SUBSCRIPTION_ID = "test-subscription-id"
 
 
 def _create_mock_jwt(iam_id: str, account_id: str) -> str:
@@ -51,7 +62,10 @@ def _mock_iam_services(
 ):
     """Configure mock responses for IAM services."""
     mock_get_resource_instance.return_value = DetailedResponse(
-        response={"resource_plan_id": RESOURCE_PLAN_ID},
+        response={
+            "resource_plan_id": RESOURCE_PLAN_ID,
+            "extensions": {"subscription_id": SUBSCRIPTION_ID},
+        },
         headers={},
         status_code=200,
     )
@@ -92,31 +106,33 @@ def _create_request(token: str = "any_token", crn: str = "any:crn:123"):
     return request
 
 
+@pytest.fixture(autouse=True)
+def _setup(db, monkeypatch):
+    call_command("loaddata", "tests/fixtures/authentication_fixtures.json")
+    cache.clear()
+    monkeypatch.setattr(
+        "core.models.Config.get_bool",
+        classmethod(lambda cls, key: False),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _mock_jwt_verification():
+    """Mock JWT signature verification to avoid real JWKS fetching."""
+    mock_signing_key = MagicMock()
+
+    def _decode_payload(token, *args, **kwargs):
+        payload = token.split(".")[1]
+        padded = payload + "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(padded))
+
+    with patch.object(IBMQuantumPlatform.jwks_client, "get_signing_key_from_jwt", return_value=mock_signing_key):
+        with patch("api.services.authentication.ibm_quantum_platform.jwt.decode", side_effect=_decode_payload):
+            yield
+
+
 class TestIBMQuantumPlatformAuthentication:
     """E2E tests for IBM Quantum Platform authentication."""
-
-    @pytest.fixture(autouse=True)
-    def _setup(self, db, monkeypatch):
-        call_command("loaddata", "tests/fixtures/authentication_fixtures.json")
-        cache.clear()
-        monkeypatch.setattr(
-            "core.models.Config.get_bool",
-            classmethod(lambda cls, key: False),
-        )
-
-    @pytest.fixture(autouse=True)
-    def _mock_jwt_verification(self):
-        """Mock JWT signature verification to avoid real JWKS fetching."""
-        mock_signing_key = MagicMock()
-
-        def _decode_payload(token, *args, **kwargs):
-            payload = token.split(".")[1]
-            padded = payload + "=" * (-len(payload) % 4)
-            return json.loads(base64.urlsafe_b64decode(padded))
-
-        with patch.object(IBMQuantumPlatform.jwks_client, "get_signing_key_from_jwt", return_value=mock_signing_key):
-            with patch("api.services.authentication.ibm_quantum_platform.jwt.decode", side_effect=_decode_payload):
-                yield
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
@@ -138,6 +154,10 @@ class TestIBMQuantumPlatformAuthentication:
         assert user.username == "IBMid-0000000ABC"
         assert isinstance(auth, CustomAuthentication)
         assert auth.channel == "ibm_quantum_platform"
+        # The instance attributes resolved while verifying access are carried over
+        # so the run flow can persist them on the job.
+        assert auth.plan_id == RESOURCE_PLAN_ID
+        assert auth.subscription_id == SUBSCRIPTION_ID
 
         group_names = list(user.groups.values_list("name", flat=True))
         assert group_names == ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"]
@@ -146,6 +166,51 @@ class TestIBMQuantumPlatformAuthentication:
             assert group.metadata.account == "abc18abcd41546508b35dfe0627109c4"
             permissions = list(group.permissions.values_list("codename", flat=True))
             assert permissions == [VIEW_PROGRAM_PERMISSION]
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_second_authentication_only_reads_the_groups_and_follows_a_changed_account(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+        _add_mock_response("IBMid-0000000ABC", "other-account")
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        CustomTokenBackend().authenticate(_create_request())
+
+        with CaptureQueriesContext(connection) as captured:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert [query["sql"].split()[0] for query in captured.captured_queries] == ["SELECT", "SELECT"]
+
+        user, _ = CustomTokenBackend().authenticate(_create_request(token="other_token"))
+        assert user.groups.get().metadata.account == "other-account"
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_authentication_without_subscription(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """An instance not provisioned through a subscription has no subscription id.
+
+        Those instances come back without the "extensions" configuration object,
+        so there is nothing to read the subscription id from.
+        """
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        mock_get_resource_instance.return_value = DetailedResponse(
+            response={"resource_plan_id": RESOURCE_PLAN_ID},
+            headers={},
+            status_code=200,
+        )
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        _, auth = CustomTokenBackend().authenticate(_create_request())
+
+        assert auth.plan_id == RESOURCE_PLAN_ID
+        assert auth.subscription_id is None
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
@@ -182,6 +247,60 @@ class TestIBMQuantumPlatformAuthentication:
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_resource_controller_timeout_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A timeout reaching the Resource Controller is a transient backend problem,
+        so it must surface as a 503 retry, not a 401 'review your CRN'."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-TIMEOUT", "abc18abcd41546508b35dfe0627109c4")
+        mock_get_resource_instance.side_effect = requests.exceptions.ReadTimeout("read timed out")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "review your CRN" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_resource_controller_server_error_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 5xx from the Resource Controller is the backend failing, not a bad CRN,
+        so it must surface as a 503 retry rather than a 401 'review your CRN'."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-5XX", "abc18abcd41546508b35dfe0627109c4")
+        mock_get_resource_instance.side_effect = ApiException(502, message="Bad Gateway")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "review your CRN" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_resource_controller_not_found_still_blames_the_crn(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 404 from the Resource Controller really does implicate the CRN (unknown
+        instance), so it keeps the 401 'review your CRN' message."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-404", "abc18abcd41546508b35dfe0627109c4")
+        mock_get_resource_instance.side_effect = ApiException(404, message="Not Found")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(AuthenticationFailed, match="review your CRN"):
+            CustomTokenBackend().authenticate(_create_request())
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
     @patch("api.authentication.FunctionAccessClient.get_accessible_functions")
     @responses.activate
     def test_runtime_api_failure_raises_friendly_error_without_crn(
@@ -208,6 +327,85 @@ class TestIBMQuantumPlatformAuthentication:
         message = str(exc_info.value)
         assert crn not in message
         assert "502" not in message
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @patch("api.authentication.FunctionAccessClient.get_accessible_functions")
+    @responses.activate
+    def test_runtime_api_unavailable_raises_service_unavailable(
+        self,
+        mock_get_accessible_functions: MagicMock,
+        mock_get_resource_instance: MagicMock,
+        mock_list_access_groups: MagicMock,
+        settings,
+    ):
+        """A transient Runtime API failure while resolving accessible functions must
+        surface a 503 retry, not a 401 that blames the user's access."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-RUNTIME-DOWN", "abc18abcd41546508b35dfe0627109c4")
+
+        crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/secret-account:instance-id::"
+        mock_get_accessible_functions.side_effect = RuntimeFunctionsUnavailable(
+            f"Error connecting to Runtime API for CRN {crn}"
+        )
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request(crn=crn))
+
+        assert exc_info.value.status_code == 503
+        assert crn not in str(exc_info.value)
+
+    @responses.activate
+    def test_iam_token_server_error_raises_service_unavailable(self):
+        """A 5xx from IAM while fetching the token is a transient backend failure, so
+        it must surface a 503 retry, not a 401 'review your API Key'."""
+        responses.add(
+            responses.POST,
+            f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+            json={"errorMessage": "service unavailable"},
+            status=503,
+        )
+
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "API Key" not in str(exc_info.value)
+
+    @responses.activate
+    def test_iam_token_connection_error_raises_service_unavailable(self):
+        """A connection error reaching IAM is transient, so it surfaces a 503 retry
+        rather than a 401 'review your API Key'."""
+        responses.add(
+            responses.POST,
+            f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+            body=requests.exceptions.ConnectionError("connection refused"),
+        )
+
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
+        assert "API Key" not in str(exc_info.value)
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_access_groups_server_error_raises_service_unavailable(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        """A 5xx while resolving access groups must raise a 503 rather than silently
+        returning no groups, which would strip the user's permissions."""
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-GROUPS-5XX", "abc18abcd41546508b35dfe0627109c4")
+        mock_list_access_groups.side_effect = ApiException(502, message="Bad Gateway")
+
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        with pytest.raises(ServiceUnavailable) as exc_info:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert exc_info.value.status_code == 503
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
@@ -250,3 +448,111 @@ class TestIBMQuantumPlatformAuthentication:
         assert user_b.username == "IBMid-USER-B"
         assert mock_get_resource_instance.call_count == 2
         assert mock_list_access_groups.call_count == 2
+
+
+CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
+
+
+class TestServiceCrnIsRequired:
+    """Whether the instance entitlements are on or the legacy groups are used, a request always names its instance."""
+
+    @pytest.mark.parametrize("entitlements_enabled", [False, True])
+    @pytest.mark.parametrize("crn", [None, "   "])
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_a_request_without_service_crn_is_rejected_before_any_lookup(
+        self, get_resource_instance: MagicMock, crn, entitlements_enabled, monkeypatch
+    ):
+        monkeypatch.setattr("core.models.Config.get_bool", classmethod(lambda cls, key: entitlements_enabled))
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+
+        with pytest.raises(AuthenticationFailed, match="Service-CRN"):
+            CustomTokenBackend().authenticate(_create_request(crn=crn))
+
+        get_resource_instance.assert_not_called()  # it used to get an empty id here and end in a 500
+
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_the_ibm_cloud_channel_needs_it_too(self, get_resource_instance: MagicMock):
+        request = _create_request(crn=None)
+        request.META["HTTP_SERVICE_CHANNEL"] = "ibm_cloud"
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+
+        with pytest.raises(AuthenticationFailed, match="Service-CRN"):
+            CustomTokenBackend().authenticate(request)
+
+        get_resource_instance.assert_not_called()
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_a_public_endpoint_does_not_need_it(self, get_resource_instance: MagicMock, list_access_groups: MagicMock):
+        _mock_iam_services(get_resource_instance, list_access_groups)
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+        request = _create_request(crn=None)
+        request.path = "/swagger/"
+
+        user, auth = CustomTokenBackend().authenticate(request)
+
+        assert user.username == "IBMid-0000000ABC"
+        assert auth.instance is None
+
+    @pytest.mark.parametrize("entitlements_enabled", [False, True])
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
+    def test_the_job_is_created_with_the_service_crn_of_the_request(
+        self,
+        get_resource_instance: MagicMock,
+        list_access_groups: MagicMock,
+        entitlements_enabled,
+        settings,
+        monkeypatch,
+    ):
+        _mock_iam_services(get_resource_instance, list_access_groups)
+        _add_mock_response("IBMid-0000000ABC", "abc18abcd41546508b35dfe0627109c4")
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        monkeypatch.setattr(
+            "core.models.Config.get_bool",
+            classmethod(lambda cls, key: entitlements_enabled and key == ConfigKey.RUNTIME_INSTANCES_API_ENABLED),
+        )
+        if entitlements_enabled:
+            responses.add(
+                responses.GET,
+                f"{settings.RUNTIME_API_BASE_URL}/api/v1/entitlements",
+                json={
+                    "instance_entitlements": [
+                        {
+                            "instance_crn": CRN,
+                            "functions": [],
+                            "custom_functions": {"permissions": [PLATFORM_PERMISSION_CUSTOM_RUN]},
+                        }
+                    ]
+                },
+                status=200,
+            )
+        _, auth = CustomTokenBackend().authenticate(_create_request(crn=CRN))
+        runner = User.objects.create_user(username="runner")
+        Program.objects.create(title="my-fn", author=runner, entrypoint="main.py")
+        client = APIClient()
+        client.force_authenticate(user=runner, token=auth)
+
+        response = client.post(
+            "/api/v1/programs/run/", data={"title": "my-fn", "arguments": "{}", "config": {}}, format="json"
+        )
+
+        assert response.status_code == 200, response.data
+        assert Job.objects.get(id=response.data["id"]).instance_crn == CRN
+
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    def test_the_local_channel_is_not_accepted_with_the_mock_token(self, get_resource_instance: MagicMock, settings):
+        """The local channel has no instance and checks a static token: only the mock backend may use it."""
+        settings.SETTINGS_AUTH_MOCK_TOKEN = "awesome_token"
+        request = _create_request(token="awesome_token", crn=None)
+        request.META["HTTP_SERVICE_CHANNEL"] = "local"
+
+        with pytest.raises(AuthenticationFailed, match="channel"):
+            CustomTokenBackend().authenticate(request)
+
+        get_resource_instance.assert_not_called()
+        assert not User.objects.filter(username="mockuser").exists()

@@ -117,6 +117,8 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
+            "ENV_JOB_COMPUTE_PROFILE": job.compute_profile_id or "",
+            "ENV_JOB_FUNCTION_SIZE": job.size_label or "",
             "ENV_ACCESS_TRIAL": str(trial_mode),
             "DATA_PATH": data_path,
             "ARGUMENTS_PATH": f"{data_path}/arguments/{job.id}.json",
@@ -215,9 +217,9 @@ def sanitize_file_name(name: Optional[str]):
 
 def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     """
-    Create dictionary of allowed additional dependences for function providers.
+    Create dictionary of allowed additional dependencies for function providers.
 
-    The format of the readed file should be a requirements.txt file.
+    The format of the read file should be a requirements.txt file.
     """
     # Determine path based on environment:
     # - Tests: ../docker-images/requirements-dynamic-dependencies.txt
@@ -263,7 +265,7 @@ def check_whitelisted(dependencies: List[Requirement], inject_version_if_missing
     check if a list of dependencies are whitelisted.
 
     if "inject_version_if_missing" is True, the dependencies that has an empty version,
-    will recieve the version of the whitelist.
+    will receive the version of the whitelist.
     """
     whitelist_deps = create_dynamic_dependencies_whitelist()
 

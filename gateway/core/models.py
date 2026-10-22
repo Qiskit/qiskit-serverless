@@ -1,7 +1,12 @@
 """Models."""
 
+# pylint: disable=too-many-lines
+
 import logging
+import operator
 import uuid
+from enum import StrEnum
+from functools import reduce
 
 from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
@@ -10,12 +15,14 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
-from django.db.models import F
+from django.db.models import F, Value
+from django.db.models.functions import Coalesce, Now
 from django.utils import timezone
 from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
 from core.model_managers.compute_profiles import ComputeProfileQuerySet
@@ -429,13 +436,28 @@ class ComputeProfile(models.Model):
         return self.compute_profile_id
 
 
+def _uppercase_function_size(size, field_names):
+    """Uppercase a just-read FunctionSize row's function_size, in place."""
+    if "function_size" in field_names and size.function_size:
+        size.function_size = size.function_size.upper()
+    return size
+
+
 class FunctionSize(models.Model):
     """Function size model.
 
     A ``(function, function_size)`` row identifies the license fee rate
     (billing looks up ``license_fee_<function>_<size>`` in its metric table)
     and carries the ``compute_profile`` used.
+
+    ``function_size`` is always uppercase: ``save()`` uppercases on write, ``from_db()`` on read,
+    mirroring ``Job.from_db()``'s own legacy-value translation. No migration rewrites pre-existing
+    rows -- a raw queryset read (``.values_list()``, ``.filter(function_size=...)``) sees whatever
+    is actually stored, which is why ``FunctionSizeQuerySet.get_function_size()`` matches
+    case-insensitively instead of relying on that.
     """
+
+    VALID_SIZES: tuple[str, ...] = FUNCTION_SIZE_VALID_SIZES
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -446,7 +468,10 @@ class FunctionSize(models.Model):
         on_delete=models.CASCADE,
         related_name="function_sizes",
     )
-    function_size = models.CharField(max_length=64)
+    function_size = models.CharField(
+        max_length=64,
+        choices=[(size, size) for size in VALID_SIZES],
+    )
     compute_profile = models.ForeignKey(
         to=ComputeProfile,
         on_delete=models.PROTECT,
@@ -464,8 +489,81 @@ class FunctionSize(models.Model):
             ),
         ]
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Read a size row, uppercasing function_size regardless of what is actually stored."""
+        return _uppercase_function_size(super().from_db(db, field_names, values), field_names)
+
+    def save(self, *args, **kwargs):
+        """Uppercase function_size before every write, whatever case the caller used."""
+        if self.function_size:
+            self.function_size = self.function_size.upper()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.function} ({self.function_size})"
+
+
+class BlockedCloudResource(models.Model):
+    """Blocked cloud resource model.
+
+    Mirrors the upstream billing-service's blocked account/plan/subscription set.
+    A row is a blocking rule at whatever scope its populated fields describe;
+    row identity comes from id, never from a business column. The three columns
+    are nullable so that narrower rule shapes (e.g., account-only) can be added
+    later without a migration.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    account = models.CharField(max_length=255, null=True, blank=True, default=None)
+    plan = models.CharField(max_length=255, null=True, blank=True, default=None)
+    subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+
+    class Meta:
+        app_label = "api"
+        constraints = [
+            # Over the coalesced columns rather than the columns themselves, so a NULL counts as
+            # equal to another NULL: a plain unique constraint lets (acc, NULL, NULL) repeat, and
+            # nulls_distinct=False is dropped altogether on SQLite and on PostgreSQL < 15.
+            # Empty strings are stored as NULL, so coalescing to "" conflates nothing.
+            models.UniqueConstraint(
+                Coalesce("account", Value("")),
+                Coalesce("plan", Value("")),
+                Coalesce("subscription", Value("")),
+                name="unique_blocked_resource",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(account__isnull=False)
+                | models.Q(plan__isnull=False)
+                | models.Q(subscription__isnull=False),
+                name="blocked_resource_has_a_scope",
+            ),
+        ]
+
+    def __str__(self):
+        parts = []
+        if self.account:
+            parts.append(f"account={self.account}")
+        if self.plan:
+            parts.append(f"plan={self.plan}")
+        if self.subscription:
+            parts.append(f"subscription={self.subscription}")
+        return f"BlockedCloudResource({', '.join(parts)})"
+
+    @classmethod
+    def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
+        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL."""
+        return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
+
+    @classmethod
+    def blocked_jobs_filter(cls) -> models.Q | None:
+        """A Job filter matching the jobs blocks() would block, or None when nothing is blocked."""
+        rows = cls.objects.values_list("account", "plan", "subscription")
+        jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
+        return reduce(operator.or_, jobs) if jobs else None
 
 
 class Job(models.Model):
@@ -473,6 +571,7 @@ class Job(models.Model):
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    STOPPING = "STOPPING"
     STOPPED = "STOPPED"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
@@ -480,6 +579,7 @@ class Job(models.Model):
     JOB_STATUSES = [
         (PENDING, "Pending"),
         (RUNNING, "Running"),
+        (STOPPING, "Stopping"),
         (STOPPED, "Stopped"),
         (SUCCEEDED, "Succeeded"),
         (QUEUED, "Queued"),
@@ -494,8 +594,10 @@ class Job(models.Model):
     POST_PROCESSING = "POST_PROCESSING"
 
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
-    RUNNING_STATUSES = [RUNNING, PENDING]
-    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
+    # ACTIVE_STATUSES is the exact complement of TERMINAL_STATUSES
+    # RUNNING_STATUSES is the subset of ACTIVE_STATUSES where the engine is holding capacity
+    RUNNING_STATUSES = [RUNNING, PENDING, STOPPING]
+    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING, STOPPING]
 
     RUNNING_SUB_STATUSES = [
         MAPPING,
@@ -525,14 +627,15 @@ class Job(models.Model):
     # stored compute profile.
     SIZE_SOURCE_REQUESTED = "REQUESTED"  # user asked for this size
     SIZE_SOURCE_DEFAULT_SIZE = "DEFAULT_SIZE"  # function's default_size filled in
+    # No longer produced by RunFunctionUseCase (a Fleets function with no default_size
+    # is now rejected instead of falling back to this): kept only so existing Job rows
+    # stay readable. Candidate for deprecation/removal once none remain.
     SIZE_SOURCE_SETTINGS_DEFAULT = "SETTINGS_DEFAULT"  # deployment-wide default profile
-    SIZE_SOURCE_COMPUTE_PROFILE = "COMPUTE_PROFILE"  # deprecated compute_profile input
     SIZE_SOURCE_NONE = "NONE"  # sizing not applicable (Ray / non-Fleets)
     SIZE_SOURCES = [
         (SIZE_SOURCE_REQUESTED, "Requested by user"),
         (SIZE_SOURCE_DEFAULT_SIZE, "Function default size"),
         (SIZE_SOURCE_SETTINGS_DEFAULT, "Deployment default profile"),
-        (SIZE_SOURCE_COMPUTE_PROFILE, "Deprecated compute_profile input"),
         (SIZE_SOURCE_NONE, "Not applicable"),
     ]
 
@@ -549,12 +652,6 @@ class Job(models.Model):
         null=False,
         help_text="True when this job was created by the filler-jobs balancer to occupy idle GPU "
         "capacity, instead of coming from a real user request.",
-    )
-    compute_profile = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="Code Engine compute profile for Fleets runner (e.g., gx3d-24x120x1a100p)",
     )
     logs = models.TextField(default="No logs yet.")
     runner = models.CharField(
@@ -619,13 +716,39 @@ class Job(models.Model):
         blank=True,
         related_name="jobs",
         help_text=(
-            "Size row the job resolved to at creation; null when sized by the deployment "
-            "default profile, the deprecated compute_profile input, or a non-Fleets runner."
+            "Live link to the catalog size row the job resolved to at creation. The row can be renamed "
+            "or deleted later, so this is not a record of the size the job ran with: read "
+            "function_size_name for that. Null when sized by the deployment default profile, a non-Fleets "
+            "runner, or once the row is deleted."
+        ),
+    )
+    function_size_name = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text=(
+            "Size label the job ran with, captured at creation time and never changed, so it survives a "
+            "rename or delete of the function_size row. Null when run by a non-Fleets runner or sized by the "
+            "deployment default profile. A job created by a pod that predates this field (during a rollout) "
+            "has it null while function_size is set: readers use Job.size_label, which falls back to the "
+            "function_size row."
         ),
     )
 
     account_id = models.CharField(max_length=255, null=True, blank=True)
     instance_crn = models.CharField(max_length=255, null=True, blank=True)
+    plan_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="IBM Cloud resource plan ID of the instance, captured at job creation time",
+    )
+    subscription_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="IBM Cloud subscription ID of the instance, captured at job creation time",
+    )
     running_started_at = models.DateTimeField(null=True, blank=True)
     ce_project_name = models.CharField(
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
@@ -659,6 +782,29 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
+
+    @property
+    def compute_profile_id(self) -> str | None:
+        """Bare compute-profile string from the FK (the source of truth).
+
+        ``ComputeProfile`` uses ``compute_profile_id`` as its ``CharField``
+        primary key, so Django stores that string directly in
+        ``compute_profile_fk_id`` on this row — no extra query needed.
+        Returns ``None`` for Ray jobs and any row with no FK set.
+        """
+        return self.compute_profile_fk_id
+
+    @property
+    def size_label(self) -> str | None:
+        """The size the job ran with, uppercase, or None when no size applies.
+
+        Reads the snapshot (``function_size_name``). A job created by a pod that predates the snapshot has none, so
+        it falls back to the live ``function_size`` row's label.
+        """
+        label = self.function_size_name
+        if not label and self.function_size is not None:
+            label = self.function_size.function_size
+        return label.upper() if label else None
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
@@ -746,6 +892,106 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+
+class OutboxChannel(StrEnum):
+    """The channels a row in the Outbox table can be sent on: the two billing facts published via Kafka, and
+    the final status of a job mirrored to the Runtime API. See Outbox.channel below for what adding a member
+    here costs."""
+
+    LICENSE_FEE = "billing_license_fee"
+    JOB_USAGE = "billing_job_usage"
+    WORKLOAD = "workload"
+
+
+class Outbox(models.Model):
+    """A message waiting to be delivered best-effort, in a deferred way. One row per pending
+    message, not per job: a job can have zero, one, or several rows at once, each with its own
+    payload and channel, deleted independently once its own send succeeds.
+
+    `channel` says how to send it (see OutboxChannel). `choices=` is a Django admin/forms hint,
+    not a database constraint: `.objects.create(...)`, all the writer and drainer ever call, can
+    still write any string. Adding a channel is a new OutboxChannel member plus the small
+    migration that comes with it, since `choices=` is part of the field's tracked state.
+
+    `payload` is the message exactly as it will be sent, built and frozen at the moment the fact
+    it represents became true (see core/services/job_transitions.py and core/domain/billing_events.py). This
+    table does not know what the payload means or how it was built, only that it needs to go out.
+    """
+
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.CASCADE,
+        help_text="Not used by delivery: the payload is self-contained. Kept only so a pending "
+        "row can be found from its job (admin, debugging), without parsing the payload.",
+    )
+    channel = models.CharField(
+        max_length=20, choices=[(c.value, c.name.replace("_", " ").title()) for c in OutboxChannel]
+    )
+    region = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Region of the instance CRN the message belongs to, or null when it has none. Delivery uses it "
+        "only to pick the circuit breaker: a region that fails does not hold back the others.",
+    )
+    payload = models.JSONField()
+    created = models.DateTimeField(auto_now_add=True)
+    # The three of them also have a db_default: a pod still running the code from before they existed inserts rows
+    # without them during a rolling deploy, and the NOT NULL column would reject that insert (and roll back the
+    # job transition it belongs to) if the database had no default of its own.
+    attempts = models.PositiveIntegerField(
+        default=0,
+        db_default=0,
+        help_text="How many times sending this row has failed. Delivery uses it to grow the wait between tries.",
+    )
+    next_attempt_at = models.DateTimeField(
+        default=timezone.now,
+        db_default=Now(),
+        help_text="The row is not sent before this moment. A new row is due at once, and every failure moves it "
+        "further away, so a row that always fails cannot keep the rows behind it from being sent.",
+    )
+    last_error = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="Why the last attempt failed, only to find out what is wrong with a row that does not leave.",
+    )
+    unrecoverable = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="The destination will never take this row (it answered with a permanent error), so delivery skips "
+        "it for good. It stays in the table with its last_error for someone to look at.",
+    )
+
+    class Meta:
+        app_label = "api"
+        indexes = [
+            models.Index(fields=["channel", "created"], name="outbox_channel_created_idx"),
+            models.Index(fields=["channel", "region", "created"], name="outbox_chan_reg_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"<Outbox id={self.id} job={self.job_id} channel={self.channel}>"
+
+
+class WorkloadMirror(models.Model):
+    """A job that was created in the Runtime API as a workload (see core/domain/workload_payload.py). Only these jobs
+    get the later steps of the mirror: the Functions identifier in their container and the final status through the
+    outbox. The row is written in the transaction that creates the job, right after the Runtime API took it, so the
+    mirror flag only decides about new jobs and a job never ends up half mirrored if the flag changes. The row is
+    deleted in the transaction that enqueues the final status, so the table only holds jobs still on their way. Deleting
+    this table is all it takes to retire the mirror once it stays on for good."""
+
+    job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "api"
+
+    def __str__(self):
+        return f"<WorkloadMirror job={self.job_id}>"
 
 
 class GroupMetadata(models.Model):

@@ -162,8 +162,10 @@ spec:
               value: {{ .Values.application.rayHost | quote }}
             - name: SETTINGS_AUTH_MECHANISM
               value: {{ .Values.application.auth.mechanism | quote }}
+            {{- if eq .Values.application.auth.mechanism "mock_token" }}
             - name: SETTINGS_AUTH_MOCK_TOKEN
               value: {{ .Values.application.auth.token.mock | quote }}
+            {{- end }}
             - name: IAM_IBM_CLOUD_BASE_URL
               value: {{ .Values.application.auth.token.iamUrl | quote }}
             - name: IAM_IBM_CLOUD_CACHE_TTL
@@ -225,6 +227,8 @@ spec:
               value: {{ .Values.application.runtimeApi.url | quote }}
             - name: RUNTIME_API_CACHE_TTL
               value: {{ .Values.application.runtimeApi.cacheTtl | quote }}
+            - name: IBM_CLOUD_API_TIMEOUT
+              value: {{ .Values.application.runtimeApi.timeout | quote }}
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
@@ -272,6 +276,10 @@ spec:
             {{- end }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_WORKERS
+              value: {{ .Values.application.backgroundExecutor.gateway.maxWorkers | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_PENDING
+              value: {{ .Values.application.backgroundExecutor.gateway.maxPending | quote }}
             - name: SECURE_HSTS_SECONDS
               value: {{ .Values.application.security.hstsSeconds | quote }}
             - name: SECURE_HSTS_INCLUDE_SUBDOMAINS
@@ -296,6 +304,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudFidApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudFidApiKey.key }}
+            {{- end }}
+            {{- if .Values.application.functionsOperatorApiKey.enabled }}
+            - name: FUNCTIONS_OPERATOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.functionsOperatorApiKey.name }}
+                  key: {{ .Values.secrets.functionsOperatorApiKey.key }}
             {{- end }}
             {{- if .Values.ce }}
             - name: FLEETS_GATEWAY_HOST
@@ -439,6 +454,10 @@ spec:
           env:
             - name: SITE_HOST
               value: {{ .Values.scheduler.siteHost | quote }}
+            - name: IAM_IBM_CLOUD_BASE_URL
+              value: {{ .Values.application.auth.token.iamUrl | quote }}
+            - name: RUNTIME_API_BASE_URL
+              value: {{ .Values.application.runtimeApi.url | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY
@@ -507,6 +526,10 @@ spec:
               value: {{ .Values.application.limits.programTimeoutHours | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_WORKERS
+              value: {{ .Values.application.backgroundExecutor.scheduler.maxWorkers | quote }}
+            - name: BACKGROUND_EXECUTOR_MAX_PENDING
+              value: {{ .Values.application.backgroundExecutor.scheduler.maxPending | quote }}
             - name: LOG_FORMAT
               value: {{ .Values.application.logFormat | quote }}
             {{- if .Values.application.ibmCloudFidApiKey.enabled }}
@@ -515,6 +538,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.ibmCloudFidApiKey.name }}
                   key: {{ .Values.secrets.ibmCloudFidApiKey.key }}
+            {{- end }}
+            {{- if .Values.application.functionsOperatorApiKey.enabled }}
+            - name: FUNCTIONS_OPERATOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.functionsOperatorApiKey.name }}
+                  key: {{ .Values.secrets.functionsOperatorApiKey.key }}
             {{- end }}
             {{- if .Values.ce }}
             - name: FLEETS_GATEWAY_HOST
@@ -543,9 +573,11 @@ spec:
             {{- end }}
             - name: EVENT_STREAMS_ENABLED
               value: {{ .Values.application.eventStreams.enabled | default false | quote }}
+            {{- if .Values.application.eventStreams.enabled }}
             - name: ENVIRONMENT
               value: {{ .Values.application.eventStreams.environment | default "" | quote }}
-            {{- if .Values.application.eventStreams.enabled }}
+            - name: EVENT_STREAMS_MAIN_REGION
+              value: {{ .Values.application.eventStreams.mainRegion | default "us-east" | quote }}
             - name: EVENT_STREAMS_BOOTSTRAP_SERVERS
               valueFrom:
                 secretKeyRef:
@@ -561,6 +593,20 @@ spec:
                 secretKeyRef:
                   name: kafka-credentials
                   key: user
+            # Multi-region Event Streams support: regional credentials are projected
+            # when the matching regional secret is configured in values.
+            {{- if .Values.secrets.kafkaEuDe.createExternalSecret }}
+            - name: EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.kafkaEuDe.name }}
+                  key: bootstrap_servers
+            - name: EVENT_STREAMS_API_KEY_EU_DE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.kafkaEuDe.name }}
+                  key: api_key
+            {{- end }}
             {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

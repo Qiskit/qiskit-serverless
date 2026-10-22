@@ -208,14 +208,9 @@ class RunService(ABC):
         config: Optional[Configuration] = None,
         provider: Optional[str] = None,
         *,
-        compute_profile: Optional[str] = None,
         function_size: Optional[str] = None,
     ) -> Job:
-        """Run a function and return its job.
-
-        ``compute_profile`` is deprecated; use ``function_size`` instead. Passing
-        both is rejected by the server.
-        """
+        """Run a function and return its job."""
 
     @abstractmethod
     def validate_arguments(
@@ -270,11 +265,14 @@ class RunnableQiskitFunction(QiskitFunction):
         config = kwargs.pop("config", None)
         compute_profile = kwargs.pop("compute_profile", None)
         function_size = kwargs.pop("function_size", None)
+        if compute_profile is not None:
+            raise QiskitServerlessException(
+                "'compute_profile' is no longer supported; use function_size='<label>' instead."
+            )
         return self._run_service.run(
             program=self,
             arguments=kwargs,
             config=config,
-            compute_profile=compute_profile,
             function_size=function_size,
         )
 

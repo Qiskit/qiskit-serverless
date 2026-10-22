@@ -29,7 +29,7 @@ the repository root:
 
    docker build --platform linux/arm64 \
      --target arm64 \
-     -t custom-ray-node:0.36.0-arm64 \
+     -t custom-ray-node:0.37.0-arm64 \
      -f docker-images/ray-node/Dockerfile .
 
 .. note::
@@ -57,7 +57,7 @@ architecture is fine):
 .. code-block::
    :caption: Start the stack on Apple Silicon
 
-   VERSION=0.36.0 docker compose \
+   VERSION=0.37.0 docker compose \
      -f docker-compose.yaml \
      -f docker-compose.arm64.yaml \
      up
@@ -74,13 +74,13 @@ arm64 base instead of the published ``icr.io`` image:
 .. code-block::
    :caption: Sample-Dockerfile on the arm64 base
 
-   FROM custom-ray-node:0.36.0-arm64
+   FROM custom-ray-node:0.37.0-arm64
 
    USER 0
    WORKDIR /runner
    COPY ./runner.py /runner
    WORKDIR /
-   USER 1000
+   USER 1000:1000
 
 Then build it as usual, e.g.
 ``docker build --platform linux/arm64 -t test/local-provider-function -f Sample-Dockerfile .``.
@@ -92,7 +92,7 @@ file — keeping ``platform: linux/arm64``:
 .. code-block::
    :caption: Start the stack on Apple Silicon
 
-   VERSION=0.36.0 docker compose \
+   VERSION=0.37.0 docker compose \
      -f docker-compose.yaml \
      -f docker-compose.arm64.yaml \
      up

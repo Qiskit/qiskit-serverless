@@ -20,13 +20,12 @@ class UpdateJobStatusCounts(SchedulerTask):
         self.metrics = metrics
 
     def run(self):
-        """Update job counts per status and provider (active states only).
+        """Update job counts per status and provider, for every status in ACTIVE_STATUSES before a job ends.
 
         Filler jobs run continuously, so counting them here would make a constant
         floor look like user demand. They get their own gauge instead.
         """
-        statuses = [Job.QUEUED, Job.PENDING, Job.RUNNING]
-        active = Job.objects.filter(status__in=statuses)
+        active = Job.objects.filter(status__in=Job.ACTIVE_STATUSES)
 
         rows = active.exclude(filler=True).values("status", "program__provider__name").annotate(count=Count("id"))
         counts = {}

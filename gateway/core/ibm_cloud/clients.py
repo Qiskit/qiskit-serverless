@@ -13,13 +13,13 @@
 """
 IBM Cloud Clients module.
 
-Provides :class:`IBMCloudClientProvider`, responsible for IBM Cloud
-authentication and COS client creation.
+Provides :class:`IBMCloudClientProvider`, which resolves the IBM Cloud service endpoints and
+creates COS clients. The IAM token comes from a shared :class:`IamTokenProvider`.
 
 Only the minimal surface needed by :class:`FleetsJobHandler` and the COS
 layer is included here:
 
-- IAM authentication and JWT token decoding
+- endpoint resolution, including staging
 - COS HMAC S3-compatible client factory
 
 Example::
@@ -38,14 +38,14 @@ Example::
 
 from __future__ import annotations
 
-import base64
-import json
-import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from ibm_boto3 import client as ibm_boto3_client
-from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+
+from core.clients.iam_token_provider import IamTokenProvider, get_iam_token_provider
+from core.ibm_cloud import call_metrics
 
 IAM_PROD_URL = "https://iam.cloud.ibm.com"
 IAM_TEST_URL = "https://iam.test.cloud.ibm.com"
@@ -55,28 +55,6 @@ COS_PUBLIC_URL_TEMPLATE = "https://s3.{region}.cloud-object-storage.appdomain.cl
 CODE_ENGINE_URL_TEMPLATE = "https://api.{region}.codeengine.cloud.ibm.com/v2"
 
 DEFAULT_REGION = "us-south"
-
-logger = logging.getLogger("gateway.ibm_cloud.clients_provider")
-
-
-def decode_jwt(token: str) -> dict[str, Any]:
-    """
-    Decode a JWT token and return its payload as a dictionary.
-
-    Args:
-        token: JWT string in the standard format ``header.payload.signature``.
-
-    Returns:
-        The decoded payload of the JWT as a dictionary.
-
-    Raises:
-        IndexError: If the JWT string is malformed and does not contain three parts.
-        json.JSONDecodeError: If the decoded payload is not valid JSON.
-        binascii.Error: If the base64 decoding fails.
-    """
-    payload = token.split(".")[1]
-    padded = payload + "=" * (-len(payload) % 4)
-    return json.loads(base64.urlsafe_b64decode(padded))
 
 
 @dataclass(frozen=True)
@@ -88,33 +66,6 @@ class EndpointConfig:
     iam_url: str
     cos_url: str
     code_engine_url: str
-
-
-class AuthState:
-    """Authentication state derived from the IAM token.
-
-    ``token`` is a lazy property — each access calls the SDK token manager,
-    which returns the cached token or fetches a new one if it is near expiry.
-    This means callers always get a valid bearer token without any manual
-    refresh logic.
-    """
-
-    def __init__(
-        self,
-        authenticator: IAMAuthenticator,
-        iam_id: str,
-        account_id: str,
-        api_key: str,
-    ) -> None:
-        self.authenticator = authenticator
-        self.iam_id = iam_id
-        self.account_id = account_id
-        self.api_key = api_key
-
-    @property
-    def token(self) -> str:
-        """Return a valid IAM bearer token, refreshing automatically when near expiry."""
-        return self.authenticator.token_manager.get_token()
 
 
 @dataclass
@@ -129,8 +80,8 @@ class IBMCloudClientProvider:
     """
     Provider for IBM Cloud SDK clients.
 
-    Handles IAM authentication and creation of COS S3-compatible clients.
-    HMAC clients are created on demand and cached for reuse.
+    Resolves the service endpoints and creates COS S3-compatible clients. HMAC clients are created
+    on demand and cached for reuse. The IAM token comes from a shared :class:`IamTokenProvider`.
 
     Supports staging mode for the IAM endpoint.
     """
@@ -151,7 +102,8 @@ class IBMCloudClientProvider:
             region: Default region for regional services. Defaults to ``"us-south"``.
 
         Raises:
-            RuntimeError: If authentication fails or required token information is missing.
+            RuntimeApiError: If the API key is empty or malformed. No request is made here, so a
+                key IAM rejects surfaces on the first ``tokens.get_token()`` instead.
         """
         resolved_region = region or DEFAULT_REGION
         iam_url = IAM_TEST_URL if staging else IAM_PROD_URL
@@ -164,46 +116,7 @@ class IBMCloudClientProvider:
             code_engine_url=CODE_ENGINE_URL_TEMPLATE.format(region=resolved_region),
         )
 
-        authenticator = IAMAuthenticator(api_key, url=self.config.iam_url)
-
-        # Fetch a token once at init time to validate credentials and extract
-        # iam_id / account_id from the JWT payload. Subsequent accesses to
-        # auth.token call get_token() directly so the SDK refreshes automatically.
-        try:
-            initial_token = authenticator.token_manager.get_token()
-            decoded = decode_jwt(initial_token)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "IBM Cloud authentication didn't return a valid token: %s.",
-                str(ex),
-            )
-            raise RuntimeError(
-                "IBM Cloud authentication didn't return a valid token: " f"{ex}. Verify your token or used endpoints."
-            ) from ex
-
-        iam_id = decoded.get("iam_id")
-        if iam_id is None:
-            raise RuntimeError(
-                "Authentication failed: token payload missing 'iam_id'. Verify your token or used endpoints."
-            )
-        account_data = decoded.get("account")
-        if account_data is None:
-            raise RuntimeError(
-                "Authentication failed: token payload missing 'account'. Verify your token or used endpoints."
-            )
-        account_id = account_data.get("bss")
-        if account_id is None:
-            raise RuntimeError(
-                "Authentication failed: token payload missing 'account.bss' (account id). "
-                "Verify your token or used endpoints."
-            )
-
-        self.auth = AuthState(
-            authenticator=authenticator,
-            iam_id=iam_id,
-            account_id=account_id,
-            api_key=api_key,
-        )
+        self.tokens: IamTokenProvider = get_iam_token_provider(api_key, iam_url)
         self.clients = ClientCache()
 
     def get_cos_hmac_client(
@@ -246,5 +159,20 @@ class IBMCloudClientProvider:
             endpoint_url=resolved_endpoint,
             region_name=resolved_region,
         )
+        s3.meta.events.register("before-call.s3", _start_cos_call)
+        s3.meta.events.register("after-call.s3", _end_cos_call)
+        s3.meta.events.register("after-call-error.s3", _end_cos_call)
         self.clients.cos_hmac[cache_key] = s3
         return s3
+
+
+def _start_cos_call(context: dict, **_: Any) -> None:
+    context["metrics_start"] = time.monotonic()
+
+
+def _end_cos_call(context: dict, event_name: str, http_response: Any = None, **_: Any) -> None:
+    start = context.pop("metrics_start", None)
+    if start is None:
+        return
+    status = str(http_response.status_code) if http_response is not None else "0"
+    call_metrics.observe_cos(event_name.rsplit(".", 1)[-1], status, time.monotonic() - start)

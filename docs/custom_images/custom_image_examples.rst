@@ -51,7 +51,7 @@ Dockerfile:
 .. code-block::
    :caption: Dockerfile
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0
 
    # install all necessary dependencies for your custom image
 
@@ -63,6 +63,6 @@ Dockerfile:
    COPY ./runner.py /runner
    WORKDIR /
 
-   USER 1000
+   USER 1000:1000
 
 Follow the steps in the :ref:`deploy_image` section to deploy and run the function using local infrastructure.

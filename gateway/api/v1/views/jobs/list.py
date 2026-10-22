@@ -86,7 +86,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "compute_profile", "compute_profile_fk"]
+        fields = ["id", "status", "program", "created", "sub_status", "compute_profile_fk"]
         ref_name = "JobsListWithoutResultInputSerializer"
 
 

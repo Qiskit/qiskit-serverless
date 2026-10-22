@@ -203,7 +203,7 @@ class TestSerializers:
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid()
-        assert serializer.validated_data["default_size"] == "m"
+        assert serializer.validated_data["default_size"] == "M"
 
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
@@ -258,12 +258,13 @@ class TestSerializers:
                 provider_name=None,
                 arguments="{}",
                 config_data={"workers": None, "min_workers": 1, "max_workers": 5, "auto_scaling": True},
-                compute_profile=None,
                 function_size=None,
                 channel=Channel.IBM_QUANTUM_PLATFORM,
                 token="my_token",
                 instance=None,
                 account_id="1234-5678-9012",
+                plan_id="plan-abc",
+                subscription_id="sub-xyz",
             ),
         )
         env_vars = json.loads(job.env_vars)
@@ -294,12 +295,13 @@ class TestSerializers:
                 provider_name="gpu_provider",
                 arguments="{}",
                 config_data=None,
-                compute_profile=None,
                 function_size=None,
                 channel=Channel.IBM_QUANTUM_PLATFORM,
                 token="my_token",
                 instance=None,
                 account_id=None,
+                plan_id=None,
+                subscription_id=None,
             ),
         )
 
@@ -324,8 +326,8 @@ class TestSerializers:
 
         data = UploadProgramSerializer(program).data
 
-        assert data["sizes"] == {"s": "4x16", "m": "4x16"}
-        assert data["default_size"] == "m"
+        assert data["sizes"] == {"S": "4x16", "M": "4x16"}
+        assert data["default_size"] == "M"
 
     def test_upload_program_serializer_renders_empty_sizes_when_none(self):
         """A function with no catalog serializes an empty map and null default."""
@@ -363,7 +365,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '["ffsim==0.0.60","mergedeep==1.3.4"]'
+        data["dependencies"] = '["ffsim==0.0.70","mergedeep==1.3.4"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -372,7 +374,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '[{"ffsim":"0.0.60"},{"mergedeep":"==1.3.4"}]'
+        data["dependencies"] = '[{"ffsim":"0.0.70"},{"mergedeep":"==1.3.4"}]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -381,7 +383,7 @@ class TestSerializers:
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
-        data["dependencies"] = '[{"ffsim":"0.0.60"},"mergedeep==1.3.4"]'
+        data["dependencies"] = '[{"ffsim":"0.0.70"},"mergedeep==1.3.4"]'
 
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -480,11 +482,12 @@ class TestSerializers:
                     provider_name=None,
                     arguments="{}",
                     config_data=None,
-                    compute_profile=None,
                     function_size=None,
                     channel=Channel.IBM_QUANTUM_PLATFORM,
                     token="my_token",
                     instance=None,
                     account_id=None,
+                    plan_id=None,
+                    subscription_id=None,
                 ),
             )

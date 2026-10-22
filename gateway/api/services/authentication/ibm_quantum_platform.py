@@ -2,10 +2,12 @@
 
 import hashlib
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Tuple
 
 import jwt
+import requests
 from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientConnectionError
 from django.conf import settings
 from django.core.cache import cache
 from ibm_cloud_sdk_core import ApiException
@@ -14,9 +16,21 @@ from ibm_platform_services import ResourceControllerV2, IamAccessGroupsV2
 from rest_framework import exceptions
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.authentication_base import AuthenticationBase
 
 logger = logging.getLogger("api.IBMQuantumPlatform")
+
+
+def _is_transient_api_exception(api_exception: ApiException) -> bool:
+    """True when an IBM Cloud ApiException is a transient backend failure.
+
+    A 429 (rate limit) or any 5xx is the service failing, not an answer about the
+    caller's credentials or instance, so it should be retried rather than reported
+    as an authentication error.
+    """
+    status_code = api_exception.status_code
+    return status_code == 429 or (status_code is not None and status_code >= 500)
 
 
 class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instance-attributes
@@ -37,6 +51,8 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
         self.account_id: Optional[str] = None
         self.iam_id: Optional[str] = None
+        self.plan_id: Optional[str] = None
+        self.subscription_id: Optional[str] = None
 
     def authenticate(self) -> Optional[str]:
         """
@@ -60,21 +76,21 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         if self.iam_id is None:
             logger.warning("IBM Quantum Platform didn't return the IAM ID for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned a token with no IAM ID for this API key. Please contact IBM support."
             )
 
         account_data = decoded.get("account")
         if account_data is None:
             logger.warning("IBM Quantum Platform didn't return the Account data for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned a token with no account for this API key. Please contact IBM support."
             )
 
         self.account_id = account_data.get("bss")
         if self.account_id is None:
             logger.warning("IBM Quantum Platform didn't return the Account ID for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned a token with no account ID for this API key. Please contact IBM support."
             )
 
         logger.debug(
@@ -94,12 +110,14 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             bool: True or False if the user has or no access
         """
 
-        resource_plan_id = self._request_or_cache_resource_plan_id()
+        resource_plan_id, subscription_id = self._request_or_cache_instance_attributes()
+        self.plan_id = resource_plan_id
+        self.subscription_id = subscription_id
 
         if resource_plan_id is None:
             logger.warning("IBM Quantum Platform didn't return the Resource plan ID for the resource.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
+                "IBM Cloud returned no resource plan for this instance. Please contact IBM support."
             )
 
         if resource_plan_id not in settings.RESOURCE_PLANS_ID_ALLOWED:
@@ -143,23 +161,58 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
                 options={"verify_exp": True, "verify_iat": True},
             )
             cache.set(cache_key, decoded, timeout=self.cache_ttl)
+        except (requests.exceptions.RequestException, PyJWKClientConnectionError) as transient_error:
+            # IAM (or the JWKS endpoint) was unreachable or timed out. This is a
+            # transient backend problem, not a bad API key: ask the caller to retry.
+            logger.warning("IBM Cloud unreachable while authenticating: %s.", transient_error)
+            raise ServiceUnavailable() from transient_error
+        except ApiException as api_exception:
+            if _is_transient_api_exception(api_exception):
+                logger.warning("IBM Cloud returned %s while authenticating.", api_exception.status_code)
+                raise ServiceUnavailable() from api_exception
+            logger.warning("IBM Quantum Platform authentication error: %s.", api_exception.message)
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
             raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
         return decoded
 
-    def _request_or_cache_resource_plan_id(self) -> Any:
-        cache_key = f"auth:access:{self.crn}:{self.api_key_hash}"
-        resource_plan_id = cache.get(cache_key)
+    def _request_or_cache_instance_attributes(self) -> Tuple[Optional[str], Optional[str]]:
+        """Returns the (resource plan id, subscription id) of the instance.
 
-        if resource_plan_id is not None:
-            return resource_plan_id
+        Both come from the same Resource Controller response, so they are
+        requested and cached together.
+        """
+        cache_key = f"auth:access:{self.crn}:{self.api_key_hash}"
+        cached_attributes = cache.get(cache_key)
+
+        if cached_attributes is not None:
+            return cached_attributes
 
         try:
             resource_controller = ResourceControllerV2(self.authenticator)
             resource_controller.set_service_url(self.resource_controller_url)
             instance = resource_controller.get_resource_instance(id=self.crn).get_result()
+        except requests.exceptions.RequestException as request_exception:
+            # A timeout or connection error reaching the Resource Controller is a
+            # transient backend problem, not a bad CRN. Tell the caller to retry
+            # instead of pointing them at credentials that are fine.
+            logger.warning(
+                "IBM Quantum Platform unreachable while resolving the instance: %s.",
+                request_exception,
+            )
+            raise ServiceUnavailable() from request_exception
         except ApiException as api_exception:
+            # A 5xx or a rate limit (429) is the Resource Controller failing, not the
+            # CRN being wrong, so these retry rather than blame the CRN. A 4xx that is
+            # not 429 does implicate the CRN (unknown instance, malformed id).
+            if _is_transient_api_exception(api_exception):
+                logger.warning(
+                    "IBM Quantum Platform returned %s while resolving the instance: %s.",
+                    api_exception.status_code,
+                    api_exception.message,
+                )
+                raise ServiceUnavailable() from api_exception
             logger.warning(
                 "IBM Quantum Platform verification error: %s.",
                 api_exception.message,
@@ -169,9 +222,13 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             )
 
         resource_plan_id = instance.get("resource_plan_id")
-        cache.set(cache_key, resource_plan_id, timeout=self.cache_ttl)
+        # The subscription id is not a top level attribute of the response: it
+        # travels inside the free-form "extensions" configuration object, which
+        # is absent for instances that are not provisioned through one.
+        subscription_id = (instance.get("extensions") or {}).get("subscription_id")
+        cache.set(cache_key, (resource_plan_id, subscription_id), timeout=self.cache_ttl)
 
-        return resource_plan_id
+        return resource_plan_id, subscription_id
 
     def _request_or_cache_group_ids(self) -> List[str]:
         cache_key = f"auth:groups:{self.account_id}:{self.api_key_hash}"
@@ -184,7 +241,16 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
             access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
             access_groups_service.set_service_url(self.iam_url)
             access_groups_response = access_groups_service.list_access_groups(account_id=self.account_id).get_result()
+        except requests.exceptions.RequestException as request_exception:
+            # Access Groups was unreachable or timed out. Returning no groups here would
+            # silently strip the user's permissions, so retry instead of degrading.
+            logger.warning("IBM Cloud unreachable while resolving access groups: %s.", request_exception)
+            raise ServiceUnavailable() from request_exception
         except ApiException as api_exception:
+            if _is_transient_api_exception(api_exception):
+                # A 5xx or 429 would otherwise drop the user's groups silently; retry.
+                logger.warning("IBM Cloud returned %s while resolving access groups.", api_exception.status_code)
+                raise ServiceUnavailable() from api_exception
             logger.warning("IBM Quantum Platform authentication error: %s.", api_exception.message)
             return []
 
@@ -203,3 +269,16 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         """This method returns the current account id of the user.
         The account id is populated in 'authenticate' method."""
         return self.account_id
+
+    def get_plan_id(self) -> Optional[str]:
+        """This method returns the resource plan id of the user's instance.
+        The plan id is populated in 'verify_access' method, so it stays None
+        when access verification was skipped (public end-points)."""
+        return self.plan_id
+
+    def get_subscription_id(self) -> Optional[str]:
+        """This method returns the subscription id of the user's instance.
+        The subscription id is populated in 'verify_access' method, so it stays
+        None when access verification was skipped (public end-points) or when
+        the instance was not provisioned through a subscription."""
+        return self.subscription_id

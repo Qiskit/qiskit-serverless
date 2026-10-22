@@ -132,7 +132,7 @@ class PathBuilder:
         extra_sub_path: Optional[str],
     ) -> str:
         """
-        This method returns the aboslute path for the required interaction
+        This method returns the absolute path for the required interaction
         and it creates it if it doesn't exist.
 
         Args:

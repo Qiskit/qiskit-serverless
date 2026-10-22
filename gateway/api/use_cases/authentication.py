@@ -6,10 +6,12 @@ from typing import List, Optional
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.db import transaction
 from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
 from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.domain.authentication.authentication_result import AuthenticationResult
 from api.domain.authentication.channel import Channel
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
@@ -42,7 +44,7 @@ class AuthenticationUseCase:
 
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
-    def execute(self) -> tuple[Optional[type[AbstractUser]], Optional[str]]:
+    def execute(self) -> AuthenticationResult:
         """
         This contains the logic to authenticate and validate the user
         that is doing the request.
@@ -72,7 +74,7 @@ class AuthenticationUseCase:
 
         if self.channel == Channel.LOCAL:
             permission_names = [VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION]
-            groups = self._restart_user_groups(
+            self._sync_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
@@ -82,38 +84,53 @@ class AuthenticationUseCase:
                 registry=settings.SETTINGS_AUTH_MOCKPROVIDER_REGISTRY,
             )
             if created:
-                for admin_group in groups:
-                    provider.admin_groups.add(admin_group)
+                provider.admin_groups.add(*quantum_user.groups.all())
         else:
             permission_names = [VIEW_PROGRAM_PERMISSION]
-            self._restart_user_groups(
+            self._sync_user_groups(
                 user=quantum_user,
                 authentication_groups=access_groups,
                 permission_names=permission_names,
             )
 
-        return quantum_user, account_id
+        return AuthenticationResult(
+            user=quantum_user,
+            account_id=account_id,
+            plan_id=authentication_service.get_plan_id(),
+            subscription_id=authentication_service.get_subscription_id(),
+        )
 
     # Deprecate this when login through instances migration was completed
-    def _restart_user_groups(
+    def _sync_user_groups(
         self,
-        user: type[AbstractUser],
+        user: AbstractUser,
         authentication_groups: List[AuthenticationGroup],
         permission_names: List[str],
-    ) -> List[Group]:
-        new_groups = []
+    ) -> None:
+        """Make the user's groups match the authentication groups, and write only what changed."""
+        accounts = {group.group_name: group.account for group in authentication_groups}
+        current = {group.name: group for group in user.groups.select_related("metadata")}
+        if current.keys() == accounts.keys() and all(
+            _has_account(current[name], account) for name, account in accounts.items()
+        ):
+            return
 
-        permissions = Permission.objects.filter(codename__in=permission_names)
+        with transaction.atomic():
+            user.groups.remove(*[group for name, group in current.items() if name not in accounts])
+            permissions = Permission.objects.filter(codename__in=permission_names)
+            for name, account in sorted(accounts.items()):
+                group = current.get(name)
+                if group is None:
+                    group, created = Group.objects.get_or_create(name=name)
+                    if created:
+                        group.permissions.add(*permissions)
+                    user.groups.add(group)
+                if not _has_account(group, account):
+                    GroupMetadata.objects.update_or_create(group=group, defaults={"account": account})
 
-        user.groups.clear()
 
-        for authentication_group in authentication_groups:
-            group, created = Group.objects.get_or_create(name=authentication_group.group_name)
-            if created:
-                group.permissions.add(*permissions)
-            if authentication_group.account is not None:
-                GroupMetadata.objects.update_or_create(group=group, defaults={"account": authentication_group.account})
-            group.user_set.add(user)
-            new_groups.append(group)
-
-        return new_groups
+def _has_account(group: Group, account: Optional[str]) -> bool:
+    if account is None:
+        return True
+    metadata = getattr(group, "metadata", None)
+    return metadata is not None and metadata.account == account

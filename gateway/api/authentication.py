@@ -4,7 +4,11 @@ import logging
 from rest_framework import authentication, exceptions
 
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
+from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.authentication.channel import Channel
@@ -35,7 +39,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
 
     def authenticate(self, request):
-        crn = request.META.get("HTTP_SERVICE_CRN", None)
+        crn = (request.META.get("HTTP_SERVICE_CRN") or "").strip() or None
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
 
         if channel_header is None:
@@ -43,6 +47,10 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         try:
             channel = Channel(channel_header)
+            if channel == Channel.LOCAL:
+                # The local channel authenticates with the static mock token and has no instance. It belongs to
+                # MockTokenBackend: here it would let anyone who knows that token in without a real login.
+                raise ValueError(channel_header)
         except ValueError as error:
             raise exceptions.AuthenticationFailed(
                 "The value of the channel is not correct. Verify that you are using one of these: "
@@ -63,30 +71,46 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
-        quantum_user, quantum_account_id = AuthenticationUseCase(
+        # Every request to the IBM channels names its instance: the access check and the job it creates rely on it.
+        # Without this, a missing header would reach the Resource Controller as an empty id and end in a 500.
+        if crn is None and not public_access and channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
+            logger.warning("The Service-CRN header was not provided.")
+            raise exceptions.AuthenticationFailed("The Service-CRN header is required: send the CRN of your instance.")
+
+        authentication_result = AuthenticationUseCase(
             channel=channel,
             authorization_token=authorization_token,
             crn=crn,
             public_access=public_access,
         ).execute()
+        quantum_user = authentication_result.user
 
         try:
             accessible_functions = FunctionAccessClient().get_accessible_functions(crn, authorization_token)
+        except RuntimeFunctionsUnavailable as error:
+            # The Runtime API was unreachable or returned a server error, so access
+            # could not be resolved. This is transient, not a denial: surface a 503
+            # that asks the user to retry rather than a 401 that blames their access.
+            logger.exception("Could not resolve accessible functions: %s", error.message)
+            raise ServiceUnavailable() from error
         except RuntimeFunctionsException as error:
-            # The Runtime API failed while resolving the user's accessible functions.
-            # Details (status codes, CRN) are already logged by FunctionAccessClient;
-            # surface a generic, CRN-free message instead of an opaque 500.
+            # The Runtime API answered, but access could not be resolved (unexpected
+            # status, or no entitlements for this CRN). Details (status codes, CRN) are
+            # already logged by FunctionAccessClient; surface a generic, CRN-free message.
             logger.exception("Could not resolve accessible functions: %s", error.message)
             raise exceptions.AuthenticationFailed(
-                "We couldn't verify your access to Qiskit Functions at this time. "
-                "Please try again later, or contact IBM support if the problem persists."
+                "We couldn't verify your access to Qiskit Functions. Check that your instance can use "
+                "Qiskit Functions and that your API key has access to it, then try again. If the problem "
+                "persists, contact IBM support."
             ) from error
         return quantum_user, CustomAuthentication(
             channel=channel,
             token=authorization_token.encode(),
             accessible_functions=accessible_functions,
             instance=crn,
-            account_id=quantum_account_id,
+            account_id=authentication_result.account_id,
+            plan_id=authentication_result.plan_id,
+            subscription_id=authentication_result.subscription_id,
         )
 
     def authenticate_header(self, request):
@@ -121,12 +145,13 @@ class MockTokenBackend(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
-        quantum_user, _ = AuthenticationUseCase(
+        authentication_result = AuthenticationUseCase(
             channel=channel,
             authorization_token=authorization_token,
             crn=None,
             public_access=public_access,
         ).execute()
+        quantum_user = authentication_result.user
 
         return quantum_user, CustomAuthentication(
             channel=channel,

@@ -7,14 +7,21 @@ from django.conf import settings
 from django.db import connection
 
 from core.models import Config
+from core.services.background_executor import get_background_executor
+from core.services.job_transitions import JobTransitionService
+from scheduler.schedule import CodeEngineBreakers, FleetsJobCanceller, FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.consume_blocked_account_events import ConsumeBlockedAccountEvents
+from scheduler.tasks.export_fleets_breakers import ExportFleetsBreakers
 from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
+from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
@@ -37,16 +44,29 @@ class Main:
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
 
+        # One service for every task that changes a job status, so the Kafka producers are created once
+        transitions = JobTransitionService()
+        # one breaker per Code Engine region, shared by every task that calls it
+        breakers = CodeEngineBreakers()
+        submitter = FleetsJobSubmitter(transitions, breakers)
+        canceller = FleetsJobCanceller(transitions, breakers)
+
         self.tasks = [
             UpdateJobStatusCounts(self.kill_signal, self.metrics),
-            # submit jobs, status change from QUEUED to PENDING
+            ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
+            # submit jobs, status change from QUEUED to PENDING/FAILED
             ScheduleRayJobs(self.kill_signal, self.metrics),
-            ScheduleFleetsJobs(self.kill_signal, self.metrics),
+            ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
-            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics),
+            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions, canceller),
+            StopBlockedFleetsJobs(self.kill_signal, canceller),
+            # after the status updates, so it sees this tick's freshest terminal jobs
+            OutboxTask(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
-            BalanceFillerJobs(self.kill_signal, self.metrics),
+            BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter, canceller),
             FreeResources(self.kill_signal, self.metrics),  # Ray only
+            # last, so it sees the breakers every Fleets task touched in this tick
+            ExportFleetsBreakers(self.metrics, breakers),
         ]
 
     def start_http_server(self):
@@ -59,12 +79,22 @@ class Main:
         """Stop internal HTTP server"""
         self.http_server.stop()
 
+    def close_tasks(self):
+        """Close every task, each on its own, so one that fails to close does not keep the others open."""
+        for task in self.tasks:
+            try:
+                task.close()
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.exception("Error closing %s: %s", task.name, ex)
+
     def run(self):
         """Run the scheduler loop until kill signal is received."""
         logger.info("Scheduler loop started")
+        # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
+        get_background_executor().init()
         try:
             while not self.kill_signal.received:
-                start_time = time.time()
+                start_time = time.monotonic()
                 # The scheduler is single-threaded and reuses the same DB connection indefinitely.
                 # Closing it unconditionally at the start of each iteration ensures the next DB
                 # access always creates a fresh connection, avoiding stale/dropped connections.
@@ -73,7 +103,7 @@ class Main:
                 for task in self.tasks:
                     if self.kill_signal.received:
                         break
-                    task_start = time.time()
+                    task_start = time.monotonic()
                     try:
                         task.run()
                         self.health.clear_db_error()
@@ -92,9 +122,9 @@ class Main:
                         self.metrics.increase_task_error(task.name, ex)
                         logger.exception("Error in %s: %s", task.name, ex)
                     finally:
-                        self.metrics.observe_task_duration(task.name, time.time() - task_start)
+                        self.metrics.observe_task_duration(task.name, time.monotonic() - task_start)
 
-                elapsed = time.time() - start_time
+                elapsed = time.monotonic() - start_time
 
                 # Store the elapsed time and the last time check
                 self.metrics.observe_scheduler_iteration(elapsed)
@@ -103,6 +133,13 @@ class Main:
                 if not self.kill_signal.received and elapsed < 1:
                     time.sleep(1 - elapsed)
         finally:
-            self.stop_http_server()
+            try:
+                # first, so running background tasks finish while the clients they use are still open
+                get_background_executor().shutdown()
+            finally:
+                try:
+                    self.close_tasks()
+                finally:
+                    self.stop_http_server()
 
         logger.info("Scheduler loop finished")

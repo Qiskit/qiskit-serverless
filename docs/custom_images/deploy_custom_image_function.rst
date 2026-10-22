@@ -55,13 +55,13 @@ image and adding your implementation:
 .. code-block::
    :caption: Dockerfile for custom function image
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0
 
    USER 0
    WORKDIR /runner
    COPY ./runner.py /runner
    WORKDIR /
-   USER 1000
+   USER 1000:1000
 
 For more complete examples, visit the :ref:`image_examples` section.
 
@@ -116,7 +116,7 @@ follow the provider upload workflow.
 4. Run the function
 -------------------
 
-With the environment running, you just need to intantiate a service client (see :ref:`client_configuration`),
+With the environment running, you just need to instantiate a service client (see :ref:`client_configuration`),
 define a ``QiskitFunction`` that will use the custom image, upload it, and invoke it:
 
 .. code-block::

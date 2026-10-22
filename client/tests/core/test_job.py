@@ -433,6 +433,7 @@ class TestJobInTerminalState:
             "RUNNING",
             "INITIALIZING",
             "QUEUED",
+            "CANCELING",
         ],
     )
     def test_not_in_terminal_state(self, status):
@@ -572,6 +573,7 @@ class TestStatusMapping:
         [
             (Job.PENDING, "INITIALIZING"),
             (Job.RUNNING, "RUNNING"),
+            (Job.STOPPING, "CANCELING"),
             (Job.STOPPED, "CANCELED"),
             (Job.SUCCEEDED, "DONE"),
             (Job.FAILED, "ERROR"),
@@ -593,6 +595,7 @@ class TestStatusMapping:
         [
             ("INITIALIZING", Job.PENDING, None),
             ("RUNNING", Job.RUNNING, None),
+            ("CANCELING", Job.STOPPING, None),
             ("CANCELED", Job.STOPPED, None),
             ("DONE", Job.SUCCEEDED, None),
             ("ERROR", Job.FAILED, None),

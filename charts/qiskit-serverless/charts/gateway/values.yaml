@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -36,9 +36,20 @@ application:
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
-    kubectlImage: alpine/k8s:1.35.4
+    kubectlImage: alpine/k8s:1.37.1
     scrapeWithPrometheus: true
     useTLS: true
+
+  # Shared thread pool for fire-and-forget work (HTTP calls). One pool per process: the gateway runs
+  # several processes, so its totals are multiplied; the scheduler is a single process. Tasks over
+  # maxPending are dropped.
+  backgroundExecutor:
+    gateway:
+      maxWorkers: 4
+      maxPending: 100
+    scheduler:
+      maxWorkers: 12
+      maxPending: 100
 
   limits:
     maxJobsPerUser: 2
@@ -73,6 +84,7 @@ application:
   runtimeApi:
     url: "https://quantum.cloud.ibm.com"
     cacheTtl: "1"
+    timeout: "10"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
@@ -85,12 +97,21 @@ application:
   eventStreams:
     enabled: false
     environment: ""
+    # Default region served by unsuffixed broker/API key secrets. Additional regions
+    # are configured via suffixed secrets (kafka-credentials-eu-de, etc).
+    # See: Multi-region Event Streams routing design (2026-08-06)
+    defaultRegion: "us-east"
   # Optional IBM w3id SSO backoffice login. The provider base url is not
   # sensitive and lives here; credentials go in secrets.w3idSso (see below).
   w3idSso:
     enabled: false
     baseUrl: "https://test.login.w3.ibm.com"
   ibmCloudFidApiKey:
+    enabled: false
+  # Reads secrets.functionsOperatorApiKey, which is declared in the parent
+  # chart's values.yaml (gateway.secrets) and must exist before this is turned
+  # on: see createExternalSecret there.
+  functionsOperatorApiKey:
     enabled: false
 
 tracing:
@@ -108,7 +129,7 @@ ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
   defaultComputeProfile: "16x128"
-  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0"
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.37.0"
   fleetsDefaultMaxInstances: 1
   fleetsRuntimeIamUrl: ""
   fleetsRuntimeGlobalSearchUrl: ""

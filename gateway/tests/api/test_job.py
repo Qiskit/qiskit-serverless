@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -17,8 +19,9 @@ from core.services.storage.result_storage_ray import RayResultStorage
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
+from core.models import ComputeProfile, Job, JobEvent, PLATFORM_PERMISSION_JOBS_READ, Program, Provider, RuntimeJob
 from tests.utils import TestUtils
 
 
@@ -608,6 +611,28 @@ class TestJobApi:
         job = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
         assert job.status != Job.STOPPED
 
+    def test_stop_fleets_job_returns_503_when_the_cancel_cannot_be_delivered(self):
+        """The row stays RUNNING so the user can retry. A STOPPING row would claim a cancel we never
+        sent, and this is the only test that exercises the EngineUnavailableException mapping."""
+        self._authorize("test_user")
+        job = Job.objects.get(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348")
+        Job.objects.filter(pk=job.pk).update(runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc")
+
+        runner = MagicMock()
+        runner.stop.side_effect = RunnerRetryableError("Code Engine rate limited the cancel")
+        with (
+            patch("api.use_cases.jobs.stop.get_runner", return_value=runner),
+            patch("core.utils.time.sleep"),
+        ):
+            response = self.client.post(
+                reverse("v1:jobs-stop", args=[str(job.pk)]),
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "please retry" in response.data["message"]
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+
     def test_job_list_internal_server_error(self):
         """Tests that unexpected exceptions return 500 with proper message."""
         self._authorize("test_user")
@@ -905,7 +930,7 @@ class TestJobApi:
         assert job_event_response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_job_account_id(self):
-        """Tests check that the account id is inserted to the job object."""
+        """Tests check that the instance attributes are inserted to the job object."""
 
         from api.domain.authentication.channel import Channel
 
@@ -916,6 +941,8 @@ class TestJobApi:
         token.token = b"test-token"
         token.instance = "awesome-instance"
         token.account_id = "1111-2222-3333-4444"
+        token.plan_id = "5555-6666-7777-8888"
+        token.subscription_id = "9999-aaaa-bbbb-cccc"
         user = self._authorize(username="test_user", token=token)
 
         # submitting a request to a job with the program
@@ -928,11 +955,13 @@ class TestJobApi:
 
         assert programs_response.status_code == status.HTTP_200_OK
 
-        # checking the 'account_id' and 'instance_crn' fields in the Job model are filled correctly.
+        # checking the instance fields in the Job model are filled correctly.
         job_id = programs_response.data.get("id")
         job = Job.objects.get(id=job_id)
         assert job.account_id == token.account_id
         assert job.instance_crn == token.instance
+        assert job.plan_id == token.plan_id
+        assert job.subscription_id == token.subscription_id
 
 
 @pytest.mark.django_db
@@ -987,6 +1016,20 @@ class TestRetrieveJob:
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get("result") is None
         assert response.data.get("business_model") == BusinessModel.LICENSED
+
+    def test_author_retrieves_the_job_in_one_query(self, authorize):
+        program = TestUtils.create_program("one-query-function", author="test_user", provider="one-query-provider")
+        profile = ComputeProfile.objects.create(compute_profile_id="one-query-profile", cpu="8", memory="32")
+        job = TestUtils.create_job(author="test_user", program=program, compute_profile_fk=profile)
+        client = authorize("test_user")
+
+        with CaptureQueriesContext(connection) as captured:
+            response = client.get(reverse("v1:retrieve", args=[job.id]) + "?with_result=false", format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["program"]["provider"] == "one-query-provider"
+        assert response.data["compute_profile_fk"]["compute_profile_id"] == "one-query-profile"
+        assert len(captured) == 1
 
     def test_old_subsidized_job_is_retrieved_as_licensed(self, authorize):
         """A job stored with the old SUBSIDIZED name is reported to the client as LICENSED."""

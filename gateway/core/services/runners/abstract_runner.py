@@ -30,6 +30,10 @@ class RunnerError(Exception):
         return self.message
 
 
+class RunnerRetryableError(RunnerError):
+    """A later try can work, for example after a 429, so the caller should not fail the row."""
+
+
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
@@ -91,6 +95,7 @@ class AbstractRunner(ABC):
 
         Raises:
             RunnerError: If submission fails (resources are cleaned up before raising)
+            RunnerRetryableError: If a later try can work, so the caller can try again later
         """
         raise NotImplementedError
 
@@ -129,7 +134,8 @@ class AbstractRunner(ABC):
         Automatically connects if not connected.
 
         Returns:
-            True if job was running and stopped
+            True if a stop was sent and a final status is still to come, False when there was
+            nothing left to stop.
 
         Raises:
             RunnerError: If unable to stop the job

@@ -43,6 +43,13 @@ def restore_settings_module():
     os.environ.pop("SETTINGS_AUTH_MECHANISM", None)
     os.environ.pop("DEFAULT_COMPUTE_PROFILE", None)
     os.environ.pop("DEFAULT_FUNCTION_SIZE_PROFILE", None)
+    os.environ.pop("DEFAULT_FUNCTION_SIZE", None)
+    os.environ.pop("EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE", None)
+    os.environ.pop("EVENT_STREAMS_API_KEY_EU_DE", None)
+    os.environ.pop("EVENT_STREAMS_ENABLED", None)
+    os.environ.pop("EVENT_STREAMS_BOOTSTRAP_SERVERS", None)
+    os.environ.pop("EVENT_STREAMS_API_KEY", None)
+    os.environ.pop("ENVIRONMENT", None)
     try:
         importlib.reload(main.settings)
     finally:
@@ -162,3 +169,104 @@ class TestComputeProfileSettings:
 
         with pytest.raises(ImproperlyConfigured):
             importlib.reload(main.settings)
+
+
+class TestFunctionSizeSetting:
+    """Tests for DEFAULT_FUNCTION_SIZE, validated against FunctionSize.VALID_SIZES at import."""
+
+    def test_lowercase_value_normalizes_to_uppercase(self, monkeypatch):
+        """A case-insensitive value loads fine and is stored in its canonical uppercase form."""
+        monkeypatch.setenv("DEFAULT_FUNCTION_SIZE", "l")
+
+        importlib.reload(main.settings)
+
+        assert main.settings.DEFAULT_FUNCTION_SIZE == "L"
+
+    def test_a_value_outside_the_catalog_fails_closed(self, monkeypatch):
+        """A size outside {S, M, L, XL} stops the process at import, not on the first upload."""
+        monkeypatch.setenv("DEFAULT_FUNCTION_SIZE", "tiny")
+
+        with pytest.raises(ImproperlyConfigured):
+            importlib.reload(main.settings)
+
+
+class TestEventStreamsRegions:
+    """Tests for EVENT_STREAMS_REGIONS, discovered by _event_streams_regions() from
+    EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> / EVENT_STREAMS_API_KEY_<REGION> pairs."""
+
+    def test_no_suffixed_vars_yields_empty_regions(self):
+        importlib.reload(main.settings)
+
+        assert main.settings.EVENT_STREAMS_REGIONS == {}
+
+    def test_matched_pair_is_discovered(self, monkeypatch):
+        monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE", "broker-eu:9093")
+        monkeypatch.setenv("EVENT_STREAMS_API_KEY_EU_DE", "eu-key")
+
+        importlib.reload(main.settings)
+
+        assert main.settings.EVENT_STREAMS_REGIONS == {
+            "eu-de": {"bootstrap_servers": "broker-eu:9093", "api_key": "eu-key", "user": "token"}
+        }
+
+    def test_custom_user_is_discovered(self, monkeypatch):
+        monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE", "broker-eu:9093")
+        monkeypatch.setenv("EVENT_STREAMS_API_KEY_EU_DE", "eu-key")
+        monkeypatch.setenv("EVENT_STREAMS_USER_EU_DE", "custom-user")
+
+        importlib.reload(main.settings)
+
+        assert main.settings.EVENT_STREAMS_REGIONS["eu-de"]["user"] == "custom-user"
+
+    def test_bootstrap_servers_without_matching_api_key_fails_closed(self, monkeypatch):
+        """A typo'd or missing regional API key stops the process at import rather than on
+        the first attempt to send an event to that region."""
+        monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE", "broker-eu:9093")
+
+        with pytest.raises(ImproperlyConfigured, match="missing EVENT_STREAMS_API_KEY_EU_DE"):
+            importlib.reload(main.settings)
+
+
+class TestEventStreamsMainCredentials:
+    """Tests for the EVENT_STREAMS_ENABLED-gated requirement on the main region's credentials
+    and ENVIRONMENT, caught at import time rather than on the first KafkaProducers construction."""
+
+    def test_missing_credentials_when_enabled_fails_closed(self, monkeypatch):
+        monkeypatch.setenv("EVENT_STREAMS_ENABLED", "true")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.delenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", raising=False)
+        monkeypatch.delenv("EVENT_STREAMS_API_KEY", raising=False)
+
+        with pytest.raises(ImproperlyConfigured, match="EVENT_STREAMS_BOOTSTRAP_SERVERS"):
+            importlib.reload(main.settings)
+
+    def test_missing_environment_when_enabled_fails_closed(self, monkeypatch):
+        monkeypatch.setenv("EVENT_STREAMS_ENABLED", "true")
+        monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", "broker:9093")
+        monkeypatch.setenv("EVENT_STREAMS_API_KEY", "key")
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+        with pytest.raises(ImproperlyConfigured, match="ENVIRONMENT"):
+            importlib.reload(main.settings)
+
+    def test_missing_credentials_when_disabled_is_fine(self, monkeypatch):
+        """The vast majority of deployments never enable Event Streams and never set these, so
+        their absence must not fail the boot."""
+        monkeypatch.setenv("EVENT_STREAMS_ENABLED", "false")
+        monkeypatch.delenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", raising=False)
+        monkeypatch.delenv("EVENT_STREAMS_API_KEY", raising=False)
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+        importlib.reload(main.settings)
+
+        assert main.settings.EVENT_STREAMS_BOOTSTRAP_SERVERS is None
+
+    def test_credentials_present_when_enabled_is_fine(self, monkeypatch):
+        monkeypatch.setenv("EVENT_STREAMS_ENABLED", "true")
+        monkeypatch.setenv("EVENT_STREAMS_BOOTSTRAP_SERVERS", "broker:9093")
+        monkeypatch.setenv("EVENT_STREAMS_API_KEY", "key")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        importlib.reload(main.settings)
+
+        assert main.settings.EVENT_STREAMS_BOOTSTRAP_SERVERS == "broker:9093"

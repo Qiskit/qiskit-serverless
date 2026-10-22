@@ -5,100 +5,87 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from django.conf import settings
-from django.utils import timezone as django_timezone
 
-from core.ibm_cloud.event_streams.abstract_event_streams_client import EventStreamsClient
-from core.ibm_cloud.event_streams.kafka_event_streams_client import KafkaEventStreamsClient
-from core.ibm_cloud.event_streams.noop_event_streams_client import NoOpEventStreamsClient
 from core.models import Job, JobEvent, Program
-from core.services.runners import get_runner, RunnerError, FleetsRunner
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
+from core.services.job_transitions import JobTransitionService
+from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.kill_signal import KillSignal
+from scheduler.schedule import FleetsJobCanceller, first_cancel_refusal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 
+# Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
+# 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
+_STOPPING_DEADLINE_SECONDS = 600
+
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
     """Update status of Fleets (Code Engine) jobs."""
 
-    def __init__(self, kill_signal: KillSignal, metrics: SchedulerMetrics):
+    def __init__(
+        self,
+        kill_signal: KillSignal,
+        metrics: SchedulerMetrics,
+        transitions: JobTransitionService | None = None,
+        canceller: FleetsJobCanceller | None = None,
+    ):
         self.kill_signal = kill_signal
         self.metrics = metrics
-        self._event_streams_client: EventStreamsClient | None = None
-
-    @property
-    def event_streams_client(self) -> EventStreamsClient:
-        """Return the Event Streams client, instantiating it lazily on first access."""
-        if self._event_streams_client is None:
-            if settings.EVENT_STREAMS_ENABLED:
-                logger.info("Initializing KafkaEventStreamsClient (EVENT_STREAMS_ENABLED=True)")
-                self._event_streams_client = KafkaEventStreamsClient()
-            else:
-                logger.info("Initializing NoOpEventStreamsClient (EVENT_STREAMS_ENABLED=False)")
-                self._event_streams_client = NoOpEventStreamsClient()
-        return self._event_streams_client
+        self.transitions = transitions or JobTransitionService()
+        self.canceller = canceller or FleetsJobCanceller(self.transitions)
 
     def update_job_status(self, job: Job) -> bool:
         """Update status of one Fleets job. Returns True if status changed."""
         if not job.fleet_id:
+            if job.status == Job.STOPPING:
+                # fleet_id is admin-editable, and the check below never looks again
+                self.to_terminal(job, Job.STOPPED)
+                return True
             logger.warning("job_id=%s Fleets job doesn't have fleet_id.", job.id)
             return False
 
         runner: FleetsRunner = cast(FleetsRunner, get_runner(job))
 
         try:
-            new_status = runner.status()
-        except RunnerError as ex:
-            # status() raises on configuration and data problems, not on a job that
-            # failed: a deleted program, a missing or inactive Code Engine project, an
-            # unconfigured task store bucket. A COS read that fails returns None
-            # instead. So the status is unknown and the fleet may well still be
-            # running; leave it alone and let the timeout bound the wait.
+            # The whole read of one job, which can be two COS listings (current and legacy layout)
+            with observe_operation(FLEET_STATUS_READ):
+                new_status = runner.status()
+        except (RunnerError, ValueError) as ex:
+            # status() raises on configuration and data problems, never on a job that failed: a
+            # deleted program, an inactive project, an unconfigured bucket, a bad COS secret.
             logger.error(
-                "job_id=%s user_id=%s error=%s Error getting status, leaving it unchanged",
+                "job_id=%s user_id=%s error=%s Could not read the status, treating it as unknown",
                 job.id,
                 job.author.id,
                 str(ex),
             )
-            self.stop_job_if_timeout(job)
-            return False
+            new_status = None
+
+        if job.status == Job.STOPPING:
+            return self.confirm_stop(job, new_status)
 
         if new_status is None:
-            logger.debug("job_id=%s status poll returned None (no COS state yet), skipping update", job.id)
+            logger.debug("job_id=%s status unknown, bounding the wait", job.id)
             # Without this the job is immortal: no other scheduler task touches a
             # PENDING or RUNNING Fleets job, so a status that never resolves would
             # hold the user's concurrency slot forever.
-            self.stop_job_if_timeout(job)
-            return False
+            return self.stop_job_if_timeout(job)
 
-        if new_status == Job.SUCCEEDED:
-            self.to_terminal(job, Job.SUCCEEDED)
-            self._record_execution_duration(job)
-
-        elif new_status == Job.STOPPED:
-            self.to_terminal(job, Job.STOPPED)
-
-        elif new_status == Job.FAILED:
-            self.to_terminal(job, Job.FAILED)
+        if new_status in Job.TERMINAL_STATUSES:
+            self.to_terminal(job, new_status)
 
         elif new_status == Job.PENDING:
             # don't change the status... job still trying to start
             self.stop_job_if_timeout(job)
 
         elif new_status == Job.RUNNING:
-            if job.status == Job.PENDING:
-                # Transition from PENDING to RUNNING
-                self.to_running(job)
-            else:
-                # Job already RUNNING — emit in-progress before checking timeout.
-                # A job transitioning to terminal via stop_job_if_timeout in this same tick
-                # will produce both an in-progress and a completed event; consumers key on
-                # the job_started / job_completed flags.
-                self.event_streams_client.emit_job_in_progress(job)
-
+            self.to_running(job)
             self.stop_job_if_timeout(job)
 
         else:
@@ -113,8 +100,42 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         return True
 
+    def confirm_stop(self, job: Job, new_status: str | None) -> bool:
+        """End a STOPPING job with whatever terminal state the task store reports, or STOPPED on the deadline.
+
+        No cancel is sent from here: whoever asked for the stop already sent it.
+        """
+        if new_status in Job.TERMINAL_STATUSES:
+            logger.info("job_id=%s leaving STOPPING, task store reported %s", job.id, new_status)
+            final_status = new_status
+        elif self._stopping_deadline_passed(job):
+            logger.warning(
+                "job_id=%s user_id=%s stop not confirmed after %ss, writing STOPPED anyway.",
+                job.id,
+                job.author.id,
+                _STOPPING_DEADLINE_SECONDS,
+            )
+            final_status = Job.STOPPED
+        else:
+            return False
+
+        self.to_terminal(job, final_status)
+        return True
+
+    @staticmethod
+    def _stopping_deadline_passed(job: Job) -> bool:
+        """Whether the cancel has gone unconfirmed for _STOPPING_DEADLINE_SECONDS.
+
+        Measured from the earliest STOPPING event, not the latest event of any kind: a job still
+        reporting sub_status would otherwise push its own deadline out for ever.
+        """
+        stopping_event = JobEvent.objects.filter(job=job, data__status=Job.STOPPING).order_by("created").first()
+        reference_time = stopping_event.created if stopping_event else job.updated
+        return datetime.now(timezone.utc) - reference_time >= timedelta(seconds=_STOPPING_DEADLINE_SECONDS)
+
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition."""
+        """Persist a terminal status transition, then count it and record a succeeded job's duration."""
+        stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -122,80 +143,89 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        self.event_streams_client.emit_job_completed(job)
-        logger.info("job_id=%s job_completed event emitted successfully", job.id)
-        job.update_fields({"status": new_status, "sub_status": None, "env_vars": "{}"})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
-        self._increment_terminal_counter(job)
+        try:
+            self.transitions.to_terminal(
+                job,
+                new_status,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                job_fields={"sub_status": None, "env_vars": "{}"},
+            )
+        except InvalidJobTransitionException as ex:
+            logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
+            return
+        self._increment_terminal_counter(job, stop_landed=stop_landed)
+        if new_status == Job.SUCCEEDED:
+            self._record_execution_duration(job)
 
     def to_running(self, job: Job) -> None:
-        """Transition job from PENDING to RUNNING."""
-        logger.info(
-            "job_id=%s user_id=%s Changing status from %s to %s",
-            job.id,
-            job.author.id,
-            job.status,
-            Job.RUNNING,
-        )
-        # running_started_at is persisted before the events because the events carry it as
-        # job_started_at, and because it must survive a failed emit: publishing raises, the
-        # status stays PENDING and the job is retried next tick, but the moment the fleet was
-        # first seen RUNNING is already recorded. Stamping it after a successful emit instead
-        # would push it later by however many ticks failed. It is written only once — a retry
-        # reuses the stored value rather than moving the start time forward.
-        if job.running_started_at is None:
-            job.update_fields({"running_started_at": django_timezone.now()})
+        """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
+        job_started = job.status == Job.PENDING
+        if job_started:
+            logger.info(
+                "job_id=%s user_id=%s Changing status from %s to %s",
+                job.id,
+                job.author.id,
+                job.status,
+                Job.RUNNING,
+            )
+            try:
+                self.transitions.pending_to_running(
+                    job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+                )
+            except InvalidJobTransitionException as ex:
+                # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
+                logger.info("job_id=%s transition rejected from %s, skipping RUNNING: %s", job.id, job.status, str(ex))
+        else:
+            self.transitions.running_to_running(job)
 
-        self.event_streams_client.emit_job_started(job)
-        # prevent custom function to emit license fee
-        # since licenses is a provider feature
-        if job.program.provider:
-            self.event_streams_client.emit_license_fee(job)
-        job.update_fields({"status": Job.RUNNING})
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
-
-    def stop_job_if_timeout(self, job: Job) -> None:
-        """Stop job if it has exceeded the maximum allowed duration."""
+    def stop_job_if_timeout(self, job: Job) -> bool:
+        """Stop a job that has outlived PROGRAM_TIMEOUT. Returns True if it ended the job."""
         if job.filler:
-            return
+            return False
 
         timeout = settings.PROGRAM_TIMEOUT
         latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
         reference_time = latest_event.created if latest_event else job.created
         endtime = reference_time + timedelta(hours=timeout)
-        if datetime.now(tz=endtime.tzinfo) < endtime:
-            return
+        # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
+        # breaker from logging one line per timed-out job per tick.
+        if datetime.now(tz=endtime.tzinfo) < endtime or self.canceller.paused(job.ce_region):
+            return False
 
-        logger.warning("job_id=%s user_id=%s timeout=%s hours: job stopped.", job.id, job.author.id, timeout)
+        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author.id, timeout)
         try:
-            get_runner(job).stop()
+            cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
+        except RunnerRetryableError as ex:
+            # Nothing is written: STOPPED here would claim a stop that never happened.
+            logger.warning("job_id=%s fleet_id=%s cancel not delivered on timeout: %s", job.id, job.fleet_id, str(ex))
+            return False
         except RunnerError as ex:
-            # Logged, not returned: the row must still reach STOPPED so the timeout keeps
-            # bounding the user's concurrency slot even when Code Engine is unreachable.
-            logger.error("job_id=%s error cancelling Fleets job on timeout: %s", job.id, str(ex))
-        self.to_terminal(job, Job.STOPPED)
+            log = logger.error if first_cancel_refusal(job) else logger.debug
+            log(
+                "job_id=%s fleet_id=%s cancel could not be sent, the job stays active: %s",
+                job.id,
+                job.fleet_id,
+                str(ex),
+            )
+            return False
+        except InvalidJobTransitionException as ex:
+            logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
+            return False
 
-    def _increment_terminal_counter(self, job: Job) -> None:
-        """Increment terminal jobs counter."""
+        if not cancelled:
+            # stop() wrote STOPPED itself, so only the counter is left
+            self._increment_terminal_counter(job)
+        return True
+
+    def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
+        """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
         if job.filler:
-            # A filler job runs continuously, so counting it here would make a
-            # constant floor look like user demand. It gets its own counter, which
-            # is worth having because reaching a terminal state on this path means
-            # nothing asked the job to stop: FAILED or SUCCEEDED is a filler
-            # function that exited by itself, and STOPPED is the PROGRAM_TIMEOUT
-            # path. The scheduler task that will stop filler jobs deliberately
-            # writes their terminal status itself and never reaches this method.
-            self.metrics.increment_filler_jobs_ended(job.status)
+            # A filler never counts as user demand, so it has its own two counters.
+            if stop_landed:
+                self.metrics.increment_filler_jobs_stopped()
+            else:
+                self.metrics.increment_filler_jobs_ended(job.status)
             return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
@@ -219,14 +249,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
 
         counter = 0
+        checked = 0
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
+        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).select_related(
+            "author", "program__code_engine_project", "program__provider"
+        )
         for job in jobs:
             if self.kill_signal.received:
                 logger.info("Kill signal received, stopping status update cycle")
                 return
+            checked += 1
             try:
                 if self.update_job_status(job):
                     counter += 1
@@ -235,5 +269,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
                 )
 
+        # Every job whose status was read, not only the ones that changed: a job still RUNNING counts, and so does
+        # one whose status could not be read, which is the slow one when COS is degraded.
+        self.metrics.increment_task_items(self.name, checked)
         if counter:
             logger.info("Updated %s Fleets jobs.", counter)

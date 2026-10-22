@@ -6,6 +6,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import override_settings
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
@@ -13,7 +14,20 @@ from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import CodeEngineProject, ComputeProfile, FunctionSize, Job, JobConfig, JobEvent, Program
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
+from core.config_key import ConfigKey
+from core.models import (
+    CodeEngineProject,
+    Config,
+    ComputeProfile,
+    FunctionSize,
+    Job,
+    JobConfig,
+    JobEvent,
+    Program,
+    WorkloadMirror,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -24,12 +38,13 @@ def make_input(**overrides) -> RunFunctionInput:
         provider_name=None,
         arguments="{}",
         config_data=None,
-        compute_profile=None,
         function_size=None,
         channel=Channel.IBM_QUANTUM_PLATFORM,
         token="tok",
         instance=None,
         account_id=None,
+        plan_id=None,
+        subscription_id=None,
         carrier={},
     )
     return RunFunctionInput(**{**defaults, **overrides})
@@ -136,63 +151,10 @@ class TestRunFunctionUseCase:
         assert not JobConfig.objects.exists()
 
     @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_sets_compute_profile_fk_from_default(self, user, ce_project, monkeypatch):
-        """A Fleets job resolves its FK from the same bare string it stores in compute_profile."""
+    def test_fleets_job_rejected_when_no_default_size_and_nothing_requested(self, user, ce_project):
+        """Nothing requested and no default_size: rejected with clear 400 error."""
         make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        # Arguments storage talks to COS; unrelated to the FK behavior under test.
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
-
-        job = RunFunctionUseCase().execute(user, accessible, make_input())
-
-        assert job.compute_profile == "16x128"
-        assert job.compute_profile_fk == profile
-        # Nothing requested and no default_size: sized by the deployment default,
-        # so no FunctionSize row backs it.
-        assert job.size_source == Job.SIZE_SOURCE_SETTINGS_DEFAULT
-        assert job.function_size is None
-
-    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_sets_compute_profile_fk_from_explicit_request(self, user, ce_project, monkeypatch):
-        """An explicitly requested profile (already bare) is stored and resolves its FK row.
-
-        The use case no longer normalizes: ``RunFunctionInput.compute_profile`` is expected
-        to already be in canonical bare form, as it would arrive from the view.
-        """
-        make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
-
-        job = RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="24x120x1a100p"))
-
-        assert job.compute_profile == "24x120x1a100p"
-        assert job.compute_profile_fk == profile
-        # Sized by the deprecated compute_profile input; no size row applies.
-        assert job.size_source == Job.SIZE_SOURCE_COMPUTE_PROFILE
-        assert job.function_size is None
-
-    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_does_not_normalize_prefixed_request(self, user, ce_project):
-        """A prefixed value is used as-is and fails to resolve a FK.
-
-        Documents that normalization is now the view's responsibility, not the use case's:
-        the use case trusts ``RunFunctionInput.compute_profile`` to already be bare.
-        """
-        make_fleets_function(user, ce_project)
-        ComputeProfile.objects.create(compute_profile_id="24x120x1a100p", cpu="24", memory="120")
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input(compute_profile="gx3d-24x120x1a100p"))
-
-        assert not Job.objects.exists()
-
-    @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-    def test_fleets_job_rejected_when_compute_profile_not_registered(self, user, ce_project):
-        """An unregistered profile is a misconfiguration: refuse the job, don't persist a null FK."""
-        make_fleets_function(user, ce_project)
+        ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(FunctionConfigurationException):
@@ -207,10 +169,11 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile is None
+        assert job.compute_profile_id is None
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
+        assert job.function_size_name is None
 
     def test_fleets_job_resolves_compute_profile_from_function_size(self, user, ce_project, monkeypatch):
         """A requested ``function_size`` resolves through the function's catalog to its profile."""
@@ -220,26 +183,15 @@ class TestRunFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
 
-        job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
+        job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
-        assert job.compute_profile == "16x128"
+        assert job.compute_profile_id == "16x128"
         assert job.compute_profile_fk == profile
         # A user-requested size records REQUESTED and the exact size row (so a
         # different size mapping to the same profile stays distinguishable).
         assert job.size_source == Job.SIZE_SOURCE_REQUESTED
         assert job.function_size == size
-
-    def test_run_rejects_when_both_compute_profile_and_function_size(self, user, ce_project):
-        """Sending both a size and a profile is ambiguous and rejected before any Job is built."""
-        function = make_fleets_function(user, ce_project)
-        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
-        FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
-        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
-
-        assert not Job.objects.exists()
+        assert Job.objects.get(pk=job.pk).function_size_name == size.function_size
 
     def test_run_rejects_unknown_function_size(self, user, ce_project):
         """A size the function does not declare is a 400; no Job is persisted."""
@@ -265,12 +217,29 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
-        assert job.compute_profile == "16x128"
+        assert job.compute_profile_id == "16x128"
         assert job.compute_profile_fk == default_profile
         # Platform filled in the default: distinguishable from a user picking the
         # same size, which would record REQUESTED.
         assert job.size_source == Job.SIZE_SOURCE_DEFAULT_SIZE
         assert job.function_size == size
+        assert Job.objects.get(pk=job.pk).function_size_name == size.function_size
+
+    def test_fleets_job_keeps_the_instance_crn_of_the_request(self, user, ce_project, monkeypatch):
+        """The CRN of the request is stored on the job, so a Fleets job always knows its instance."""
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
+
+        job = RunFunctionUseCase().execute(user, accessible, make_input(instance=crn))
+
+        assert job.instance_crn == crn
 
     def test_ray_job_ignores_function_size(self, user):
         """Ray ignores sizing inputs; a stray ``function_size`` leaves the profile and FK null."""
@@ -279,22 +248,144 @@ class TestRunFunctionUseCase:
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
 
-        assert job.compute_profile is None
+        assert job.compute_profile_id is None
         assert job.compute_profile_fk is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
+        assert job.function_size_name is None
 
-    def test_ray_job_rejects_when_both_compute_profile_and_function_size(self, user):
-        """Ambiguous sizing input is a 400 regardless of runner, even though Ray ignores both anyway.
+    def test_size_snapshot_survives_a_later_rename_and_delete_of_the_size_row(self, user, ce_project, monkeypatch):
+        """End to end through RunFunctionUseCase: the snapshot is written once at creation and is not tied to the size
+        row. Renaming the row (M -> L) and then deleting it (FK goes null) both leave function_size_name as "M"."""
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        size = FunctionSize.objects.create(function=function, function_size="M", compute_profile=profile)
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
-        The check runs before the Ray short-circuit deliberately: Ray should never receive
-        either of these, so a request that sends both is treated as a client mistake worth
-        surfacing rather than silently swallowed.
-        """
+        size.function_size = "L"
+        size.save()
+        assert Job.objects.get(pk=job.pk).function_size_name == "M"
+
+        size.delete()
+        stored = Job.objects.get(pk=job.pk)
+        assert stored.function_size is None
+        assert stored.function_size_name == "M"
+
+
+class TestWorkloadMirror:
+    CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
+
+    @pytest.fixture
+    def put_function(self):
+        with mock.patch("api.use_cases.programs.run.get_functions_operator_client") as get_client:
+            yield get_client.return_value.put_function
+
+    @pytest.fixture
+    def fleets_accessible(self, user, ce_project, monkeypatch):
+        function = make_fleets_function(user, ce_project)
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        return FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+    def test_a_fleets_job_is_sent_to_the_runtime_api_when_it_is_created(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_called_once()
+        assert put_function.call_args.kwargs["function_id"] == str(job.id)
+        assert put_function.call_args.kwargs["body"]["status"] == "Queued"
+        assert WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_nothing_is_sent_or_recorded_while_the_mirror_is_off(self, user, fleets_accessible, put_function):
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_job_that_the_mirror_list_does_not_name_is_created_but_not_sent(
+        self, user, fleets_accessible, put_function
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,ibm/sampler")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_job_of_a_custom_function_is_sent_when_the_mirror_list_has_custom(
+        self, user, fleets_accessible, put_function
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        put_function.assert_called_once()
+        assert WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
 
-        with pytest.raises(FunctionConfigurationException):
-            RunFunctionUseCase().execute(user, accessible, make_input(function_size="m", compute_profile="16x128"))
+        RunFunctionUseCase().execute(user, accessible, make_input(instance=self.CRN))
+
+        put_function.assert_not_called()
+        assert Job.objects.count() == 1
+        assert not WorkloadMirror.objects.exists()
+
+    def test_a_fleets_job_without_instance_is_created_but_not_sent(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+
+        job = RunFunctionUseCase().execute(user, fleets_accessible, make_input())
+
+        put_function.assert_not_called()
+        assert not WorkloadMirror.objects.filter(job=job).exists()
+
+    def test_the_job_is_stored_as_failed_if_the_runtime_api_does_not_take_it(
+        self, user, fleets_accessible, put_function, monkeypatch
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = RetryableError("down")
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+
+        with pytest.raises(EngineUnavailableException):
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        job = Job.objects.get()
+        assert job.status == Job.FAILED
+        assert JobEvent.objects.filter(job=job, data__code="RUNTIME_API_UNAVAILABLE").exists()
+        assert not WorkloadMirror.objects.exists()
+        arguments_storage.delete.assert_not_called()  # the job exists, so its arguments stay
+        assert put_function.call_args.kwargs["timeout"] == 3
+
+    def test_a_permanent_runtime_api_error_also_stores_the_job_as_failed(self, user, fleets_accessible, put_function):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = RuntimeApiError("rejected", status_code=400)
+
+        with pytest.raises(EngineUnavailableException) as error:
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
+
+        assert "contact support" in error.value.message
+        assert Job.objects.get().status == Job.FAILED
+
+    def test_the_saved_arguments_are_deleted_if_the_job_is_rolled_back(
+        self, user, fleets_accessible, put_function, monkeypatch
+    ):
+        Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
+        put_function.side_effect = ValueError("not an error of the Runtime API")
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+
+        with pytest.raises(ValueError):
+            RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         assert not Job.objects.exists()
+        arguments_storage.delete.assert_called_once()

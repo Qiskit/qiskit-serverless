@@ -1,7 +1,9 @@
 """Tests for compute_profile functionality."""
 
 import pytest
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -73,138 +75,37 @@ def program(user, ce_project):
 
 
 @override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-def test_create_job_with_compute_profile(api_client, program):
-    """A prefixed submission is accepted and stored in bare notation."""
+def test_run_with_compute_profile_is_rejected(api_client, program):
+    """Sending the removed compute_profile key is a 400 naming function_size, not a silent 200."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
         "arguments": "{}",
         "config": {},
-        "compute_profile": "gx3d-24x120x1a100p",
+        "compute_profile": "4x16",
     }
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_200_OK
-    # The prefix is normalized away: the canonical bare form is what we store.
-    assert response.data["compute_profile"] == "24x120x1a100p"
-
-    job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120x1a100p"
-
-
-@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-def test_create_job_with_bare_compute_profile(api_client, program):
-    """A bare submission is stored unchanged."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": "24x120x1a100p",
-    }
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "24x120x1a100p"
-
-    job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "24x120x1a100p"
-
-
-@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
-def test_create_job_without_compute_profile_uses_default(api_client, program):
-    """Test creating a job without compute_profile uses system default."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-    }
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "16x128"
-
-    # Verify job was created with default compute_profile
-    job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "16x128"
-
-
-@pytest.mark.parametrize(
-    "submitted,stored",
-    [
-        # Prefixed inputs are accepted and normalized to bare.
-        ("cx3d-4x16", "4x16"),
-        ("gx3d-24x120x1a100p", "24x120x1a100p"),
-        ("mx2d-8x64", "8x64"),
-        ("bx2d-2x8", "2x8"),
-        # Bare inputs are accepted and stored unchanged.
-        ("4x16", "4x16"),
-        ("24x120x1a100p", "24x120x1a100p"),
-    ],
-)
-def test_compute_profile_validation_valid_formats(api_client, program, submitted, stored):
-    """Valid formats (prefixed or bare) are accepted and stored bare."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": submitted,
-    }
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == stored
-
-
-@pytest.mark.parametrize(
-    "profile",
-    [
-        "invalid",
-        "CX3D-4x16",  # uppercase not allowed
-        "cx3d_4x16",  # underscore not allowed
-        "cx3d-4",  # missing memory spec
-        "4",  # missing memory spec (bare)
-    ],
-)
-def test_compute_profile_validation_invalid_formats(api_client, program, profile):
-    """Malformed compute_profile values are rejected with the format error message, no Job created."""
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": profile,
-    }
-    job_count_before = Job.objects.count()
 
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert f"Invalid compute profile format: '{profile}'" in response.data["message"]
-    assert Job.objects.count() == job_count_before
+    assert "function_size" in response.data["message"]
+    assert not Job.objects.exists()
 
 
-def test_compute_profile_validation_blank_is_rejected(api_client, program):
-    """An explicit blank compute_profile is rejected (by the field itself, not the format check)."""
+@override_settings(DEFAULT_COMPUTE_PROFILE="16x128")
+def test_create_job_without_compute_profile_and_without_default_size_is_rejected(api_client, program):
+    """A Fleets function with no default_size and nothing requested is rejected, not defaulted."""
     url = reverse("v1:programs-run")
     data = {
         "title": program.title,
         "arguments": "{}",
         "config": {},
-        "compute_profile": "",
     }
-    job_count_before = Job.objects.count()
 
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert Job.objects.count() == job_count_before
+    assert not Job.objects.exists()
 
 
 def test_run_with_function_size_happy_path(api_client, program):
@@ -222,17 +123,17 @@ def test_run_with_function_size_happy_path(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "4x16"
+    assert response.data["compute_profile_fk"]["compute_profile_id"] == "4x16"
     assert response.data["size_source"] == Job.SIZE_SOURCE_REQUESTED
 
     job = Job.objects.get(id=response.data["id"])
-    assert job.compute_profile == "4x16"
+    assert job.compute_profile_id == "4x16"
     assert job.size_source == Job.SIZE_SOURCE_REQUESTED
-    assert job.function_size.function_size == "m"
+    assert job.function_size.function_size == "M"
 
 
 def test_run_with_function_size_is_normalized(api_client, program):
-    """The requested label is normalized (strip+casefold) before catalog lookup."""
+    """The requested label is normalized (strip+upper) before catalog lookup."""
     profile = ComputeProfile.objects.get(compute_profile_id="4x16")
     FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
     url = reverse("v1:programs-run")
@@ -246,27 +147,7 @@ def test_run_with_function_size_is_normalized(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "4x16"
-
-
-def test_run_with_both_compute_profile_and_function_size_returns_400(api_client, program):
-    """Sending both a size and a profile is ambiguous and rejected, with no Job created."""
-    profile = ComputeProfile.objects.get(compute_profile_id="4x16")
-    FunctionSize.objects.create(function=program, function_size="m", compute_profile=profile)
-    url = reverse("v1:programs-run")
-    data = {
-        "title": program.title,
-        "arguments": "{}",
-        "config": {},
-        "compute_profile": "4x16",
-        "function_size": "m",
-    }
-    job_count_before = Job.objects.count()
-
-    response = api_client.post(url, data, format="json")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert Job.objects.count() == job_count_before
+    assert response.data["compute_profile_fk"]["compute_profile_id"] == "4x16"
 
 
 def test_run_with_unknown_function_size_returns_400(api_client, program):
@@ -299,8 +180,8 @@ def test_get_by_title_includes_sizes_and_default(api_client, user, program):
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["sizes"] == {"s": "4x16", "m": "8x64"}
-    assert response.data["default_size"] == "m"
+    assert response.data["sizes"] == {"S": "4x16", "M": "8x64"}
+    assert response.data["default_size"] == "M"
 
 
 def test_get_by_title_sizes_empty_when_none_declared(api_client, user, program):
@@ -325,17 +206,19 @@ def test_list_includes_sizes_and_default(api_client, user, program):
 
     assert response.status_code == status.HTTP_200_OK
     entry = next(item for item in response.data if item["title"] == program.title)
-    assert entry["sizes"] == {"s": "4x16"}
-    assert entry["default_size"] == "s"
+    assert entry["sizes"] == {"S": "4x16"}
+    assert entry["default_size"] == "S"
 
 
 def test_job_list_includes_compute_profile(api_client, user, program):
-    """Test that job list endpoint includes compute_profile."""
-    # Create a job with compute_profile
+    """Test that job list endpoint includes the job's compute profile."""
+    # Profiles are registered in the canonical bare form, so the FK resolves to the
+    # bare row even though the prefixed "gx3d-" notation is accepted at ingest.
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
     job = TestUtils.create_job(
         author=user,
         program=program,
-        compute_profile="gx3d-24x120x1a100p",
+        compute_profile_fk=profile,
     )
 
     url = reverse("v1:jobs-list")
@@ -348,20 +231,69 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     # Response data is paginated with results field containing list of job dicts
     job_data = next((j for j in response.data["results"] if j.get("id") == str(job.id)), None)
     assert job_data is not None
-    assert job_data.get("compute_profile") == "gx3d-24x120x1a100p"
+    assert job_data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
 
 
 def test_job_detail_includes_compute_profile(api_client, user, program):
-    """Test that job detail endpoint includes compute_profile."""
-    # Create a job with compute_profile
+    """Test that job detail endpoint includes the job's compute profile."""
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
     job = TestUtils.create_job(
         author=user,
         program=program,
-        compute_profile="gx3d-24x120x1a100p",
+        compute_profile_fk=profile,
     )
 
     url = reverse("v1:retrieve", kwargs={"job_id": job.id})
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile"] == "gx3d-24x120x1a100p"
+    assert response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+
+
+@pytest.mark.parametrize(
+    "url_name, url_kwargs_from_program",
+    [
+        ("v1:jobs-list", None),
+        ("v1:programs-get-jobs", lambda program: {"pk": str(program.id)}),
+    ],
+)
+def test_listing_jobs_does_not_query_each_compute_profile(api_client, user, program, url_name, url_kwargs_from_program):
+    """Both job listings nest compute_profile_fk, so the FK must be fetched in the page
+    query rather than once per row. Counting ComputeProfile queries (rather than asserting
+    a total) keeps this test insensitive to the unrelated per-row `program` query.
+    """
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
+    for _ in range(3):
+        TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+
+    url = reverse(url_name, kwargs=url_kwargs_from_program(program) if url_kwargs_from_program else None)
+    with CaptureQueriesContext(connection) as captured:
+        response = api_client.get(url, format="json")
+
+    assert response.status_code == status.HTTP_200_OK
+    # A standalone `FROM "api_computeprofile"` is a per-row fetch; the select_related
+    # version reads `FROM "api_job" ... JOIN "api_computeprofile"`, so match the FROM.
+    per_row_fetches = [q for q in captured.captured_queries if 'FROM "api_computeprofile"' in q["sql"]]
+    assert per_row_fetches == [], f"profile should be joined into the page query, got {len(per_row_fetches)} fetches"
+
+
+def test_job_compute_profile_string_is_gone_from_model_and_responses(api_client, user, program):
+    """Guards the removal on a real `Job`, not a mock: the model has no `compute_profile`
+    attribute any more, and neither listing/detail response exposes the key -- only the
+    FK-backed `compute_profile_fk` survives.
+    """
+    profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
+    job = TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+
+    assert not hasattr(job, "compute_profile")
+
+    list_response = api_client.get(reverse("v1:jobs-list"), format="json")
+    detail_response = api_client.get(reverse("v1:retrieve", kwargs={"job_id": job.id}), format="json")
+
+    assert list_response.status_code == status.HTTP_200_OK
+    assert detail_response.status_code == status.HTTP_200_OK
+    job_data = next(j for j in list_response.data["results"] if j.get("id") == str(job.id))
+    assert "compute_profile" not in job_data
+    assert "compute_profile" not in detail_response.data
+    assert job_data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+    assert detail_response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"

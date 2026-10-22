@@ -16,3 +16,28 @@
         </li>
     {% endif %}
 {% endblock %}
+
+{# Render every fieldset in order, except "Default size" (held back — see below). Right after
+   "Fleets", slot in the Sizes inline (the catalog) and then the "Default size" fieldset that
+   points into it, so Fleets config, its size catalog, and the default all read as one group
+   instead of "Default size" landing at the very bottom of the page after Ownership etc. #}
+{% block field_sets %}
+{% for fieldset in adminform %}
+    {% if fieldset.name != "Default size" %}
+        {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+    {% endif %}
+    {% if fieldset.name == "Fleets" %}
+        {% for inline_admin_formset in inline_admin_formsets %}
+            {% include inline_admin_formset.opts.template %}
+        {% endfor %}
+        {% for fieldset in adminform %}
+            {% if fieldset.name == "Default size" %}
+                {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+{% endblock %}
+
+{# Inlines are rendered above, right after "Fleets" — nothing left for the default slot. #}
+{% block inline_field_sets %}{% endblock %}

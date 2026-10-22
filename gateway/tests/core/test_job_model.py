@@ -4,9 +4,14 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import models
 
-from core.models import Job
+from core.models import Job, Program
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def user():
+    return User.objects.create_user(username="author")
 
 
 def test_filler_defaults_to_false_and_is_queryable():
@@ -55,3 +60,16 @@ def test_save_direct_moves_the_updated_timestamp():
 
     assert job.updated > before
     assert Job.objects.get(pk=job.pk).updated == job.updated
+
+
+def test_the_status_lists_keep_their_shape():
+    """Both lists carry a claim the comment above them makes, and drift here is silent.
+
+    A status added to JOB_STATUSES and to neither list, or to RUNNING_STATUSES only, would pass
+    every other test in the suite while dropping out of the job_status_count gauge and out of the
+    submission quota.
+    """
+    all_statuses = {status for status, _label in Job.JOB_STATUSES}
+
+    assert set(Job.ACTIVE_STATUSES) == all_statuses - set(Job.TERMINAL_STATUSES)
+    assert set(Job.RUNNING_STATUSES) < set(Job.ACTIVE_STATUSES)

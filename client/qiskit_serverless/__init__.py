@@ -21,11 +21,6 @@
 
 from .core import (
     BaseClient,
-    distribute_task,
-    distribute_qiskit_function,
-    get,
-    put,
-    get_refs_by_status,
     ServerlessClient,
     IBMServerlessClient,
     save_result,
@@ -40,6 +35,6 @@ from .core import (
 )
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
-from .serializers import get_arguments
+from .serializers import get_arguments, get_function_size, get_compute_profile
 from .utils import ServerlessRuntimeService, get_logger, get_provider_logger
 from .version import __version__

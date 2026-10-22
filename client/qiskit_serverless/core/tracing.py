@@ -27,7 +27,7 @@ Qiskit Serverless tracing
 """
 
 import os
-from typing import Dict, Optional
+from typing import Optional
 
 from opentelemetry import trace  # pylint: disable=duplicate-code
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -35,18 +35,13 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from qiskit_serverless.core.constants import (
     QS_OT_PROGRAM_NAME,
     OT_PROGRAM_NAME_DEFAULT,
     OTEL_EXPORTER_OTLP_HOST,
     OTEL_EXPORTER_OTLP_PORT,
-    QS_OT_TRACEPARENT_ID_KEY,
-    QS_OT_RAY_TRACER,
     OTEL_ENABLED,
-    OT_SPAN_DEFAULT_NAME,
-    OT_LABEL_CALL_LOCATION,
 )
 
 
@@ -80,43 +75,6 @@ def get_tracer(
     if bool(int(os.environ.get(OTEL_ENABLED, "0"))):
         trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
     return trace.get_tracer(instrumenting_module_name)
-
-
-def _trace_env_vars(env_vars: dict, location: Optional[str] = None):
-    """Sets env variables for tracing across executable function.
-
-    Args:
-        env_vars: original env variables dict to inject traceparent
-        location: where trace was called
-
-    Returns:
-        dict of env variables
-    """
-    if bool(int(os.environ.get(QS_OT_RAY_TRACER, "0"))):
-        tracer = trace.get_tracer("Qiskit-Serverless")
-    else:
-        tracer = get_tracer(
-            __name__,
-            agent_host=os.environ.get(OTEL_EXPORTER_OTLP_HOST, None),
-            agent_port=int(os.environ.get(OTEL_EXPORTER_OTLP_PORT, 4318)),
-        )
-    if env_vars.get(QS_OT_TRACEPARENT_ID_KEY, None) is not None:
-        env_vars[QS_OT_TRACEPARENT_ID_KEY] = env_vars.get(QS_OT_TRACEPARENT_ID_KEY)
-    elif os.environ.get(QS_OT_TRACEPARENT_ID_KEY) is not None:
-        env_vars[QS_OT_TRACEPARENT_ID_KEY] = os.environ.get(QS_OT_TRACEPARENT_ID_KEY)
-    else:
-        carrier: Dict[str, str] = {}
-        with tracer.start_as_current_span(os.environ.get(QS_OT_PROGRAM_NAME, OT_SPAN_DEFAULT_NAME)) as span:
-            if location is not None:
-                span.set_attribute(OT_LABEL_CALL_LOCATION, location)
-            TraceContextTextMapPropagator().inject(carrier)
-        traceparent = carrier.get(
-            TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME  # pylint:disable=protected-access
-        )
-        if traceparent:
-            env_vars[QS_OT_TRACEPARENT_ID_KEY] = traceparent
-            os.environ[QS_OT_TRACEPARENT_ID_KEY] = traceparent
-    return env_vars
 
 
 def setup_tracing() -> None:

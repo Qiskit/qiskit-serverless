@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    The gateway and the scheduler now exit when their startup migration fails, instead of
+    starting against a database that does not match the code.

@@ -37,6 +37,18 @@
     max-width: 600px;
 }
 
+/* Stop job button: same red as the delete button, since it's just as destructive. */
+.qs-stop-job-btn {
+    background: var(--delete-button-bg);
+    color: var(--button-fg);
+}
+
+.qs-stop-job-btn:active,
+.qs-stop-job-btn:focus,
+.qs-stop-job-btn:hover {
+    background: var(--delete-button-hover-bg);
+}
+
 .job-subtitle {
     margin: 0 0 16px 0;
     font-size: 0.8rem;

@@ -9,10 +9,10 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
-from api.domain.job_timeline import FILLER_TEXT_COLOR, render_job_timeline
+from api.domain.job_timeline import _jobs_from_queryset, compute_timeline, FILLER_TEXT_COLOR, render_job_timeline
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Program, Provider
+from core.models import ComputeProfile, Job, JobEvent, Program, Provider
 
 
 def _job_with_events(
@@ -37,11 +37,16 @@ def _job_with_events(
     user = User.objects.create_user(username=f"u{uuid4().hex[:8]}", password="x")
     provider = Provider.objects.create(name=f"P{uuid4().hex[:8]}")
     program = Program.objects.create(title="t", author=user, provider=provider)
+    # The timeline reads the profile through job.compute_profile_id (the FK), so the
+    # value under test has to live on a ComputeProfile row, not a bare string column.
+    compute_profile_fk = None
+    if compute_profile is not None:
+        compute_profile_fk, _ = ComputeProfile.objects.get_or_create(compute_profile_id=compute_profile)
     job = Job.objects.create(
         author=user,
         program=program,
         status=status,
-        compute_profile=compute_profile,
+        compute_profile_fk=compute_profile_fk,
         runner=runner,
         **extra_fields,
     )
@@ -80,6 +85,28 @@ def test_render_job_timeline_reports_per_state_durations_and_outcome():
     assert ">PENDING 46s<" in svg
     assert ">RUNNING 48s<" in svg
     assert ">SUCCEEDED<" in svg  # same wording as the job list's status badge
+
+
+@pytest.mark.django_db
+def test_compute_timeline_falls_back_to_created_when_there_is_no_queued_event():
+    """A filler job's row is written with status=QUEUED directly (BalanceFillerJobs calls
+    job.save(), never add_status_event, for that first status), so its first real JobEvent is
+    the later transition to PENDING. _job_with_events always adds a QUEUED event, so this
+    builds the event trail by hand instead to exercise the gap."""
+    base = timezone.now().replace(microsecond=0)
+    user = User.objects.create_user(username=f"u{uuid4().hex[:8]}", password="x")
+    program = Program.objects.create(title="t", author=user)
+    job = Job.objects.create(author=user, program=program, status=Job.PENDING, runner=Program.FLEETS, filler=True)
+    Job.objects.filter(pk=job.pk).update(created=base)
+    pending_event = job.job_events.add_status_event(
+        job_id=job.id, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.FILLER_SUBMIT, status=Job.PENDING
+    )
+    JobEvent.objects.filter(pk=pending_event.pk).update(created=base + timedelta(seconds=5))
+
+    jobs = _jobs_from_queryset(Job.objects.filter(pk=job.pk).prefetch_related("job_events"))
+    timeline = compute_timeline(jobs[0])
+
+    assert timeline["t_queue"] == base
 
 
 @pytest.mark.django_db

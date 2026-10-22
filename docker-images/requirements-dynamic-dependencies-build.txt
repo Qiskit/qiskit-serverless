@@ -1,0 +1,16 @@
+# Pins installed by the builder stage of docker-images/fleet-node/Dockerfile,
+# which is the only stage with a C/C++ toolchain. Not read by anything else.
+#
+# Separate from requirements-dynamic-dependencies.txt because that file is
+# installed verbatim by docker-images/ray-node/Dockerfile, whose only microdnf
+# install is python plus wget: sbd-eigensolver is sdist-only, so putting it there
+# would fail the ray-node build outright. The same file is also what the gateway
+# parses as the provider allow-list for GET /api/v1/dependencies-versions, and
+# neither of these belongs in that list.
+#
+# sbd-eigensolver compiles python/bindings.cpp against its vendored header-only
+# C++ library, linking -lmpi (from the openmpi wheel, via MPI_HOME) and
+# -lopenblas (via openblas-devel). cvxpy is here rather than in the shared file
+# because it exists only for Vayesta, which ray-node does not carry.
+cvxpy==1.9.2
+sbd-eigensolver==1.6.1

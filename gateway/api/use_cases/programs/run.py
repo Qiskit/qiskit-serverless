@@ -3,36 +3,43 @@
 import json
 import logging
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import transaction
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
+from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.run_input import RunFunctionInput
 from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
+from core.clients.functions_operator_client import get_functions_operator_client
+from core.clients.runtime_api_errors import RuntimeApiError
+from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.domain.workload_payload import build_workload_payload, mirror_enabled_for, should_be_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
-    ComputeProfile,
     FunctionSize,
     Job,
     JobConfig,
     JobEvent,
     Program as Function,
+    WorkloadMirror,
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
+from core.services.job_transitions import JobTransitionService
 from core.services.storage import get_arguments_storage
 from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("api.api.use_cases.programs.run")
+
+MIRROR_PUT_TIMEOUT_SECONDS = 3  # the PUT that creates the job in the Runtime API (the IAM token has its own timeout)
 
 
 def _is_trial(function: Function, user) -> bool:
@@ -42,42 +49,17 @@ def _is_trial(function: Function, user) -> bool:
     return function.trial_instances.filter(pk__in=user_run_groups).exists()
 
 
-def _config_for_profile_id(compute_profile: str, *, size_source: str) -> RunnerConfig:
-    """Build a Fleets RunnerConfig from a bare compute profile id.
-
-    The id must name a registered ``ComputeProfile`` row; a missing row is a
-    deployment misconfiguration and we reject the job rather than store a null FK.
-    No ``FunctionSize`` row backs a profile resolved this way (the deprecated
-    ``compute_profile`` input or the deployment default), so ``function_size``
-    is null; ``size_source`` records which of those it was.
-    """
-    compute_profile_fk = ComputeProfile.objects.get_by_id(compute_profile)
-    if compute_profile_fk is None:
-        raise FunctionConfigurationException(
-            f"Compute profile '{compute_profile}' is not registered. Contact administrator."
-        )
-    return RunnerConfig(
-        compute_profile=compute_profile,
-        gpu=False,
-        compute_profile_fk=compute_profile_fk,
-        size_source=size_source,
-        function_size=None,
-    )
-
-
 def _get_runner_config(
     function: Function,
-    compute_profile_requested: str | None,
     function_size_requested: str | None,
 ) -> RunnerConfig:
     """Resolve the compute profile and sizing provenance for a run.
 
-    ``compute_profile`` (string) is transitional and will be removed; the FK
-    ``compute_profile_fk`` is the source of truth going forward. They always agree
-    at creation. A Fleets job always resolves to a profile string; if no
-    ``ComputeProfile`` row is registered for it, that is a deployment
-    misconfiguration and we reject the job rather than store a null FK. Ray leaves
-    ``compute_profile`` None (profiles are a Fleets concept), so the FK stays null.
+    ``compute_profile_fk`` is the source of truth for the resolved profile. A
+    Fleets job always resolves to a profile; if no ``ComputeProfile`` row is
+    registered for it, that is a deployment misconfiguration and we reject the
+    job rather than store a null FK. Ray leaves ``compute_profile_fk`` None
+    (profiles are a Fleets concept).
 
     Because the size determines the compute profile (and not the reverse -- two
     sizes can map to one profile), the returned :class:`RunnerConfig` also records
@@ -85,47 +67,35 @@ def _get_runner_config(
     ``FunctionSize`` row itself, so a stored job stays distinguishable.
 
     Sizing precedence (Fleets):
-        1. Both ``function_size`` and ``compute_profile`` -> rejected as ambiguous.
-        2. ``function_size`` -> resolved through the function's ``FunctionSize``
+        1. ``function_size`` -> resolved through the function's ``FunctionSize``
            catalog (source REQUESTED); an undeclared size is rejected.
-        3. ``compute_profile`` (deprecated) -> used as-is (source COMPUTE_PROFILE).
-        4. Neither -> the function's ``default_size`` (source DEFAULT_SIZE), else
-           ``settings.DEFAULT_COMPUTE_PROFILE`` (source SETTINGS_DEFAULT).
+        2. Nothing requested -> the function's ``default_size`` (source
+           DEFAULT_SIZE), which is guaranteed to exist for Fleets functions.
 
-    Both requested values are expected already normalized by the view:
-    ``compute_profile`` to bare (prefix-less) form, ``function_size`` to its
-    canonical (strip+casefold) label.
+    ``function_size`` is expected already normalized (strip+casefold) by the view.
 
     Raises:
-        FunctionConfigurationException: on ambiguous input, an undeclared size, or
-            a resolved profile with no registered row.
+        FunctionConfigurationException: on an undeclared size, or a resolved
+            profile with no registered row.
     """
-    # Ambiguous input is always a 400, whatever the runner, so check before the
-    # Ray short-circuit.
-    if compute_profile_requested and function_size_requested:
-        raise FunctionConfigurationException(
-            "Provide either 'function_size' or 'compute_profile', not both. "
-            "'compute_profile' is deprecated; prefer 'function_size'."
-        )
-
     if function.runner != Function.FLEETS:
-        # Ray / GPU: sizes and profiles do not apply; both requested values are ignored.
+        # Ray / GPU: sizes and profiles do not apply; the requested value is ignored.
         gpu = bool(function.provider and function.gpu)
         return RunnerConfig(
-            compute_profile=None,
             gpu=gpu,
             compute_profile_fk=None,
             size_source=Job.SIZE_SOURCE_NONE,
             function_size=None,
         )
 
-    # (2) An explicitly requested size resolves through the function's catalog.
+    # (1) An explicitly requested size resolves through the function's catalog.
     # Fetch the FunctionSize row itself so we can record it (billing keys off the
     # size tier); the compute profile comes from that same row.
     if function_size_requested:
         function_size = FunctionSize.objects.get_function_size(function, function_size_requested)
         if function_size is None:
-            available = sorted(FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True))
+            sizes = FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True)
+            available = sorted({size.upper() for size in sizes})
             available_msg = ", ".join(available) if available else "this function declares no sizes."
             raise FunctionConfigurationException(
                 f"Unknown function size '{function_size_requested}' for this function. "
@@ -133,41 +103,33 @@ def _get_runner_config(
             )
         profile = function_size.compute_profile
         return RunnerConfig(
-            compute_profile=profile.compute_profile_id,
             gpu=False,
             compute_profile_fk=profile,
             size_source=Job.SIZE_SOURCE_REQUESTED,
             function_size=function_size,
         )
 
-    # (3) Deprecated explicit compute profile.
-    if compute_profile_requested:
-        logger.warning(
-            "program=%s | 'compute_profile' is deprecated; use 'function_size'.",
-            function.title,
+    # (2) Nothing requested: the function's default size.
+    # All Fleets functions must have one (guaranteed by PR #2490 for new functions,
+    # seeded during upload for legacy ones); if missing, reject the job.
+    if not function.default_size_id:
+        raise FunctionConfigurationException(
+            "This function has no size. Ask an administrator to give it one, or pass 'function_size' explicitly."
         )
-        return _config_for_profile_id(compute_profile_requested, size_source=Job.SIZE_SOURCE_COMPUTE_PROFILE)
-
-    # (4a) Nothing requested: the function's default size.
-    if function.default_size_id:
-        function_size = function.default_size
-        profile = function_size.compute_profile
-        return RunnerConfig(
-            compute_profile=profile.compute_profile_id,
-            gpu=False,
-            compute_profile_fk=profile,
-            size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
-            function_size=function_size,
-        )
-
-    # (4b) No default size either: the deployment-wide default profile.
-    return _config_for_profile_id(settings.DEFAULT_COMPUTE_PROFILE, size_source=Job.SIZE_SOURCE_SETTINGS_DEFAULT)
+    function_size = function.default_size
+    profile = function_size.compute_profile
+    return RunnerConfig(
+        gpu=False,
+        compute_profile_fk=profile,
+        size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
+        function_size=function_size,
+    )
 
 
 class RunFunctionUseCase:
     """Use case for running (enqueueing a job for) a Qiskit Function."""
 
-    def execute(  # pylint: disable=too-many-locals, too-many-branches
+    def execute(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         self,
         user: AbstractUser,
         accessible_functions: FunctionAccessResult,
@@ -228,7 +190,7 @@ class RunFunctionUseCase:
         else:
             trial = business_model == BusinessModel.TRIAL
 
-        runner_config = _get_runner_config(function, data.compute_profile, data.function_size)
+        runner_config = _get_runner_config(function, data.function_size)
         job = Job(
             trial=trial,
             business_model=business_model,
@@ -237,12 +199,14 @@ class RunFunctionUseCase:
             author=user,
             gpu=runner_config.gpu,
             runner=function.runner,
-            compute_profile=runner_config.compute_profile,
             compute_profile_fk=runner_config.compute_profile_fk,
             size_source=runner_config.size_source,
             function_size=runner_config.function_size,
+            function_size_name=runner_config.function_size.function_size if runner_config.function_size else None,
             instance_crn=data.instance,
             account_id=data.account_id,
+            plan_id=data.plan_id,
+            subscription_id=data.subscription_id,
             ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
             ce_region=function.code_engine_project.region if function.code_engine_project else None,
         )
@@ -264,16 +228,65 @@ class RunFunctionUseCase:
             env.update(json.loads(function.env_vars))
         job.env_vars = json.dumps(env)
 
-        get_arguments_storage(job).save(data.arguments)
+        arguments_storage = get_arguments_storage(job)
+        arguments_storage.save(data.arguments)
 
-        with transaction.atomic():
-            if data.config_data:
-                job.config = JobConfig.objects.create(**data.config_data)
-            job.save()
-            JobEvent.objects.add_status_event(
-                job_id=job.id,
-                origin=JobEventOrigin.API,
-                context=JobEventContext.RUN_PROGRAM,
-                status=job.status,
-            )
+        mirror_error: EngineUnavailableException | None = None
+        try:
+            with transaction.atomic():
+                if data.config_data:
+                    job.config = JobConfig.objects.create(**data.config_data)
+                job.save()
+                JobEvent.objects.add_status_event(
+                    job_id=job.id,
+                    origin=JobEventOrigin.API,
+                    context=JobEventContext.RUN_PROGRAM,
+                    status=job.status,
+                )
+                # Create the job in the Runtime API inside the transaction on purpose: the answer can be lost after
+                # the Runtime API took the job (a timeout), so if the http call fails, the job is stored as FAILED
+                # instead of being rolled back, to keep a record of the id the Runtime API may have.
+                # Later, that FAILED status should reach the Runtime API through the outbox, once the thread pool is in.
+                if should_be_mirrored(job) and mirror_enabled_for(job):
+                    payload = build_workload_payload(job)
+                    try:
+                        get_functions_operator_client().put_function(**payload, timeout=MIRROR_PUT_TIMEOUT_SECONDS)
+                    except RetryableError as ex:
+                        mirror_error = EngineUnavailableException("Job could not be created right now, please retry.")
+                        mirror_error.__cause__ = ex
+                        self._fail_job(job, ex)
+                    except RuntimeApiError as ex:
+                        mirror_error = EngineUnavailableException("Job could not be created. Please contact support.")
+                        mirror_error.__cause__ = ex
+                        self._fail_job(job, ex)
+                    else:
+                        WorkloadMirror.objects.create(job=job)
+        except Exception:
+            self._delete_arguments(arguments_storage, job)
+            raise
+        if mirror_error is not None:
+            raise mirror_error
         return job
+
+    @staticmethod
+    def _fail_job(job: Job, error: Exception) -> None:
+        """The Runtime API did not take the job. It stays in the database as FAILED, with the reason in its events."""
+        JobEvent.objects.add_error_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.RUN_PROGRAM,
+            code="RUNTIME_API_UNAVAILABLE",
+            message="The job could not be created in the Runtime API",
+            exception=type(error).__name__,
+            args=str(error),
+        )
+        JobTransitionService().to_failed(job, origin=JobEventOrigin.API, context=JobEventContext.RUN_PROGRAM)
+
+    @staticmethod
+    def _delete_arguments(arguments_storage, job: Job) -> None:
+        """The job was not created, so its arguments, saved before the transaction, are removed. A failure to
+        remove them is logged and does not hide the error that rolled the transaction back."""
+        try:
+            arguments_storage.delete()
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.error("job_id=%s arguments of a job that was not created could not be deleted: %s", job.id, ex)

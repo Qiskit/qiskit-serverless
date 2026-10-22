@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    The scheduler exposes ``scheduler_loop_duration_max_seconds`` and
+    ``scheduler_task_duration_max_seconds`` (per task): the longest duration
+    among the loops and tasks that ended in the last 120 seconds, so one very
+    slow loop can be read in Grafana without averaging. A loop that is still
+    running does not show up until it ends.
+upgrade:
+  - |
+    ``scheduler_loop_duration_seconds`` and ``scheduler_task_duration_seconds``
+    have three more buckets, 3600, 7200 and 14400 seconds.

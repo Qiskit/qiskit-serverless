@@ -21,7 +21,6 @@ stack, so a tests/-resident mock would not be available at runtime.
 The env gate in apps.py ensures this code is never executed in production.
 """
 
-import base64
 import json
 import logging
 import os
@@ -125,66 +124,15 @@ def _get_mock_s3():
     return _MOCK_S3[1]
 
 
-def _make_fake_jwt() -> str:
-    """Build a minimal decodable JWT with iam_id and account.bss fields.
-
-    Returns:
-        A base64-encoded JWT string with mock claims.
-    """
-    header_json = json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-    header = base64.urlsafe_b64encode(header_json).rstrip(b"=").decode()
-    payload_data = {
-        "iam_id": "iam-mock-fleets-test",
-        "account": {"bss": "mock-account-id"},
-    }
-    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=").decode()
-    signature = base64.urlsafe_b64encode(b"mock-signature").rstrip(b"=").decode()
-    return f"{header}.{payload}.{signature}"
-
-
-class _FakeTokenManager:  # pylint: disable=too-few-public-methods
-    """Mimics the IAM SDK token manager interface."""
-
-    def __init__(self):
-        self._token = _make_fake_jwt()
+class _FakeTokenProvider:
+    """Stands in for :class:`IamTokenProvider` so the mock stack never calls IAM."""
 
     def get_token(self) -> str:
-        """Return the fake JWT token.
+        """Return a mock bearer token."""
+        return "mock-iam-token"
 
-        Returns:
-            A mock JWT string.
-        """
-        return self._token
-
-
-class _FakeIAMAuthenticator:
-    """Drop-in replacement for ``ibm_cloud_sdk_core.authenticators.IAMAuthenticator``.
-
-    Required because ``IBMCloudClientProvider.__init__`` calls
-    ``IAMAuthenticator.token_manager.get_token()`` to validate credentials.
-    Without this fake, ``_mock_get_cos_client`` would fail with a network error
-    when constructing the ``IBMCloudClientProvider``. The fake JWT must contain
-    ``iam_id`` and ``account.bss`` fields because ``IBMCloudClientProvider``
-    decodes and reads them.
-
-    Args:
-        apikey: The API key (ignored).
-        url: The IAM URL (ignored).
-        **kwargs: Additional keyword arguments (ignored).
-    """
-
-    def __init__(self, apikey: str = "", *, url: str = "", **kwargs):  # pylint: disable=unused-argument
-        self.token_manager = _FakeTokenManager()
-
-    def validate(self):
-        """No-op validation."""
-
-    def authenticate(self, req):
-        """No-op authentication.
-
-        Args:
-            req: The request object (ignored).
-        """
+    def invalidate(self, token: str) -> None:
+        """No-op: the mock token never expires."""
 
 
 def _mock_get_cos_client(project):  # pylint: disable=unused-argument
@@ -273,15 +221,14 @@ def _mock_submit_job(self, **kwargs):  # pylint: disable=unused-argument,too-man
 def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     """Read fleet status from COS queue keys in the task-store bucket.
 
-    Only called by ``FleetsRunner.stop()`` and ``FleetsRunner.is_active()`` —
-    the main status polling path (``FleetsRunner.status()``) reads COS queue
-    keys directly via ``_get_cos().list_keys()`` without calling this method.
+    Nothing in the stack reaches this any more. ``stop()`` sends the cancel without reading the
+    status, ``is_active()`` only checks ``fleet_id``, and ``FleetsRunner.status()`` reads the COS
+    queue keys directly through ``_get_cos().list_keys()``. The one reference left is
+    ``FleetsRunner._get_fleet_name()``, which has no callers of its own.
 
-    Mirrors real CE by raising ``ApiException(404)`` for a fleet that was never
-    created. The archived manifest (written by ``_mock_submit_job`` and never
-    deleted by the worker) is the fleet's existence signal, so ``is_active()``
-    and ``stop()`` can detect orphaned/missing fleets instead of always seeing
-    a live fleet.
+    Kept because it mirrors real CE: it raises ``ApiException(404)`` for a fleet that was never
+    created, using the archived manifest (written by ``_mock_submit_job`` and never deleted by the
+    worker) as the fleet's existence signal.
 
     Args:
         self: The FleetHandler instance.
@@ -358,6 +305,11 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
         self: The FleetHandler instance.
         identifier: The fleet ID to cancel.
         **kwargs: Additional arguments (ignored).
+
+    Returns:
+        ``True`` always, which is what the real ``cancel_job`` answers both for an accepted cancel
+        and for Code Engine's ``fleet_already_canceled`` 409. It answers ``False`` only for a 404,
+        which this mock cannot produce because the fleet always exists here.
     """
     s3 = _get_mock_s3()
     # Resolve the job's own project bucket (like _mock_get_job_status), not the
@@ -365,6 +317,7 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
     bucket = _task_store_bucket(self.project_id)
     cancel_key = f"{queue_prefix(self.project_id, identifier)}canceled/0/{identifier}-0/canceled"
     s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
+    return True
 
 
 def install_mocks():
@@ -380,8 +333,8 @@ def install_mocks():
 
     patches = [
         patch(
-            "core.ibm_cloud.clients.IAMAuthenticator",
-            _FakeIAMAuthenticator,
+            "core.ibm_cloud.clients.get_iam_token_provider",
+            lambda *_a, **_k: _FakeTokenProvider(),
         ),
         # get_cos_client delegates to the private core.ibm_cloud._create_cos_client,
         # which is never imported elsewhere. Patching that single seam redirects

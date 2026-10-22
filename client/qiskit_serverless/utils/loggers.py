@@ -22,7 +22,7 @@ import logging
 
 
 class PrefixFormatter(logging.Formatter):
-    """Formater to add a prefix to logger and split in lines."""
+    """Formatter to add a prefix to logger and split in lines."""
 
     def __init__(self, prefix, *args, **kwargs):
         super().__init__(*args, **kwargs)

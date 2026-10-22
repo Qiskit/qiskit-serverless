@@ -13,10 +13,16 @@ import ctypes, ctypes.util, os, signal, struct, subprocess, sys, threading
 
 
 # ── Security hardening ────────────────────────────────────────────────────────
-# IBM Code Engine Fleets has no securityContext API, so runAsGroup, capability
-# restrictions, and allowPrivilegeEscalation cannot be set at the platform level.
-# This function runs before any user code to apply least-privilege constraints
-# in process space: no-new-privs, gid reset, and an empty capability bounding set.
+# IBM Code Engine Fleets has no securityContext API, so capability restrictions and
+# allowPrivilegeEscalation cannot be set at the platform level, and the group comes
+# from the image's USER (fleet-node uses USER 1000:1000; a bare USER 1000 runs as
+# gid 0). This function runs before any user code to apply least-privilege
+# constraints in process space: no-new-privs and empty capability sets.
+#
+# Only no-new-privs applies to every user. Shrinking the bounding set needs
+# CAP_SETPCAP, which only a root process holds (e.g. a custom image left on USER 0).
+# A non-root process keeps its bounding set, but it starts with no capabilities and
+# no-new-privs stops it from gaining any through setuid or file-capability binaries.
 # Non-fatal on platforms that lack the required syscalls (e.g. musl, non-Linux).
 def _harden():
     try:
@@ -31,23 +37,15 @@ def _harden():
                    ctypes.c_ulong(0), ctypes.c_ulong(0), ctypes.c_ulong(0)) != 0:
         return  # prctl not available on this platform
 
-    # 2. Reset gid=0(root) → uid (1000).  Code Engine assigns gid=0 when
-    #    runAsGroup is absent from the fleet spec.
-    if os.getgid() == 0:
-        target = os.getuid()
-        _libc.setresgid.restype = ctypes.c_int
-        _libc.setresgid.argtypes = [ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
-        _libc.setresgid(target, target, target)  # EPERM after no-new-privs is benign
-
-    # 3. Drop every capability from the bounding set (PR_CAPBSET_DROP).
+    # 2. Drop every capability from the bounding set (PR_CAPBSET_DROP).
     PR_CAPBSET_DROP = 24
     for cap in range(42):  # CAP_LAST_CAP is 41 on Linux 5.x+
         ret = _libc.prctl(PR_CAPBSET_DROP, ctypes.c_ulong(cap),
                           ctypes.c_ulong(0), ctypes.c_ulong(0), ctypes.c_ulong(0))
         if ret != 0 and ctypes.get_errno() != 22:  # 22=EINVAL: cap not known, skip
-            break  # bounding-set drops not supported; continue with capset
+            break  # EPERM when non-root (no CAP_SETPCAP); continue with capset
 
-    # 4. Zero effective/permitted/inheritable capability sets via capset(2).
+    # 3. Zero effective/permitted/inheritable capability sets via capset(2).
     _LINUX_CAPABILITY_VERSION_3 = 0x20080522
     hdr = ctypes.create_string_buffer(struct.pack("=Ii", _LINUX_CAPABILITY_VERSION_3, 0))
     dat = ctypes.create_string_buffer(struct.pack("=III", 0, 0, 0) * 2)  # two 32-bit words
@@ -56,7 +54,7 @@ def _harden():
     except Exception:
         pass
 
-    # 5. Clear ambient capabilities (kernel 4.3+; EINVAL on older = no ambient caps, fine).
+    # 4. Clear ambient capabilities (kernel 4.3+; EINVAL on older = no ambient caps, fine).
     PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL = 47, 4
     _libc.prctl(PR_CAP_AMBIENT, ctypes.c_ulong(PR_CAP_AMBIENT_CLEAR_ALL),
                 ctypes.c_ulong(0), ctypes.c_ulong(0), ctypes.c_ulong(0))
@@ -64,6 +62,28 @@ def _harden():
 
 _harden()
 # ── End security hardening ────────────────────────────────────────────────────
+
+# ── Qiskit user configuration ──────────────────────────────────────────────────
+# The gateway owns the authoritative Qiskit user config (settings.conf). We write
+# it here, before launching the user function, and QISKIT_SETTINGS (set by the
+# gateway) already points at this path. A vendor's own settings.conf is NOT read:
+# Qiskit reads exactly the one file QISKIT_SETTINGS names, with no merging.
+def _write_qiskit_user_config():
+    path = os.environ.get('QISKIT_SETTINGS')
+    if not path:
+        return
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as conf:
+            conf.write({{ qiskit_user_config }})
+    except OSError:
+        # Non-fatal: if we cannot write the file, Qiskit falls back to its own
+        # discovery. The gateway-side QPY check (if any) remains the hard boundary.
+        pass
+
+
+_write_qiskit_user_config()
+# ── End Qiskit user configuration ───────────────────────────────────────────────
 
 # Command to run (injected by the gateway template engine)
 app_cmd = {{ app_cmd }}

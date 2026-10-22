@@ -44,11 +44,14 @@ def _normalize_dependency(raw_dependency) -> str:
     return dependency_name + dependency_version
 
 
-def _no_ce_project_message(function: Function) -> str:
+def no_ce_project_message(function: Function) -> str:
     """Message for a Fleets function with no Code Engine project, naming its provider if it has one.
 
     Distinguishes a provider with no project linked at all from one whose linked project
     is inactive, since those call for different administrator action.
+
+    Public because the Django admin reuses it to reject a Fleets function that cannot be
+    assigned an active project, keeping the admin's wording identical to this endpoint's.
     """
     if function.provider:
         project = function.provider.code_engine_project
@@ -148,7 +151,8 @@ def _apply_default_size(function: Function, default_size: str) -> None:
     default_size = normalize_function_size(default_size)
     row = FunctionSize.objects.get_function_size(function, default_size)
     if row is None:
-        available = sorted(FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True))
+        sizes = FunctionSize.objects.function_sizes(function).values_list("function_size", flat=True)
+        available = sorted({size.upper() for size in sizes})
         raise DRFValidationError(
             f"'default_size' is '{default_size}', which is not one of this function's sizes: "
             + (", ".join(available) if available else "this function declares no sizes.")
@@ -229,7 +233,7 @@ class UploadFunctionUseCase:
 
         CodeEngineProject.objects.assign_to_program(function)
         if function.runner == Function.FLEETS and not function.code_engine_project:
-            message = _no_ce_project_message(function)
+            message = no_ce_project_message(function)
             logger.warning("user_id=%s program=%s | %s", user.id, function.title, message)
             raise FunctionConfigurationException(message)
 
@@ -261,27 +265,28 @@ class UploadFunctionUseCase:
     def _seed_default_size(self, function: Function) -> None:
         """Give a function with no declared catalog the deployment's default size.
 
-        Declaring sizes is still optional, so this is what gets every function to
-        a size. The seed is skipped rather than fatal when the profile row is
-        absent (an operator may not have populated ComputeProfile yet), leaving
-        the function to run on DEFAULT_COMPUTE_PROFILE as it did before sizes
-        existed.
+        Declaring sizes is still optional, so this is what gets every Fleets function
+        to a size, on both create and an update that leaves an empty catalog untouched.
+        The seed profile must already be registered -- if it is not, this is a
+        deployment misconfiguration and the upload is rejected rather than silently
+        leaving the function sizeless (a sizeless Fleets function can no longer run,
+        see run.py's _get_runner_config).
         """
         compute_profile_id = settings.DEFAULT_FUNCTION_SIZE_PROFILE
         profile = ComputeProfile.objects.get_by_id(compute_profile_id)
         if profile is None:
             logger.warning(
-                "program=%s | Default compute profile [%s] is not registered; "
-                "function created with no sizes and will run on the default compute profile.",
+                "program=%s | Default compute profile [%s] is not registered; rejecting upload.",
                 function.title,
                 compute_profile_id,
             )
-            return
+            raise FunctionConfigurationException(
+                f"Default compute profile '{compute_profile_id}' is not registered. Contact administrator."
+            )
 
-        size_name = settings.DEFAULT_FUNCTION_SIZE
         row = FunctionSize.objects.create(
             function=function,
-            function_size=size_name,
+            function_size=settings.DEFAULT_FUNCTION_SIZE,
             compute_profile=profile,
         )
         function.default_size = row
@@ -315,7 +320,7 @@ class UploadFunctionUseCase:
             instance.runner = data.runner
             CodeEngineProject.objects.assign_to_program(instance)
             if instance.runner == Function.FLEETS and not instance.code_engine_project:
-                message = _no_ce_project_message(instance)
+                message = no_ce_project_message(instance)
                 logger.warning("user_id=%s program=%s | %s", user.id, instance.title, message)
                 raise FunctionConfigurationException(message)
 
@@ -340,4 +345,10 @@ class UploadFunctionUseCase:
                 # 'default_size' alone matches against the stored catalog — sizes
                 # are never re-seeded here, a removed size should not reappear.
                 _apply_default_size(instance, data.default_size)
+            elif instance.runner == Function.FLEETS and not instance.function_sizes.exists():
+                # Neither sent and the function has no catalog of its own yet (e.g. it
+                # just switched to Fleets, or predates size seeding): give it the same
+                # deployment default a freshly created function would get. A function
+                # that already declares its own sizes is left untouched.
+                self._seed_default_size(instance)
         return instance

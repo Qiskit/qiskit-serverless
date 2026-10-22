@@ -1,14 +1,25 @@
 """Unit tests for scheduler main loop."""
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from django.db.utils import OperationalError
 
 from prometheus_client import CollectorRegistry
 
 from scheduler.health import UNHEALTHY_THRESHOLD
+from core.services.background_executor import (
+    BackgroundExecutorNotInitializedError,
+    BackgroundPool,
+    get_background_executor,
+)
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
+from scheduler.tasks.export_fleets_breakers import ExportFleetsBreakers
+from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
+from scheduler.tasks.outbox import OutboxTask
+from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
+from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.views.probes import make_liveness
 
 # Scheduler and Gateway share the same settings and the same SITE_HOST value. We need to override it
@@ -27,6 +38,56 @@ class TestMain:
         yield
         self.scheduler_main.stop_http_server()
 
+    def test_run_opens_the_background_executor_and_closes_it_when_it_ends(self):
+        main = self.scheduler_main
+        accepted = []
+
+        class SubmitThenStop:
+            name = "submit_then_stop"
+
+            def run(self):
+                accepted.append(get_background_executor().submit(BackgroundPool.RUNTIME_API, lambda: None) is not None)
+                main.kill_signal.received = True
+
+            def close(self):
+                pass
+
+        main.tasks = [SubmitThenStop()]
+
+        main.run()
+
+        assert accepted == [True]
+        with pytest.raises(BackgroundExecutorNotInitializedError):
+            get_background_executor().submit(BackgroundPool.RUNTIME_API, lambda: None)
+
+    def test_the_tasks_that_change_a_job_status_share_one_transition_service(self):
+        """One service, so the Kafka producers of its sender are created once for the whole scheduler."""
+        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
+        tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+        submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
+
+        assert len(tasks) == len(sharing)
+        assert len({id(task.transitions) for task in tasks} | {id(s.transitions) for s in submitters}) == 1
+
+    def test_the_tasks_that_submit_fleets_jobs_share_one_submitter(self):
+        sharing = (ScheduleFleetsJobs, BalanceFillerJobs)
+        tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+
+        assert len(tasks) == len(sharing)
+        assert len({id(task.submitter) for task in tasks}) == 1
+
+    def test_the_submitter_and_the_canceller_share_one_breaker_per_region(self):
+        """A region that stopped answering is one fact, so a submit and a cancel count against one breaker."""
+        sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs, StopBlockedFleetsJobs)
+        submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
+        cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
+
+        exporter = self.scheduler_main.tasks[-1]
+
+        assert submitters and len(cancellers) == len(sharing)
+        assert isinstance(exporter, ExportFleetsBreakers)
+        assert len({id(holder.breakers) for holder in submitters + cancellers + [exporter]}) == 1
+
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""
         called = False
@@ -44,6 +105,33 @@ class TestMain:
 
         assert called == True
         assert task.run.call_count == 1
+
+    def test_every_task_is_closed_once_the_loop_finishes(self):
+        """So the Kafka consumers leave their groups instead of holding partitions after shutdown."""
+
+        def stop_loop():
+            self.scheduler_main.kill_signal.received = True
+
+        first = MagicMock()
+        first.run.side_effect = stop_loop
+        second = MagicMock()
+
+        self.scheduler_main.tasks = [first, second]
+        self.scheduler_main.run()
+
+        first.close.assert_called_once()
+        second.close.assert_called_once()
+
+    def test_a_task_that_fails_to_close_does_not_keep_the_others_open(self):
+        failing = MagicMock()
+        failing.close.side_effect = RuntimeError("close failed")
+        other = MagicMock()
+        self.scheduler_main.kill_signal.received = True
+
+        self.scheduler_main.tasks = [failing, other]
+        self.scheduler_main.run()
+
+        other.close.assert_called_once()
 
     def test_task_fails(self):
         """When a task raises, metrics.increase_task_error should be called."""
@@ -66,6 +154,13 @@ class TestMain:
         assert task_name == "failing_task"
         assert isinstance(error, Exception)
         assert str(error) == "boom"
+
+    def test_registers_outbox_task_after_the_status_update_tasks(self):
+        """OutboxTask must run after UpdateFleetsJobsStatuses, in the same tick."""
+        task_types = [type(task) for task in self.scheduler_main.tasks]
+
+        assert OutboxTask in task_types
+        assert task_types.index(OutboxTask) > task_types.index(UpdateFleetsJobsStatuses)
 
     def test_http_server_starts_and_stops(self):
         """HTTP server should start and stop after loop ends."""
@@ -94,6 +189,29 @@ class TestMain:
         args = self.scheduler_main.metrics.observe_scheduler_iteration.call_args[0]
         (elapsed,) = args
         assert elapsed >= 0
+
+    def test_loop_duration_does_not_depend_on_the_wall_clock(self):
+        """A wall clock jump of one hour during the tick must not show up in the observed durations."""
+        wall_clock = [1_000_000.0]
+
+        def jump_and_stop():
+            wall_clock[0] += 3600
+            self.scheduler_main.kill_signal.received = True
+
+        task = MagicMock()
+        task.name = "jumpy"
+        task.run.side_effect = jump_and_stop
+
+        self.scheduler_main.tasks = [task]
+        self.scheduler_main.metrics = MagicMock()
+
+        with patch("time.time", side_effect=lambda: wall_clock[0]):
+            self.scheduler_main.run()
+
+        (elapsed,) = self.scheduler_main.metrics.observe_scheduler_iteration.call_args[0]
+        _, task_elapsed = self.scheduler_main.metrics.observe_task_duration.call_args[0]
+        assert elapsed < 60
+        assert task_elapsed < 60
 
     def test_liveness_unhealthy_after_db_errors(self):
         """After UNHEALTHY_THRESHOLD consecutive DB errors, liveness should return 503."""

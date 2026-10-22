@@ -8,10 +8,15 @@ from prometheus_client import (
     make_wsgi_app,
 )
 
+from scheduler.metrics.duration_max_collector import DurationMaxCollector
 from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 
+_TICK_BUCKETS_UP_TO_30_MIN = (0.01, 0.025, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1200, 1800)
+TICK_BUCKETS = _TICK_BUCKETS_UP_TO_30_MIN + (3600, 7200, 14400, float("inf"))
+CLOUD_CALL_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, float("inf"))
 
-class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
+
+class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Metrics related with the scheduler life cycle like wait time per job or tasks failure.
     For system metrics (like CPU or Memory) go to the SystemMetricsCollector
     """
@@ -23,6 +28,7 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             "scheduler_loop_duration_seconds",
             "Duration of one scheduler loop iteration.",
             registry=self.registry,
+            buckets=TICK_BUCKETS,
         )
         self.task_errors = Counter(
             "scheduler_task_errors_total",
@@ -34,6 +40,20 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             "scheduler_task_duration_seconds",
             "Duration of one scheduler task execution.",
             labelnames=("task_name",),
+            registry=self.registry,
+            buckets=TICK_BUCKETS,
+        )
+        self.task_items_total = Counter(
+            "scheduler_task_items_total",
+            "Items a scheduler task handled (jobs submitted, jobs whose status was checked). Divide the rate of "
+            "scheduler_task_duration_seconds_sum by the rate of this to get the cost per item.",
+            labelnames=("task_name",),
+            registry=self.registry,
+        )
+        self.fleets_jobs_skipped_by_breaker_total = Counter(
+            "scheduler_fleets_jobs_skipped_by_breaker_total",
+            "Queued Fleets jobs left QUEUED in a tick because their region's circuit breaker was open.",
+            labelnames=("region",),
             registry=self.registry,
         )
         self.start_time = Gauge(
@@ -116,7 +136,91 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
             registry=self.registry,
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
         )
+        self.outbox_sends_total = Counter(
+            "scheduler_outbox_sends_total",
+            "Outbox sends by channel and outcome.",
+            labelnames=("channel", "outcome"),
+            registry=self.registry,
+        )
+        self.outbox_drain_duration = Histogram(
+            "scheduler_outbox_drain_duration_seconds",
+            "How long one scheduler tick spends draining each outbox channel, to compare with its time budget.",
+            labelnames=("channel",),
+            registry=self.registry,
+            buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, float("inf")),
+        )
+        self.outbox_pending_rows = Gauge(
+            "scheduler_outbox_pending_rows",
+            "Outbox rows pending each channel.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
+        self.outbox_unrecoverable_rows = Gauge(
+            "scheduler_outbox_unrecoverable_rows",
+            "Outbox rows of each channel that the destination will never take. They are left out of the pending rows.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
+        self.outbox_oldest_pending_age_seconds = Gauge(
+            "scheduler_outbox_oldest_pending_age_seconds",
+            "Age in seconds of the oldest outbox row pending each channel.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
+        self.outbox_breaker_open = Gauge(
+            "scheduler_outbox_breaker_open",
+            "1 while a given outbox channel's circuit breaker is open, 0 otherwise.",
+            labelnames=("channel",),
+            registry=self.registry,
+        )
 
+        self.blocked_account_events_total = Counter(
+            "scheduler_blocked_account_events_total",
+            "Blocked-account-plan events consumed, by region and outcome. retry is a handler failure taken as "
+            "transient, so the event is consumed again next tick; invalid is an event that can never be "
+            "handled, skipped.",
+            labelnames=("region", "outcome"),
+            registry=self.registry,
+        )
+        self.blocked_account_consumer_errors_total = Counter(
+            "scheduler_blocked_account_consumer_errors_total",
+            "Errors of the blocked-account-plan Kafka consumers, by region and kind. fatal has the region's "
+            "consumer rebuilt.",
+            labelnames=("region", "kind"),
+            registry=self.registry,
+        )
+        self.blocked_account_consumer_lag = Gauge(
+            "scheduler_blocked_account_consumer_lag",
+            "Blocked-account-plan messages not yet consumed, by region and topic, over the partitions this "
+            "scheduler holds. Sum it across schedulers for the group's lag.",
+            labelnames=("region", "topic"),
+            registry=self.registry,
+        )
+
+        self.code_engine_request_duration = Histogram(
+            "scheduler_code_engine_request_duration_seconds",
+            "Duration of one Code Engine API call, an IAM token refresh included. "
+            "status is ok, the HTTP code, or the exception class.",
+            labelnames=("endpoint", "status"),
+            registry=self.registry,
+            buckets=CLOUD_CALL_BUCKETS,
+        )
+        self.cos_request_duration = Histogram(
+            "scheduler_cos_request_duration_seconds",
+            "Duration of one COS call until the response headers, retries included. "
+            "status is the HTTP code, or 0 when there was no answer.",
+            labelnames=("operation", "status"),
+            registry=self.registry,
+            buckets=CLOUD_CALL_BUCKETS,
+        )
+        self.fleets_breaker_open = Gauge(
+            "scheduler_fleets_breaker_open",
+            "1 while the Code Engine circuit breaker of a region is open, 0 otherwise.",
+            labelnames=("region",),
+            registry=self.registry,
+        )
+
+        self.duration_max = DurationMaxCollector(registry=self.registry)
         SystemMetricsCollector(registry=self.registry)
 
         self.wsgi_app = make_wsgi_app(self.registry)
@@ -128,15 +232,74 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes
     def observe_task_duration(self, task_name: str, elapsed_seconds: float) -> None:
         """Record execution time for one task."""
         self.task_duration.labels(task_name=task_name).observe(elapsed_seconds)
+        self.duration_max.record(task_name, elapsed_seconds)
 
     def observe_scheduler_iteration(self, elapsed_seconds: float) -> None:
         """Register scheduler loop metrics for one full iteration."""
         self.loop_duration.observe(elapsed_seconds)
+        self.duration_max.record(None, elapsed_seconds)
         self.last_tick.set_to_current_time()
 
     def observe_queue_wait_time(self, wait_seconds: float, compute_type: str) -> None:
         """Record queue wait time for a scheduled job."""
         self.queue_wait_seconds.labels(compute_type=compute_type).observe(wait_seconds)
+
+    def increment_task_items(self, task_name: str, count: int = 1) -> None:
+        """Count the items a task handled in a tick. A zero count is not recorded."""
+        if count > 0:
+            self.task_items_total.labels(task_name=task_name).inc(count)
+
+    def increment_fleets_jobs_skipped_by_breaker(self, region: str | None, count: int = 1) -> None:
+        """Count queued Fleets jobs not submitted because their region's breaker was open."""
+        self.fleets_jobs_skipped_by_breaker_total.labels(region=region or "none").inc(count)
+
+    def increment_outbox_send(self, channel: str, outcome: str) -> None:
+        """Count one outbox send attempt. outcome: "success", "failure" (a later try may work) or "unrecoverable"."""
+        self.outbox_sends_total.labels(channel=channel, outcome=outcome).inc()
+
+    def observe_outbox_drain_duration(self, elapsed_seconds: float, channel: str) -> None:
+        """Record how long one tick spent draining a given outbox channel."""
+        self.outbox_drain_duration.labels(channel=channel).observe(elapsed_seconds)
+
+    def set_outbox_pending_rows(self, count: int, channel: str) -> None:
+        """Set how many outbox rows are pending a given channel."""
+        self.outbox_pending_rows.labels(channel=channel).set(count)
+
+    def set_outbox_unrecoverable_rows(self, count: int, channel: str) -> None:
+        """Set how many outbox rows of a given channel the destination will never take."""
+        self.outbox_unrecoverable_rows.labels(channel=channel).set(count)
+
+    def set_outbox_oldest_pending_age_seconds(self, age_seconds: float, channel: str) -> None:
+        """Set the age of the oldest outbox row pending a given channel."""
+        self.outbox_oldest_pending_age_seconds.labels(channel=channel).set(age_seconds)
+
+    def set_outbox_breaker_open(self, is_open: bool, channel: str) -> None:
+        """Record whether a given outbox channel's circuit breaker is currently open."""
+        self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
+
+    def set_fleets_breaker_open(self, is_open: bool, region: str | None) -> None:
+        """Record whether the Code Engine circuit breaker of a region is open."""
+        self.fleets_breaker_open.labels(region=region or "none").set(1 if is_open else 0)
+
+    def observe_code_engine_call(self, endpoint: str, status: str, seconds: float) -> None:
+        """Record one Code Engine API call."""
+        self.code_engine_request_duration.labels(endpoint=endpoint, status=status).observe(seconds)
+
+    def observe_cos_call(self, operation: str, status: str, seconds: float) -> None:
+        """Record one COS call."""
+        self.cos_request_duration.labels(operation=operation, status=status).observe(seconds)
+
+    def increment_blocked_account_event(self, region: str, outcome: str, count: int = 1) -> None:
+        """Count consumed blocked-account-plan events. outcome: handled, invalid or retry."""
+        self.blocked_account_events_total.labels(region=region, outcome=outcome).inc(count)
+
+    def increment_blocked_account_consumer_error(self, region: str, kind: str, count: int = 1) -> None:
+        """Count blocked-account-plan consumer errors. kind: consumer, commit or fatal."""
+        self.blocked_account_consumer_errors_total.labels(region=region, kind=kind).inc(count)
+
+    def set_blocked_account_consumer_lag(self, region: str, topic: str, lag: int) -> None:
+        """Set how many messages of a topic the blocked-account-plan consumer of a region is behind."""
+        self.blocked_account_consumer_lag.labels(region=region, topic=topic).set(lag)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""

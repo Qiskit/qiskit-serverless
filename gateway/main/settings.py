@@ -20,6 +20,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from core.domain import compute_profile
+from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
@@ -42,6 +43,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", 0))
+ENVIRONMENT = os.environ.get("ENVIRONMENT")
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # A hardcoded fallback is only allowed in development/tests. When DEBUG is off
@@ -336,7 +338,63 @@ LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", 
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
+
+# Kafka config
 EVENT_STREAMS_ENABLED = os.environ.get("EVENT_STREAMS_ENABLED", "false").lower() == "true"
+# The Event Streams service is global; usage events are regional. EVENT_STREAMS_MAIN_REGION
+# specifies which regional Kafka bus receives events from unsuffixed broker/API key environment
+# variables. Additional regions are configured via suffixed variables (e.g. EVENT_STREAMS_BOOTSTRAP_SERVERS_EU_DE).
+EVENT_STREAMS_MAIN_REGION = os.environ.get("EVENT_STREAMS_MAIN_REGION", "us-east")
+# Kafka credentials for the main region, plus the deployment environment name (e.g. production,
+# staging) used to namespace the Kafka topic. Left unset by deployments that don't enable Event
+# Streams; required, and validated here, only once EVENT_STREAMS_ENABLED is true, since that is
+# also the only time anything ever constructs a KafkaProducers.
+EVENT_STREAMS_BOOTSTRAP_SERVERS = os.environ.get("EVENT_STREAMS_BOOTSTRAP_SERVERS")
+EVENT_STREAMS_API_KEY = os.environ.get("EVENT_STREAMS_API_KEY")
+EVENT_STREAMS_USER = os.environ.get("EVENT_STREAMS_USER", "token")
+if EVENT_STREAMS_ENABLED and not (EVENT_STREAMS_BOOTSTRAP_SERVERS and EVENT_STREAMS_API_KEY and ENVIRONMENT):
+    raise ImproperlyConfigured(
+        "EVENT_STREAMS_BOOTSTRAP_SERVERS, EVENT_STREAMS_API_KEY and ENVIRONMENT are required when "
+        "EVENT_STREAMS_ENABLED is true"
+    )
+
+
+def _event_streams_regions() -> dict[str, dict[str, str]]:
+    """Discover per-region Event Streams credentials from suffixed environment variables.
+
+    Regions beyond EVENT_STREAMS_MAIN_REGION are configured via
+    EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> (and the matching _API_KEY_<REGION> and
+    optional _USER_<REGION>), so the set of regions isn't known ahead of time and has to be
+    discovered by scanning the environment.
+
+    Raises:
+        ImproperlyConfigured: a EVENT_STREAMS_BOOTSTRAP_SERVERS_<REGION> variable exists with
+            no matching EVENT_STREAMS_API_KEY_<REGION>. Failing at import beats accepting it:
+            the region would otherwise silently never receive a producer, and the mismatch is
+            almost certainly a typo, not something conditional on Event Streams being enabled
+            (an operator who sets these vars at all means to use them).
+    """
+    prefix = "EVENT_STREAMS_BOOTSTRAP_SERVERS_"
+    regions: dict[str, dict[str, str]] = {}
+    for env_key, bootstrap_servers in os.environ.items():
+        if not env_key.startswith(prefix):
+            continue
+        suffix = env_key[len(prefix) :]
+        region = suffix.lower().replace("_", "-")
+        api_key_env = f"EVENT_STREAMS_API_KEY_{suffix}"
+        api_key = os.environ.get(api_key_env)
+        if api_key is None:
+            raise ImproperlyConfigured(f"Region {region}: found {env_key} but missing {api_key_env}")
+        regions[region] = {
+            "bootstrap_servers": bootstrap_servers,
+            "api_key": api_key,
+            "user": os.environ.get(f"EVENT_STREAMS_USER_{suffix}", "token"),
+        }
+        logging.getLogger("main").info("Discovered Event Streams region: region=%s", region)
+    return regions
+
+
+EVENT_STREAMS_REGIONS = _event_streams_regions()
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
@@ -374,7 +432,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.36.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -408,9 +466,24 @@ QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 # Authentication Runtime API
 RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL", "https://quantum.test.cloud.ibm.com")
 RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
+# Read timeout, in seconds, for the IBM Cloud calls made while authenticating a request
+# (IAM token, Resource Controller, and the entitlements lookup). Kept short so a slow or
+# hung backend does not hold a gateway worker: long enough to ride out a normal latency
+# spike, short enough to fail fast and let the client retry.
+IBM_CLOUD_API_TIMEOUT = int(os.environ.get("IBM_CLOUD_API_TIMEOUT", "10"))
 # The Runtime API is region-scoped. RUNTIME_API_BASE_URL serves the default region on the
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
+
+# API key of the service credential that holds the functions operator role, used to call the Runtime API as a service
+# (core/clients/functions_operator_client.py).
+FUNCTIONS_OPERATOR_API_KEY = os.environ.get("FUNCTIONS_OPERATOR_API_KEY", "")
+
+# Shared per-process thread pool for background work (core/services/background_executor.py): how many threads it
+# has, and how many tasks may be submitted and unfinished before new ones are dropped. Each caller (BackgroundPool) is
+# guaranteed a minimum share of the pending limit.
+BACKGROUND_EXECUTOR_MAX_WORKERS = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_WORKERS", "4"))
+BACKGROUND_EXECUTOR_MAX_PENDING = int(os.environ.get("BACKGROUND_EXECUTOR_MAX_PENDING", "100"))
 
 # IBM Cloud
 
@@ -449,10 +522,10 @@ SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
 SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
-# Functions logs size limite in Bytes
+# Functions logs size limit in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
 
-# Functions logs size limite in Bytes
+# Functions logs size limit in Bytes
 JOB_LOGS_MIGRATION_BATCH_SIZE = int(os.environ.get("JOB_LOGS_MIGRATION_BATCH_SIZE", "10"))
 
 # Dynamic configuration cache TTL in seconds
@@ -496,6 +569,84 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Minimum number of jobs, real plus filler, to keep running for the compute "
         "profile of the filler program.",
     },
+    "scheduler.outbox.kafka.budget_ms": {
+        "default": "500",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for each Kafka outbox channel, in milliseconds.",
+    },
+    "scheduler.outbox.kafka.breaker_failures": {
+        "default": "3",
+        "type": "integer",
+        "description": "Consecutive send failures before the Kafka outbox circuit breaker opens.",
+    },
+    "scheduler.outbox.kafka.breaker_pause_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "How long the Kafka outbox circuit breaker stays open once tripped. Once it closes, a whole "
+        "new streak of failures is needed to open it again.",
+    },
+    "scheduler.outbox.kafka.retry_base_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "Seconds a Kafka outbox row waits after its first failed send. The wait doubles with every "
+        "further failure, up to retry_max_seconds, and is never less than one second.",
+    },
+    "scheduler.outbox.kafka.retry_max_seconds": {
+        "default": "600",
+        "type": "integer",
+        "description": "The longest a Kafka outbox row waits between two tries, however many times it has failed.",
+    },
+    "workloads.mirror.enabled": {
+        "default": "false",
+        "type": "string",
+        "description": "Mirror the Fleets jobs created from now on to the Runtime API as workloads (a failure rejects "
+        "the job). 'true' mirrors every job and 'false' none. Otherwise a comma separated list, ignoring case, of "
+        "providers (qctrl), functions (qctrl/management) and 'custom' (functions without a provider).",
+    },
+    "scheduler.outbox.workload.budget_ms": {
+        "default": "3000",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the workload outbox channel, in milliseconds.",
+    },
+    "scheduler.outbox.workload.breaker_failures": {
+        "default": "3",
+        "type": "integer",
+        "description": "Consecutive send failures before the workload outbox circuit breaker opens.",
+    },
+    "scheduler.outbox.workload.breaker_pause_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "How long the workload outbox circuit breaker stays open once tripped.",
+    },
+    "scheduler.outbox.workload.retry_base_seconds": {
+        "default": "120",
+        "type": "integer",
+        "description": "Seconds a workload outbox row waits after its first failed send. The wait doubles with every "
+        "further failure, up to retry_max_seconds, and is never less than one second.",
+    },
+    "scheduler.outbox.workload.retry_max_seconds": {
+        "default": "600",
+        "type": "integer",
+        "description": "The longest a workload outbox row waits between two tries, however many times it has failed.",
+    },
+    "scheduler.fleets.breaker_failures": {
+        "default": "5",
+        "type": "integer",
+        "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
+        "timeouts) before the scheduler stops submitting and cancelling Fleets jobs in that region.",
+    },
+    "scheduler.fleets.breaker_pause_seconds": {
+        "default": "60",
+        "type": "integer",
+        "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
+        "breaker trips.",
+    },
+    "scheduler.blocked_jobs_stop.enabled": {
+        "default": "true",
+        "type": "boolean",
+        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
+        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
+    },
 }
 
 # Fleets / Code Engine credentials
@@ -505,7 +656,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.36.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.37.0",
 )
 
 
@@ -535,10 +686,12 @@ def _canonical_compute_profile(name: str, default: str) -> str:
 # Compute profile settings for Fleets runner
 DEFAULT_COMPUTE_PROFILE = _canonical_compute_profile("DEFAULT_COMPUTE_PROFILE", "16x128")  # 16 CPU, 128GB RAM
 # Size seeded for a function uploaded without an explicit size catalog, so every
-# function has a size to run with while declaring sizes is still optional. The
-# profile must name an existing ComputeProfile row; when no such row exists the
-# function is created with no sizes and runs fall back to DEFAULT_COMPUTE_PROFILE.
-DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "m")
+# function has a size to run with while declaring sizes is still optional.
+DEFAULT_FUNCTION_SIZE = os.environ.get("DEFAULT_FUNCTION_SIZE", "M").strip().upper()
+if DEFAULT_FUNCTION_SIZE not in FUNCTION_SIZE_VALID_SIZES:
+    raise ImproperlyConfigured(
+        f"DEFAULT_FUNCTION_SIZE is not one of {FUNCTION_SIZE_VALID_SIZES}: {DEFAULT_FUNCTION_SIZE!r}"
+    )
 DEFAULT_FUNCTION_SIZE_PROFILE = _canonical_compute_profile(
     "DEFAULT_FUNCTION_SIZE_PROFILE", "16x128"
 )  # 16 CPU, 128GB RAM
@@ -555,6 +708,19 @@ FLEETS_RUNTIME_GLOBAL_CATALOG_URL = os.environ.get("FLEETS_RUNTIME_GLOBAL_CATALO
 # Set to "true" on staging to enable experimental features in the container.
 FLEETS_RUNTIME_EXPERIMENTAL = os.environ.get("FLEETS_RUNTIME_EXPERIMENTAL", "false").lower() == "true"
 CE_DEFAULT_PROJECT_NAME = os.environ.get("CE_DEFAULT_PROJECT_NAME", "")
+
+# Qiskit user config (settings.conf) injected into every Ray and Fleets job container.
+# QISKIT_SETTINGS points at it; a function's own config is not read (Qiskit reads one file).
+QISKIT_MIN_QPY_VERSION = int(os.environ.get("QISKIT_MIN_QPY_VERSION", "13"))
+QISKIT_SETTINGS_CONTAINER_PATH = os.environ.get("QISKIT_SETTINGS_CONTAINER_PATH", "/tmp/qiskit/settings.conf")
+
+
+def _render_qiskit_user_config() -> str:
+    """Return the INI contents of the gateway-owned Qiskit user configuration file."""
+    return f"[default]\nmin_qpy_version = {QISKIT_MIN_QPY_VERSION}\n"
+
+
+QISKIT_USER_CONFIG = _render_qiskit_user_config()
 
 # Set to "true" to use the public COS endpoint instead of the private VPC endpoint.
 # Only needed for local testing outside IBM Cloud (e.g. docker-compose).

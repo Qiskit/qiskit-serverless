@@ -34,13 +34,13 @@ The Qiskit Serverless Chart has several internal and external dependencies. If y
 
 **Nginx Ingress controller**
 
-For our Nginx Ingress controller dependency we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup.
+For our Nginx Ingress controller dependency we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straightforward initial parameters setup.
 But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their READMEs:
 * [Nginx Ingress controller's README](https://artifacthub.io/packages/helm/bitnami/nginx-ingress-controller)
 
 **Kuberay operator**
 
-For our KubeRay Chart dependency we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
+For our KubeRay Chart dependency we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straightforward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
 
 - For Kuberay Operator you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-operator/values.yaml).
 
@@ -71,3 +71,29 @@ Gateway is the API that we offer to manage Qiskit Patterns. Scheduler is the par
 | secrets.servicePsql.*                     | `name` and `key` let you to specify the secret and `value` the value for the secret                                                                                                           |
 | secrets.superuser.create                  | Port number that service will be exposed externally                                                                                                                                           |
 | secrets.superuser.*                       | `name` and `key` let you to specify the secret and `value` the value for the secret                                                                                                           |
+
+**Event Streams (Multi-Region)**
+
+Event Streams is an IBM Cloud service for publishing function usage events to regional Kafka buses. The service is configured with a main region and optional additional regional buses. See [Multi-region Event Streams routing design](../../../2026-08-06-multi-region-kafka-design.md) for full details.
+
+| Name                                    | Description                                                                                                |
+|-----------------------------------------|------------------------------------------------------------------------------------------------------------|
+| application.eventStreams.enabled        | enable / disable event publishing to Kafka                                                                 |
+| application.eventStreams.environment    | deployment environment name (e.g. production, staging); passed to Kafka topic name                         |
+| application.eventStreams.mainRegion     | main region served by unsuffixed `kafka-credentials` secret (default: `eu-de`)                            |
+
+**Event Streams Secrets**
+
+The main region uses the `kafka-credentials` secret with keys `bootstrap_servers` and `api_key`. Additional regions use suffixed secrets: `kafka-credentials-eu-de`, `kafka-credentials-ap-sg`, etc. Each regional secret requires the same keys.
+
+```bash
+# Default region (required if eventStreams.enabled is true)
+kubectl create secret generic kafka-credentials \
+  --from-literal=bootstrap_servers='broker1:9093,broker2:9093' \
+  --from-literal=api_key='your-api-key'
+
+# Additional region (optional; automatically detected if present)
+kubectl create secret generic kafka-credentials-eu-de \
+  --from-literal=bootstrap_servers='broker-eu1:9093,broker-eu2:9093' \
+  --from-literal=api_key='your-eu-api-key'
+```

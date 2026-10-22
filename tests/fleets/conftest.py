@@ -81,7 +81,25 @@ def cleanup_minio(minio_client):  # pylint: disable=redefined-outer-name
 
 
 @pytest.fixture(scope="session", autouse=True)
-def warm_pipeline(serverless_client, cleanup_minio):  # pylint: disable=redefined-outer-name,unused-argument
+def default_compute_profile(pg_conn):  # pylint: disable=redefined-outer-name
+    """Seed the ``ComputeProfile`` row that ``DEFAULT_COMPUTE_PROFILE`` (16x128) resolves to.
+
+    Job creation is rejected unless a matching row exists. Raw SQL because
+    tests run out-of-process from Django, same as ``test_provider`` below.
+    """
+    cur = pg_conn.cursor()
+    cur.execute(
+        "INSERT INTO api_computeprofile (compute_profile_id, created, name, cpu, memory) "
+        "VALUES (%s, NOW(), %s, %s, %s) ON CONFLICT (compute_profile_id) DO NOTHING",
+        ("16x128", "", "16", "128"),
+    )
+    cur.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def warm_pipeline(
+    serverless_client, cleanup_minio, default_compute_profile
+):  # pylint: disable=redefined-outer-name,unused-argument
     """Warm the whole fleets pipeline (scheduler -> worker -> s3fs) once, before timed tests.
 
     The first job after ``docker compose up`` pays a one-time cold-start cost:

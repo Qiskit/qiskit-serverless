@@ -1,17 +1,52 @@
 """Unit tests for UpdateFleetsJobsStatuses."""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, Program
-from core.services.runners import RunnerError
-from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
+from django.contrib.auth.models import User
+
+from core.models import ComputeProfile, Job, JobEvent, Program
+from core.services.job_transitions import JobTransitionService
+from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
+from core.services.runners import RunnerError, RunnerRetryableError
+from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses, _STOPPING_DEADLINE_SECONDS
 from tests.utils import TestUtils
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
+
+
+def _make_transitions():
+    """A JobTransitionService mock whose transitions write the job the way the real ones do; what they
+    also owe (outbox, Kafka) is tested in tests/core/services/test_job_transitions.py."""
+    transitions = MagicMock()
+
+    def _pending_to_running(job, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+        job.update_fields({"status": Job.RUNNING, **(job_fields or {})})
+
+    def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+        job.update_fields({"status": status, **(job_fields or {})})
+
+    def _try_stop(job, *, origin, context):  # pylint: disable=unused-argument
+        job.update_fields({"status": Job.STOPPING})
+        return True
+
+    transitions.try_stop = MagicMock(side_effect=_try_stop)
+    transitions.pending_to_running = MagicMock(side_effect=_pending_to_running)
+    transitions.to_terminal = MagicMock(side_effect=_to_terminal)
+    return transitions
+
+
+def _make_canceller(transitions):
+    """A canceller with a closed breaker that calls straight through to try_stop."""
+    canceller = MagicMock()
+    canceller.paused.return_value = False
+    canceller.cancel.side_effect = lambda job, *, context: transitions.try_stop(
+        job, origin=JobEventOrigin.SCHEDULER, context=context
+    )
+    return canceller
 
 
 def _make_task():
@@ -20,7 +55,8 @@ def _make_task():
     task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
     task.kill_signal = kill_signal
     task.metrics = MagicMock()
-    task._event_streams_client = MagicMock()
+    task.transitions = _make_transitions()
+    task.canceller = _make_canceller(task.transitions)
     return task
 
 
@@ -33,8 +69,8 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.logs = ""
     job.env_vars = "{}"
     job.sub_status = None
-    job.running_started_at = None
     job.instance_crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/abc:def::"
+    job.ce_region = "us-east"
     job.filler = False
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
 
@@ -59,17 +95,21 @@ class TestUpdateJobStatus:
         assert result is False
         mock_get_runner.assert_not_called()
 
-    def test_runner_error_leaves_the_status_alone_and_checks_the_timeout(self):
+    @pytest.mark.parametrize(
+        "error", [RunnerError("Code Engine project 'p' is not active"), ValueError("CE secret not found")]
+    )
+    def test_status_error_leaves_the_status_alone_and_checks_the_timeout(self, error):
+        """A ValueError from the COS client reaches the timeout too, instead of unwinding to run()."""
         task = _make_task()
         job = _make_fleets_job()
 
         mock_runner = MagicMock()
-        mock_runner.status.side_effect = RunnerError("Code Engine project 'p' is not active")
+        mock_runner.status.side_effect = error
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
-            patch.object(task, "stop_job_if_timeout") as mock_timeout,
+            patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
         ):
             result = task.update_job_status(job)
 
@@ -77,7 +117,7 @@ class TestUpdateJobStatus:
         mock_timeout.assert_called_once_with(job)
         assert result is False
 
-    def test_succeeded_calls_to_terminal_and_records_duration(self):
+    def test_succeeded_calls_to_terminal(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -87,12 +127,10 @@ class TestUpdateJobStatus:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
-            patch.object(task, "_record_execution_duration") as mock_duration,
         ):
             task.update_job_status(job)
 
         mock_terminal.assert_called_once_with(job, Job.SUCCEEDED)
-        mock_duration.assert_called_once_with(job)
 
     def test_pending_to_running_calls_to_running(self):
         task = _make_task()
@@ -110,7 +148,10 @@ class TestUpdateJobStatus:
 
         mock_running.assert_called_once_with(job)
 
-    def test_running_to_running_skips_to_running(self):
+    def test_running_to_running_calls_to_running(self):
+        """to_running is called unconditionally for a RUNNING poll result; it is the one
+        that decides internally whether this is a PENDING->RUNNING transition or an
+        already-RUNNING job that just needs an in-progress emit."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -124,7 +165,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_not_called()
+        mock_running.assert_called_once_with(job)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -135,7 +176,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
             patch.object(task, "to_terminal") as mock_terminal,
             patch.object(task, "to_running") as mock_running,
         ):
@@ -155,7 +196,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout"),
+            patch.object(task, "stop_job_if_timeout", return_value=False),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
             result = task.update_job_status(job)
@@ -179,7 +220,7 @@ class TestUpdateJobStatus:
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "stop_job_if_timeout") as mock_timeout,
+            patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
         ):
             task.update_job_status(job)
 
@@ -210,18 +251,32 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
+        with patch(f"{_MOD}.JobEvent"):
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        task.transitions.to_terminal.assert_called_once_with(
+            job,
+            Job.SUCCEEDED,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.SUCCEEDED,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
+
+    def test_a_succeeded_job_records_its_duration(self):
+        """to_terminal owns this, so every route to SUCCEEDED gets it."""
+        task = _make_task()
+        job = _make_fleets_job()
+        running_event = MagicMock()
+        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        with patch(f"{_MOD}.JobEvent") as mock_event:
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        task.metrics.observe_job_execution_duration.assert_called_once()
 
     def test_job_reaches_failed_state(self):
         task = _make_task()
@@ -229,18 +284,43 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            task.to_terminal(job, Job.FAILED)
+        task.to_terminal(job, Job.FAILED)
 
         assert job.status == Job.FAILED
         assert job.sub_status is None
         assert job.env_vars == "{}"
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
+        task.transitions.to_terminal.assert_called_once_with(
+            job,
+            Job.FAILED,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.FAILED,
+            job_fields={"sub_status": None, "env_vars": "{}"},
         )
+
+    def test_to_terminal_never_sends_an_in_progress_event(self):
+        """Kafka publishing for a terminal job happens only via the outbox task."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with patch(f"{_MOD}.JobEvent"):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        task.transitions.running_to_running.assert_not_called()
+
+    def test_does_not_raise_when_the_job_already_turned_terminal(self):
+        """A user-initiated stop can race this poll and win it first: the transition then
+        raises InvalidJobTransitionException, which must not crash the tick or count the
+        terminal metric for a transition that never happened."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        task.transitions.to_terminal.side_effect = InvalidJobTransitionException(
+            "Job x: invalid transition STOPPED -> SUCCEEDED"
+        )
+
+        task.to_terminal(job, Job.SUCCEEDED)  # must not raise
+
+        task.metrics.increment_jobs_terminal.assert_not_called()
+        task.metrics.observe_job_execution_duration.assert_not_called()
 
 
 class TestToRunning:
@@ -250,94 +330,43 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        with patch(f"{_MOD}.JobEvent") as mock_job_event:
-            task.to_running(job)
+        task.to_running(job)
 
         assert job.status == Job.RUNNING
-        mock_job_event.objects.add_status_event.assert_called_once_with(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
+        task.transitions.pending_to_running.assert_called_once_with(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+        task.transitions.running_to_running.assert_not_called()
+
+    def test_does_not_send_in_progress_when_the_job_already_turned_terminal(self):
+        """A user-initiated stop can race this poll and win it first: the transition then
+        raises InvalidJobTransitionException. Sending an in-progress event for an
+        already-terminal job would be wrong, so this must skip it entirely, not just the
+        transition."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        task.transitions.pending_to_running.side_effect = InvalidJobTransitionException(
+            "Job x: invalid transition STOPPED -> RUNNING"
         )
 
-    def test_to_running_sets_running_started_at(self):
+        task.to_running(job)  # must not raise
+
+        task.transitions.running_to_running.assert_not_called()
+
+    def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
         task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
+        job = _make_fleets_job(status=Job.RUNNING)
 
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
-        ):
-            fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-            mock_dt.now.return_value = fake_now
-            task.to_running(job)
+        task.to_running(job)
 
-        assert job.update_fields.call_args_list == [
-            call({"running_started_at": fake_now}),
-            call({"status": Job.RUNNING}),
-        ]
-
-    def test_to_running_persists_running_started_at_before_emitting_events(self):
-        """The events carry running_started_at as job_started_at, so it must be set first."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        seen = {}
-
-        task.event_streams_client.emit_job_started.side_effect = lambda j: seen.update(started=j.running_started_at)
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: seen.update(license=j.running_started_at)
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
-        ):
-            mock_dt.now.return_value = fake_now
-            task.to_running(job)
-
-        assert seen == {"started": fake_now, "license": fake_now}
-
-    def test_to_running_keeps_existing_running_started_at_on_retry(self):
-        """A retry after a failed emit must reuse the stored start time, not move it forward."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        original = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        job.running_started_at = original
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
-        ):
-            mock_dt.now.return_value = datetime(2026, 1, 1, 12, 30, 0, tzinfo=timezone.utc)
-            task.to_running(job)
-
-        assert job.running_started_at == original
-        job.update_fields.assert_called_once_with({"status": Job.RUNNING})
-
-    def test_to_running_keeps_running_started_at_when_emit_fails(self):
-        """A failed publish leaves the job PENDING but the recorded start time persisted."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        task.event_streams_client.emit_job_started.side_effect = RuntimeError("kafka down")
-
-        with (
-            patch(f"{_MOD}.JobEvent"),
-            patch(f"{_MOD}.django_timezone") as mock_dt,
-        ):
-            mock_dt.now.return_value = fake_now
-            with pytest.raises(RuntimeError):
-                task.to_running(job)
-
-        assert job.running_started_at == fake_now
-        assert job.status == Job.PENDING
-        job.update_fields.assert_called_once_with({"running_started_at": fake_now})
+        task.transitions.running_to_running.assert_called_once_with(job)
+        task.transitions.pending_to_running.assert_not_called()
 
 
 class TestStopJobIfTimeout:
     """Tests for stop_job_if_timeout()."""
 
-    def test_job_stopped_when_timeout_exceeded(self):
+    def test_a_timed_out_job_goes_to_stopping(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
@@ -347,58 +376,111 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=MagicMock()),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
             task.stop_job_if_timeout(job)
 
-        assert job.status == Job.STOPPED
-        assert job.sub_status is None
-        task.metrics.increment_jobs_terminal.assert_called_once()
+        # The cancel was accepted, so the poller confirms it from the task store on a later cycle.
+        assert job.status == Job.STOPPING
 
-    def test_cancels_the_fleet_before_marking_stopped(self):
-        """The timeout must not just write STOPPED, it must cancel the Code Engine job too."""
+    def test_the_timeout_cancels_the_fleet_and_records_stopping(self):
+        """The timeout must cancel the Code Engine job, not just write a status."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        mock_runner = MagicMock()
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=mock_runner) as mock_get_runner,
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
             task.stop_job_if_timeout(job)
 
-        mock_get_runner.assert_called_once_with(job)
-        mock_runner.stop.assert_called_once_with()
-        assert job.status == Job.STOPPED
+        task.transitions.try_stop.assert_called_once()
+        assert job.status == Job.STOPPING
 
-    def test_still_marks_stopped_when_the_fleet_cannot_be_cancelled(self):
-        """A Code Engine outage must not make the timeout immortal too."""
+    def test_a_fleet_already_gone_is_still_counted(self):
+        """stop() writes STOPPED itself when Code Engine has no fleet left, so to_terminal here would
+        be STOPPED to STOPPED, which is rejected and counts nothing."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        def _wrote_stopped(job, **kwargs):  # pylint: disable=unused-argument
+            job.update_fields({"status": Job.STOPPED})
+            return False
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        task.transitions.try_stop.side_effect = _wrote_stopped
+        # what the real service answers for STOPPED -> STOPPED
+        task.transitions.to_terminal.side_effect = InvalidJobTransitionException("STOPPED -> STOPPED")
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            task.stop_job_if_timeout(job)
+
+        assert job.status == Job.STOPPED
+        task.metrics.increment_jobs_terminal.assert_called_once_with(provider=ANY, final_status=Job.STOPPED)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            RunnerRetryableError("Too Many Requests"),
+            RunnerError("Forbidden"),
+            InvalidJobTransitionException("invalid transition STOPPED -> STOPPING"),
+        ],
+        ids=["undeliverable", "refused", "lost-the-race"],
+    )
+    def test_a_cancel_that_did_not_land_leaves_the_job_alone(self, error):
+        """Writing STOPPED on a cancel that never landed would claim a stop that never happened and
+        strand the fleet. The row keeps its status and a later tick asks again."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        mock_runner = MagicMock()
-        mock_runner.stop.side_effect = RunnerError("Code Engine project 'p' is not active")
+        task.transitions.try_stop.side_effect = error
 
         with (
             patch(f"{_MOD}.settings") as mock_settings,
             patch(f"{_MOD}.JobEvent") as mock_event,
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            task.stop_job_if_timeout(job)
+            changed = task.stop_job_if_timeout(job)
 
-        assert job.status == Job.STOPPED
+        assert changed is False
+        assert job.status == Job.RUNNING
+        task.transitions.to_terminal.assert_not_called()
+
+    def test_a_paused_region_sends_no_cancel(self):
+        """One try per tick costs nothing while the region's breaker is open."""
+        task = _make_task()
+        task.canceller.paused.return_value = True
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        past_event = MagicMock()
+        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            changed = task.stop_job_if_timeout(job)
+
+        assert changed is False
+        assert job.status == Job.RUNNING
+        task.canceller.cancel.assert_not_called()
 
     def test_job_unchanged_when_within_timeout(self):
         task = _make_task()
@@ -472,7 +554,7 @@ class TestRun:
             patch.object(task, "update_job_status", side_effect=fake_update),
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
@@ -490,73 +572,32 @@ class TestRun:
             patch(f"{_MOD}.logger") as mock_logger,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
             task.run()
 
         mock_logger.info.assert_called_with("Updated %s Fleets jobs.", 2)
 
+    def test_counts_every_job_checked_and_not_only_the_ones_that_changed(self):
+        task = _make_task()
+        changed = _make_fleets_job()
+        unreadable = _make_fleets_job()
+
+        with (
+            patch(f"{_MOD}.settings") as mock_settings,
+            patch(f"{_MOD}.Job") as mock_job_cls,
+            patch.object(task, "update_job_status", side_effect=[True, False]),
+        ):
+            mock_settings.LIMITS_MAX_FLEETS = 10
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [changed, unreadable]
+            mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+            task.run()
+
+        task.metrics.increment_task_items.assert_called_once_with(task.name, 2)
+
 
 class TestEventStreamsIntegration:
     """Tests that emit methods are called at the right lifecycle points."""
-
-    def test_to_running_emits_job_started_before_the_status_is_written(self):
-        """running_started_at is persisted first, but the status must not be until the emit lands."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-
-        call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
-
-        with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone"):
-                task.to_running(job)
-
-        assert call_order == ["db:running_started_at", "publish", "db:status"]
-        task.event_streams_client.emit_job_started.assert_called_once_with(job)
-
-    def test_to_running_raises_if_publish_fails(self):
-        task = _make_task()
-        task.event_streams_client.emit_job_started.side_effect = Exception("broker down")
-        job = _make_fleets_job(status=Job.PENDING)
-
-        with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone") as mock_dt:
-                fake_now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                mock_dt.now.return_value = fake_now
-                with pytest.raises(Exception, match="broker down"):
-                    task.to_running(job)
-
-        # The start time is kept so a retry reports when the fleet really started, but the
-        # status is not written: the job stays PENDING and is picked up again next tick.
-        job.update_fields.assert_called_once_with({"running_started_at": fake_now})
-        assert job.status == Job.PENDING
-
-    def test_to_terminal_emits_job_completed_before_db_update(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        call_order = []
-        task.event_streams_client.emit_job_completed.side_effect = lambda j: call_order.append("publish")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db"))
-
-        with patch(f"{_MOD}.JobEvent"):
-            task.to_terminal(job, Job.SUCCEEDED)
-
-        assert call_order == ["publish", "db"]
-        task.event_streams_client.emit_job_completed.assert_called_once_with(job)
-
-    def test_to_terminal_raises_if_publish_fails(self):
-        task = _make_task()
-        task.event_streams_client.emit_job_completed.side_effect = Exception("broker down")
-        job = _make_fleets_job(status=Job.RUNNING)
-
-        with patch(f"{_MOD}.JobEvent"):
-            with pytest.raises(Exception, match="broker down"):
-                task.to_terminal(job, Job.SUCCEEDED)
-
-        job.update_fields.assert_not_called()
 
     def test_update_job_status_emits_job_in_progress_for_running_job(self):
         task = _make_task()
@@ -571,7 +612,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task.event_streams_client.emit_job_in_progress.assert_called_once_with(job)
+        task.transitions.running_to_running.assert_called_once_with(job)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
@@ -584,7 +625,7 @@ class TestEventStreamsIntegration:
             patch.object(task, "update_job_status", return_value=True) as mock_update_status,
         ):
             mock_settings.LIMITS_MAX_FLEETS = 10
-            mock_job_cls.objects.filter.return_value = [job1, job2]
+            mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
 
             # Simulate update_job_status raising for job1 (publish failure) but succeeding for job2
@@ -602,37 +643,59 @@ class TestEventStreamsIntegration:
         mock_update_status.assert_any_call(job2)
         assert mock_update_status.call_count == 2
 
-    def test_update_job_status_skips_emit_for_pending_to_running_transition(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
 
-        mock_runner = MagicMock()
-        mock_runner.status.return_value = Job.RUNNING
+@pytest.mark.django_db
+def test_to_terminal_writes_the_job_through_the_real_service():
+    """Nothing is mocked between the task and the database: the status, the wiped fields and the JobEvent land."""
+    author = User.objects.create_user(username="update-fleets-real-service")
+    job = Job.objects.create(
+        author=author, runner=Program.FLEETS, status=Job.RUNNING, sub_status=Job.MAPPING, env_vars='{"k": "v"}'
+    )
+    task = _make_task()
+    task.transitions = JobTransitionService(sender=MagicMock())
 
-        with (
-            patch(f"{_MOD}.get_runner", return_value=mock_runner),
-            patch.object(task, "to_running"),
-            patch.object(task, "stop_job_if_timeout"),
-        ):
-            task.update_job_status(job)
+    task.to_terminal(job, Job.FAILED)
 
-        task.event_streams_client.emit_job_in_progress.assert_not_called()
+    job.refresh_from_db()
+    assert job.status == Job.FAILED
+    assert job.sub_status is None
+    assert job.env_vars == "{}"
+    assert JobEvent.objects.filter(job=job, data__status=Job.FAILED).count() == 1
+    task.metrics.increment_jobs_terminal.assert_called_once()
 
-    def test_to_running_emits_license_fee_after_job_started(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
 
-        call_order = []
-        task.event_streams_client.emit_job_started.side_effect = lambda j: call_order.append("started")
-        task.event_streams_client.emit_license_fee.side_effect = lambda j: call_order.append("license")
-        job.update_fields = MagicMock(side_effect=lambda f: call_order.append("db:" + ",".join(f)))
+@pytest.mark.django_db
+def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails():
+    """A Kafka outage on the in-progress event must not skip the timeout check for that job: the real
+    service swallows the failure, so nothing reaches the task."""
+    author = User.objects.create_user(username="update-fleets-kafka-down")
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    job = Job.objects.create(
+        author=author,
+        runner=Program.FLEETS,
+        fleet_id="fleet-123",
+        instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        compute_profile_fk=profile,
+        status=Job.RUNNING,
+    )
+    JobEvent.objects.add_status_event(
+        job_id=job.id, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+    )
+    sender = MagicMock()
+    sender.send.side_effect = RuntimeError("kafka down")
+    task = _make_task()
+    task.transitions = JobTransitionService(sender=sender)
+    mock_runner = MagicMock()
+    mock_runner.status.return_value = Job.RUNNING
 
-        with patch(f"{_MOD}.JobEvent"):
-            with patch(f"{_MOD}.django_timezone"):
-                task.to_running(job)
+    with (
+        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+        patch.object(task, "stop_job_if_timeout") as mock_timeout,
+    ):
+        task.update_job_status(job)
 
-        assert call_order == ["db:running_started_at", "started", "license", "db:status"]
-        task.event_streams_client.emit_license_fee.assert_called_once_with(job)
+    sender.send.assert_called_once()
+    mock_timeout.assert_called_once_with(job)
 
 
 def test_filler_jobs_are_left_out_of_the_job_metrics():
@@ -689,3 +752,235 @@ def test_an_inactive_project_does_not_fail_a_running_job():
 
     job.refresh_from_db()
     assert job.status == Job.RUNNING
+
+
+def _recent_stopping_event():
+    event = MagicMock()
+    event.created = datetime.now(timezone.utc)
+    return event
+
+
+def _old_stopping_event():
+    event = MagicMock()
+    event.created = datetime.now(timezone.utc) - timedelta(seconds=_STOPPING_DEADLINE_SECONDS + 60)
+    return event
+
+
+class TestStoppingJobs:
+    """A STOPPING job is driven to a terminal status by the scheduler, never by the stop request."""
+
+    @pytest.mark.parametrize("task_state", [Job.STOPPED, Job.SUCCEEDED, Job.FAILED])
+    def test_the_task_stores_terminal_status_wins_over_the_stop(self, task_state):
+        """A job that finished before its cancel landed really did finish. Writing STOPPED instead
+        reports it as cancelled, which hides a failed job's error from the caller.
+
+        The task store is COS, not the Code Engine API, so this read must never consult the breaker:
+        gate it and a STOPPING row could never reach a terminal status during a Code Engine outage.
+        """
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = task_state
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            # no RUNNING event, so the duration is skipped: this test is about the status
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = None
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == task_state
+        runner.stop.assert_not_called()
+        task.canceller.paused.assert_not_called()
+
+    def test_a_running_task_is_left_alone_and_no_cancel_is_sent(self):
+        """Whoever asked for the stop already sent the cancel. The poller only observes."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _recent_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is False
+        assert job.status == Job.STOPPING
+        runner.stop.assert_not_called()
+        task.transitions.running_to_running.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error", [RunnerError("project 'p' is not active"), ValueError("CE secret not found in project 'p'")]
+    )
+    def test_an_unreadable_task_store_still_runs_the_deadline(self, error):
+        """status() raises RunnerError for an inactive project and ValueError for a bad COS secret."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.side_effect = error
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+
+    def test_the_deadline_writes_stopped_without_confirmation(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+
+    def test_a_stopping_job_with_no_fleet_stops_at_once(self):
+        """The branch sits before the fleet_id check, which would otherwise return and never look again."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING, fleet_id=None)
+
+        with patch(f"{_MOD}.get_runner") as mock_get_runner:
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+        mock_get_runner.assert_not_called()
+
+    def test_a_draining_filler_still_reaches_the_deadline(self):
+        """A draining filler is not exempt from the stopping deadline, only from PROGRAM_TIMEOUT.
+        Exempt it from both and it stays in STOPPING for ever: the balancer skips rows already
+        STOPPING and nothing else ends a filler."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=runner),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
+            changed = task.update_job_status(job)
+
+        assert changed is True
+        assert job.status == Job.STOPPED
+
+    def test_a_filler_stopped_on_request_is_counted_as_stopped_not_as_ended(self):
+        """STOPPING means something asked for the stop, so it is counted here and not by the balancer,
+        which cannot know whether the cancel it sent ever landed."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.STOPPED
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
+        assert job.status == Job.STOPPED
+        task.metrics.increment_filler_jobs_stopped.assert_called_once()
+        task.metrics.increment_filler_jobs_ended.assert_not_called()
+
+    def test_a_filler_that_finished_before_its_cancel_landed_is_counted_as_ended(self):
+        """The balancer asked, but the task finished first, so counting it as stopped would overstate
+        what the balancer freed."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.STOPPING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.SUCCEEDED
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
+        assert job.status == Job.SUCCEEDED
+        task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.SUCCEEDED)
+        task.metrics.increment_filler_jobs_stopped.assert_not_called()
+
+
+@pytest.mark.django_db
+class TestStoppingDeadlineAgainstTheDatabase:
+    """The deadline query runs for real here. Patched JobEvent mocks cannot catch a wrong filter."""
+
+    def _job(self, author):
+        return Job.objects.create(author=author, runner=Program.FLEETS, status=Job.STOPPING, fleet_id="fleet-abc")
+
+    def test_a_chatty_sub_status_does_not_push_the_deadline_out(self):
+        """The query must read the earliest STOPPING event, not the latest event of any kind."""
+        author = User.objects.create_user(username="deadline-author")
+        job = self._job(author)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPING,
+        )
+        JobEvent.objects.add_sub_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            sub_status=Job.EXECUTING_QPU,
+        )
+        # The stop was asked for long ago; the sub_status report is from just now.
+        JobEvent.objects.filter(job=job, data__status=Job.STOPPING).update(
+            created=datetime.now(timezone.utc) - timedelta(seconds=_STOPPING_DEADLINE_SECONDS + 60)
+        )
+
+        task = _make_task()
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            changed = task.update_job_status(job)
+
+        assert changed is True, "the deadline never fired, so the query read the wrong event"
+        assert job.status == Job.STOPPED
+
+    def test_an_older_event_of_another_kind_does_not_start_the_clock(self):
+        """Pins the data__status filter. Without it the QUEUED creation event starts the clock, and
+        every stopping job is forced to STOPPED on its first poll without ever being confirmed."""
+        author = User.objects.create_user(username="deadline-author-3")
+        job = self._job(author)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.SCHEDULE_JOBS,
+            status=Job.QUEUED,
+        )
+        JobEvent.objects.filter(job=job, data__status=Job.QUEUED).update(
+            created=datetime.now(timezone.utc) - timedelta(seconds=_STOPPING_DEADLINE_SECONDS * 4)
+        )
+        # The cancel was accepted a moment ago, so the deadline must not have started yet.
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.STOP_JOB,
+            status=Job.STOPPING,
+        )
+
+        task = _make_task()
+        runner = MagicMock()
+        runner.status.return_value = Job.RUNNING
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            changed = task.update_job_status(job)
+
+        assert changed is False, "an older event of another kind started the deadline"
+        assert job.status == Job.STOPPING

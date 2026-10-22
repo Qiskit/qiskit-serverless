@@ -41,7 +41,7 @@ class FunctionsQuerySet(QuerySet):
                 Required when accessible_functions is provided and use_legacy_authorization=False.
         """
         if accessible_functions and not accessible_functions.use_legacy_authorization:
-            # Runtime API /functions
+            # Runtime API /entitlements
             filter_function_names = accessible_functions.get_functions_by_provider(permission)
             # Custom functions (provider=None) are always visible
             # Provider functions are gated by instance permissions, even if the user is the author.

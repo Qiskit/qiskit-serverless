@@ -3,7 +3,10 @@
 import pytest
 
 from api.clients.function_access_client import FunctionAccessClient
-from api.domain.exceptions.runtime_api_exception import RuntimeFunctionsException
+from api.domain.exceptions.runtime_api_exception import (
+    RuntimeFunctionsException,
+    RuntimeFunctionsUnavailable,
+)
 from core.config_key import ConfigKey
 from core.models import PLATFORM_PERMISSION_RUN, PLATFORM_PERMISSION_CUSTOM_RUN, PLATFORM_PERMISSION_CUSTOM_WRITE
 
@@ -35,8 +38,8 @@ def test_returns_function_from_200_response(instances_server):
     assert PLATFORM_PERMISSION_CUSTOM_WRITE in result.custom_function_permissions
 
 
-def test_returns_function_from_200_response_empty(instances_server):
-    """When custom_functions.permissions is [], custom_function_permissions is empty."""
+def test_returns_nothing_when_element_grants_nothing(instances_server):
+    """An element carrying only its CRN is an instance entitled to nothing, not a legacy fallback."""
     result = FunctionAccessClient().get_accessible_functions("crn:custom:3", "test-api-key")
 
     assert result.use_legacy_authorization is False
@@ -44,8 +47,19 @@ def test_returns_function_from_200_response_empty(instances_server):
     assert result.functions == ()
 
 
+def test_handles_absent_custom_functions(instances_server):
+    """custom_functions omitted means the instance is granted none, which is an empty set."""
+    instances_server.grant("ibm", "sampler", [PLATFORM_PERMISSION_RUN])
+
+    result = FunctionAccessClient().get_accessible_functions("crn:absent:1", "test-api-key")
+
+    assert result.use_legacy_authorization is False
+    assert result.custom_function_permissions == set()
+    assert result.get_function("ibm", "sampler") is not None
+
+
 def test_handles_null_custom_functions(instances_server):
-    """custom_functions: null (the cleared shape) must not crash; permissions resolve to empty."""
+    """custom_functions: null must not crash; permissions resolve to empty."""
     instances_server.grant("ibm", "sampler", [PLATFORM_PERMISSION_RUN]).clear_custom()
 
     result = FunctionAccessClient().get_accessible_functions("crn:null:1", "test-api-key")
@@ -55,11 +69,54 @@ def test_handles_null_custom_functions(instances_server):
     assert result.get_function("ibm", "sampler") is not None
 
 
-def test_raises_on_server_error(instances_server):
-    instances_server.error(500)
+def test_raises_on_per_instance_error_element(instances_server):
+    """An error element is an authoritative denial, so it must not reach the legacy fallback."""
+    instances_server.instance_error(1279, "Instance crn:test:404 not found.")
 
     with pytest.raises(RuntimeFunctionsException):
+        FunctionAccessClient().get_accessible_functions("crn:test:404", "test-api-key")
+
+
+def test_raises_when_no_element_matches_the_requested_crn(instances_server):
+    instances_server.other_instance("crn:someone:else")
+
+    with pytest.raises(RuntimeFunctionsException):
+        FunctionAccessClient().get_accessible_functions("crn:test:mismatch", "test-api-key")
+
+
+def test_raises_unavailable_on_server_error(instances_server):
+    """A 5xx is the Runtime API failing, not an access decision, so it is retryable."""
+    instances_server.error(503)
+
+    with pytest.raises(RuntimeFunctionsUnavailable):
         FunctionAccessClient().get_accessible_functions("crn:test:789", "test-api-key")
+
+
+def test_raises_unavailable_on_rate_limit(instances_server):
+    """A 429 is also transient, so it is retryable rather than a denial."""
+    instances_server.error(429)
+
+    with pytest.raises(RuntimeFunctionsUnavailable):
+        FunctionAccessClient().get_accessible_functions("crn:test:429", "test-api-key")
+
+
+def test_raises_plain_exception_on_client_error(instances_server):
+    """A non-429 4xx is an answer about access, not a transient failure, so it is not
+    flagged retryable."""
+    instances_server.error(403)
+
+    with pytest.raises(RuntimeFunctionsException) as exc_info:
+        FunctionAccessClient().get_accessible_functions("crn:test:403", "test-api-key")
+    assert not isinstance(exc_info.value, RuntimeFunctionsUnavailable)
+
+
+def test_raises_unavailable_on_connection_error(settings):
+    """A connection error reaching the Runtime API is transient and retryable."""
+    # Point at a port with nothing listening so the request fails to connect.
+    settings.RUNTIME_API_BASE_URL = "http://127.0.0.1:1"
+
+    with pytest.raises(RuntimeFunctionsUnavailable):
+        FunctionAccessClient().get_accessible_functions("crn:test:conn", "test-api-key")
 
 
 def test_returns_no_response_when_disabled(monkeypatch):
@@ -139,11 +196,11 @@ def test_regional_url_unparseable_crn_falls_back(settings, crn):
 
 
 def test_request_routed_to_region_prefixed_host(settings, requests_mock):
-    """End-to-end: a non-default-region CRN sends the /functions request to the
+    """End-to-end: a non-default-region CRN sends the entitlements request to the
     region-prefixed host, not the bare default-region host."""
     settings.RUNTIME_API_BASE_URL = BASE_URL
     settings.RUNTIME_API_DEFAULT_REGION = "us-east"
-    matcher = requests_mock.get("https://eu-de.quantum.cloud.ibm.com/api/v1/functions", status_code=204)
+    matcher = requests_mock.get("https://eu-de.quantum.cloud.ibm.com/api/v1/entitlements", status_code=204)
 
     result = FunctionAccessClient().get_accessible_functions(_crn("eu-de"), "test-api-key")
 
@@ -157,7 +214,7 @@ def test_request_routed_to_default_host(settings, requests_mock):
     """End-to-end: a default-region CRN uses the bare host with no region prefix."""
     settings.RUNTIME_API_BASE_URL = BASE_URL
     settings.RUNTIME_API_DEFAULT_REGION = "us-east"
-    matcher = requests_mock.get("https://quantum.cloud.ibm.com/api/v1/functions", status_code=204)
+    matcher = requests_mock.get("https://quantum.cloud.ibm.com/api/v1/entitlements", status_code=204)
 
     FunctionAccessClient().get_accessible_functions(_crn("us-east"), "test-api-key")
 
