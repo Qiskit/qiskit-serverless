@@ -24,7 +24,7 @@ from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program, WorkloadMirror
 from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
-from core.services.workload_status_mirror import WorkloadStatusMirror
+from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
 
 logger = logging.getLogger("core.JobTransitionService")
 
@@ -73,7 +73,7 @@ class JobTransitionService:
         Job.STOPPED: set(),
     }
 
-    def __init__(self, sender: Sender | None = None, workload_mirror: WorkloadStatusMirror | None = None):
+    def __init__(self, sender: Sender | None = None, workload_mirror: WorkloadBestEffortMirror | None = None):
         """The sender of the best effort events.
         By default, it creates the sender based on EVENT_STREAMS_ENABLED (so the scheduler has KafkaSender, and
         the Gateway (stop jobs only) has NoOpSender).

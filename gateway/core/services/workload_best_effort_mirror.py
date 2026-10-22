@@ -20,7 +20,7 @@ from core.services.background_executor import (
     get_background_executor,
 )
 
-logger = logging.getLogger("core.WorkloadStatusMirror")
+logger = logging.getLogger("core.WorkloadBestEffortMirror")
 
 _PUT_TIMEOUT = 3  # seconds
 _STATUSES = ("Pending", "Running", "Stopping")
@@ -30,7 +30,7 @@ _OUTCOMES = ("sent", "failed", "dropped")
 _DB_OUTAGE = (OperationalError, InterfaceError)
 
 _MIRROR = Counter(
-    "workload_status_mirror_total",
+    "workload_best_effort_mirror_total",
     "Intermediate workload statuses by status and outcome. sent also counts a PUT that the Runtime API accepted and "
     "ignored (202, for example a workload that is already terminal).",
     labelnames=("status", "outcome"),
@@ -56,7 +56,7 @@ def _put(function_id: str, body: dict, status: str) -> None:
     _count(status, "sent")
 
 
-class WorkloadStatusMirror:
+class WorkloadBestEffortMirror:
     """Sends the current status of a mirrored job. Building it does no work."""
 
     def send(self, job: Job) -> None:

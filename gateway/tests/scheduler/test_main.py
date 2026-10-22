@@ -12,7 +12,7 @@ from core.services.background_executor import (
     BackgroundPool,
     get_background_executor,
 )
-from core.services.workload_status_mirror import WorkloadStatusMirror
+from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
@@ -73,7 +73,7 @@ class TestMain:
     def test_the_shared_transition_service_mirrors_the_intermediate_statuses(self):
         task = next(t for t in self.scheduler_main.tasks if isinstance(t, UpdateFleetsJobsStatuses))
 
-        assert isinstance(task.transitions.workload_mirror, WorkloadStatusMirror)
+        assert isinstance(task.transitions.workload_mirror, WorkloadBestEffortMirror)
 
     def test_the_tasks_that_submit_fleets_jobs_share_one_submitter(self):
         sharing = (ScheduleFleetsJobs, BalanceFillerJobs)

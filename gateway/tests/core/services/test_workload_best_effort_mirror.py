@@ -1,4 +1,4 @@
-"""Tests for WorkloadStatusMirror: the best effort send of the intermediate statuses of a mirrored job."""
+"""Tests for WorkloadBestEffortMirror: the best effort send of the intermediate statuses of a mirrored job."""
 
 import logging
 from unittest.mock import MagicMock, patch
@@ -11,14 +11,14 @@ from prometheus_client import REGISTRY
 
 from core.config_key import ConfigKey
 from core.models import Config, Job, Program, WorkloadMirror
-from core.services import workload_status_mirror
+from core.services import workload_best_effort_mirror
 from core.services.background_executor import BackgroundExecutorNotInitializedError, BackgroundPool
-from core.services.workload_status_mirror import WorkloadStatusMirror
+from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
 
 pytestmark = pytest.mark.django_db
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
-MODULE = "core.services.workload_status_mirror"
+MODULE = "core.services.workload_best_effort_mirror"
 
 
 @pytest.fixture(autouse=True)
@@ -64,13 +64,13 @@ def _job(status=Job.PENDING, mirrored=True, filler=False):
 
 
 def _count(status, outcome):
-    return REGISTRY.get_sample_value("workload_status_mirror_total", {"status": status, "outcome": outcome})
+    return REGISTRY.get_sample_value("workload_best_effort_mirror_total", {"status": status, "outcome": outcome})
 
 
 def test_kill_switch_off_builds_and_submits_nothing(executor, build):
     Config.set(ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED, "false")
 
-    WorkloadStatusMirror().send(_job())
+    WorkloadBestEffortMirror().send(_job())
 
     build.assert_not_called()
     executor.submit.assert_not_called()
@@ -81,13 +81,13 @@ def test_a_filler_job_costs_no_query_and_sends_nothing(executor, build, django_a
     cache.clear()
 
     with django_assert_num_queries(0):
-        WorkloadStatusMirror().send(job)
+        WorkloadBestEffortMirror().send(job)
 
     executor.submit.assert_not_called()
 
 
 def test_a_job_without_a_mirror_row_sends_nothing(executor, build):
-    WorkloadStatusMirror().send(_job(mirrored=False))
+    WorkloadBestEffortMirror().send(_job(mirrored=False))
 
     executor.submit.assert_not_called()
 
@@ -96,11 +96,11 @@ def test_happy_path_submits_the_envelope_and_the_task_puts_it(executor, client, 
     job = _job(Job.RUNNING)
     sent_before = _count("Running", "sent")
 
-    WorkloadStatusMirror().send(job)
+    WorkloadBestEffortMirror().send(job)
 
     executor.submit.assert_called_once()
     call = executor.submit.call_args
-    assert call.args[:2] == (BackgroundPool.RUNTIME_API, workload_status_mirror._put)
+    assert call.args[:2] == (BackgroundPool.RUNTIME_API, workload_best_effort_mirror._put)
     function_id, body, status = call.args[2:]
     assert function_id == str(job.id)
     assert body["status"] == "Running"
@@ -109,7 +109,7 @@ def test_happy_path_submits_the_envelope_and_the_task_puts_it(executor, client, 
     executor.would_accept.assert_called_once_with(BackgroundPool.RUNTIME_API, f"job:{job.id}")
 
     with django_assert_num_queries(0):
-        workload_status_mirror._put(function_id, body, status)
+        workload_best_effort_mirror._put(function_id, body, status)
 
     client.put_function.assert_called_once_with(function_id, body, timeout=3)
     assert _count("Running", "sent") == sent_before + 1
@@ -120,7 +120,7 @@ def test_a_full_pool_drops_before_building_the_payload(executor, build):
     job = _job(Job.STOPPING)
     before = _count("Stopping", "dropped")
 
-    WorkloadStatusMirror().send(job)
+    WorkloadBestEffortMirror().send(job)
 
     build.assert_not_called()
     executor.submit.assert_not_called()
@@ -131,7 +131,7 @@ def test_a_rejected_submit_counts_dropped(executor, build):
     executor.submit.return_value = None
     before = _count("Pending", "dropped")
 
-    WorkloadStatusMirror().send(_job())
+    WorkloadBestEffortMirror().send(_job())
 
     assert _count("Pending", "dropped") == before + 1
 
@@ -140,7 +140,7 @@ def test_a_payload_error_is_swallowed_and_counted_failed(executor, build):
     build.side_effect = ValueError("no program")
     before = _count("Pending", "failed")
 
-    WorkloadStatusMirror().send(_job())
+    WorkloadBestEffortMirror().send(_job())
 
     executor.submit.assert_not_called()
     assert _count("Pending", "failed") == before + 1
@@ -151,7 +151,7 @@ def test_an_uninitialized_executor_is_swallowed_and_logged_as_error(executor, bu
     before = _count("Pending", "failed")
 
     with caplog.at_level(logging.ERROR):
-        WorkloadStatusMirror().send(_job())
+        WorkloadBestEffortMirror().send(_job())
 
     assert any(
         record.levelno == logging.ERROR and "the background executor is not initialized" in record.getMessage()
@@ -164,14 +164,14 @@ def test_the_task_swallows_a_put_failure_and_counts_failed(client):
     client.put_function.side_effect = RuntimeError("boom")
     before = _count("Running", "failed")
 
-    workload_status_mirror._put("fid", {"crn": CRN}, "Running")
+    workload_best_effort_mirror._put("fid", {"crn": CRN}, "Running")
 
     assert _count("Running", "failed") == before + 1
 
 
 def test_a_database_outage_propagates_from_the_config_read(executor, build):
     with patch(f"{MODULE}.Config.get_bool", side_effect=OperationalError("down")), pytest.raises(OperationalError):
-        WorkloadStatusMirror().send(_job())
+        WorkloadBestEffortMirror().send(_job())
 
 
 def test_a_database_outage_propagates_from_the_payload(executor, build):
@@ -179,18 +179,18 @@ def test_a_database_outage_propagates_from_the_payload(executor, build):
 
     build.side_effect = OperationalError("down")
     with pytest.raises(OperationalError):
-        WorkloadStatusMirror().send(job)
+        WorkloadBestEffortMirror().send(job)
 
     build.side_effect = InterfaceError("down")
     with pytest.raises(InterfaceError):
-        WorkloadStatusMirror().send(job)
+        WorkloadBestEffortMirror().send(job)
 
 
 def test_a_missing_config_row_is_treated_as_switch_off(executor, build):
     Config.objects.filter(name=ConfigKey.WORKLOADS_STATUS_UPDATES_ENABLED.value).delete()
     cache.clear()
 
-    WorkloadStatusMirror().send(_job())
+    WorkloadBestEffortMirror().send(_job())
 
     executor.submit.assert_not_called()
 
