@@ -1034,6 +1034,7 @@ def _run_real_pass(reported_status, on_status=None):
     sender = MagicMock()
     task = _make_task()
     task.transitions = JobTransitionService(sender=sender)
+
     def status():
         if on_status:
             on_status()
