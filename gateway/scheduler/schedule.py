@@ -15,6 +15,7 @@ from django.db.models.aggregates import Count, Min
 from opentelemetry import trace
 
 from core.config_key import ConfigKey
+from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import BlockedCloudResource, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
@@ -152,7 +153,7 @@ class FleetsJobSubmitter:
         code_engine = self.breakers.code_engine.get_breaker(job.ce_region)
         start = time.monotonic()
         tracer = trace.get_tracer("scheduler.tracer")
-        with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
+        with observe_operation(FLEET_SUBMIT), tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
 
             runner = get_runner(job)
             try:

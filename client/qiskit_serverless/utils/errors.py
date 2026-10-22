@@ -26,6 +26,14 @@ class ErrorCodes:  # pylint: disable=too-few-public-methods
     HTTP_STD_ERROR: str = "HTTP_STD_ERROR"
 
 
+TRANSIENT_ERROR_CODES = (ErrorCodes.CONN1001, ErrorCodes.EMPTY1001, 429, 502, 503, 504)
+
+
+def is_transient_error(error: Exception) -> bool:
+    """Returns true if a retry of the same request can succeed."""
+    return getattr(error, "_code", None) in TRANSIENT_ERROR_CODES
+
+
 DEFAULT_ERROR_MESSAGE: str = "Something went wrong."
 error_mapping: Dict[ErrorCodeType, str] = {
     ErrorCodes.AUTH1001: "Connection error. Make sure configuration " "(host and auth details) is correct.",
