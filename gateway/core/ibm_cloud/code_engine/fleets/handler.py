@@ -62,7 +62,7 @@ _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 # a connect plus a read that times out.
 _CANCEL_TIMEOUT_SECONDS = (1, 5)
 
-# (connect, read) for the delete, for the reason above.
+# (connect, read) for the delete. get_ce_auth turns off urllib3's read retry for a DELETE, so this is the whole wait.
 _DELETE_TIMEOUT_SECONDS = (1, 5)
 
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
