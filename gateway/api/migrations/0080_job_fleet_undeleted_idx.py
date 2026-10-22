@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 
 class AddIndexConcurrentlyOnPostgres(AddIndexConcurrently):
-    """CREATE INDEX CONCURRENTLY on PostgreSQL, so api_job is not locked; a plain index elsewhere (the sqlite tests)."""
+    """Build the index concurrently on PostgreSQL, so api_job is not locked, and plainly on sqlite (the tests)."""
 
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         if schema_editor.connection.vendor == "postgresql":

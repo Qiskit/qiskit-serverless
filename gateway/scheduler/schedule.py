@@ -319,10 +319,10 @@ class FleetsFleetDeleter:
             raise RunnerRetryableError(f"Fleet deletes in region {region} are paused by the circuit breaker")
         return get_runner(job).free_resources()
 
-    def record_cycle(self, region: str | None, *, code_engine_answered: bool) -> None:
-        """Counts one cleanup cycle for a region on the cleanup breaker."""
+    def record_cycle(self, region: str | None, *, answered: bool) -> None:
+        """Counts one cleanup cycle for a region."""
         breaker = self.breakers.cleanup.get_breaker(region)
-        if code_engine_answered:
+        if answered:
             breaker.record_success()
         else:
             breaker.record_failure()

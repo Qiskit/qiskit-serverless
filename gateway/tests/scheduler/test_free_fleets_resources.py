@@ -280,7 +280,7 @@ def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fle
     task = _make_task()
     assert Job.objects.get(fleet_id="legacy-0").fleet_region == "us-east"
     for _ in range(_BREAKER_FAILURES):
-        task.deleter.record_cycle("us-east", code_engine_answered=False)
+        task.deleter.record_cycle("us-east", answered=False)
 
     _run(task)
 
@@ -329,7 +329,7 @@ def test_an_empty_region_falls_back_like_a_null_one(fleets_program):
     healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
     task = _make_task()
     for _ in range(_BREAKER_FAILURES):
-        task.deleter.record_cycle("us-east", code_engine_answered=False)
+        task.deleter.record_cycle("us-east", answered=False)
 
     _run(task)
 

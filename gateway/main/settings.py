@@ -671,7 +671,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Consecutive failures of one dependency, Code Engine or COS, in one region (429, 5xx, "
         "connection errors, timeouts) before the scheduler stops calling that dependency there. Each is "
         "counted separately: Code Engine pauses submits and cancels, COS pauses submits, and the fleet "
-        "cleanup has a count of its own that pauses only the cleanup.",
+        "cleanup pauses only itself.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",

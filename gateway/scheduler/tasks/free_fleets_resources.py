@@ -77,12 +77,12 @@ class FreeFleetsResources(SchedulerTask):
                     answered_regions.add(region)
             except RunnerRetryableError as ex:
                 logger.warning("job_id=%s region=%s fleet not deleted: %s", job.id, region, ex)
-                self.deleter.record_cycle(region, code_engine_answered=False)
+                self.deleter.record_cycle(region, answered=False)
                 failed_regions.add(region)
 
         # only a True proves Code Engine answered: a False may never have reached it
         for region in answered_regions - failed_regions:
-            self.deleter.record_cycle(region, code_engine_answered=True)
+            self.deleter.record_cycle(region, answered=True)
 
     def _jobs_to_clean(self, over_quota: dict[str, int], paused_regions: list[str | None]) -> list[Job]:
         """The jobs this cycle may delete: the projects over their quota first, then the retention window.

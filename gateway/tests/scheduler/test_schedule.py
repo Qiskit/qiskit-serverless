@@ -774,7 +774,7 @@ def test_a_clean_delete_cycle_does_not_clear_the_cos_failures(mock_trace, mock_g
     for _ in range(Config.get_int(ConfigKey.FLEETS_BREAKER_FAILURES)):
         with pytest.raises(CosRetryableError):
             submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
-        deleter.record_cycle("us-east", code_engine_answered=True)
+        deleter.record_cycle("us-east", answered=True)
 
     assert submitter.paused("us-east") is True
     assert deleter.paused("us-east") is False
@@ -811,7 +811,7 @@ def test_a_working_delete_does_not_clear_the_submits_failures(mock_trace, mock_g
 
     with pytest.raises(RunnerRetryableError):
         submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
-    deleter.record_cycle("us-east", code_engine_answered=True)
+    deleter.record_cycle("us-east", answered=True)
     with pytest.raises(RunnerRetryableError):
         submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
 
@@ -822,7 +822,7 @@ def test_a_working_delete_does_not_clear_the_submits_failures(mock_trace, mock_g
 def test_delete_refuses_while_the_breaker_of_that_region_is_open():
     _open_breakers_after_one_failure()
     deleter = FleetsFleetDeleter(FleetsBreakers())
-    deleter.record_cycle("us-east", code_engine_answered=False)
+    deleter.record_cycle("us-east", answered=False)
 
     assert deleter.paused("us-east") is True
 
@@ -849,7 +849,7 @@ def test_the_submitter_and_the_deleter_do_not_pause_each_other(mock_trace, mock_
 
     with pytest.raises(RunnerRetryableError):
         submitter.submit(MagicMock(ce_region="us-east"), MagicMock())
-    deleter.record_cycle("eu-de", code_engine_answered=False)
+    deleter.record_cycle("eu-de", answered=False)
 
     assert submitter.paused("us-east") is True
     assert deleter.paused("us-east") is False
