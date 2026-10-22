@@ -12,6 +12,7 @@
 
 """Tests for Job.wait_for_final_state() and Job.result(), which waits with it."""
 
+import random
 from unittest.mock import Mock, patch
 
 import pytest
@@ -306,11 +307,12 @@ def test_result_retries_a_503_while_waiting(clock):
     assert job.result() == {}
 
 
-def test_the_jitter_never_waits_longer_than_30_seconds(clock):
-    """The longest wait stays at 30 s even with the highest jitter."""
+def test_the_jitter_only_shortens_a_wait(clock):
+    """The jitter takes up to 10% off each wait, so no wait is longer than 30 s."""
     job, _ = _job(*([("RUNNING", None)] * 6), ("SUCCEEDED", None))
 
-    with patch("qiskit_serverless.core.job.random.uniform", return_value=1.1):
+    with patch("qiskit_serverless.core.job.random.uniform", wraps=random.uniform) as uniform:
         job.wait_for_final_state()
 
-    assert max(clock.sleeps) == 30
+    uniform.assert_called_with(0.9, 1)
+    assert max(clock.sleeps) <= 30

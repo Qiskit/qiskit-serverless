@@ -238,42 +238,10 @@ class TestJobResult:
         mock_service.result.assert_called_once_with("test-job")
 
     @patch("time.sleep")
-    def test_result_with_wait_until_terminal(self, mock_sleep):
-        """Test result() waiting for job to reach terminal state."""
-        mock_service = Mock()
-        mock_service.status.return_value = Job.RUNNING
-
-        # After 2 iterations, change to SUCCEEDED
-        call_count = 0
-
-        def status_side_effect(_job_id):
-            nonlocal call_count
-            call_count += 1
-            if call_count <= 4:  # First 4 calls return RUNNING
-                return Job.RUNNING
-            return Job.SUCCEEDED
-
-        mock_service.status.side_effect = status_side_effect
-        mock_service.result.return_value = {"result": "success"}
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        result = job.result(wait=True, cadence=1, verbose=False)
-
-        assert result == {"result": "success"}
-        # Verify sleep was called (exact count depends on implementation details)
-        assert mock_sleep.call_count >= 2
-        mock_sleep.assert_called_with(1)
-
-    @patch("time.sleep")
     def test_result_with_wait_and_verbose(self, _mock_sleep, capsys):
         """Test result() with verbose printing enabled."""
         mock_service = Mock()
-        mock_service.status.side_effect = [
-            Job.RUNNING,
-            Job.RUNNING,  # First iteration
-            Job.SUCCEEDED,
-            Job.SUCCEEDED,  # Terminal state
-        ]
+        mock_service.status.side_effect = [Job.RUNNING, Job.SUCCEEDED]
         mock_service.result.return_value = {"result": "success"}
 
         job = Job(job_id="test-job", job_service=mock_service)
@@ -281,24 +249,6 @@ class TestJobResult:
 
         assert result == {"result": "success"}
         assert "Waiting for job test-job" in capsys.readouterr().out
-
-    @patch("time.sleep")
-    def test_result_with_custom_cadence(self, mock_sleep):
-        """Test result() with custom cadence parameter."""
-        mock_service = Mock()
-        mock_service.status.side_effect = [
-            Job.RUNNING,
-            Job.RUNNING,  # First iteration
-            Job.SUCCEEDED,
-            Job.SUCCEEDED,  # Terminal state
-        ]
-        mock_service.result.return_value = {"result": "success"}
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        result = job.result(wait=True, cadence=5, verbose=False)
-
-        assert result == {"result": "success"}
-        mock_sleep.assert_called_with(5)
 
     def test_result_with_json_string_response(self):
         """Test result() decoding JSON string response."""

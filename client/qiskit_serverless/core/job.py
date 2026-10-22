@@ -342,7 +342,7 @@ class Job:
     ) -> str:
         """Wait until the job is DONE, ERROR or CANCELED, and return that status.
 
-        By default it checks after 1, 2, 4, 8 and 16 s, then every 30 s, and starts again from 1 s when the
+        By default it checks after about 1, 2, 4, 8 and 16 s, then about every 30 s, and starts again from 1 s when the
         main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces
         that backoff. Short network errors and 429, 502, 503 or 504 answers are retried.
 
@@ -596,7 +596,7 @@ def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[flo
         wait = max(float(poll_interval), _MIN_POLL_INTERVAL_SECONDS)
     else:
         base = _BACKOFF_SECONDS[min(step, len(_BACKOFF_SECONDS) - 1)]
-        wait = min(base * random.uniform(1 - _BACKOFF_JITTER, 1 + _BACKOFF_JITTER), _BACKOFF_SECONDS[-1])
+        wait = base * random.uniform(1 - _BACKOFF_JITTER, 1)
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait
