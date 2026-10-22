@@ -2,9 +2,11 @@
 
 The result is the envelope ``{"function_id", "body"}``: ``function_id`` goes in the URL path and ``body`` is
 exactly what the Runtime API receives. The builder reads the job's events (``running_at`` and ``ended_at`` come from
-them), so it needs the database. Build it right after the status change, inside the same transaction:
+them), so it needs the database, and the status event and the job row must already be written. The creation and
+terminal uses build it right after the status change, inside the same transaction:
 ``JobTransitionService._change_status`` (``core/services/job_transitions.py``) adds the status event before it
-updates the job row, both in one transaction, so both are visible there. The result can then be stored as-is (for
+updates the job row, both in one transaction, so both are visible there. The best effort mirror builds it after the
+transaction has committed, when the event and the row are already committed. The result can then be stored as-is (for
 example in ``Outbox.payload``) and sent later with ``FunctionsOperatorClient.put_function``
 (``core/clients/functions_operator_client.py``). A terminal job with no terminal event gets ``ended_at=None``.
 

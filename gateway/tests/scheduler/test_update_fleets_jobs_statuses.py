@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from django.db import OperationalError
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from django.contrib.auth.models import User
@@ -642,6 +643,32 @@ class TestEventStreamsIntegration:
         mock_update_status.assert_any_call(job1)
         mock_update_status.assert_any_call(job2)
         assert mock_update_status.call_count == 2
+
+
+def test_run_lets_a_database_error_from_a_transition_reach_main():
+    task = _make_task()
+    job1 = _make_fleets_job(status=Job.PENDING)
+    job2 = _make_fleets_job(status=Job.PENDING)
+    task.transitions.pending_to_running.side_effect = OperationalError("connection lost")
+    mock_runner = MagicMock()
+    mock_runner.status.return_value = Job.RUNNING
+
+    with (
+        patch(f"{_MOD}.settings") as mock_settings,
+        patch(f"{_MOD}.Job") as mock_job_cls,
+        patch(f"{_MOD}.get_runner", return_value=mock_runner),
+    ):
+        mock_settings.LIMITS_MAX_FLEETS = 10
+        mock_job_cls.objects.filter.return_value.select_related.return_value = [job1, job2]
+        mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
+        mock_job_cls.PENDING = Job.PENDING
+        mock_job_cls.RUNNING = Job.RUNNING
+        mock_job_cls.STOPPING = Job.STOPPING
+        mock_job_cls.TERMINAL_STATUSES = Job.TERMINAL_STATUSES
+        with pytest.raises(OperationalError):
+            task.run()
+
+    assert task.transitions.pending_to_running.call_count == 1
 
 
 @pytest.mark.django_db
