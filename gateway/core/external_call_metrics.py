@@ -18,8 +18,6 @@ from typing import Iterator
 
 from prometheus_client import REGISTRY, CollectorRegistry, Histogram
 
-from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-
 # The values of the ``operation`` label, a closed list so the cardinality stays fixed.
 FLEET_STATUS_READ = "fleet_status_read"
 FLEET_SUBMIT_UPLOAD = "fleet_submit_upload"
@@ -81,16 +79,23 @@ def _is_timeout(exc: BaseException) -> bool:
 
 
 @contextmanager
-def observe_operation(operation: str, enabled: bool = True) -> Iterator[Observation]:
+def observe_operation(
+    operation: str, enabled: bool = True, rejected_by: tuple[type[BaseException], ...] = ()
+) -> Iterator[Observation]:
     """Time the block and record it under ``operation``, if recording is enabled. With ``enabled=False`` the block
-    runs but no sample is recorded. The exception, if any, is raised again untouched."""
+    runs but no sample is recorded, for a call that is known beforehand to be not worth a sample. An exception of a
+    type in ``rejected_by`` is an expected refusal and not a failure, so it is recorded as ``rejected`` and not as
+    ``error``. The exception, if any, is raised again untouched."""
     observation = Observation()
     started = time.perf_counter()
     status = STATUS_OK
     try:
         yield observation
     except BaseException as exc:
-        status = STATUS_TIMEOUT if _is_timeout(exc) else STATUS_ERROR
+        if isinstance(exc, rejected_by):
+            status = STATUS_REJECTED
+        else:
+            status = STATUS_TIMEOUT if _is_timeout(exc) else STATUS_ERROR
         raise
     finally:
         if _DURATION is not None and enabled:
@@ -99,20 +104,17 @@ def observe_operation(operation: str, enabled: bool = True) -> Iterator[Observat
             )
 
 
-def observer_method(operation: str):
-    """Record how long the whole method took under ``operation``, in the
-    scheduler (gateway recording is off and this does nothing)"""
+def observer_method(operation: str, rejected_by: tuple[type[BaseException], ...] = ()):
+    """Record how long the whole method took (its transaction and the sends after it) under ``operation``, in the
+    scheduler (see ``observe_operation`` for ``rejected_by``). In the gateway recording is off and this does nothing.
+    Put it on the method that does the work, never on one that only delegates to another observed method, or the
+    operation would be counted twice."""
 
     def decorator(method):
         @functools.wraps(method)
         def wrapper(*args, **kwargs):
-            with observe_operation(operation) as observation:
-                try:
-                    return method(*args, **kwargs)
-                except InvalidJobTransitionException:
-                    # The job was already moved by someone else (a user stopped it): an expected race, not a failure.
-                    observation.status = STATUS_REJECTED
-                    raise
+            with observe_operation(operation, rejected_by=rejected_by):
+                return method(*args, **kwargs)
 
         return wrapper
 
