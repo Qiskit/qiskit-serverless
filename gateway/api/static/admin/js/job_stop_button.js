@@ -12,7 +12,7 @@
     button.addEventListener("click", function () {
         if (
             !confirm(
-                "Stop this job? This only marks it as STOPPED in the database, it does not cancel anything running on Ray."
+                "Stop this job? A Fleets job has its fleet cancelled and the scheduler confirms the stop within minutes. A Ray job is only marked STOPPED."
             )
         ) {
             return;

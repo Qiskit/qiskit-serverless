@@ -120,6 +120,7 @@ def test_render_job_timeline_marks_filler_jobs_with_a_hatch_and_grey_text():
     assert 'fill="url(#qs-filler-hatch)" pointer-events="none"' in svg
     assert f'fill="{FILLER_TEXT_COLOR}"' in svg
     assert "qs-swatch--filler" in context["timeline_legend"]
+    assert "qs-swatch--stopping" in context["timeline_legend"]
 
 
 def _area_top(svg, fill):
