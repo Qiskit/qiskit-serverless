@@ -9,7 +9,9 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.utils import OperationalError
+from prometheus_client import CollectorRegistry
 
+from core import external_call_metrics
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
@@ -534,6 +536,29 @@ class TestBestEffortEvents:
         assert "event dropped" in caplog.text
         assert "kafka down" in caplog.text
 
+    def test_the_in_progress_event_is_timed_but_not_for_a_filler_job(self, service, fleets_job):
+        Job.objects.filter(pk=fleets_job.pk).update(status=Job.RUNNING)
+        fleets_job.refresh_from_db()
+        JobEvent.objects.add_status_event(
+            job_id=fleets_job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        labels = {"operation": "job_in_progress_event", "status": "ok"}
+        try:
+            service.running_to_running(fleets_job)
+            assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
+
+            Job.objects.filter(pk=fleets_job.pk).update(filler=True)
+            fleets_job.refresh_from_db()
+            service.running_to_running(fleets_job)
+            assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
+        finally:
+            external_call_metrics.disable()
+
     def test_a_filler_job_sends_nothing(self, service, sender, fleets_job):
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
         fleets_job.refresh_from_db()
@@ -749,3 +774,50 @@ class TestStatusMirror:
         )
 
         mirror.send.assert_not_called()
+
+
+class TestTransitionMetrics:
+    """The scheduler measures how long each transition takes, once, and the gateway measures nothing."""
+
+    @staticmethod
+    def _count(registry, operation, status):
+        labels = {"operation": operation, "status": status}
+        return registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) or 0.0
+
+    def test_a_transition_records_one_sample_under_its_operation(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        try:
+            job = Job.objects.create(author=user, status=Job.RUNNING)
+
+            service.to_terminal(
+                job, Job.FAILED, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            )
+
+            assert self._count(registry, "job_transition_to_terminal", "ok") == 1
+        finally:
+            external_call_metrics.disable()
+
+    def test_an_invalid_transition_is_recorded_as_rejected_and_still_raises(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        try:
+            job = Job.objects.create(author=user, status=Job.SUCCEEDED)
+
+            with pytest.raises(InvalidJobTransitionException):
+                service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+            assert self._count(registry, "job_transition_to_terminal", "rejected") == 1
+        finally:
+            external_call_metrics.disable()
+
+    def test_nothing_is_recorded_when_recording_is_disabled(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        external_call_metrics.disable()
+        job = Job.objects.create(author=user, status=Job.PENDING)
+
+        service.pending_to_running(job, origin=JobEventOrigin.API, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert self._count(registry, "job_transition_pending_to_running", "ok") == 0
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
