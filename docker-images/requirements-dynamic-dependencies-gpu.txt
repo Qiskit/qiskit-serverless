@@ -1,28 +1,16 @@
-# GPU add-on to requirements-dynamic-dependencies.txt. Installed on top of the
-# CPU workload stack by the selector-gpu stage of
-# docker-images/fleet-node/Dockerfile, and so present in the GPU image only --
-# the CPU image (the selector stage) asserts it carries none of this.
+# GPU add-on to requirements-dynamic-dependencies.txt, installed by the
+# selector-gpu stage of docker-images/fleet-node/Dockerfile and so present in the
+# GPU image only -- the CPU image asserts it carries none of it. Kept separate to
+# keep these wheels out of that image, out of the gateway's
+# dependencies-versions allow-list, and off arm64, where gpu4pyscf-cuda12x has no
+# wheel. specs/FLEETS_IMAGES.md §3.
 #
-# It stays a separate file rather than being merged into the shared one for three
-# reasons. It is what keeps these wheels out of the CPU image: Fleets pulls the
-# image once per job, and a CPU job must not pay ~2.5 GB of pull for wheels it
-# never imports. The gateway reads only the shared file, as the provider
-# allow-list for GET /api/v1/dependencies-versions, so keeping the CUDA packages
-# here ships them without advertising them as dependencies a function on a CPU
-# compute profile could request and then fail on for want of a device. And this
-# stack does not install on arm64 at all -- gpu4pyscf-cuda12x publishes an x86_64
-# wheel only (the rest here, cupy included, do have aarch64 builds) -- while the
-# shared file also feeds ray-node, which has an arm64 local-dev variant it would
-# break.
-#
-# These wheels are ~2.5 GB compressed and add 6.5 GB to the image on disk
-# (measured: the CPU selector is 3.4 GB, selector-gpu 9.9 GB), so this file is
-# the bulk of the GPU image, and the whole of what the CPU image saves by not
-# carrying it. The nvidia-* block below is most of that: cublas 855 MB installed,
-# cusolver 495 MB, cusparse 487 MB, cufft 294 MB, nvrtc 227 MB, curand 167 MB,
-# nvjitlink 96 MB. Those are all shared objects, so there is nothing cheap to
-# strip after the install -- their headers come to under 4 MB in total and the
-# only static archives are cuda-runtime's ~4.6 MB.
+# ~2.5 GB compressed, 6.5 GB on disk, which is the bulk of the GPU image. The
+# nvidia-* block below is most of that: cublas 855 MB installed, cusolver 495 MB,
+# cusparse 487 MB, cufft 294 MB, nvrtc 227 MB, curand 167 MB, nvjitlink 96 MB.
+# All shared objects, so there is nothing cheap to strip after the install --
+# headers come to under 4 MB and the only static archives are cuda-runtime's
+# ~4.6 MB.
 #
 # cupy-cuda12x is pinned even though gpu4pyscf-cuda12x already pulls it, because
 # that dependency is open-ended (!=13.4.0,>=13.0) and the version decides CUDA
@@ -62,9 +50,8 @@ gpu4pyscf-cuda12x==1.8.1
 # -cu12 package names cannot drift across a CUDA major. The cost is that the
 # exact CUDA minor in the image moves between rebuilds.
 #
-# They install under site-packages/nvidia/*/lib, which is on no default loader
-# path, so the selector-gpu stage of fleet-node/Dockerfile has to register those
-# dirs with ldconfig or the dlopens fail even though pip install succeeded.
+# They install under site-packages/nvidia/*/lib, on no default loader path, so
+# selector-gpu registers those dirs with ldconfig.
 nvidia-cublas-cu12
 nvidia-cuda-nvrtc-cu12
 nvidia-cuda-runtime-cu12
