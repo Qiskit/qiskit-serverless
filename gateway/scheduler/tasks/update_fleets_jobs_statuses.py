@@ -1,7 +1,6 @@
 """Update Fleets jobs statuses service."""
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import cast
 
@@ -16,7 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, latest_event_at
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -25,15 +24,6 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 # Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
 # 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
 _STOPPING_DEADLINE_SECONDS = 600
-
-
-@dataclass(frozen=True)
-class PolledJob:
-    """A job and its event times from ``with_event_times()``. None means the job has no such event."""
-
-    job: Job
-    first_running_at: datetime | None
-    last_event_at: datetime | None
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -51,9 +41,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self.transitions = transitions or JobTransitionService()
         self.canceller = canceller or FleetsJobCanceller(self.transitions)
 
-    def update_job_status(self, polled: PolledJob) -> bool:
-        """Update status of one Fleets job. Returns True if status changed."""
-        job = polled.job
+    def update_job_status(self, job: Job) -> bool:
+        """Update status of one Fleets job, loaded with ``with_event_times()``. Returns True if status changed."""
         if not job.fleet_id:
             if job.status == Job.STOPPING:
                 # fleet_id is admin-editable, and the check below never looks again
@@ -87,18 +76,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # Without this the job is immortal: no other scheduler task touches a
             # PENDING or RUNNING Fleets job, so a status that never resolves would
             # hold the user's concurrency slot forever.
-            return self.stop_job_if_timeout(polled)
+            return self.stop_job_if_timeout(job)
 
         if new_status in Job.TERMINAL_STATUSES:
             self.to_terminal(job, new_status)
 
         elif new_status == Job.PENDING:
             # don't change the status... job still trying to start
-            self.stop_job_if_timeout(polled)
+            self.stop_job_if_timeout(job)
 
         elif new_status == Job.RUNNING:
-            self.to_running(polled)
-            self.stop_job_if_timeout(polled)
+            self.to_running(job)
+            self.stop_job_if_timeout(job)
 
         else:
             self.to_terminal(job, Job.FAILED)
@@ -170,9 +159,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         if new_status == Job.SUCCEEDED:
             self._record_execution_duration(job)
 
-    def to_running(self, polled: PolledJob) -> None:
+    def to_running(self, job: Job) -> None:
         """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
-        job = polled.job
         job_started = job.status == Job.PENDING
         if job_started:
             logger.info(
@@ -190,18 +178,17 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
                 logger.info("job_id=%s transition rejected from %s, skipping RUNNING: %s", job.id, job.status, str(ex))
         else:
-            self.transitions.running_to_running(job, job_started_at=polled.first_running_at)
+            self.transitions.running_to_running(job, job_started_at=job.first_running_at)
 
-    def stop_job_if_timeout(self, polled: PolledJob) -> bool:
+    def stop_job_if_timeout(self, job: Job) -> bool:
         """Stop a job that has outlived PROGRAM_TIMEOUT. Returns True if it ended the job."""
-        job = polled.job
         if job.filler:
             return False
 
         timeout = settings.PROGRAM_TIMEOUT
         # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
         # breaker from logging one line per timed-out job per tick.
-        if not check_job_timeout(job, last_event_at=polled.last_event_at) or self.canceller.paused(job.ce_region):
+        if not self._timed_out(job) or self.canceller.paused(job.ce_region):
             return False
 
         logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author_id, timeout)
@@ -228,6 +215,15 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # stop() wrote STOPPED itself, so only the counter is left
             self._increment_terminal_counter(job)
         return True
+
+    @staticmethod
+    def _timed_out(job: Job) -> bool:
+        """Check the time loaded with the job first, it rules out almost every job without a query. The events are
+        read again before a stop, because the loaded time misses an event written after the job list was read: the
+        RUNNING one ``to_running`` just wrote, or a sub status sent from inside the job."""
+        if not check_job_timeout(job, job.last_event_at or job.created):
+            return False
+        return check_job_timeout(job, latest_event_at(job))
 
     def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
         """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
@@ -278,11 +274,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     logger.info("Kill signal received, stopping status update cycle")
                     return
                 checked += 1
-                polled = PolledJob(
-                    job, first_running_at=job.first_running_event_created, last_event_at=job.last_event_created
-                )
                 try:
-                    if self.update_job_status(polled):
+                    if self.update_job_status(job):
                         counter += 1
                 except DB_EXCEPTIONS as ex:
                     # Keep going so one failing job does not skip the others, then raise for main.py

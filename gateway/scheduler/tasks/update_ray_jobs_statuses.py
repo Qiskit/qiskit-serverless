@@ -15,6 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     check_job_timeout,
     fail_job_insufficient_resources,
+    latest_event_at,
 )
 
 from scheduler.kill_signal import KillSignal
@@ -71,7 +72,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         status_has_changed = False
         lines: FilteredLogs | None = None
-        if check_job_timeout(job):
+        if check_job_timeout(job, latest_event_at(job)):
             logger.warning(
                 "job_id=%s cluster=%s timeout=%s hours: job stopped.",
                 job.id,

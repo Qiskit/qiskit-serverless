@@ -13,7 +13,7 @@ from core.models import ComputeProfile, Job, JobEvent, Program
 from core.services.job_transitions import JobTransitionService
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError, RunnerRetryableError
-from scheduler.tasks.update_fleets_jobs_statuses import PolledJob, UpdateFleetsJobsStatuses, _STOPPING_DEADLINE_SECONDS
+from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses, _STOPPING_DEADLINE_SECONDS
 from tests.utils import TestUtils
 
 _MOD = "scheduler.tasks.update_fleets_jobs_statuses"
@@ -76,8 +76,9 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.filler = False
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
     # what JobQuerySet.with_event_times() loads with each job
-    job.first_running_event_created = None
-    job.last_event_created = None
+    job.created = datetime.now(timezone.utc)
+    job.first_running_at = None
+    job.last_event_at = None
 
     def _apply_update_fields(fields_map):
         for field, value in fields_map.items():
@@ -85,10 +86,6 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
 
     job.update_fields = MagicMock(side_effect=_apply_update_fields)
     return job
-
-
-def _polled(job, first_running_at=None, last_event_at=None):
-    return PolledJob(job, first_running_at=first_running_at, last_event_at=last_event_at)
 
 
 class TestUpdateJobStatus:
@@ -99,7 +96,7 @@ class TestUpdateJobStatus:
         job = _make_fleets_job(fleet_id=None)
 
         with patch(f"{_MOD}.get_runner") as mock_get_runner:
-            result = task.update_job_status(_polled(job))
+            result = task.update_job_status(job)
 
         assert result is False
         mock_get_runner.assert_not_called()
@@ -120,10 +117,10 @@ class TestUpdateJobStatus:
             patch.object(task, "to_terminal") as mock_terminal,
             patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
         ):
-            result = task.update_job_status(_polled(job))
+            result = task.update_job_status(job)
 
         mock_terminal.assert_not_called()
-        mock_timeout.assert_called_once_with(_polled(job))
+        mock_timeout.assert_called_once_with(job)
         assert result is False
 
     def test_succeeded_calls_to_terminal(self):
@@ -137,7 +134,7 @@ class TestUpdateJobStatus:
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
         mock_terminal.assert_called_once_with(job, Job.SUCCEEDED)
 
@@ -153,9 +150,9 @@ class TestUpdateJobStatus:
             patch.object(task, "to_running") as mock_running,
             patch.object(task, "stop_job_if_timeout"),
         ):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
-        mock_running.assert_called_once_with(_polled(job))
+        mock_running.assert_called_once_with(job)
 
     def test_running_to_running_calls_to_running(self):
         """to_running is called unconditionally for a RUNNING poll result; it is the one
@@ -172,9 +169,9 @@ class TestUpdateJobStatus:
             patch.object(task, "to_running") as mock_running,
             patch.object(task, "stop_job_if_timeout"),
         ):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
-        mock_running.assert_called_once_with(_polled(job))
+        mock_running.assert_called_once_with(job)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -189,7 +186,7 @@ class TestUpdateJobStatus:
             patch.object(task, "to_terminal") as mock_terminal,
             patch.object(task, "to_running") as mock_running,
         ):
-            result = task.update_job_status(_polled(job))
+            result = task.update_job_status(job)
 
         assert result is False
         mock_terminal.assert_not_called()
@@ -208,7 +205,7 @@ class TestUpdateJobStatus:
             patch.object(task, "stop_job_if_timeout", return_value=False),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
-            result = task.update_job_status(_polled(job))
+            result = task.update_job_status(job)
 
         assert result is False
         mock_terminal.assert_not_called()
@@ -231,9 +228,9 @@ class TestUpdateJobStatus:
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "stop_job_if_timeout", return_value=False) as mock_timeout,
         ):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
-        mock_timeout.assert_called_once_with(_polled(job))
+        mock_timeout.assert_called_once_with(job)
 
     def test_unknown_status_calls_to_terminal_failed(self):
         task = _make_task()
@@ -246,7 +243,7 @@ class TestUpdateJobStatus:
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "to_terminal") as mock_terminal,
         ):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
         mock_terminal.assert_called_once_with(job, Job.FAILED)
 
@@ -339,7 +336,7 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
-        task.to_running(_polled(job))
+        task.to_running(job)
 
         assert job.status == Job.RUNNING
         task.transitions.pending_to_running.assert_called_once_with(
@@ -358,7 +355,7 @@ class TestToRunning:
             "Job x: invalid transition STOPPED -> RUNNING"
         )
 
-        task.to_running(_polled(job))  # must not raise
+        task.to_running(job)  # must not raise
 
         task.transitions.running_to_running.assert_not_called()
 
@@ -366,7 +363,7 @@ class TestToRunning:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        task.to_running(_polled(job))
+        task.to_running(job)
 
         task.transitions.running_to_running.assert_called_once_with(job, job_started_at=None)
         task.transitions.pending_to_running.assert_not_called()
@@ -381,6 +378,7 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.last_event_at = past_event.created
 
         with (
             patch(f"{_SCHEDULE}.settings") as mock_settings,
@@ -388,7 +386,7 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            task.stop_job_if_timeout(_polled(job))
+            task.stop_job_if_timeout(job)
 
         # The cancel was accepted, so the poller confirms it from the task store on a later cycle.
         assert job.status == Job.STOPPING
@@ -400,6 +398,7 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.last_event_at = past_event.created
 
         with (
             patch(f"{_SCHEDULE}.settings") as mock_settings,
@@ -407,7 +406,7 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            task.stop_job_if_timeout(_polled(job))
+            task.stop_job_if_timeout(job)
 
         task.transitions.try_stop.assert_called_once()
         assert job.status == Job.STOPPING
@@ -424,6 +423,7 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.last_event_at = past_event.created
         task.transitions.try_stop.side_effect = _wrote_stopped
         # what the real service answers for STOPPED -> STOPPED
         task.transitions.to_terminal.side_effect = InvalidJobTransitionException("STOPPED -> STOPPED")
@@ -434,7 +434,7 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            task.stop_job_if_timeout(_polled(job))
+            task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
         task.metrics.increment_jobs_terminal.assert_called_once_with(provider=ANY, final_status=Job.STOPPED)
@@ -456,6 +456,7 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.last_event_at = past_event.created
         task.transitions.try_stop.side_effect = error
 
         with (
@@ -464,7 +465,7 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            changed = task.stop_job_if_timeout(_polled(job))
+            changed = task.stop_job_if_timeout(job)
 
         assert changed is False
         assert job.status == Job.RUNNING
@@ -478,6 +479,7 @@ class TestStopJobIfTimeout:
 
         past_event = MagicMock()
         past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.last_event_at = past_event.created
 
         with (
             patch(f"{_SCHEDULE}.settings") as mock_settings,
@@ -485,7 +487,7 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            changed = task.stop_job_if_timeout(_polled(job))
+            changed = task.stop_job_if_timeout(job)
 
         assert changed is False
         assert job.status == Job.RUNNING
@@ -497,6 +499,7 @@ class TestStopJobIfTimeout:
 
         recent_event = MagicMock()
         recent_event.created = datetime.now(timezone.utc) - timedelta(minutes=5)
+        job.last_event_at = recent_event.created
 
         with (
             patch(f"{_SCHEDULE}.settings") as mock_settings,
@@ -504,10 +507,40 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 24
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = recent_event
-            task.stop_job_if_timeout(_polled(job))
+            task.stop_job_if_timeout(job)
 
         assert job.status == Job.RUNNING
         job.update_fields.assert_not_called()
+
+    def test_a_recent_event_read_again_keeps_the_job_running(self):
+        """The loaded time is from before the pass; an event written since then keeps the job."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.last_event_at = datetime.now(timezone.utc) - timedelta(hours=100)
+
+        recent_event = MagicMock()
+        recent_event.created = datetime.now(timezone.utc)
+
+        with (
+            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+        ):
+            mock_settings.PROGRAM_TIMEOUT = 1
+            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = recent_event
+            changed = task.stop_job_if_timeout(job)
+
+        assert changed is False
+        task.canceller.cancel.assert_not_called()
+
+    def test_a_recent_loaded_time_reads_no_events(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.last_event_at = datetime.now(timezone.utc)
+
+        with patch(f"{_SCHEDULE}.JobEvent") as mock_event:
+            task.stop_job_if_timeout(job)
+
+        mock_event.objects.filter.assert_not_called()
 
     def test_filler_job_never_stopped_regardless_of_age(self):
         task = _make_task()
@@ -523,7 +556,7 @@ class TestStopJobIfTimeout:
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
-            task.stop_job_if_timeout(_polled(job))
+            task.stop_job_if_timeout(job)
 
         assert job.status == Job.RUNNING
         job.update_fields.assert_not_called()
@@ -628,7 +661,7 @@ class TestEventStreamsIntegration:
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch.object(task, "stop_job_if_timeout"),
         ):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
         task.transitions.running_to_running.assert_called_once_with(job, job_started_at=None)
 
@@ -650,8 +683,8 @@ class TestEventStreamsIntegration:
             mock_job_cls.RUNNING_STATUSES = Job.RUNNING_STATUSES
 
             # Simulate update_job_status raising for job1 (publish failure) but succeeding for job2
-            def fake_update(polled):
-                if polled.job is job1:
+            def fake_update(job):
+                if job is job1:
                     raise Exception("broker down")
                 return True
 
@@ -660,8 +693,8 @@ class TestEventStreamsIntegration:
             task.run()
 
         # job1 raised — skipped; job2 processed normally
-        mock_update_status.assert_any_call(_polled(job1))
-        mock_update_status.assert_any_call(_polled(job2))
+        mock_update_status.assert_any_call(job1)
+        mock_update_status.assert_any_call(job2)
         assert mock_update_status.call_count == 2
 
 
@@ -709,16 +742,16 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
     mock_runner = MagicMock()
     mock_runner.status.return_value = Job.RUNNING
 
-    polled = _polled(job, first_running_at=JobEvent.objects.first_running_at(job.id))
+    job = Job.objects.with_event_times().get(pk=job.pk)
 
     with (
         patch(f"{_MOD}.get_runner", return_value=mock_runner),
         patch.object(task, "stop_job_if_timeout") as mock_timeout,
     ):
-        task.update_job_status(polled)
+        task.update_job_status(job)
 
     sender.send.assert_called_once()
-    mock_timeout.assert_called_once_with(polled)
+    mock_timeout.assert_called_once_with(job)
 
 
 @pytest.mark.django_db
@@ -729,11 +762,11 @@ def test_a_db_error_on_one_job_still_updates_the_others_and_reaches_the_schedule
     task = _make_task()
     updated = []
 
-    def deadlock_on_the_first_job(polled):
+    def deadlock_on_the_first_job(job):
         if not updated:
-            updated.append(polled.job.fleet_id)
+            updated.append(job.fleet_id)
             raise OperationalError("deadlock detected")
-        updated.append(polled.job.fleet_id)
+        updated.append(job.fleet_id)
         return True
 
     with (
@@ -794,9 +827,10 @@ def test_an_inactive_project_does_not_fail_a_running_job():
     job = Job.objects.create(
         program=program, author=program.author, runner=Program.FLEETS, status=Job.RUNNING, fleet_id="fleet-abc"
     )
+    job = Job.objects.with_event_times().get(pk=job.pk)
 
     task = _make_task()
-    task.update_job_status(_polled(job))
+    task.update_job_status(job)
 
     job.refresh_from_db()
     assert job.status == Job.RUNNING
@@ -836,7 +870,7 @@ class TestStoppingJobs:
         ):
             # no RUNNING event, so the duration is skipped: this test is about the status
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = None
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is True
         assert job.status == task_state
@@ -855,7 +889,7 @@ class TestStoppingJobs:
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _recent_stopping_event()
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is False
         assert job.status == Job.STOPPING
@@ -877,7 +911,7 @@ class TestStoppingJobs:
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is True
         assert job.status == Job.STOPPED
@@ -893,7 +927,7 @@ class TestStoppingJobs:
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is True
         assert job.status == Job.STOPPED
@@ -904,7 +938,7 @@ class TestStoppingJobs:
         job = _make_fleets_job(status=Job.STOPPING, fleet_id=None)
 
         with patch(f"{_MOD}.get_runner") as mock_get_runner:
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is True
         assert job.status == Job.STOPPED
@@ -925,7 +959,7 @@ class TestStoppingJobs:
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = _old_stopping_event()
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is True
         assert job.status == Job.STOPPED
@@ -940,7 +974,7 @@ class TestStoppingJobs:
         runner.status.return_value = Job.STOPPED
 
         with patch(f"{_MOD}.get_runner", return_value=runner):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
         assert job.status == Job.STOPPED
         task.metrics.increment_filler_jobs_stopped.assert_called_once()
@@ -956,7 +990,7 @@ class TestStoppingJobs:
         runner.status.return_value = Job.SUCCEEDED
 
         with patch(f"{_MOD}.get_runner", return_value=runner):
-            task.update_job_status(_polled(job))
+            task.update_job_status(job)
 
         assert job.status == Job.SUCCEEDED
         task.metrics.increment_filler_jobs_ended.assert_called_once_with(Job.SUCCEEDED)
@@ -996,7 +1030,7 @@ class TestStoppingDeadlineAgainstTheDatabase:
         runner.status.return_value = Job.RUNNING
 
         with patch(f"{_MOD}.get_runner", return_value=runner):
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is True, "the deadline never fired, so the query read the wrong event"
         assert job.status == Job.STOPPED
@@ -1028,7 +1062,7 @@ class TestStoppingDeadlineAgainstTheDatabase:
         runner.status.return_value = Job.RUNNING
 
         with patch(f"{_MOD}.get_runner", return_value=runner):
-            changed = task.update_job_status(_polled(job))
+            changed = task.update_job_status(job)
 
         assert changed is False, "an older event of another kind started the deadline"
         assert job.status == Job.STOPPING

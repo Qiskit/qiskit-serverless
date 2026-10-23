@@ -334,22 +334,18 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
     return Job.objects.filter(job_filter).with_scheduler_context()
 
 
-def check_job_timeout(job: Job, last_event_at: datetime | None = None) -> bool:
-    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours.
+def latest_event_at(job: Job) -> datetime:
+    """The job's latest event time read now, or its creation time if it has no events."""
+    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+    return latest_job_event.created if latest_job_event else job.created
 
-    last_event_at: the latest event time, if already loaded. If it is within the timeout, no query is needed.
-    """
+
+def check_job_timeout(job: Job, last_event_at: datetime) -> bool:
+    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours since ``last_event_at``."""
     if job.status not in Job.RUNNING_STATUSES:
         return False
 
-    timeout = timedelta(hours=settings.PROGRAM_TIMEOUT)
-    if last_event_at is not None and datetime.now(tz=last_event_at.tzinfo) <= last_event_at + timeout:
-        return False
-
-    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-    # A job without events counts from its creation.
-    reference_time = latest_job_event.created if latest_job_event else job.created
-    endtime = reference_time + timeout
+    endtime = last_event_at + timedelta(hours=settings.PROGRAM_TIMEOUT)
     return endtime < datetime.now(tz=endtime.tzinfo)
 
 

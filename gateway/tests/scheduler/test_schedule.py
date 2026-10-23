@@ -39,6 +39,7 @@ from scheduler.schedule import (
     FleetsJobSubmitter,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
+    latest_event_at,
 )
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
@@ -511,32 +512,21 @@ def test_a_ray_job_without_events_times_out_from_its_creation():
     Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
     job.refresh_from_db()
 
+    assert latest_event_at(job) == job.created
     with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job) is True
+        assert check_job_timeout(job, latest_event_at(job)) is True
 
 
 @pytest.mark.django_db
-def test_a_recent_loaded_event_time_skips_the_event_query():
-    user = User.objects.create_user(username="timeout-loaded-recent")
+def test_the_timeout_check_only_compares_the_time_it_is_given():
+    user = User.objects.create_user(username="timeout-no-query")
     job = Job.objects.create(author=user, status=Job.RUNNING)
-    Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
-    job.refresh_from_db()
+    now = datetime.now(timezone.utc)
 
     with override_settings(PROGRAM_TIMEOUT=1), CaptureQueriesContext(connection) as ctx:
-        assert check_job_timeout(job, last_event_at=datetime.now(timezone.utc)) is False
+        assert check_job_timeout(job, now) is False
+        assert check_job_timeout(job, now - timedelta(hours=2)) is True
     assert len(ctx) == 0
-
-
-@pytest.mark.django_db
-def test_an_old_loaded_event_time_is_checked_against_the_events():
-    user = User.objects.create_user(username="timeout-loaded-old")
-    job = Job.objects.create(author=user, status=Job.RUNNING)
-    JobEvent.objects.add_status_event(
-        job_id=job.id, origin=JobEventOrigin.API, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
-    )
-
-    with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job, last_event_at=datetime.now(timezone.utc) - timedelta(hours=2)) is False
 
 
 @pytest.mark.django_db(transaction=True)
