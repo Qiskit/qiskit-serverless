@@ -134,7 +134,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         return datetime.now(timezone.utc) - reference_time >= timedelta(seconds=_STOPPING_DEADLINE_SECONDS)
 
     def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition, then count it and record a succeeded job's duration."""
+        """Persist a terminal status transition, then count it."""
         stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
@@ -155,8 +155,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
             return
         self._increment_terminal_counter(job, stop_landed=stop_landed)
-        if new_status == Job.SUCCEEDED:
-            self._record_execution_duration(job)
 
     def to_running(self, job: Job) -> None:
         """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
@@ -229,19 +227,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.increment_jobs_terminal(provider=provider, final_status=job.status)
-
-    def _record_execution_duration(self, job: Job) -> None:
-        """Record execution duration for a successfully completed job."""
-        if job.filler:
-            # Filler jobs run until something needs their slot, so their lifetime
-            # says nothing about how long real work takes.
-            return
-        running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
-        if running_event is None:
-            return
-        duration = (datetime.now(timezone.utc) - running_event.created).total_seconds()
-        provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
-        self.metrics.observe_job_execution_duration(duration, provider)
 
     def run(self):
         """Update statuses of all running Fleets jobs."""

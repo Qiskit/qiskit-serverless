@@ -124,17 +124,24 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.job_execution_duration = Histogram(
             "scheduler_job_execution_duration_seconds",
-            "Time successful jobs spend executing from RUNNING to SUCCEEDED.",
+            "Time successful Ray jobs spend executing from RUNNING to SUCCEEDED. Fleets jobs are in "
+            "scheduler_job_status_duration_seconds.",
             labelnames=("provider",),
             registry=self.registry,
             buckets=(30, 60, 300, 600, 1800, 3600, 7200, 14400, float("inf")),
         )
         self.queue_wait_seconds = Histogram(
             "scheduler_queue_wait_seconds",
-            "Time jobs spend waiting in queue before being scheduled.",
+            "Time Ray jobs spend waiting in queue before being scheduled. Fleets jobs are in "
+            "scheduler_job_status_duration_seconds.",
             labelnames=("compute_type",),
             registry=self.registry,
             buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, float("inf")),
+        )
+        self.oldest_stopping_age_seconds = Gauge(
+            "scheduler_oldest_stopping_age_seconds",
+            "Age in seconds of the oldest Fleets job still in STOPPING, fillers left out, or 0 when there is none.",
+            registry=self.registry,
         )
         self.outbox_sends_total = Counter(
             "scheduler_outbox_sends_total",
@@ -268,6 +275,10 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_outbox_unrecoverable_rows(self, count: int, channel: str) -> None:
         """Set how many outbox rows of a given channel the destination will never take."""
         self.outbox_unrecoverable_rows.labels(channel=channel).set(count)
+
+    def set_oldest_stopping_age_seconds(self, age_seconds: float) -> None:
+        """Set the age of the oldest Fleets job still in STOPPING."""
+        self.oldest_stopping_age_seconds.set(age_seconds)
 
     def set_outbox_oldest_pending_age_seconds(self, age_seconds: float, channel: str) -> None:
         """Set the age of the oldest outbox row pending a given channel."""

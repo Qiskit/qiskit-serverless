@@ -90,18 +90,21 @@ class JobEventQuerySet(QuerySet):
             data={"status": status},
         )
 
-    def first_running_at(self, job_id: uuid.UUID):
-        """When this job first reached RUNNING, from its own event history.
-        Returns None if it never did (still queued/pending, or terminated without running).
-        """
-        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
-
+    def first_status_at(self, job_id: uuid.UUID, status: str):
+        """When this job first reached ``status``, from its own event history, or None if it never did."""
         event = (
-            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=status)
             .order_by("created")
             .first()
         )
         return event.created if event else None
+
+    def first_running_at(self, job_id: uuid.UUID):
+        """When this job first reached RUNNING, or None if it never did (still queued/pending, or terminated without
+        running)."""
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        return self.first_status_at(job_id, Job.RUNNING)
 
     def first_terminal_at(self, job_id: uuid.UUID):
         """When this job first reached a terminal status, from its own event history.
