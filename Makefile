@@ -55,10 +55,8 @@ build-fleet-node:
 build-fleet-node-local:
 	docker build --target selector -t fleet-node:latest -f ./docker-images/fleet-node/Dockerfile .
 
-# The CPU Fleets runtime published under its own name. Same stage as
-# build-fleet-node above, so the two produce the same image — kept as a separate
-# target and tag on purpose: sharing them would make the result depend on which
-# target ran last.
+# The CPU Fleets runtime under its own name. Unlike build-fleet-node, it has no
+# CUDA wheels.
 build-fleet-selector:
 	docker build --target selector -t $(fleetSelectorImageName):$(version) -t fleet-selector:latest -f ./docker-images/fleet-node/Dockerfile .
 
