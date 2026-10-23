@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    ``BackgroundExecutor.discard(pool, replace_key)`` removes a task that is still waiting in the queue under that
+    ``replace_key``, so a result that is no longer needed does not take a thread. A task that already started is
+    never touched. The discarded task is counted as ``canceled``.
