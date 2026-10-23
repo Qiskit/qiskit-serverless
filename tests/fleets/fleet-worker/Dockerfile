@@ -15,17 +15,12 @@
 # production fleet tasks run in, then adds only the harness-specific bits:
 # s3fs/fuse to mock CE's COS mount against MinIO, boto3, and the worker scripts.
 #
-# BASE_IMAGE must be built first (`make build-fleet-node-local` or the CI
-# "Build fleet-node selector image" step) and tagged fleet-node:latest. It is the
-# selector stage, not base: base has no dynamic dependencies, while selector is
-# the workload stack the gateway deploys for imageless Fleets jobs, so the test
-# runs against the same runtime production does.
-#
-# selector is the CPU one of the two shipped runtimes, and this suite tracks it
-# rather than selector-gpu: the two differ only by the CUDA wheels, which the
-# test worker cannot exercise (an ordinary container, no GPU) and which would add
-# 6.5 GB to every local run. Note `make build-fleet-node` is NOT the target to
-# use here -- it builds the GPU image, which is what fleet-node publishes.
+# BASE_IMAGE must be built first and tagged fleet-node:latest:
+# `make build-fleet-node-local` (NOT build-fleet-node, which builds the published
+# GPU image), or the CI "Build fleet-node selector image" step. It is the selector
+# stage, not base: that is the workload stack the gateway deploys for imageless
+# Fleets jobs, so the test runs against the runtime production uses. The CPU one
+# of the two — this suite has no GPU to exercise.
 ARG BASE_IMAGE=fleet-node:latest
 FROM ${BASE_IMAGE}
 
