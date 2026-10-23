@@ -552,8 +552,6 @@ def test_free_resources_gives_up_when_the_code_engine_host_does_not_resolve():
 
 
 def test_free_resources_reports_an_iam_failure_as_retryable():
-    """The token is read per request now, so an IAM failure arrives from delete_job. Without this the cleanup
-    counts a permanent failure and gives up on the fleet after three attempts."""
     runner, mock_handler = _make_runner(fleet_id="fleet-123")
     mock_handler.delete_job.side_effect = RetryableError("Could not get an IAM token")
 

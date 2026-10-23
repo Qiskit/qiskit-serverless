@@ -91,7 +91,7 @@ class RegionBreakers:
 
     def paused_regions(self) -> list[str | None]:
         """The regions whose breaker is open right now, out of the ones asked for so far."""
-        return [region for region in list(self.breakers) if self.breakers[region].is_open]
+        return [region for region, breaker in self.breakers.items() if breaker.is_open]
 
 
 class FleetsBreakers:
