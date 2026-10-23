@@ -1,0 +1,75 @@
+# Performance test scenarios, run in order. Comment one out to skip it, or run one with --only <name>.
+defaults:
+  gateway: ${GATEWAY_HOST}  # the token and the instance come from GATEWAY_TOKEN and GATEWAY_INSTANCE
+  poll_seconds: 5
+  cooldown_seconds: 300  # between scenarios, so each starts with an idle scheduler and the last fleets deleted
+  limits:
+    max_jobs: 600
+    max_users: 250
+  # The three sections below read their ids from env vars. A section with an unset id is off, and the run works
+  # without it. They use IBM_CLOUD_API_KEY.
+  sysdig:  # the pod and scheduler metrics
+    region: ${PERF_SYSDIG_REGION:-}
+    instance_id: ${PERF_SYSDIG_INSTANCE:-}
+    cluster: ${PERF_SYSDIG_CLUSTER:-}
+    metrics: metrics.yaml
+  cloud_logs:  # the scheduler logs the time of each whole submit there
+    region: ${PERF_LOGS_REGION:-}
+    instance_id: ${PERF_LOGS_INSTANCE:-}
+  code_engine:  # where the jobs run, so the run can delete their fleets at the end
+    project_id: ${PERF_CE_PROJECT:-}
+    region: ${PERF_CE_REGION:-}
+
+# Each user uploads its own copy with these sizes. A size must be a compute profile registered in the gateway.
+function:
+  path: functions/sqd_pcm
+  entrypoint: sqd_pcm_entrypoint.py
+  title: perf-sqd-pcm
+  sizes: {S: 8x32, M: 16x128, L: 128x1500}
+  default_size: S
+
+# The SQD IEF-PCM inputs of the template's own unit test: a small water molecule
+sqd_arguments: &sqd_arguments
+  use_fake_backend: true  # false runs on a real QPU, and then backend_name is required
+  backend_name: null
+  lucj_options: {}
+  molecule:
+    atom: "O 0.00000 -0.00000 0.11641; H 0.00000 0.75141 -0.46564; H -0.00000 -0.75141 -0.46564"
+    basis: 6-31G*
+    spin: 0
+    charge: 0
+    verbosity: 0
+    number_of_active_orb: 4
+    number_of_active_alpha_elec: 2
+    number_of_active_beta_elec: 2
+    avas_selection: null
+  solvent_options:
+    method: IEF-PCM
+    eps: 78.3553
+  sqd_options:
+    sqd_iterations: 2
+    number_of_batches: 2
+    samples_per_batch: 2
+    max_davidson_cycles: 2
+
+# Each user uploads its own copy, then submits through one rate limiter, like the client-go and kube-burner qps and
+# burst: up to `burst` users submit at once, then `qps` more every second. No one waits for the others' jobs.
+scenarios:
+  - name: burst_10  # a quick check before the big one
+    users: 10
+    qps: 10
+    burst: 10  # burst = users, so all 10 submit at the same moment
+    function_size: S
+    arguments: *sqd_arguments
+  - name: burst_50  # the per-user active job limit is 50 today, so this is the largest burst that fits
+    users: 50
+    qps: 50
+    burst: 50
+    function_size: S
+    arguments: *sqd_arguments
+  # - name: users_200  # after the per-user limits are raised
+  #   users: 200
+  #   qps: 2
+  #   burst: 20  # 20 submit at once, then 2 per second, so the last one submits at 90 s
+  #   function_size: S
+  #   arguments: *sqd_arguments
