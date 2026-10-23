@@ -43,14 +43,14 @@ def clear_django_cache():
 
 
 @pytest.fixture(autouse=True)
-def workloads_mirror_off(request):
-    """The use case that creates a job reads the workload mirror flag, so every test that uses the database starts with
-    its Config row there, off. A test that needs it on sets it with Config.set."""
+def job_creation_config(request):
+    """The use case that creates a job reads the workload mirror flag and the active job limit, so every test that uses
+    the database starts with their Config rows there, the mirror off and the limit at 50. A test that needs another
+    value sets it with Config.set."""
     if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
         request.getfixturevalue("db")
-        Config.objects.get_or_create(
-            name=ConfigKey.WORKLOADS_MIRROR_ENABLED.value, defaults={"value": "false", "description": "test"}
-        )
+        for key, value in ((ConfigKey.WORKLOADS_MIRROR_ENABLED, "false"), (ConfigKey.ACTIVE_JOBS_PER_USER, "50")):
+            Config.objects.get_or_create(name=key.value, defaults={"value": value, "description": "test"})
 
 
 @pytest.fixture(autouse=True)

@@ -13,7 +13,12 @@ from core.models import Job, Config, Program
 from core.services.job_transitions import JobTransitionService
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError, RunnerRetryableError
-from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share
+from scheduler.schedule import (
+    FleetsJobSubmitter,
+    fleets_jobs_per_tick,
+    fleets_jobs_per_user,
+    get_jobs_to_schedule_fair_share,
+)
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -56,7 +61,12 @@ class ScheduleFleetsJobs(SchedulerTask):
             )
             return
 
-        jobs = get_jobs_to_schedule_fair_share(slots=free_slots, gpu=False, runner=Program.FLEETS)
+        jobs = get_jobs_to_schedule_fair_share(
+            slots=min(free_slots, fleets_jobs_per_tick()),
+            gpu=False,
+            runner=Program.FLEETS,
+            jobs_per_user=fleets_jobs_per_user(),
+        )
 
         skipped_regions: set[str | None] = set()
         # The regions in skipped_regions because their breaker is open. The others are there after a retryable

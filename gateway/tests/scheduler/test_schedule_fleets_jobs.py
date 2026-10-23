@@ -3,12 +3,23 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from core.models import Job
+import pytest
+
+from core.models import Job, Program
 from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
+
+
+@pytest.fixture(autouse=True)
+def _fleets_limits():
+    with (
+        patch(f"{_MOD}.fleets_jobs_per_user", return_value=40),
+        patch(f"{_MOD}.fleets_jobs_per_tick", return_value=3),
+    ):
+        yield
 
 
 def _make_task():
@@ -31,7 +42,7 @@ def test_fleets_execute_called_with_ctx():
     mock_ctx = MagicMock()
 
     with (
-        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]) as mock_fair_share,
         patch.object(task.submitter, "submit", return_value=True) as mock_execute,
         patch(f"{_MOD}.TraceContextTextMapPropagator") as mock_propagator,
     ):
@@ -39,6 +50,7 @@ def test_fleets_execute_called_with_ctx():
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     mock_execute.assert_called_once_with(mock_job, mock_ctx)
+    mock_fair_share.assert_called_once_with(slots=3, gpu=False, runner=Program.FLEETS, jobs_per_user=40)
 
 
 def test_a_submit_that_did_not_reach_pending_records_no_queue_wait():

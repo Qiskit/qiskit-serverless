@@ -578,8 +578,8 @@ Because the gateway returns the schema as text, `from_json` decodes it back into
   that is about one CPU second per request; a deployment that raises `ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS` raises this
   cost with it, to at most 5 CPU seconds and 25 seconds of wall clock at the clamp maximum, which is the reason the
   clamp is there. None of those requests
-  creates a job, so none of them is caught by a job quota either: `LIMITS_ACTIVE_JOBS_PER_USER` and
-  `LIMITS_JOBS_PER_USER` (`gateway/main/settings.py`) count jobs, not validation attempts.
+  creates a job, so none of them is caught by a job quota either: the `gateway.limits.active_jobs_per_user` Config
+  and `LIMITS_JOBS_PER_USER` (`gateway/main/settings.py`) count jobs, not validation attempts.
 - **The gateway does not throttle any endpoint**, this one included. Nothing limits how often a given caller may send
   such a request. What this feature changes is the cost of one request, not the number of requests a caller can make:
   before it, a single pathological schema or argument could occupy a worker for hours; after it, the same request

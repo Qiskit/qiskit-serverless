@@ -9,15 +9,16 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Model
-from django.db.models import Q
+from django.db.models import F, Q, QuerySet, Window
 from django.db.models.aggregates import Count, Min
+from django.db.models.functions import RowNumber
 
 from opentelemetry import trace
 
 from core.config_key import ConfigKey
 from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import BlockedCloudResource, Job, JobEvent, Program
+from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import get_runner, AbstractRunner, RunnerError, RunnerRetryableError
@@ -272,13 +273,17 @@ def first_cancel_refusal(job: Job) -> bool:
     return True
 
 
-def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:
+def get_jobs_to_schedule_fair_share(
+    slots: int, gpu: bool, runner: str = Program.RAY, jobs_per_user: int | None = None
+) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
 
     Args:
-        slots: max number of users to query
+        slots: max number of jobs to return
         gpu: filter jobs by GPU requirement
         runner: filter jobs by runner type
+        jobs_per_user: max running jobs of one user, by default LIMITS_JOBS_PER_USER. Ray takes one job per user,
+            and Fleets takes several, in rounds across users
 
     Returns:
         list of jobs for execution
@@ -286,29 +291,29 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
 
     # maybe refactor this using big SQL query :thinking:
 
+    if slots < 1:
+        return []
+
     max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
 
     # Per-user concurrency is tracked independently per runner: Fleets and Ray
     # have separate limits and separate running-job tallies, so a user's Fleets
     # jobs don't count against their Ray budget and vice versa.
-    if runner == Program.FLEETS:
-        jobs_per_user = settings.LIMITS_JOBS_PER_USER_FLEETS
-    else:
+    if jobs_per_user is None:
         jobs_per_user = settings.LIMITS_JOBS_PER_USER
 
     # Filler jobs are not user demand, and they belong to the author of the filler
     # function, so counting them would stop that person's own jobs being promoted.
-    # This one query serves both LIMITS_JOBS_PER_USER and its Fleets variant.
-    running_jobs_per_user = (
-        Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
+    # This one query serves both the Ray and the Fleets limit.
+    running_jobs_per_user = {
+        entry["author"]: entry["running_jobs_count"]
+        for entry in Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
         .exclude(filler=True)
         .values("author")
         .annotate(running_jobs_count=Count("id"))
-    )
+    }
 
-    users_at_max_capacity = [
-        entry["author"] for entry in running_jobs_per_user if entry["running_jobs_count"] >= jobs_per_user
-    ]
+    users_at_max_capacity = [author for author, count in running_jobs_per_user.items() if count >= jobs_per_user]
 
     queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
     blocked = BlockedCloudResource.blocked_jobs_filter() if runner == Program.FLEETS else None
@@ -316,22 +321,51 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
         # Held in QUEUED, and never picked: a picked job would take a slot it cannot use
         queued = queued.exclude(blocked)
 
-    author_date_pull = (
-        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))[:max_limit]
+    author_date_list = list(
+        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))
     )
 
-    if len(author_date_pull) == 0:
+    if len(author_date_list) == 0:
         return []
 
-    author_date_list = list(author_date_pull)
-    if len(author_date_pull) >= slots:
-        author_date_list = random.sample(author_date_list, k=slots)
+    # Sample from every waiting user, so a small slots value does not give the same users every tick
+    if len(author_date_list) > max_limit:
+        author_date_list = random.sample(author_date_list, k=max_limit)
+
+    if runner == Program.FLEETS:
+        budgets = {
+            entry["author"]: jobs_per_user - running_jobs_per_user.get(entry["author"], 0) for entry in author_date_list
+        }
+        return _jobs_in_rounds(queued, budgets, slots)
 
     job_filter = Q()
     for entry in author_date_list:
         job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
 
     return Job.objects.filter(job_filter)
+
+
+def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
+    """Each user's oldest queued jobs within their budget, the first job of every user before any second one."""
+    ranked = (
+        queued.filter(author__in=budgets)
+        .with_program()
+        .select_related("program__code_engine_project")
+        .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
+        .filter(rank__lte=min(max(budgets.values()), slots))
+        .order_by("rank", "created")
+    )
+    return [job for job in ranked if job.rank <= budgets[job.author_id]][:slots]
+
+
+def fleets_jobs_per_user() -> int:
+    """The gateway.limits.active_jobs_per_user Config, which also caps the running Fleets jobs of one user."""
+    return Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)
+
+
+def fleets_jobs_per_tick() -> int:
+    """The scheduler.fleets.jobs_per_tick Config, where less than 0 means 0."""
+    return max(Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK, default=5), 0)
 
 
 def check_job_timeout(job: Job):

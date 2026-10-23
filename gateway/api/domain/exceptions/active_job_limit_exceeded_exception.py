@@ -1,12 +1,10 @@
-"""Base exception for business domain errors."""
-
-from django.conf import settings
+"""The user already has as many active jobs as they are allowed."""
 
 
 class ActiveJobLimitExceeded(Exception):
-    """Base exception for business domain errors."""
+    """The submit is refused because the user is at gateway.limits.active_jobs_per_user."""
 
-    def __init__(self, message: str = None):
-        self.limit = settings.LIMITS_ACTIVE_JOBS_PER_USER
+    def __init__(self, limit: int):
+        self.limit = limit
         self.message = f"Active job limit reached. The maximum allowed is {self.limit}."
-        super().__init__(message)
+        super().__init__(self.message)

@@ -1,5 +1,6 @@
 """Tests scheduling."""
 
+import random
 import uuid
 from collections import deque
 from unittest.mock import MagicMock, patch
@@ -33,6 +34,8 @@ from scheduler.schedule import (
     first_cancel_refusal,
     FleetsJobCanceller,
     FleetsJobSubmitter,
+    fleets_jobs_per_tick,
+    fleets_jobs_per_user,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
 )
@@ -95,7 +98,7 @@ class TestScheduleApi(APITestCase):
         assert str(job1.id) in job_ids  # `test4_user` job
         assert str(job6.id) in job_ids  # `test_user` job
 
-    @override_settings(LIMITS_JOBS_PER_USER=2, LIMITS_JOBS_PER_USER_FLEETS=2)
+    @override_settings(LIMITS_JOBS_PER_USER=2)
     def test_fair_share_per_user_limit_is_runner_scoped(self):
         """A user's Ray and Fleets running jobs are counted independently.
 
@@ -112,13 +115,13 @@ class TestScheduleApi(APITestCase):
         # 1 queued Fleets job -> should NOT be blocked by the Ray running jobs.
         fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
 
-        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=2)
 
         assert fleets_job in fleets_jobs
 
-    @override_settings(LIMITS_JOBS_PER_USER=2, LIMITS_JOBS_PER_USER_FLEETS=5)
+    @override_settings(LIMITS_JOBS_PER_USER=2)
     def test_fair_share_uses_fleets_specific_limit(self):
-        """Fleets scheduling uses LIMITS_JOBS_PER_USER_FLEETS, not LIMITS_JOBS_PER_USER."""
+        """Fleets scheduling uses the jobs_per_user it is given, not LIMITS_JOBS_PER_USER."""
         user = TestUtils.get_user_and_username("fleets_heavy_user")[0]
         program = TestUtils.create_program(program_title="Program", author=user)
 
@@ -127,11 +130,10 @@ class TestScheduleApi(APITestCase):
             TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS)
         fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
 
-        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=5)
 
         assert fleets_job in fleets_jobs
 
-    @override_settings(LIMITS_JOBS_PER_USER_FLEETS=2)
     def test_fair_share_ignores_filler_jobs_in_the_per_user_tally(self):
         """Filler jobs are not user demand, so they must not use up their author's cap."""
         user = TestUtils.get_user_and_username("filler_function_owner")[0]
@@ -142,9 +144,61 @@ class TestScheduleApi(APITestCase):
             TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS, filler=True)
         real_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
 
-        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
+        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=2)
 
         assert real_job in fleets_jobs
+
+    def test_fair_share_takes_the_oldest_fleets_jobs_per_user_up_to_the_limit(self):
+        user = TestUtils.get_user_and_username("perf_test_user")[0]
+        program = TestUtils.create_program(program_title="Program", author=user)
+        TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS)
+        queued = [
+            TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+            for _ in range(5)
+        ]
+
+        fair_share = get_jobs_to_schedule_fair_share
+        assert fair_share(slots=10, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == queued[:3]
+        assert fair_share(slots=2, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == queued[:2]
+        assert fair_share(slots=0, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == []
+
+    def test_fair_share_takes_fleets_jobs_in_rounds_across_users(self):
+        heavy = TestUtils.get_user_and_username("heavy_user")[0]
+        light = TestUtils.get_user_and_username("light_user")[0]
+        program = TestUtils.create_program(program_title="Program", author=heavy)
+        heavy_jobs = [
+            TestUtils.create_job(author=heavy, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+            for _ in range(3)
+        ]
+        light_job = TestUtils.create_job(author=light, program=program, status=Job.QUEUED, runner=Program.FLEETS)
+
+        jobs = get_jobs_to_schedule_fair_share(slots=3, gpu=False, runner=Program.FLEETS, jobs_per_user=10)
+
+        assert jobs == [heavy_jobs[0], light_job, heavy_jobs[1]]
+
+    def test_fair_share_picks_the_users_from_every_waiting_user(self):
+        for name in ("first_user", "second_user", "third_user"):
+            self._queued(TestUtils.get_user_and_username(name)[0])
+
+        with patch("scheduler.schedule.random.sample", wraps=random.sample) as sample:
+            jobs = get_jobs_to_schedule_fair_share(slots=1, gpu=False, runner=Program.FLEETS)
+
+        assert len(jobs) == 1
+        assert len(sample.call_args.args[0]) == 3
+
+    def test_jobs_per_tick_reads_config(self):
+        Config.add_defaults()
+        assert fleets_jobs_per_tick() == 5
+        Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "200")
+        assert fleets_jobs_per_tick() == 200
+        Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "-1")
+        assert fleets_jobs_per_tick() == 0
+
+    def test_fleets_jobs_per_user_is_the_active_job_limit(self):
+        Config.add_defaults()
+        assert fleets_jobs_per_user() == 50
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "250")
+        assert fleets_jobs_per_user() == 250
 
     def _queued(self, user, runner=Program.FLEETS, **identity):
         program = TestUtils.create_program(program_title="Program", author=user)
@@ -189,6 +243,16 @@ class TestScheduleApi(APITestCase):
         job = self._queued(TestUtils.get_user_and_username("ray_user")[0], runner=Program.RAY)
 
         assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.RAY)) == [job]
+
+    def test_fair_share_in_rounds_holds_back_a_blocked_fleets_job(self):
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        user = TestUtils.get_user_and_username("rounds_user")[0]
+        self._queued(user)
+        other_account = self._queued(user, account_id="other")
+
+        jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=10)
+
+        assert jobs == [other_account]
 
     def test_blocked_authors_do_not_take_the_free_slots(self):
         BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")

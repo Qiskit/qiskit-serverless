@@ -17,6 +17,7 @@ from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.clients.functions_operator_client import get_functions_operator_client
+from core.config_key import ConfigKey
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -24,6 +25,7 @@ from core.domain.business_models import BusinessModel
 from core.domain.workload_payload import build_workload_payload, mirror_enabled_for, should_be_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
+    Config,
     FunctionSize,
     Job,
     JobConfig,
@@ -160,8 +162,9 @@ class RunFunctionUseCase:
             message = function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
             raise FunctionDisabledException(message=message)
 
-        if active_jobs_limit_reached(user):
-            raise ActiveJobLimitExceeded()
+        active_jobs_limit = Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)
+        if active_jobs_limit_reached(user, active_jobs_limit):
+            raise ActiveJobLimitExceeded(active_jobs_limit)
 
         if function.runner == Function.FLEETS:
             message = None
