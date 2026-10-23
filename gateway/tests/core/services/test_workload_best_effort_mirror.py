@@ -1,6 +1,5 @@
 """Tests for WorkloadBestEffortMirror: the best effort send of the intermediate statuses of a mirrored job."""
 
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -134,18 +133,14 @@ def test_a_payload_error_is_swallowed_and_counted_failed(executor, build):
     assert _count("Pending", "failed") == before + 1
 
 
-def test_an_uninitialized_executor_is_swallowed_and_logged_as_error(executor, build, caplog):
+def test_an_uninitialized_executor_propagates_and_is_not_counted(executor, build):
     executor.would_accept.side_effect = BackgroundExecutorNotInitializedError("no init")
     before = _count("Pending", "failed")
 
-    with caplog.at_level(logging.ERROR):
+    with pytest.raises(BackgroundExecutorNotInitializedError):
         WorkloadBestEffortMirror().send(_job())
 
-    assert any(
-        record.levelno == logging.ERROR and "the background executor is not initialized" in record.getMessage()
-        for record in caplog.records
-    )
-    assert _count("Pending", "failed") == before + 1
+    assert _count("Pending", "failed") == before
 
 
 def test_the_task_swallows_a_put_failure_and_counts_failed(client):

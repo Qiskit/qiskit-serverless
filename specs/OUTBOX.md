@@ -166,7 +166,9 @@ status after the transition has committed, never inside its transaction. Only th
 job that has a `WorkloadMirror` row. The payload is built on the scheduler thread and the `PUT` runs on the
 `RUNTIME_API` background pool with the `replace_key` `job:<id>`, so a newer status replaces an older one that is
 still waiting. Any error is logged, counted in `workload_best_effort_mirror_total` and swallowed, except
-`OperationalError` and `InterfaceError`, which are re-raised so the scheduler still counts a database outage. A lost
+`OperationalError` and `InterfaceError`, which are re-raised so the scheduler still counts a database outage, and
+`BackgroundExecutorNotInitializedError`, which is a programming error (the scheduler initializes the executor at boot
+and exits if that fails). A lost
 status is repaired by the terminal status, which goes through the `workload` channel.
 
 ### Did the job run: the rule that decides the license fee message

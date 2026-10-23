@@ -26,7 +26,8 @@ _PUT_TIMEOUT = 3  # seconds
 _STATUSES = ("Pending", "Running", "Stopping")
 _OUTCOMES = ("sent", "failed", "dropped")
 # The same two classes as DB_EXCEPTIONS in scheduler/health.py, which core may not import. They are re-raised so the
-# scheduler still counts a database outage.
+# scheduler still counts a database outage. An executor that was never initialized is a programming error and is
+# re-raised too.
 _DB_OUTAGE = (OperationalError, InterfaceError)
 
 _MIRROR = Counter(
@@ -62,7 +63,8 @@ class WorkloadMirrorSender(ABC):
 
     @abstractmethod
     def send(self, job: Job) -> None:
-        """Send the status of ``job``. It never raises, except for a database outage."""
+        """Send the status of ``job``. It never raises, except for a database outage and for a background executor that
+        was never initialized (a programming error)."""
 
 
 class NoOpWorkloadMirror(WorkloadMirrorSender):
@@ -78,8 +80,14 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
 
     def send(self, job: Job) -> None:
         """Send the status of ``job``, which the caller has already committed. It never raises, except for a database
-        outage, which must reach the scheduler. The checks go from the cheapest to the dearest: the job itself (no
-        query), the mirror row (one query), the pool, and last the payload."""
+        outage, which must reach the scheduler, and for a background executor that was never initialized, which is a
+        programming error (the scheduler initializes it at boot). The checks go from the cheapest to the dearest: the
+        job itself (no query), the mirror row (one query), the pool, and last the payload.
+
+        Raises:
+            OperationalError, InterfaceError: the database is down.
+            BackgroundExecutorNotInitializedError: nobody called ``init()`` on the background executor.
+        """
         if not should_be_mirrored(job):
             return
 
@@ -103,11 +111,8 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
             )
             if future is None:
                 _count(status, "dropped")
-        except _DB_OUTAGE:
+        except (*_DB_OUTAGE, BackgroundExecutorNotInitializedError):
             raise
-        except BackgroundExecutorNotInitializedError:
-            logger.error("job_id=%s workload status not sent: the background executor is not initialized", job.id)
-            _count(status, "failed")
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("job_id=%s workload status not sent: %s", job.id, type(ex).__name__)
             _count(status, "failed")
