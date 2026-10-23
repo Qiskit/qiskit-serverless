@@ -28,16 +28,11 @@ jobs:
         # Also warms the shared layers for the selector build below.
         run: docker build --platform linux/amd64 --target base -f docker-images/fleet-node/Dockerfile -t fleet-node:base .
       - name: Build fleet-node selector image
-        # The CPU runtime the gateway deploys for imageless Fleets jobs, and what
-        # the fleet-worker image is FROM (tagged fleet-node:latest) so the test
-        # exercises the same image production fleet tasks run in. `compose build`
-        # does not build FROM-referenced bases, so build it first.
-        #
-        # selector, not the sibling selector-gpu: that one differs only by the
+        # The workload stack the fleet-worker image is FROM (tagged
+        # fleet-node:latest), built first because `compose build` will not build a
+        # FROM-referenced base. The CPU stage: selector-gpu differs only by the
         # CUDA wheels, which need a GPU to exercise and would add 6.5 GB to a
-        # runner that has to hold this whole compose stack. That stage is built
-        # (not run) by its own leg in build-containers-test.yaml, where its
-        # in-build asserts are the check.
+        # runner already holding this compose stack.
         run: docker build --platform linux/amd64 --target selector -f docker-images/fleet-node/Dockerfile -t fleet-node:latest .
       - name: Build containers
         run: docker compose -f docker-compose-fleets-test.yaml build

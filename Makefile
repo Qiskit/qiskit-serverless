@@ -22,36 +22,19 @@ push-all: push-ray-node push-fleet-node push-fleet-selector push-fleet-selector-
 build-ray-node:
 	docker build -t $(rayNodeImageName):$(version) -f ./docker-images/ray-node/Dockerfile .
 
-# --target selector-gpu, NOT selector, even though this is the heavier image.
-# fleet-node is the name FLEETS_DEFAULT_IMAGE and the chart's ce.fleetsDefaultImage
-# resolve to, so it is what the gateway deploys for every imageless Fleets job --
-# including one on a GPU compute profile. Before the CPU/GPU split this target was
-# a bare build, which resolved to the only shipped stage, and that stage carried
-# the CUDA wheels; so fleet-node has always had CUDA and must keep it until the
-# gateway can choose per compute profile. Building the CPU stage here would
-# publish a CUDA-free image under the same name and tag, and the failure would be
-# silent: gpu4pyscf's import fails, the chemistry function falls back to CPU, and
-# the job still succeeds (see the note in
-# requirements-dynamic-dependencies-gpu.txt). Nothing downstream would flag it.
+# selector-gpu, NOT selector: fleet-node is what FLEETS_DEFAULT_IMAGE resolves to,
+# so it serves every imageless job including those on a GPU compute profile, and
+# the gateway cannot choose per profile yet. Building the CPU stage here would
+# strip CUDA from GPU jobs silently. specs/FLEETS_IMAGES.md §2.
 #
-# So the split does not yet change which image a job gets. What it adds is
-# fleet-selector (CPU) and fleet-selector-gpu published alongside, ready for the
-# gateway to pick between them; at that point this target becomes the CPU stage
-# and FLEETS_DEFAULT_IMAGE moves with it.
-#
-# No fleet-node:latest tag here any more. That tag is what the fleets
-# integration-test worker builds FROM, and the test wants the CPU runtime: it has
-# no GPU to exercise, the CUDA wheels would add 6.5 GB to a local run, and
-# gpu4pyscf-cuda12x publishes no aarch64 wheel so this target cannot be built on
-# Apple Silicon at all. Use build-fleet-node-local for that tag.
+# No fleet-node:latest tag: that is the fleets-test base, which wants the CPU
+# stage. Use build-fleet-node-local.
 build-fleet-node:
 	docker build --target selector-gpu -t $(fleetNodeImageName):$(version) -f ./docker-images/fleet-node/Dockerfile .
 
-# The fleets integration-test base, tagged the way the test harness expects:
-# tests/fleets/fleet-worker/Dockerfile is FROM ${BASE_IMAGE:-fleet-node:latest},
-# and `compose up --build` does not build a FROM-referenced base, so this has to
-# run first. The CPU stage on purpose -- see the note on build-fleet-node above.
-# Local only: it publishes nothing, which is why it carries no registry tag.
+# The fleets integration-test base: tests/fleets/fleet-worker/Dockerfile is FROM
+# ${BASE_IMAGE:-fleet-node:latest} and `compose up --build` will not build a
+# FROM-referenced base, so run this first. Local only, hence no registry tag.
 build-fleet-node-local:
 	docker build --target selector -t fleet-node:latest -f ./docker-images/fleet-node/Dockerfile .
 
@@ -60,11 +43,10 @@ build-fleet-node-local:
 build-fleet-selector:
 	docker build --target selector -t $(fleetSelectorImageName):$(version) -t fleet-selector:latest -f ./docker-images/fleet-node/Dockerfile .
 
-# The CUDA Fleets runtime: the same workload stack as fleet-selector plus the
-# CUDA wheels, for jobs on a GPU compute profile. Published separately so a CPU
-# job does not pull the 6.5 GB of wheels it never imports — Fleets pulls the image
-# once per job. x86_64 only: gpu4pyscf-cuda12x publishes no aarch64 wheel, so
-# this target cannot be built on Apple Silicon without --platform emulation.
+# The CUDA Fleets runtime: fleet-selector plus the CUDA wheels, published
+# separately so a CPU job does not pull the 6.5 GB it never imports. x86_64 only
+# — gpu4pyscf-cuda12x has no aarch64 wheel, so this needs --platform emulation on
+# Apple Silicon.
 build-fleet-selector-gpu:
 	docker build --target selector-gpu -t $(fleetSelectorGpuImageName):$(version) -t fleet-selector-gpu:latest -f ./docker-images/fleet-node/Dockerfile .
 
