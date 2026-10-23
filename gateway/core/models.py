@@ -884,7 +884,8 @@ class JobEvent(models.Model):
     event_type = models.CharField(max_length=100, blank=False, null=False)
     origin = models.CharField(max_length=100, blank=False, null=False)
     context = models.CharField(max_length=100, blank=False, null=False)
-    created = models.DateTimeField(auto_now_add=True, null=True)
+    # A default and not auto_now_add, so an event can be created with the time it really happened
+    created = models.DateTimeField(default=timezone.now, null=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
     objects: JobEventQuerySet = JobEventQuerySet.as_manager()

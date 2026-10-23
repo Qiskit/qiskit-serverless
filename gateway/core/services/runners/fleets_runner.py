@@ -17,7 +17,9 @@ import logging
 import os
 import re
 import tarfile
+from datetime import datetime
 from io import BytesIO
+from typing import Callable
 
 from django.conf import settings
 from django.template.loader import get_template
@@ -348,6 +350,49 @@ class FleetsRunner(AbstractRunner):
         self._warn_unresolved_state(prefix, keys, found)
         return None
 
+    def get_running_timestamp(self) -> datetime | None:
+        """When Code Engine started running the task, read from the task store, or ``None``.
+
+        It is the earliest modification time of the ``running`` keys, the first one when a retry wrote
+        more than one. Only an improvement over the moment the scheduler noticed the job is running, so
+        it never raises: no fleet, no project, no ``running`` key yet and a failing COS all give ``None``.
+        """
+        try:
+            modified = self._running_key_times()
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.warning("Could not read when fleet [%s] started running: %s", self.job.fleet_id, exc)
+            return None
+
+        if any(moment.utcoffset() is None for moment in modified):
+            logger.warning("Fleet [%s] has a running key time without timezone, ignoring it", self.job.fleet_id)
+            return None
+        return min(modified, default=None)
+
+    def _running_key_times(self) -> list[datetime]:
+        """The modification times of the ``running`` keys, none when there is no fleet, project, bucket or
+        key yet, or when COS failed."""
+        fleet_id = self.job.fleet_id
+        if not fleet_id:
+            return []
+        if not self._project:
+            self._project = self._get_project()
+        bucket = self._project.cos_bucket_task_store_name
+        if not bucket:
+            return []
+
+        for version in TASK_STORE_VERSIONS:
+            prefix = queue_prefix(self._project.project_id, fleet_id, version)
+            objects = self._list_task_state_objects(bucket, prefix)
+            if objects is None:
+                return []
+            if objects:
+                return [
+                    obj["last_modified"]
+                    for obj in objects
+                    if obj.get("last_modified") and task_state_from_key(prefix, obj["key"]) == "running"
+                ]
+        return []
+
     def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
         """Report a listing that held keys but no state this gateway recognises.
 
@@ -407,18 +452,30 @@ class FleetsRunner(AbstractRunner):
             means the prefix genuinely holds nothing, which callers must be able to
             tell apart from a failure.
         """
+        return self._list_task_state(lambda cos: cos.list_keys(bucket_name=bucket, prefix=prefix))
+
+    def _list_task_state_objects(self, bucket: str, prefix: str) -> list[dict] | None:
+        """List task state objects from COS, each a dict with ``key``, ``size`` and ``last_modified``.
+
+        Returns:
+            The matching objects, or ``None`` when the COS call failed, like _list_task_state_keys.
+        """
+        return self._list_task_state(lambda cos: cos.list_with_metadata(bucket_name=bucket, prefix=prefix))
+
+    def _list_task_state(self, listing: Callable[[JobCOS], list]) -> list | None:
+        """Run a COS listing, giving ``None`` when the call failed so the next cycle retries it."""
         try:
-            return self._get_cos().list_keys(bucket_name=bucket, prefix=prefix)
+            return listing(self._get_cos())
         except ClientError as exc:
             code = exc.response.get("Error", {}).get("Code", "unknown")
             logger.warning(
-                "COS list_keys failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
+                "COS listing failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
             )
             return None
         except ValueError:
             raise
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
+            logger.warning("COS listing failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
             return None
 
     def get_result_from_cos(self) -> str | None:
