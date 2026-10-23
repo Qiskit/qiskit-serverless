@@ -322,6 +322,11 @@ Fleets job could not be stopped from the backoffice at all. The job is billed
 for what it really ran, the same as a stop from the client.</p></li>
 </ul>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BackgroundExecutor.discard(pool,</span> <span class="pre">replace_key)</span></code> removes a task that is still waiting in the queue under that
+<code class="docutils literal notranslate"><span class="pre">replace_key</span></code>, so a result that is no longer needed does not take a thread. A task that already started is
+never touched. The discarded task is counted as <code class="docutils literal notranslate"><span class="pre">canceled</span></code>.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler no longer submits a queued Fleets job whose account, plan and
 subscription are blocked. The job stays <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> and does not take a free
 slot from other users, and it is submitted normally once the block is lifted.</p></li>
