@@ -130,6 +130,20 @@ class TestAuthMechanism:
         ]
 
 
+def test_postgres_reuses_connections_with_health_checks(monkeypatch):
+    """The Postgres database keeps a connection for 60 seconds and checks it before reuse."""
+    monkeypatch.setenv("DEBUG", "1")
+    monkeypatch.delenv("DATABASE_CONN_MAX_AGE", raising=False)
+    monkeypatch.delitem(sys.modules, "pytest", raising=False)
+
+    importlib.reload(main.settings)
+
+    database = main.settings.DATABASES["default"]
+    assert database["ENGINE"] == "django_prometheus.db.backends.postgresql"
+    assert database["CONN_MAX_AGE"] == 60
+    assert database["CONN_HEALTH_CHECKS"] is True
+
+
 def test_template_dirs_use_etc_gateway_not_tmp():
     """The extra template dir must be /etc/gateway/templates, never /tmp.
 

@@ -178,6 +178,9 @@ DATABASES = {
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # seconds a connection is reused across requests, 0 closes it after each request
+        "CONN_MAX_AGE": int(os.environ.get("DATABASE_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",

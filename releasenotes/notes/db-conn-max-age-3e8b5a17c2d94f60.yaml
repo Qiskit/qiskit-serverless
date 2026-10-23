@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    The gateway and the scheduler now keep a database connection open for
+    up to 60 seconds and reuse it, instead of opening a new one for every
+    request. Django checks a reused connection before each request, so a
+    connection dropped by a database restart is replaced. Set
+    ``application.database.connMaxAge`` in the gateway chart, or the
+    ``DATABASE_CONN_MAX_AGE`` environment variable, to change it. ``0``
+    restores the old behaviour. Each gunicorn thread keeps one connection,
+    so the gateway now holds ``pods x workers x threads`` connections even
+    when it is idle.
