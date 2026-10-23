@@ -317,6 +317,7 @@ Job Status Values
 * ``RUNNING`` - Currently executing
 * ``SUCCEEDED`` - Completed successfully
 * ``FAILED`` - Execution failed
-* ``STOPPED`` - Manually stopped by user
+* ``STOPPING`` - A stop was requested and the engine has not confirmed it yet
+* ``STOPPED`` - The job was stopped
 
 .. Made with Bob
