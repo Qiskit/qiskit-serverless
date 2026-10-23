@@ -119,3 +119,6 @@ HANDOFF-*.md
 # Nix local dev environment
 flake.nix
 flake.lock
+
+# performance test output
+tests/performance/runs/
