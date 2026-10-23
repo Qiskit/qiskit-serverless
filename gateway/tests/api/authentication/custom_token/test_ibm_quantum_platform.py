@@ -2,6 +2,7 @@
 
 import base64
 import json
+import re
 import time
 from unittest.mock import MagicMock, patch
 import pytest
@@ -448,6 +449,26 @@ class TestIBMQuantumPlatformAuthentication:
         assert user_b.username == "IBMid-USER-B"
         assert mock_get_resource_instance.call_count == 2
         assert mock_list_access_groups.call_count == 2
+
+    @responses.activate
+    def test_every_ibm_cloud_call_sends_the_timeout(self, settings):
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        settings.IBM_CLOUD_API_TIMEOUT = 7
+        _add_mock_response("IBMid-TIMEOUT-SET", "abc18abcd41546508b35dfe0627109c4")
+        responses.add(
+            responses.GET,
+            re.compile(f"{settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL}/v2/resource_instances/.*"),
+            json={"resource_plan_id": RESOURCE_PLAN_ID},
+        )
+        responses.add(
+            responses.GET,
+            re.compile(f"{settings.IAM_IBM_CLOUD_BASE_URL}/v2/groups.*"),
+            json={"groups": []},
+        )
+
+        CustomTokenBackend().authenticate(_create_request())
+
+        assert [call.request.req_kwargs["timeout"] for call in responses.calls] == [7, 7, 7]
 
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
