@@ -14,6 +14,8 @@ from django.test import override_settings
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
+from core import external_call_metrics
+from core.external_call_metrics import FLEET_SUBMIT_UPLOAD, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventType
 from core.config_key import ConfigKey
 from core.models import BlockedCloudResource, Config, Job, ComputeResource, JobEvent, Program
@@ -596,6 +598,48 @@ def test_fleets_submit_defaults_to_the_schedule_jobs_context():
         FleetsJobSubmitter(transitions).submit(mock_job, None)
 
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.SCHEDULE_JOBS
+
+
+@pytest.fixture(name="operation_registry")
+def operation_registry_fixture():
+    registry = CollectorRegistry()
+    external_call_metrics.enable(registry)
+    yield registry
+    external_call_metrics.disable()
+
+
+def _operation_count(registry: CollectorRegistry, operation: str, status: str) -> float:
+    labels = {"operation": operation, "status": status}
+    return registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) or 0.0
+
+
+@pytest.mark.django_db
+def test_a_submit_records_one_fleet_submit_sample_around_the_upload(operation_registry):
+    runner = MagicMock()
+
+    def upload_then_submit():
+        with observe_operation(FLEET_SUBMIT_UPLOAD):
+            pass
+
+    runner.submit.side_effect = upload_then_submit
+    with patch("scheduler.schedule.get_runner", return_value=runner):
+        FleetsJobSubmitter(MagicMock()).submit(MagicMock(), None)
+
+    assert _operation_count(operation_registry, "fleet_submit", "ok") == 1
+    assert _operation_count(operation_registry, "fleet_submit_upload", "ok") == 1
+
+
+@pytest.mark.django_db
+def test_a_retryable_submit_error_records_a_fleet_submit_error_and_still_raises(operation_registry):
+    Config.add_defaults()
+    runner = MagicMock()
+    runner.submit.side_effect = RunnerRetryableError("Too Many Requests")
+    with patch("scheduler.schedule.get_runner", return_value=runner):
+        with pytest.raises(RunnerRetryableError):
+            FleetsJobSubmitter(MagicMock()).submit(MagicMock(), None)
+
+    assert _operation_count(operation_registry, "fleet_submit", "error") == 1
+    assert _operation_count(operation_registry, "fleet_submit", "ok") == 0
 
 
 class TestFirstCancelRefusal:

@@ -35,9 +35,9 @@ class TestObserveOperation:
         assert _count(registry, FLEET_STATUS_READ, "429") == 1
         assert _count(registry, FLEET_STATUS_READ, "ok") == 0
 
-    def test_a_discarded_observation_records_nothing(self, registry):
-        with observe_operation(FLEET_STATUS_READ) as observation:
-            observation.discard = True
+    def test_a_disabled_observation_records_nothing(self, registry):
+        with observe_operation(FLEET_STATUS_READ, enabled=False):
+            pass
 
         assert _count(registry, FLEET_STATUS_READ, "ok") == 0
 
