@@ -329,6 +329,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tarfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlparse</span>
@@ -387,6 +388,12 @@
 
 <span class="n">_trace_job</span> <span class="o">=</span> <span class="n">trace_decorator_factory</span><span class="p">(</span><span class="s2">"job"</span><span class="p">)</span>
 <span class="n">_trace_functions</span> <span class="o">=</span> <span class="n">trace_decorator_factory</span><span class="p">(</span><span class="s2">"function"</span><span class="p">)</span>
+
+
+<span class="n">_STATUS_TOKEN_HEADER</span> <span class="o">=</span> <span class="s2">"X-Job-Status-Token"</span>
+<span class="c1"># The gateway signs the token for 5 minutes, so the client stops using it 30 s before</span>
+<span class="n">_STATUS_TOKEN_REUSE_SECONDS</span> <span class="o">=</span> <span class="mi">270</span>
+<span class="n">_TOKEN_REFUSED_CODES</span> <span class="o">=</span> <span class="p">(</span><span class="mi">401</span><span class="p">,</span> <span class="mi">403</span><span class="p">,</span> <span class="mi">404</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="ServerlessClient">
@@ -456,6 +463,8 @@
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
+        <span class="c1"># job id -&gt; (job status token, monotonic time it was received)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_verify_credentials</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span> <span class="o">=</span> <span class="n">GatewayFilesClient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span></div>
@@ -671,17 +680,47 @@
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_job_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">(</span>
-            <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+<span class="w">        </span><span class="sd">"""The job, read with its status token while the token is young, and with the API key otherwise."""</span>
+        <span class="n">cached</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cached</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">cached</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">_STATUS_TOKEN_REUSE_SECONDS</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+                    <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/status/"</span><span class="p">,</span>
+                        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="n">_STATUS_TOKEN_HEADER</span><span class="p">:</span> <span class="n">cached</span><span class="p">[</span><span class="mi">0</span><span class="p">]},</span>
+                        <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="n">QiskitServerlessException</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="s2">"_code"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_TOKEN_REFUSED_CODES</span><span class="p">:</span>
+                    <span class="k">raise</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">responses</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">request</span><span class="p">():</span>
+            <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/"</span><span class="p">,</span>
                     <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">"with_result"</span><span class="p">:</span> <span class="s2">"false"</span><span class="p">},</span>
                     <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                     <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-            <span class="ow">or</span> <span class="kc">None</span>
-        <span class="p">)</span>
+            <span class="k">return</span> <span class="n">responses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">responses</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">"headers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">_STATUS_TOKEN_HEADER</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">token</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">old</span> <span class="ow">in</span> <span class="p">[</span>
+                <span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">at</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="o">.</span><span class="n">items</span><span class="p">())</span> <span class="k">if</span> <span class="n">now</span> <span class="o">-</span> <span class="n">at</span> <span class="o">&gt;=</span> <span class="n">_STATUS_TOKEN_REUSE_SECONDS</span>
+            <span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">old</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">now</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_status_tokens</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span>
 
     <span class="nd">@_trace_job</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
