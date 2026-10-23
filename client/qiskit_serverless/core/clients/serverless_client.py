@@ -411,7 +411,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         token = (getattr(responses[0], "headers", None) or {}).get(_STATUS_TOKEN_HEADER)
         if token:
             now = time.monotonic()
-            for old in [key for key, (_, at) in self._status_tokens.items() if now - at >= _STATUS_TOKEN_REUSE_SECONDS]:
+            for old in [
+                key for key, (_, at) in list(self._status_tokens.items()) if now - at >= _STATUS_TOKEN_REUSE_SECONDS
+            ]:
                 self._status_tokens.pop(old, None)
             self._status_tokens[job_id] = (token, now)
         else:

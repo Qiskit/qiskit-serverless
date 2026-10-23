@@ -53,8 +53,10 @@ logger = logging.getLogger("api.api.v1.views.jobs.status")
 def job_status(request: Request, job_id: UUID) -> Response:
     """Return the status, sub-status and fleet id of the job the token was issued for."""
     user = cast(AbstractUser, request.user)
+    if request.auth != str(job_id):
+        raise JobNotFoundException(str(job_id))
     job = Job.objects.filter(id=job_id, author_id=user.id).values("status", "sub_status", "fleet_id").first()
-    if request.auth != str(job_id) or job is None:
+    if job is None:
         raise JobNotFoundException(str(job_id))
 
     logger.debug("[jobs-status] user_id=%s job_id=%s status=%s", user.id, job_id, job["status"])

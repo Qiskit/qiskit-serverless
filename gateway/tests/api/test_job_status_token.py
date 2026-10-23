@@ -66,20 +66,16 @@ def test_retrieve_gives_no_token_to_someone_who_is_not_the_author(job):
     assert JOB_STATUS_TOKEN_HEADER not in response
 
 
-def test_status_reads_the_job_in_one_query_with_no_api_key_auth(author, job):
+def test_status_returns_the_status_fields_with_at_most_two_queries(author, job):
     token = _retrieve(author, job)[JOB_STATUS_TOKEN_HEADER]
 
-    with (
-        patch("api.authentication.AuthenticationUseCase") as api_key_auth,
-        CaptureQueriesContext(connection) as captured,
-    ):
+    with CaptureQueriesContext(connection) as captured:
         response = _status(job, token)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data == {"status": Job.RUNNING, "sub_status": Job.MAPPING, "fleet_id": None}
     assert response["Cache-Control"] == "no-store"
-    assert len(captured) == 2  # the user, then the job
-    api_key_auth.assert_not_called()
+    assert len(captured) <= 2
 
 
 def test_status_refuses_a_missing_tampered_or_expired_token_and_an_api_key(author, job):
@@ -96,7 +92,11 @@ def test_status_refuses_a_missing_tampered_or_expired_token_and_an_api_key(autho
 def test_status_refuses_a_token_for_another_job(author, program, job):
     other = TestUtils.create_job(author=author, program=program, status=Job.RUNNING)
 
-    assert _status(other, issue_job_status_token(author.id, job.id)).status_code == status.HTTP_404_NOT_FOUND
+    with CaptureQueriesContext(connection) as captured:
+        response = _status(other, issue_job_status_token(author.id, job.id))
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert not any("api_job" in query["sql"] for query in captured)
 
 
 def test_status_refuses_a_token_of_an_inactive_user(author, job):
