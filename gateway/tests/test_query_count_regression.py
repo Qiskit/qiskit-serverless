@@ -136,7 +136,8 @@ def test_running_jobs_loop_loads_relations_in_the_query(world):
 
         seen = []
 
-        def read_what_a_pass_reads(job):
+        def read_what_a_pass_reads(polled):
+            job = polled.job
             seen.append((job.program.provider.name, job.program.code_engine_project.project_name, job.size_label))
             return False
 

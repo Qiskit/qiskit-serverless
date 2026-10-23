@@ -334,27 +334,23 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
     return Job.objects.filter(job_filter).with_scheduler_context()
 
 
-def check_job_timeout(job: Job):
-    """Check job timeout and update job status."""
+def check_job_timeout(job: Job, last_event_at: datetime | None = None) -> bool:
+    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours.
 
-    if job.status in Job.RUNNING_STATUSES:
-        timeout = settings.PROGRAM_TIMEOUT
-        latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-        # A job without events counts from its creation.
-        reference_time = latest_job_event.created if latest_job_event else job.created
-        endtime = reference_time + timedelta(hours=timeout)
-        now = datetime.now(tz=endtime.tzinfo)
-        if endtime < now:
-            logger.warning(
-                "job_id=%s cluster=%s timeout=%s hours: job stopped.",
-                job.id,
-                job.compute_resource.title,
-                timeout,
-            )
-            # The job has exceeded the maximum duration allowed.
-            return True
+    last_event_at: the latest event time, if already loaded. If it is within the timeout, no query is needed.
+    """
+    if job.status not in Job.RUNNING_STATUSES:
+        return False
 
-    return False
+    timeout = timedelta(hours=settings.PROGRAM_TIMEOUT)
+    if last_event_at is not None and datetime.now(tz=last_event_at.tzinfo) <= last_event_at + timeout:
+        return False
+
+    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+    # A job without events counts from its creation.
+    reference_time = latest_job_event.created if latest_job_event else job.created
+    endtime = reference_time + timeout
+    return endtime < datetime.now(tz=endtime.tzinfo)
 
 
 def fail_job_insufficient_resources(job: Job):

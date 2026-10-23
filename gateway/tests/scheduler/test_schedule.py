@@ -2,7 +2,7 @@
 
 import uuid
 from collections import deque
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from core.services.runners.ray_runner import FilteredLogs
@@ -11,13 +11,15 @@ from prometheus_client import CollectorRegistry
 import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core import external_call_metrics
 from core.external_call_metrics import FLEET_SUBMIT_UPLOAD, observe_operation
-from core.model_managers.job_events import JobEventContext, JobEventType
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.config_key import ConfigKey
 from core.models import BlockedCloudResource, Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
@@ -511,6 +513,30 @@ def test_a_ray_job_without_events_times_out_from_its_creation():
 
     with override_settings(PROGRAM_TIMEOUT=1):
         assert check_job_timeout(job) is True
+
+
+@pytest.mark.django_db
+def test_a_recent_loaded_event_time_skips_the_event_query():
+    user = User.objects.create_user(username="timeout-loaded-recent")
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+    Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
+    job.refresh_from_db()
+
+    with override_settings(PROGRAM_TIMEOUT=1), CaptureQueriesContext(connection) as ctx:
+        assert check_job_timeout(job, last_event_at=datetime.now(timezone.utc)) is False
+    assert len(ctx) == 0
+
+
+@pytest.mark.django_db
+def test_an_old_loaded_event_time_is_checked_against_the_events():
+    user = User.objects.create_user(username="timeout-loaded-old")
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+    JobEvent.objects.add_status_event(
+        job_id=job.id, origin=JobEventOrigin.API, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
+    )
+
+    with override_settings(PROGRAM_TIMEOUT=1):
+        assert check_job_timeout(job, last_event_at=datetime.now(timezone.utc) - timedelta(hours=2)) is False
 
 
 @pytest.mark.django_db(transaction=True)

@@ -72,6 +72,12 @@ class UpdateRayJobsStatuses(SchedulerTask):
         status_has_changed = False
         lines: FilteredLogs | None = None
         if check_job_timeout(job):
+            logger.warning(
+                "job_id=%s cluster=%s timeout=%s hours: job stopped.",
+                job.id,
+                job.compute_resource.title,
+                settings.PROGRAM_TIMEOUT,
+            )
             job_new_status = Job.STOPPED
 
         if job_new_status != job.status:

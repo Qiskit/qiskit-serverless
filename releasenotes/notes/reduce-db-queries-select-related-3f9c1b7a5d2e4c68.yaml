@@ -1,28 +1,16 @@
 ---
+upgrade:
+  - |
+    The function list is now ordered by title, and the jobs of a function
+    (``/programs/<id>/get_jobs``) are now ordered newest first, like the job
+    list. Both had no fixed order before.
 other:
   - |
-    The gateway now loads related objects in the same database query instead of
-    one query per row. The job list, provider job list, function list and
-    program jobs endpoints, the Fleets and Ray status loops and the fair-share
-    job selection of the scheduler, and the Providers, Job events and Programs
-    pages of the backoffice no longer make extra queries that grow with the
-    number of rows. The single job endpoints (logs, result, stop, sub status,
-    saving a result, provider logs) load the program and provider with the job,
-    the function lookups load the provider and default size with the function,
-    and the provider admin check is one query. The Fleets status loop also loads each job's latest and first
-    RUNNING event times with the jobs, instead of reading them one job at a
-    time. The task that stops the Fleets jobs of blocked accounts, plans and
-    subscriptions now reads only the blocked jobs, in one query, instead of
-    checking every PENDING and RUNNING Fleets job against the blocked list one
-    job at a time. Responses are unchanged, except that the function list is now
-    ordered by title, then id, and the jobs of a function
-    (``/programs/<id>/get_jobs``) are now ordered newest first, like the job
-    list.
+    The gateway and the scheduler make fewer database queries: lists and
+    scheduler loops no longer run one extra query per row.
 fixes:
   - |
-    The Fleets status loop no longer hides database errors. The scheduler
-    restarts its pod after several database failures in a row, and this loop
-    used to log them as a failed job update instead, which reset the count.
+    The scheduler no longer hides a database error in the Fleets status loop,
+    so a database outage restarts it as intended.
   - |
-    The Ray timeout check no longer fails for a running job that has no
-    events. It now counts the timeout from the job's creation, as intended.
+    The Ray timeout check no longer fails for a running job with no events.
