@@ -952,6 +952,10 @@ body.login #content h1 {
 }
 
 .qs-status-badge[data-status="SUCCEEDED"] { --qs-badge-bg: #00aa00; }
+.qs-status-badge[data-status="STOPPING"] {
+    --qs-badge-bg: #aaaaaa;
+    color: #1c1c1c !important;
+}
 .qs-status-badge[data-status="STOPPED"]   { --qs-badge-bg: #888888; }
 .qs-status-badge[data-status="FAILED"]    { --qs-badge-bg: #cc0000; }
 

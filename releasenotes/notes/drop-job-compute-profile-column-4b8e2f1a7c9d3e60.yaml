@@ -1,0 +1,10 @@
+---
+upgrade:
+  - |
+    The ``api_job.compute_profile`` database column has been dropped, along with
+    its historical data. The gateway stopped reading and writing it in 0.37.0 and
+    reads the compute profile from ``Job.compute_profile_fk`` instead.
+
+    Gateway releases before 0.37.0 can no longer be deployed against a database
+    that has run this migration, because their ``Job`` model still declares the
+    column. Upgrade to 0.37.0 before upgrading to this release.

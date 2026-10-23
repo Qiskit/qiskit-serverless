@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0078_job_function_size_name"),
+        ("api", "0079_drop_job_compute_profile"),
     ]
 
     operations = [
