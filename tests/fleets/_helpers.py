@@ -150,7 +150,7 @@ def is_valid_uuid(value: str) -> bool:
 
 
 def wait_for_terminal(job, timeout=120):
-    """Poll job.status() until a terminal state is reached.
+    """Wait with job.wait_for_final_state() until a terminal state is reached.
 
     Args:
         job: A ServerlessJob instance.
@@ -163,15 +163,10 @@ def wait_for_terminal(job, timeout=120):
     Raises:
         AssertionError: If the job does not reach a terminal state within timeout.
     """
-    job_id = job.job_id
-    deadline = time.time() + timeout
-    client_status = None
-    while time.time() < deadline:
-        client_status = job.status()
-        if client_status in ("DONE", "ERROR", "CANCELED"):
-            return job_id, client_status
-        time.sleep(2)
-    raise AssertionError(f"Job {job_id} did not reach terminal state within {timeout}s, last status: {client_status}")
+    try:
+        return job.job_id, job.wait_for_final_state(timeout=timeout, poll_interval=2)
+    except TimeoutError as error:
+        raise AssertionError(f"Job {job.job_id} did not reach terminal state within {timeout}s") from error
 
 
 def wait_for_s3_object(minio_client, bucket, key, timeout=30):
