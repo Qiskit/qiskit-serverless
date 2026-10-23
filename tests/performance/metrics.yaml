@@ -1,0 +1,98 @@
+# Sysdig PromQL queries, run over the run window. Placeholders: {cluster} and {namespace}.
+# A counter has `read: last`: the driver reads it at the start and the end of the window, and keeps the end minus the start.
+# Everything else reads its peak, `read: max`.
+# Every entry was checked in staging on 2026-10-20, with release 0.37.0-351c6a2, and the db_* ones on 2026-10-22.
+namespace: qiskit-serverless
+step_seconds: 15
+metrics:
+  - name: cpu_quota_used_percent
+    query: max by (kube_pod_name, container_name) (sysdig_container_cpu_quota_used_percent{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", container_name=~"gateway|gateway-scheduler"})
+  - name: memory_limit_used_percent
+    query: max by (kube_pod_name, container_name) (sysdig_container_memory_limit_used_percent{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", container_name=~"gateway|gateway-scheduler"})
+  - name: restarts
+    query: max by (kube_pod_name) (kube_pod_container_status_restarts_total{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", kube_pod_name=~"gateway.*|scheduler.*"})
+    read: last
+  - name: pods_not_ready
+    query: count by (kube_pod_name) (kube_pod_container_status_ready{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", kube_pod_name=~"gateway.*|scheduler.*"} == 0)
+  - name: gateway_pods_available
+    query: max(kube_deployment_status_replicas_available{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", kube_deployment_name="gateway"})
+  - name: last_tick_timestamp
+    query: max(scheduler_last_tick_timestamp_seconds{kube_cluster_name="{cluster}"})
+  - name: task_duration_seconds_mean
+    query: sum by (task_name) (rate(scheduler_task_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum by (task_name) (rate(scheduler_task_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
+  - name: loop_duration_seconds_mean
+    query: sum(rate(scheduler_loop_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum(rate(scheduler_loop_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
+  - name: queue_wait_seconds_mean
+    query: sum(rate(scheduler_queue_wait_seconds_sum{kube_cluster_name="{cluster}"}[5m])) / sum(rate(scheduler_queue_wait_seconds_count{kube_cluster_name="{cluster}"}[5m]))
+  - name: jobs_terminal  # only the jobs the status update ended, so a failed submit is not in FAILED
+    query: sum by (final_status) (scheduler_jobs_terminal_total{kube_cluster_name="{cluster}"})
+    read: last
+  - name: code_engine_call_p95
+    query: histogram_quantile(0.95, sum by (le, endpoint) (rate(scheduler_code_engine_request_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: code_engine_call_p50
+    query: histogram_quantile(0.5, sum by (le, endpoint) (rate(scheduler_code_engine_request_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: code_engine_call_p99
+    query: histogram_quantile(0.99, sum by (le, endpoint) (rate(scheduler_code_engine_request_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: code_engine_calls  # by status, 429 included
+    query: sum by (endpoint, status) (scheduler_code_engine_request_duration_seconds_count{kube_cluster_name="{cluster}"})
+    read: last
+  - name: cos_call_p95
+    query: histogram_quantile(0.95, sum by (le, operation) (rate(scheduler_cos_request_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: cos_call_p50
+    query: histogram_quantile(0.5, sum by (le, operation) (rate(scheduler_cos_request_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: cos_call_p99
+    query: histogram_quantile(0.99, sum by (le, operation) (rate(scheduler_cos_request_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: fleets_breaker_open
+    query: max by (region) (scheduler_fleets_breaker_open{kube_cluster_name="{cluster}"})
+  - name: task_items
+    query: sum by (task_name) (scheduler_task_items_total{kube_cluster_name="{cluster}"})
+    read: last
+  - name: jobs_skipped_by_breaker
+    query: sum by (region) (scheduler_fleets_jobs_skipped_by_breaker_total{kube_cluster_name="{cluster}"})
+    read: last
+  - name: scheduler_threads
+    query: max(scheduler_process_threads{kube_cluster_name="{cluster}"})
+  - name: operation_p95
+    query: histogram_quantile(0.95, sum by (le, operation) (rate(scheduler_operation_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: operation_p50
+    query: histogram_quantile(0.5, sum by (le, operation) (rate(scheduler_operation_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: operation_p99
+    query: histogram_quantile(0.99, sum by (le, operation) (rate(scheduler_operation_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: task_duration_p95
+    query: histogram_quantile(0.95, sum by (le, task_name) (rate(scheduler_task_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: task_duration_p50
+    query: histogram_quantile(0.5, sum by (le, task_name) (rate(scheduler_task_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: task_duration_p99
+    query: histogram_quantile(0.99, sum by (le, task_name) (rate(scheduler_task_duration_seconds_bucket{kube_cluster_name="{cluster}"}[1m])))
+  - name: images
+    query: max by (container_name, image_tag) (sysdig_container_info{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", container_name=~"gateway|gateway-scheduler"})
+  - name: code_engine_call_seconds_sum  # with _count, the mean time of each call over the run
+    query: sum by (endpoint, status) (scheduler_code_engine_request_duration_seconds_sum{kube_cluster_name="{cluster}"})
+    read: last
+  - name: code_engine_call_buckets  # how many calls finished under each bucket edge
+    query: sum by (endpoint, le) (scheduler_code_engine_request_duration_seconds_bucket{kube_cluster_name="{cluster}", status="ok"})
+    read: last
+  - name: cos_call_seconds_sum
+    query: sum by (operation, status) (scheduler_cos_request_duration_seconds_sum{kube_cluster_name="{cluster}"})
+    read: last
+  - name: cos_calls
+    query: sum by (operation, status) (scheduler_cos_request_duration_seconds_count{kube_cluster_name="{cluster}"})
+    read: last
+  - name: cos_call_buckets  # how many calls finished under each bucket edge
+    query: sum by (operation, status, le) (scheduler_cos_request_duration_seconds_bucket{kube_cluster_name="{cluster}"})
+    read: last
+  # The database calls of Django, of the scheduler only. The gateway runs 5 gunicorn workers without Prometheus multiprocess mode, so each scrape reads one worker and its counters jump between workers.
+  - name: db_new_connections
+    query: sum by (kube_deployment_name) (django_db_new_connections_total{kube_cluster_name="{cluster}", kube_deployment_name="scheduler"})
+    read: last
+  - name: db_connection_errors
+    query: sum by (kube_deployment_name) (django_db_new_connection_errors_total{kube_cluster_name="{cluster}", kube_deployment_name="scheduler"})
+    read: last
+  - name: db_query_seconds_sum  # with db_query_count, the mean time of a query over the run
+    query: sum by (kube_deployment_name) (django_db_query_duration_seconds_sum{kube_cluster_name="{cluster}", kube_deployment_name="scheduler"})
+    read: last
+  - name: db_query_count
+    query: sum by (kube_deployment_name) (django_db_query_duration_seconds_count{kube_cluster_name="{cluster}", kube_deployment_name="scheduler"})
+    read: last
+  - name: db_query_p95
+    query: histogram_quantile(0.95, sum by (le, kube_deployment_name) (rate(django_db_query_duration_seconds_bucket{kube_cluster_name="{cluster}", kube_deployment_name="scheduler"}[1m])))
