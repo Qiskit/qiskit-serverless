@@ -18,6 +18,7 @@ from rest_framework import exceptions
 from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.authentication_base import AuthenticationBase
+from api.utils import jittered_cache_ttl
 
 logger = logging.getLogger("api.IBMQuantumPlatform")
 
@@ -160,7 +161,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
                 algorithms=["RS256"],
                 options={"verify_exp": True, "verify_iat": True},
             )
-            cache.set(cache_key, decoded, timeout=self.cache_ttl)
+            cache.set(cache_key, decoded, timeout=jittered_cache_ttl(self.cache_ttl))
         except (requests.exceptions.RequestException, PyJWKClientConnectionError) as transient_error:
             # IAM (or the JWKS endpoint) was unreachable or timed out. This is a
             # transient backend problem, not a bad API key: ask the caller to retry.
@@ -226,7 +227,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         # travels inside the free-form "extensions" configuration object, which
         # is absent for instances that are not provisioned through one.
         subscription_id = (instance.get("extensions") or {}).get("subscription_id")
-        cache.set(cache_key, (resource_plan_id, subscription_id), timeout=self.cache_ttl)
+        cache.set(cache_key, (resource_plan_id, subscription_id), timeout=jittered_cache_ttl(self.cache_ttl))
 
         return resource_plan_id, subscription_id
 
@@ -262,7 +263,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         ]
         group_ids = [access_group["id"] for access_group in access_groups_filtered]
 
-        cache.set(cache_key, group_ids, timeout=self.cache_ttl)
+        cache.set(cache_key, group_ids, timeout=jittered_cache_ttl(self.cache_ttl))
         return group_ids
 
     def get_account_id(self):

@@ -1,0 +1,10 @@
+---
+fixes:
+  - |
+    The gateway now keeps each cached IAM token, Resource Controller answer,
+    access groups list and Runtime API entitlements answer for a random 80 to
+    100 % of its TTL (``IAM_IBM_CLOUD_CACHE_TTL`` and ``RUNTIME_API_CACHE_TTL``).
+    Before, the entries written in a burst all expired at the same moment, so
+    every gateway process called IBM Cloud at once about every 60 seconds. This
+    caused slow requests and IAM 429 errors that reached users as 503. The
+    configured TTL is still the longest an entry is kept.

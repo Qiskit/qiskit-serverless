@@ -430,6 +430,22 @@ class TestIBMQuantumPlatformAuthentication:
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
+    def test_cache_ttl_is_jittered(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-JITTER", "jitter_account")
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        settings.IAM_IBM_CLOUD_CACHE_TTL = 60
+
+        with patch("api.utils.random.random", return_value=1.0), patch.object(cache, "set") as cache_set:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert [call.kwargs["timeout"] for call in cache_set.call_args_list] == [48, 48, 48]
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
     def test_different_tokens_use_separate_cache(
         self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
