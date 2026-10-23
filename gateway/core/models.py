@@ -5,6 +5,7 @@
 import logging
 import operator
 import uuid
+from datetime import datetime
 from enum import StrEnum
 from functools import reduce
 
@@ -805,6 +806,22 @@ class Job(models.Model):
         if not label and self.function_size is not None:
             label = self.function_size.function_size
         return label.upper() if label else None
+
+    @property
+    def last_event_at(self) -> datetime | None:
+        """When the job's latest event was written, or None if it has none. Needs ``with_event_times()``."""
+        return self._event_time("_last_event_at")
+
+    @property
+    def first_running_at(self) -> datetime | None:
+        """When the job first reached RUNNING, or None if it never did. Needs ``with_event_times()``."""
+        return self._event_time("_first_running_at")
+
+    def _event_time(self, annotation: str) -> datetime | None:
+        """Read an annotation from ``with_event_times()``, raising when the queryset did not load it."""
+        if annotation not in self.__dict__:
+            raise RuntimeError(f"Job {self.id}: load the job with JobQuerySet.with_event_times() to read {annotation}")
+        return self.__dict__[annotation]
 
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.

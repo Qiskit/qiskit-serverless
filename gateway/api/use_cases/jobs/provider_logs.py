@@ -36,7 +36,7 @@ class GetProviderJobLogsUseCase:
             GetLogsResponse() with both fields None (Fleet, no logs yet),
             or GetLogsResponse with raw_log set (Ray).
         """
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(job_id)
 

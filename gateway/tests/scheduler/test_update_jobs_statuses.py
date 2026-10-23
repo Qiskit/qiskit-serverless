@@ -68,6 +68,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.latest_event_at"),
             patch(f"{_MOD}.save_logs_to_storage"),
             patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
@@ -89,6 +90,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.latest_event_at"),
             patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
         ):

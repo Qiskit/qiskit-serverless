@@ -31,7 +31,5 @@ class JobsListUseCase:
 
         queryset, total = Job.objects.user_jobs_page(user=user, filters=filters)
 
-        # the list serializer nests compute_profile_fk, so fetch it in the page query
-        # rather than once per row. Applied here and not in user_jobs_page because
-        # provider_list shares that manager method and does not serialize the profile.
-        return list(queryset.select_related("compute_profile_fk")), total
+        # The serializer reads program and compute_profile_fk on each row.
+        return list(queryset.select_related("program", "compute_profile_fk")), total

@@ -508,7 +508,7 @@ class TestBestEffortEvents:
         )
         events_before = JobEvent.objects.filter(job=fleets_job).count()
 
-        service.running_to_running(fleets_job)
+        service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
 
         sender.send.assert_called_once()
         assert sender.send.call_args.kwargs == {"timeout": 0}
@@ -529,7 +529,7 @@ class TestBestEffortEvents:
         )
 
         with caplog.at_level(logging.ERROR):
-            service.running_to_running(fleets_job)  # must not raise
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))  # must not raise
 
         assert "event dropped" in caplog.text
         assert "kafka down" in caplog.text
@@ -547,12 +547,12 @@ class TestBestEffortEvents:
         external_call_metrics.enable(registry)
         labels = {"operation": "job_in_progress_event", "status": "ok"}
         try:
-            service.running_to_running(fleets_job)
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
             assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
 
             Job.objects.filter(pk=fleets_job.pk).update(filler=True)
             fleets_job.refresh_from_db()
-            service.running_to_running(fleets_job)
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
             assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
         finally:
             external_call_metrics.disable()
@@ -561,7 +561,7 @@ class TestBestEffortEvents:
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
         fleets_job.refresh_from_db()
 
-        service.running_to_running(fleets_job)
+        service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
 
         sender.send.assert_not_called()
 

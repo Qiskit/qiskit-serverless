@@ -2,6 +2,7 @@
 
 import uuid
 from collections import deque
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from core.services.runners.ray_runner import FilteredLogs
@@ -10,13 +11,15 @@ from prometheus_client import CollectorRegistry
 import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core import external_call_metrics
 from core.external_call_metrics import FLEET_SUBMIT_UPLOAD, observe_operation
-from core.model_managers.job_events import JobEventContext, JobEventType
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.config_key import ConfigKey
 from core.models import BlockedCloudResource, Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
@@ -30,11 +33,13 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.schedule import (
     _REFUSED_CANCEL_WARNED,
     CodeEngineBreakers,
+    check_job_timeout,
     first_cancel_refusal,
     FleetsJobCanceller,
     FleetsJobSubmitter,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
+    latest_event_at,
 )
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
@@ -497,6 +502,31 @@ class TestScheduleApi(APITestCase):
             # The table was filled as following: Job creation, Job status change to running, job stopping
             # due exceeding time limit.
             assert len(job_events) == 3
+
+
+@pytest.mark.django_db
+def test_a_ray_job_without_events_times_out_from_its_creation():
+    user = User.objects.create_user(username="ray-timeout-no-events")
+    resource = ComputeResource.objects.create(title="ray-timeout-no-events", active=True)
+    job = Job.objects.create(author=user, status=Job.RUNNING, compute_resource=resource)
+    Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
+    job.refresh_from_db()
+
+    assert latest_event_at(job) == job.created
+    with override_settings(PROGRAM_TIMEOUT=1):
+        assert check_job_timeout(job, latest_event_at(job)) is True
+
+
+@pytest.mark.django_db
+def test_the_timeout_check_only_compares_the_time_it_is_given():
+    user = User.objects.create_user(username="timeout-no-query")
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+    now = datetime.now(timezone.utc)
+
+    with override_settings(PROGRAM_TIMEOUT=1), CaptureQueriesContext(connection) as ctx:
+        assert check_job_timeout(job, now) is False
+        assert check_job_timeout(job, now - timedelta(hours=2)) is True
+    assert len(ctx) == 0
 
 
 @pytest.mark.django_db(transaction=True)
