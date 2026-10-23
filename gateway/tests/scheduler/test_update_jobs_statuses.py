@@ -15,6 +15,9 @@
 from collections import deque
 from unittest.mock import MagicMock, patch
 
+import pytest
+from django.db import OperationalError
+
 from core.models import Job, Program
 from core.services.runners.ray_runner import FilteredLogs
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
@@ -126,3 +129,17 @@ class TestRunSkipsBrokenJob:
             task.run()
 
         assert update.call_count == 2
+
+    def test_db_error_reaches_the_scheduler(self):
+        """A database error is not swallowed, so main.py can count it and restart the pod."""
+        task = _make_task()
+
+        with (
+            patch(f"{_MOD}.Job.objects") as objects,
+            patch.object(task, "update_job_status", side_effect=OperationalError) as update,
+        ):
+            objects.filter.return_value.exclude.return_value = [_make_ray_job(), _make_ray_job()]
+            with pytest.raises(OperationalError):
+                task.run()
+
+        assert update.call_count == 1
