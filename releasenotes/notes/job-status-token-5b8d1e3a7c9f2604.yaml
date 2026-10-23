@@ -1,0 +1,22 @@
+---
+features:
+  - |
+    ``GET /api/v1/jobs/{id}/`` now returns a short-lived job status token in
+    the ``X-Job-Status-Token`` header, to the author of a job that has not
+    ended. The new ``GET /api/v1/jobs/{id}/status/`` accepts only that token,
+    and returns the job ``status``, ``sub_status`` and ``fleet_id`` from two
+    small database reads, with no IBM Cloud call. The token is valid for 5
+    minutes.
+  - |
+    :meth:`~qiskit_serverless.core.job.Job.status` and
+    :meth:`~qiskit_serverless.core.job.Job.wait_for_final_state` now use the
+    job status token when the gateway returns one. So most status checks no
+    longer send the API key. The client goes back to the API key when the token
+    is older than 4 minutes and 30 seconds, or when the gateway refuses it.
+    With an older gateway nothing changes.
+security:
+  - |
+    A job status token lets its holder read the status of one job for up to 5
+    minutes, even if the API key is revoked in that time. It only gives the
+    status, sub-status and fleet id of a job the user authored. A deactivated
+    user cannot use it.
