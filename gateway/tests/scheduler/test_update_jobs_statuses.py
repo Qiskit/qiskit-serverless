@@ -108,3 +108,21 @@ def test_filler_jobs_are_left_out_of_the_job_metrics():
 
     task.metrics.increment_jobs_terminal.assert_not_called()
     task.metrics.observe_job_execution_duration.assert_not_called()
+
+
+class TestRunSkipsBrokenJob:
+    """Tests for run() when one job raises."""
+
+    def test_broken_job_does_not_stop_the_others(self):
+        """A job that raises is skipped and the remaining jobs are still updated."""
+        task = _make_task()
+        broken, healthy = _make_ray_job(), _make_ray_job()
+
+        with (
+            patch(f"{_MOD}.Job.objects") as objects,
+            patch.object(task, "update_job_status", side_effect=[NotImplementedError, True]) as update,
+        ):
+            objects.filter.return_value.exclude.return_value = [broken, healthy]
+            task.run()
+
+        assert update.call_count == 2
