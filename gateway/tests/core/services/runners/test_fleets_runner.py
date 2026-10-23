@@ -19,18 +19,21 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.conf import settings as django_settings
-from ibm_botocore.exceptions import ClientError, ReadTimeoutError
+from ibm_botocore.exceptions import ClientError
+from ibm_botocore.exceptions import ReadTimeoutError as CosReadTimeoutError
 from urllib3.exceptions import MaxRetryError, NameResolutionError, NewConnectionError, ProtocolError
+from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.models import Job, Program
+from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
-from core.services.runners.abstract_runner import RunnerError, RunnerRetryableError
+from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
+from tests.utils import TestUtils
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
 
@@ -54,6 +57,8 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_job = MagicMock()
     mock_job.fleet_id = fleet_id
     mock_job.filler = False
+    mock_job.ce_project_name = None
+    mock_job.status = Job.SUCCEEDED
     mock_job.program.title = "my-function"
     mock_job.author.username = "IBMid-1000000000"
     mock_job.SUCCEEDED = "SUCCEEDED"
@@ -69,6 +74,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     mock_project = MagicMock()
     mock_project.cos_bucket_task_store_name = "task-store-bucket"
     mock_project.project_id = "test-project-id"
+    mock_job.program.code_engine_project = mock_project
     runner._handler = mock_handler  # pylint: disable=protected-access
     runner._project = mock_project  # pylint: disable=protected-access
     runner._cos = mock_cos  # pylint: disable=protected-access
@@ -422,7 +428,7 @@ def test_stop_returns_false_when_there_was_nothing_to_cancel():
         MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")),
         MaxRetryError(None, "/", reason=NameResolutionError("api.wrong.example.com", None, "not found")),
         MaxRetryError(None, "/", reason=ProtocolError()),
-        ReadTimeoutError(endpoint_url="/"),
+        CosReadTimeoutError(endpoint_url="/"),
     ],
     ids=["429", "503", "no-answer", "403", "400", "refused", "bad-dns", "protocol", "read-timeout"],
 )
@@ -477,8 +483,95 @@ def test_stop_reports_an_unreachable_code_engine_as_retryable():
     mock_handler.cancel_job.assert_not_called()
 
 
+def test_free_resources_returns_false_without_a_fleet_id():
+    runner, mock_handler = _make_runner()
+
+    assert runner.free_resources() is False
+    mock_handler.delete_job.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "status, expected",
+    [
+        (0, RunnerRetryableError),
+        (429, RunnerRetryableError),
+        (503, RunnerRetryableError),
+        (400, None),
+    ],
+)
+def test_free_resources_raises_the_error_type_for_each_code_engine_status(status, expected):
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = ApiException(status=status, reason="error")
+
+    if expected is None:
+        assert runner.free_resources() is False
+    else:
+        with pytest.raises(expected):
+            runner.free_resources()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        MaxRetryError(None, "/", reason=NewConnectionError(None, "refused")),
+        HttpReadTimeoutError(pool=None, url="/", message="timed out"),
+        ProtocolError("connection aborted"),
+    ],
+)
+def test_free_resources_raises_unavailable_when_the_request_failed(error):
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = error
+
+    with pytest.raises(RunnerRetryableError):
+        runner.free_resources()
+
+
+def test_free_resources_refuses_a_job_that_is_not_terminal():
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner.job.status = Job.RUNNING
+
+    assert runner.free_resources() is False
+    mock_handler.delete_job.assert_not_called()
+
+
+def test_free_resources_warns_when_the_project_did_not_hold_the_fleet():
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.return_value = False
+
+    with patch(f"{_RUNNER_MOD}.logger") as mock_logger:
+        assert runner.free_resources() is True
+
+    assert mock_logger.warning.called
+
+
+def test_free_resources_gives_up_when_the_code_engine_host_does_not_resolve():
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = MaxRetryError(None, "/", reason=NameResolutionError(None, None, None))
+
+    assert runner.free_resources() is False
+
+
+def test_free_resources_reports_an_iam_failure_as_retryable():
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    mock_handler.delete_job.side_effect = RetryableError("Could not get an IAM token")
+
+    with pytest.raises(RunnerError) as exc:
+        runner.free_resources()
+
+    assert type(exc.value) is RunnerRetryableError
+
+
+def test_free_resources_raises_unavailable_when_the_client_cannot_be_built():
+    runner, mock_handler = _make_runner(fleet_id="fleet-123")
+    runner._connected = False  # pylint: disable=protected-access
+
+    with patch.object(runner, "connect", side_effect=RunnerError("Unable to connect")):
+        with pytest.raises(RunnerRetryableError):
+            runner.free_resources()
+    mock_handler.delete_job.assert_not_called()
+
+
 def test_submit_sets_fleet_id_with_cos():
-    """submit() sets job.fleet_id when COS is configured."""
     runner, mock_handler = _make_submit_runner()
 
     with _patch_settings():
@@ -489,7 +582,6 @@ def test_submit_sets_fleet_id_with_cos():
 
 
 def test_submit_places_the_fleet_on_the_projects_subnet_pool():
-    """submit() passes the project's subnet_pool_id through as the network placement."""
     runner, mock_handler = _make_submit_runner()
 
     with _patch_settings():
@@ -552,7 +644,6 @@ def test_submit_adopts_the_fleet_returned_for_a_name_conflict():
 
 
 def test_submit_reports_an_iam_failure_as_retryable():
-    """Without this an IAM blip marks the job FAILED, which it never comes back from."""
     runner, mock_handler = _make_submit_runner()
     mock_handler.submit_job.side_effect = RetryableError("Could not get an IAM token")
 
@@ -611,13 +702,13 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
     [
         (
             ClientError({"Error": {"Code": "SlowDown"}, "ResponseMetadata": {"HTTPStatusCode": 503}}, "PutObject"),
-            RunnerRetryableError,
+            CosRetryableError,
         ),
         (
             ClientError(
                 {"Error": {"Code": "RequestTimeout"}, "ResponseMetadata": {"HTTPStatusCode": 400}}, "PutObject"
             ),
-            RunnerRetryableError,
+            CosRetryableError,
         ),
         (
             ClientError({"Error": {"Code": "AccessDenied"}, "ResponseMetadata": {"HTTPStatusCode": 403}}, "PutObject"),
@@ -629,7 +720,7 @@ def test_submit_raises_the_error_type_for_each_code_engine_status(status, expect
             ),
             RunnerError,
         ),
-        (ReadTimeoutError(endpoint_url="https://cos"), RunnerRetryableError),
+        (CosReadTimeoutError(endpoint_url="https://cos"), CosRetryableError),
         (RetryableError("Code Engine API error: Too Many Requests"), RunnerRetryableError),
     ],
 )
@@ -1296,3 +1387,111 @@ def test_upload_custom_image_entrypoint_keeps_dotdot_prefixed_name():
     assert f"{paths.cos_user_function_prefix}/..config" in uploaded_keys
     assert f"{paths.cos_user_function_prefix}/main.py" in uploaded_keys
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.django_db
+class TestExecutionProject:
+    """The fleet lives in the project the job ran in, which the program may no longer point at."""
+
+    @staticmethod
+    def _job(program, **kwargs):
+        return TestUtils.create_job(
+            author=program.author,
+            program=program,
+            status=Job.SUCCEEDED,
+            runner=Program.FLEETS,
+            fleet_id="fleet-123",
+            **kwargs,
+        )
+
+    @staticmethod
+    def _program(project):
+        return TestUtils.create_program(
+            program_title="a-function", author="owner", runner=Program.FLEETS, code_engine_project=project
+        )
+
+    def test_falls_back_to_the_program_without_a_snapshot(self):
+        project = TestUtils.get_or_create_ce_project(
+            project_name="only-project", project_id="only-id", cos_bucket_user_data_name="b3"
+        )
+        job = self._job(self._program(project), ce_project_name=None)
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "only-id"
+
+    def test_resolves_an_inactive_project(self):
+        TestUtils.get_or_create_ce_project(
+            project_name="gone-project", project_id="gone-id", cos_bucket_user_data_name="b4", active=False
+        )
+        still_active = TestUtils.get_or_create_ce_project(
+            project_name="live-project", project_id="live-id", cos_bucket_user_data_name="b6"
+        )
+        job = self._job(self._program(still_active), ce_project_name="gone-project")
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "gone-id"
+
+    def test_free_resources_sends_the_delete_to_the_project_the_job_ran_in(self):
+        TestUtils.get_or_create_ce_project(
+            project_name="old-project", project_id="old-id", cos_bucket_user_data_name="b1", region="us-east"
+        )
+        moved_to = TestUtils.get_or_create_ce_project(
+            project_name="new-project", project_id="new-id", cos_bucket_user_data_name="b2", region="eu-de"
+        )
+        job = self._job(self._program(moved_to), ce_project_name="old-project", ce_region="us-east")
+
+        with (
+            patch(f"{_RUNNER_MOD}.get_ce_auth") as get_ce_auth,
+            patch(f"{_RUNNER_MOD}.FleetHandler") as handler_cls,
+            patch.object(FleetsRunner, "_get_api_key", return_value="an-api-key"),
+        ):
+            assert FleetsRunner(job).free_resources() is True
+
+        assert get_ce_auth.call_args.args[1] == "us-east"
+        assert handler_cls.call_args.kwargs["project_id"] == "old-id"
+        handler_cls.return_value.delete_job.assert_called_once_with("fleet-123")
+
+    @staticmethod
+    def _duplicate_of(project, *, project_id, **kwargs):
+        """A second row with the same project_name. TestUtils gets-or-creates by name, so it cannot."""
+        fields = {
+            field.name: getattr(project, field.name)
+            for field in CodeEngineProject._meta.fields  # pylint: disable=protected-access
+            if field.name not in ("id", "created", "updated")
+        }
+        return CodeEngineProject.objects.create(**{**fields, "project_id": project_id, **kwargs})
+
+    def test_prefers_the_active_project_when_two_share_a_name(self):
+        dead = TestUtils.get_or_create_ce_project(
+            project_name="twice", project_id="dead-id", cos_bucket_user_data_name="b7", active=False
+        )
+        alive = self._duplicate_of(dead, project_id="alive-id", active=True)
+        job = self._job(self._program(alive), ce_project_name="twice")
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "alive-id"
+
+    def test_narrows_by_region_when_two_projects_share_a_name(self):
+        in_us = TestUtils.get_or_create_ce_project(
+            project_name="shared", project_id="us-id", cos_bucket_user_data_name="b8", region="us-east"
+        )
+        self._duplicate_of(in_us, project_id="eu-id", region="eu-de")
+        job = self._job(self._program(in_us), ce_project_name="shared", ce_region="eu-de")
+
+        resolved = FleetsRunner(job)._execution_project()  # pylint: disable=protected-access
+
+        assert resolved.project_id == "eu-id"
+
+    def test_free_resources_sends_nothing_for_an_unknown_project(self):
+        project = TestUtils.get_or_create_ce_project(
+            project_name="known", project_id="known-id", cos_bucket_user_data_name="b5"
+        )
+        job = self._job(self._program(project), ce_project_name="vanished-project")
+        runner = FleetsRunner(job)
+
+        with patch.object(runner, "connect") as connect:
+            assert runner.free_resources() is False
+        connect.assert_not_called()
