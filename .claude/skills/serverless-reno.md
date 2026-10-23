@@ -244,3 +244,21 @@ Do NOT move notes that are already in a versioned subfolder — only files at th
 
 Stage only the release note files and commit with a short descriptive message.
 Do NOT add a co-author trailer.
+
+## Step 9 — Address outstanding dependency bumps
+
+The release prep PR is also where outstanding Docker image version bumps get addressed before a
+release. These arrive as automated PRs (opened by the Whitesource/Mend bot) in the **private**
+repo that bump base-image tags such as `registry.access.redhat.com/ubi9-minimal`.
+
+Ask the user for the private repo's open-PRs URL, then review the open PRs there and filter for the
+bot's "Update ... Docker tag to ..." PRs.
+
+These bumps can go in as independent PRs, and normally do. During a release crunch, however, it is
+preferable to group all of them into the release prep PR to save time and CI resources — apply the
+same tag changes in the public repo as additional commits on the release prep branch, so they ship
+with the version change.
+
+Confirm with the user before pulling these bumps into the release prep PR, since whether to group
+them depends on release timing. If grouping, add one commit per bump (mirroring the individual bot
+PRs) so they remain easy to review and revert.

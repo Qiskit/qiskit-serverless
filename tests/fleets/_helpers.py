@@ -29,10 +29,12 @@ CLIENT_TO_DB_STATUS = {
     "RUNNING": "RUNNING",
     "DONE": "SUCCEEDED",
     "ERROR": "FAILED",
+    "CANCELING": "STOPPING",
     "CANCELED": "STOPPED",
 }
 
-VALID_DB_STATUS_ORDER = ["QUEUED", "PENDING", "RUNNING", "SUCCEEDED", "FAILED", "STOPPED"]
+# STOPPING sits before every terminal status
+VALID_DB_STATUS_ORDER = ["QUEUED", "PENDING", "RUNNING", "STOPPING", "SUCCEEDED", "FAILED", "STOPPED"]
 
 # Guard against the two lists silently drifting apart.
 assert set(VALID_DB_STATUS_ORDER) == set(

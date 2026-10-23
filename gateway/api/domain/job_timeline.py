@@ -25,6 +25,7 @@ STATUS_COLOR = {
     "QUEUED": "#8a3ffc",
     "PENDING": "#f0ad4e",
     "RUNNING": "#5bc0de",
+    "STOPPING": "#aaaaaa",
 }
 # Text color for a label drawn on top of a STATUS_COLOR segment, matching the badges' own choice
 # of dark text on the lighter PENDING/RUNNING backgrounds.
@@ -32,6 +33,7 @@ STATUS_TEXT_COLOR = {
     "QUEUED": "#ffffff",
     "PENDING": "#1c1c1c",
     "RUNNING": "#1c1c1c",
+    "STOPPING": "#1c1c1c",
 }
 OUTCOME_LABEL = {
     "SUCCEEDED": ("SUCCEEDED", "#00aa00"),
@@ -494,7 +496,7 @@ def build_legend():
     in sync with `STATUS_COLOR` and `OUTCOME_LABEL`.
     """
     parts = []
-    for label in ("QUEUED", "PENDING", "RUNNING"):
+    for label in STATUS_COLOR:
         swatch = f'<span class="qs-swatch qs-swatch--{label.lower()}"></span>'
         parts.append(f'<span class="qs-legend-item">{swatch}{html.escape(label)}</span>')
     for outcome_status, (text, _color) in OUTCOME_LABEL.items():
