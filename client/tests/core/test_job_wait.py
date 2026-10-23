@@ -10,8 +10,9 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Tests for Job.wait_for_final_state()."""
+"""Tests for Job.wait_for_final_state() and Job.result(), which waits with it."""
 
+import random
 from unittest.mock import Mock, patch
 
 import pytest
@@ -91,13 +92,13 @@ def test_a_sub_status_does_not_reset_the_backoff_but_post_processing_does(clock)
     assert clock.sleeps == [1, 2, 4, 1]
 
 
-def test_the_backoff_stops_growing_at_60_seconds(clock):
-    """After 32 s every wait is 60 s."""
+def test_the_backoff_stops_growing_at_30_seconds(clock):
+    """After 16 s every wait is 30 s."""
     job, _ = _job(*([("RUNNING", None)] * 9), ("SUCCEEDED", None))
 
     job.wait_for_final_state()
 
-    assert clock.sleeps == [1, 2, 4, 8, 16, 32, 60, 60, 60]
+    assert clock.sleeps == [1, 2, 4, 8, 16, 30, 30, 30, 30]
 
 
 def test_poll_interval_replaces_the_backoff_and_has_a_floor_of_one_second(clock):
@@ -138,12 +139,12 @@ def test_a_transient_error_is_retried_and_does_not_count_as_a_status_change(cloc
 
 
 def test_a_retry_keeps_the_pace_of_the_backoff(clock):
-    """A 503 after the backoff reached 60 s waits 60 s, not 1 s, so an overloaded gateway gets fewer requests."""
+    """A 503 after the backoff reached 30 s waits 30 s, not 1 s, so an overloaded gateway gets fewer requests."""
     job, _ = _job(*([("RUNNING", None)] * 8), QiskitServerlessException("busy", code=503), ("SUCCEEDED", None))
 
     job.wait_for_final_state()
 
-    assert clock.sleeps == [1, 2, 4, 8, 16, 32, 60, 60, 60]
+    assert clock.sleeps == [1, 2, 4, 8, 16, 30, 30, 30, 30]
 
 
 def test_a_plain_500_raises_at_once(clock):
@@ -246,3 +247,72 @@ def test_a_final_status_is_fetched_only_once(clock):
         job.result(wait=True)
 
     assert service.get_job_data.call_count == 1
+
+
+def test_result_waits_with_wait_for_final_state(clock):
+    """result() waits with the backoff, then reads the results once."""
+    job, service = _job(("RUNNING", None), ("RUNNING", None), ("SUCCEEDED", None))
+    service.result.return_value = '{"answer": 42}'
+
+    assert job.result() == {"answer": 42}
+    assert clock.sleeps == [1, 2]
+    service.result.assert_called_once_with("job-1")
+
+
+def test_result_cadence_is_a_fixed_poll_interval(clock):
+    """A cadence keeps a fixed interval, as before."""
+    job, service = _job(("RUNNING", None), ("SUCCEEDED", None))
+    service.result.return_value = "{}"
+
+    job.result(cadence=5)
+
+    assert clock.sleeps == [5]
+
+
+def test_result_timeout_raises_and_reads_no_results(clock):
+    """A timeout raises TimeoutError before any result request."""
+    job, service = _job(*([("RUNNING", None)] * 5))
+
+    with pytest.raises(TimeoutError):
+        job.result(timeout=3)
+
+    service.result.assert_not_called()
+
+
+def test_result_maxwait_is_deprecated_and_waits_maxwait_times_cadence(clock):
+    """maxwait warns, waits maxwait times cadence seconds, and still reads the results."""
+    job, service = _job(*([("RUNNING", None)] * 5))
+    service.result.return_value = "{}"
+
+    with pytest.warns(DeprecationWarning, match="maxwait"):
+        job.result(cadence=1, maxwait=3)
+
+    assert clock.sleeps == [1, 1, 1]
+    service.result.assert_called_once_with("job-1")
+
+
+def test_result_maxwait_with_timeout_raises():
+    """maxwait and timeout cannot be used together."""
+    job, _ = _job()
+
+    with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
+        job.result(maxwait=3, timeout=10)
+
+
+def test_result_retries_a_503_while_waiting(clock):
+    """A 503 during the wait is retried, and the results are still returned."""
+    job, service = _job(("RUNNING", None), QiskitServerlessException("busy", code=503), ("SUCCEEDED", None))
+    service.result.return_value = "{}"
+
+    assert job.result() == {}
+
+
+def test_the_jitter_only_shortens_a_wait(clock):
+    """The jitter takes up to 10% off each wait, so no wait is longer than 30 s."""
+    job, _ = _job(*([("RUNNING", None)] * 6), ("SUCCEEDED", None))
+
+    with patch("qiskit_serverless.core.job.random.uniform", wraps=random.uniform) as uniform:
+        job.wait_for_final_state()
+
+    uniform.assert_called_with(0.9, 1)
+    assert max(clock.sleeps) <= 30

@@ -238,90 +238,17 @@ class TestJobResult:
         mock_service.result.assert_called_once_with("test-job")
 
     @patch("time.sleep")
-    def test_result_with_wait_until_terminal(self, mock_sleep):
-        """Test result() waiting for job to reach terminal state."""
+    def test_result_with_wait_and_verbose(self, _mock_sleep, capsys):
+        """Test result() with verbose printing enabled."""
         mock_service = Mock()
-        # Simulate job transitioning from RUNNING to SUCCEEDED
-        # The while loop calls in_terminal_state() which calls status() internally
-        # Just return RUNNING multiple times, then SUCCEEDED
-        mock_service.status.return_value = Job.RUNNING
-
-        # After 2 iterations, change to SUCCEEDED
-        call_count = 0
-
-        def status_side_effect(_job_id):
-            nonlocal call_count
-            call_count += 1
-            if call_count <= 4:  # First 4 calls return RUNNING
-                return Job.RUNNING
-            return Job.SUCCEEDED
-
-        mock_service.status.side_effect = status_side_effect
-        mock_service.result.return_value = {"result": "success"}
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        result = job.result(wait=True, cadence=1, verbose=False)
-
-        assert result == {"result": "success"}
-        # Verify sleep was called (exact count depends on implementation details)
-        assert mock_sleep.call_count >= 2
-        mock_sleep.assert_called_with(1)
-
-    @patch("time.sleep")
-    @patch("logging.info")
-    def test_result_with_wait_and_verbose(self, mock_log, _mock_sleep):
-        """Test result() with verbose logging enabled."""
-        mock_service = Mock()
-        # Need extra status calls for in_terminal_state checks
-        mock_service.status.side_effect = [
-            Job.RUNNING,
-            Job.RUNNING,  # First iteration
-            Job.SUCCEEDED,
-            Job.SUCCEEDED,  # Terminal state
-        ]
+        mock_service.status.side_effect = [Job.RUNNING, Job.SUCCEEDED]
         mock_service.result.return_value = {"result": "success"}
 
         job = Job(job_id="test-job", job_service=mock_service)
         result = job.result(wait=True, cadence=1, verbose=True)
 
         assert result == {"result": "success"}
-        # Check that verbose logging occurred
-        assert mock_log.call_count >= 2  # "Waiting for job result." + count
-        mock_log.assert_any_call("Waiting for job result.")
-
-    @patch("time.sleep")
-    def test_result_with_maxwait_timeout(self, mock_sleep):
-        """Test result() with maxwait parameter timing out."""
-        mock_service = Mock()
-        # Job never completes within maxwait
-        mock_service.status.return_value = Job.RUNNING
-        mock_service.result.return_value = None
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        _ = job.result(wait=True, cadence=1, verbose=False, maxwait=3)
-
-        # Should stop after maxwait iterations
-        assert mock_sleep.call_count == 3
-        mock_sleep.assert_called_with(1)
-
-    @patch("time.sleep")
-    def test_result_with_custom_cadence(self, mock_sleep):
-        """Test result() with custom cadence parameter."""
-        mock_service = Mock()
-        # Need extra status calls for in_terminal_state checks
-        mock_service.status.side_effect = [
-            Job.RUNNING,
-            Job.RUNNING,  # First iteration
-            Job.SUCCEEDED,
-            Job.SUCCEEDED,  # Terminal state
-        ]
-        mock_service.result.return_value = {"result": "success"}
-
-        job = Job(job_id="test-job", job_service=mock_service)
-        result = job.result(wait=True, cadence=5, verbose=False)
-
-        assert result == {"result": "success"}
-        mock_sleep.assert_called_with(5)
+        assert "Waiting for job test-job" in capsys.readouterr().out
 
     def test_result_with_json_string_response(self):
         """Test result() decoding JSON string response."""
