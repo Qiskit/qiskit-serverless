@@ -438,6 +438,15 @@ operator sees an error instead of a silent write when Code Engine cannot be
 reached. The Qiskit Runtime jobs a job started are not cancelled from the
 backoffice: that needs the caller’s own service credentials.</p></li>
 </ul>
+<ul>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">api_job.compute_profile</span></code> database column has been dropped, along with
+its historical data. The gateway stopped reading and writing it in 0.37.0 and
+reads the compute profile from <code class="docutils literal notranslate"><span class="pre">Job.compute_profile_fk</span></code> instead.</p>
+<p>Gateway releases before 0.37.0 can no longer be deployed against a database
+that has run this migration, because their <code class="docutils literal notranslate"><span class="pre">Job</span></code> model still declares the
+column. Upgrade to 0.37.0 before upgrading to this release.</p>
+</li>
+</ul>
 <ul class="simple">
 <li><p>Migration <code class="docutils literal notranslate"><span class="pre">0078</span></code> fills <code class="docutils literal notranslate"><span class="pre">function_size_name</span></code> for existing jobs with the current label of their size
 row. A row renamed before the upgrade gives its new label, because the old one was never stored. Jobs
