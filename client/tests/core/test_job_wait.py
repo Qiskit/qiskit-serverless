@@ -279,8 +279,8 @@ def test_result_timeout_raises_and_reads_no_results(clock):
     service.result.assert_not_called()
 
 
-def test_result_maxwait_is_deprecated_and_keeps_the_old_loop(clock):
-    """maxwait warns, checks maxwait times, and still reads the results."""
+def test_result_maxwait_is_deprecated_and_waits_maxwait_times_cadence(clock):
+    """maxwait warns, waits maxwait times cadence seconds, and still reads the results."""
     job, service = _job(*([("RUNNING", None)] * 5))
     service.result.return_value = "{}"
 

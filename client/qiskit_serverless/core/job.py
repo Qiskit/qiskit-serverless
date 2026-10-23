@@ -288,7 +288,8 @@ class Job:
             wait: wait until the job ends before reading the results.
             cadence: fixed seconds between status checks instead of the backoff, like ``poll_interval``.
             verbose: print the status changes while waiting, like :meth:`wait_for_final_state`.
-            maxwait: deprecated, use ``timeout``. Number of checks after which the results are read anyway.
+            maxwait: deprecated, use ``timeout``. Waits at most ``maxwait`` times ``cadence`` seconds, then reads the
+                results anyway.
             timeout: seconds to wait. ``None`` waits until the job ends.
 
         Raises:
@@ -304,10 +305,11 @@ class Job:
             if timeout is not None:
                 raise ValueError("Pass either `maxwait` or `timeout`, not both.")
         if wait and maxwait:
-            count = 0
-            while not self.in_terminal_state() and count < maxwait:
-                count += 1
-                time.sleep(30 if cadence is None else cadence)
+            cadence = 30 if cadence is None else cadence
+            try:
+                self.wait_for_final_state(timeout=maxwait * cadence, poll_interval=cadence, verbose=verbose)
+            except TimeoutError:
+                pass
         elif wait:
             self.wait_for_final_state(timeout=timeout, poll_interval=cadence, verbose=verbose)
 
@@ -386,7 +388,8 @@ class Job:
                 step += 1
                 continue
             if status != last_status:
-                _say(verbose, start, status)
+                if verbose:
+                    print(f"{_elapsed(start)}  {status}", flush=True)
                 if last_status is not None and _resets_backoff(last_status, status):
                     step = 0
                 last_status = status
@@ -406,7 +409,8 @@ class Job:
         if not is_transient_error(error) or time.monotonic() >= give_up:
             raise error
         logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
-        _say(verbose, start, f"status check failed ({getattr(error, '_code', None)}), retrying")
+        if verbose:
+            print(f"{_elapsed(start)}  status check failed ({getattr(error, '_code', None)}), retrying", flush=True)
 
     def _print_error_message(self):
         """Print why the job failed. A failure to fetch it does not change the result of the wait."""
@@ -600,12 +604,6 @@ def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[flo
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait
-
-
-def _say(verbose: bool, start: float, text: str):
-    """Print the time since start and the text, in verbose mode."""
-    if verbose:
-        print(f"{_elapsed(start)}  {text}", flush=True)
 
 
 def _elapsed(start: float) -> str:

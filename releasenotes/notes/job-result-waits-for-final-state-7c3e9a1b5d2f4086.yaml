@@ -19,5 +19,7 @@ deprecations:
   - |
     The ``maxwait`` argument of :meth:`~qiskit_serverless.core.job.Job.result`
     is deprecated. Use ``timeout`` instead, which sets the wait in seconds and
-    raises ``TimeoutError`` when it runs out. ``maxwait`` and ``timeout``
-    together raise ``ValueError``.
+    raises ``TimeoutError`` when it runs out. Until it is removed, ``maxwait``
+    waits at most ``maxwait`` times ``cadence`` seconds, then reads the results
+    anyway, as before. ``maxwait`` and ``timeout`` together raise
+    ``ValueError``.
