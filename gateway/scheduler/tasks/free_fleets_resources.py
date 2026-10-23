@@ -43,7 +43,7 @@ class FreeFleetsResources(SchedulerTask):
         self.metrics = metrics
         self.deleter = FleetsFleetDeleter(breakers or FleetsBreakers())
         self._failed_attempts: dict[str, int] = {}
-        self._given_up: set[str] = set()
+        self._given_up: dict[str, None] = {}
 
     def run(self):
         """Delete the fleets past the retention window or over their project's quota, and report what we hold."""
@@ -172,8 +172,8 @@ class FreeFleetsResources(SchedulerTask):
         if failures >= MAX_ATTEMPTS_PER_FLEET:
             del self._failed_attempts[job_id]
             if len(self._given_up) >= MAX_TRACKED_FAILURES:
-                self._given_up.pop()
-            self._given_up.add(job_id)
+                self._given_up.pop(next(iter(self._given_up)))
+            self._given_up[job_id] = None
         logger.log(
             logging.ERROR if failures >= MAX_ATTEMPTS_PER_FLEET else logging.WARNING,
             "job_id=%s fleet_id=%s not deleted on attempt %s, it still holds a slot in its project",
