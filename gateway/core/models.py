@@ -884,8 +884,12 @@ class JobEvent(models.Model):
     event_type = models.CharField(max_length=100, blank=False, null=False)
     origin = models.CharField(max_length=100, blank=False, null=False)
     context = models.CharField(max_length=100, blank=False, null=False)
-    # A default and not auto_now_add, so an event can be created with the time it really happened
-    created = models.DateTimeField(default=timezone.now, null=True)
+    # When the event was written
+    created = models.DateTimeField(auto_now_add=True, null=True)
+    # When it really happened, if another service knows (Code Engine for a Fleets job). Null when it is
+    # the same as created, and so for every event written before this field existed: read it through
+    # happened_at.
+    occurred_at = models.DateTimeField(null=True, blank=True, default=None)
     data = models.JSONField(default=dict, blank=False, null=False)
 
     objects: JobEventQuerySet = JobEventQuerySet.as_manager()
@@ -893,6 +897,11 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+    @property
+    def happened_at(self):
+        """When the event really happened: occurred_at, or created when there is no better time."""
+        return self.occurred_at or self.created
 
 
 class OutboxChannel(StrEnum):

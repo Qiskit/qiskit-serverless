@@ -350,29 +350,34 @@ class FleetsRunner(AbstractRunner):
         self._warn_unresolved_state(prefix, keys, found)
         return None
 
-    def get_running_timestamp(self) -> datetime | None:
-        """When Code Engine started running the task, read from the task store, or ``None``.
+    def get_state_timestamp(self, status: str) -> datetime | None:
+        """When Code Engine wrote the task store key of ``status``, or ``None``.
 
-        It is the earliest modification time of the ``running`` keys, the first one when a retry wrote
-        more than one. Only an improvement over the moment the scheduler noticed the job is running, so
-        it never raises: no fleet, no project, no ``running`` key yet and a failing COS all give ``None``.
+        It is the earliest modification time of the keys of that status, the first one when a retry wrote
+        more than one. Only an improvement over the moment the scheduler noticed the state, so it never
+        raises: no fleet, no project, no key of that status yet and a failing COS all give ``None``.
         """
         try:
-            modified = self._running_key_times()
+            modified = self._state_key_times(status)
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not read when fleet [%s] started running: %s", self.job.fleet_id, exc)
+            logger.warning("Could not read when fleet [%s] reached %s: %s", self.job.fleet_id, status, exc)
             return None
 
         if any(moment.utcoffset() is None for moment in modified):
-            logger.warning("Fleet [%s] has a running key time without timezone, ignoring it", self.job.fleet_id)
+            logger.warning("Fleet [%s] has a %s key time without timezone, ignoring it", self.job.fleet_id, status)
             return None
         return min(modified, default=None)
 
-    def _running_key_times(self) -> list[datetime]:
-        """The modification times of the ``running`` keys, none when there is no fleet, project, bucket or
-        key yet, or when COS failed."""
+    def get_running_timestamp(self) -> datetime | None:
+        """When Code Engine started running the task, or ``None``. See get_state_timestamp."""
+        return self.get_state_timestamp(Job.RUNNING)
+
+    def _state_key_times(self, status: str) -> list[datetime]:
+        """The modification times of the keys of the task state that maps to status, none when there is no
+        fleet, project, bucket or key yet, or when COS failed."""
+        states = {state for state, mapped in self._STATE_TO_JOB_STATUS if mapped == status}
         fleet_id = self.job.fleet_id
-        if not fleet_id:
+        if not fleet_id or not states:
             return []
         if not self._project:
             self._project = self._get_project()
@@ -389,7 +394,7 @@ class FleetsRunner(AbstractRunner):
                 return [
                     obj["last_modified"]
                     for obj in objects
-                    if obj.get("last_modified") and task_state_from_key(prefix, obj["key"]) == "running"
+                    if obj.get("last_modified") and task_state_from_key(prefix, obj["key"]) in states
                 ]
         return []
 

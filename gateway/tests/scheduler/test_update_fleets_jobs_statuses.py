@@ -28,7 +28,9 @@ def _make_transitions():
     ):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.RUNNING, **(job_fields or {})})
 
-    def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+    def _to_terminal(
+        job, status, *, origin, context, job_fields=None, occurred_at=None
+    ):  # pylint: disable=unused-argument
         job.update_fields({"status": status, **(job_fields or {})})
 
     def _try_stop(job, *, origin, context):  # pylint: disable=unused-argument
@@ -132,7 +134,7 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_terminal.assert_called_once_with(job, Job.SUCCEEDED)
+        mock_terminal.assert_called_once_with(job, Job.SUCCEEDED, mock_runner)
 
     def test_pending_to_running_calls_to_running(self):
         task = _make_task()
@@ -265,6 +267,7 @@ class TestToTerminal:
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             job_fields={"sub_status": None, "env_vars": "{}"},
+            occurred_at=None,
         )
 
     def test_a_succeeded_job_records_its_duration(self):
@@ -279,6 +282,31 @@ class TestToTerminal:
             task.to_terminal(job, Job.SUCCEEDED)
 
         task.metrics.observe_job_execution_duration.assert_called_once()
+
+    def test_the_transition_gets_the_time_code_engine_wrote_the_terminal_state(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        ended = datetime.now(timezone.utc) - timedelta(seconds=4)
+        runner = MagicMock()
+        runner.get_state_timestamp.return_value = ended
+
+        task.to_terminal(job, Job.FAILED, runner)
+
+        runner.get_state_timestamp.assert_called_once_with(Job.FAILED)
+        assert task.transitions.to_terminal.call_args.kwargs["occurred_at"] == ended
+
+    def test_the_end_time_is_read_before_the_transition(self):
+        """The transition holds a transaction and a lock on the job: the COS call must not be inside it."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        calls = []
+        runner = MagicMock()
+        runner.get_state_timestamp.side_effect = lambda status: calls.append("get_state_timestamp")
+        task.transitions.to_terminal.side_effect = lambda *a, **k: calls.append("to_terminal")
+
+        task.to_terminal(job, Job.FAILED, runner)
+
+        assert calls == ["get_state_timestamp", "to_terminal"]
 
     def test_job_reaches_failed_state(self):
         task = _make_task()
@@ -297,6 +325,7 @@ class TestToTerminal:
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             job_fields={"sub_status": None, "env_vars": "{}"},
+            occurred_at=None,
         )
 
     def test_to_terminal_never_sends_an_in_progress_event(self):

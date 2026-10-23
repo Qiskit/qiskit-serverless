@@ -37,39 +37,44 @@ def _add_status_event(job, status):
 class TestAddStatusEvent:
     """Unit tests for JobEventQuerySet.add_status_event()."""
 
-    def test_the_event_is_created_now_by_default(self, job):
+    def test_the_event_has_no_occurred_at_by_default(self, job):
         before = datetime.now(timezone.utc)
 
         event = _add_status_event(job, Job.RUNNING)
 
         assert before <= event.created <= datetime.now(timezone.utc)
+        assert event.occurred_at is None
+        assert event.happened_at == event.created
 
-    def test_the_event_can_be_created_when_it_really_happened(self, job):
+    def test_the_event_keeps_when_it_really_happened_apart_from_when_it_was_written(self, job):
         happened = datetime.now(timezone.utc) - timedelta(seconds=5)
+        before = datetime.now(timezone.utc)
 
         event = JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,
-            created=happened,
+            occurred_at=happened,
         )
 
         event.refresh_from_db()
-        assert event.created == happened
+        assert event.occurred_at == happened
+        assert event.happened_at == happened
+        assert before <= event.created <= datetime.now(timezone.utc)
 
 
 class TestFirstRunningAt:
     """Unit tests for JobEventQuerySet.first_running_at()."""
 
-    def test_returns_the_time_the_running_event_was_created_with(self, job):
+    def test_returns_the_time_the_running_event_really_happened(self, job):
         happened = datetime.now(timezone.utc) - timedelta(seconds=5)
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,
-            created=happened,
+            occurred_at=happened,
         )
 
         assert JobEvent.objects.first_running_at(job.id) == happened
@@ -88,6 +93,21 @@ class TestFirstRunningAt:
         _add_status_event(job, Job.RUNNING)  # unusual, but must not shadow the first one
 
         assert JobEvent.objects.first_running_at(job.id) == first.created
+
+    def test_orders_by_when_it_happened_not_by_when_it_was_written(self, job):
+        """A retry can write a second running event that happened before the first one was written."""
+        now = datetime.now(timezone.utc)
+        _add_status_event(job, Job.RUNNING)
+        earlier = now - timedelta(minutes=2)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+            occurred_at=earlier,
+        )
+
+        assert JobEvent.objects.first_running_at(job.id) == earlier
 
     def test_ignores_non_status_change_events_even_if_data_has_a_status_key(self, job):
         JobEvent.objects.create(
@@ -114,6 +134,18 @@ class TestFirstTerminalAt:
         event = _add_status_event(job, Job.SUCCEEDED)
 
         assert JobEvent.objects.first_terminal_at(job.id) == event.created
+
+    def test_returns_the_time_the_terminal_event_really_happened(self, job):
+        happened = datetime.now(timezone.utc) - timedelta(seconds=5)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.FAILED,
+            occurred_at=happened,
+        )
+
+        assert JobEvent.objects.first_terminal_at(job.id) == happened
 
     def test_ignores_non_terminal_status_events(self, job):
         _add_status_event(job, Job.PENDING)

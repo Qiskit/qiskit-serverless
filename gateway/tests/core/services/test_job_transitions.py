@@ -88,31 +88,31 @@ class TestTransition:
         assert job.status == Job.RUNNING
         assert job.sub_status == "mapping"
 
-    def test_pending_to_running_stamps_the_event_with_the_time_it_really_started(self, service):
+    def test_pending_to_running_records_the_time_it_really_started(self, service):
         author = User.objects.create_user(username="running-at-author-1")
         job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
         started = datetime.now(timezone.utc) - timedelta(seconds=3)
+        before = datetime.now(timezone.utc)
 
         event = service.pending_to_running(
             job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
         )
 
-        assert event.created == started
+        assert event.occurred_at == started
+        assert before <= event.created <= datetime.now(timezone.utc)
         assert JobEvent.objects.first_running_at(job.id) == started
 
-    def test_pending_to_running_without_the_start_time_stamps_the_event_now_and_warns(self, service, caplog):
-        """Count of the times Code Engine gave no start time: the fallback must be visible in the logs."""
+    def test_pending_to_running_without_the_start_time_has_no_occurred_at(self, service):
         author = User.objects.create_user(username="running-at-author-2")
         job = Job.objects.create(author=author, status=Job.PENDING)
         before = datetime.now(timezone.utc)
 
-        with caplog.at_level(logging.WARNING):
-            event = service.pending_to_running(
-                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
-            )
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
 
-        assert before <= event.created <= datetime.now(timezone.utc)
-        assert "has no running time from Code Engine" in caplog.text
+        assert event.occurred_at is None
+        assert before <= event.happened_at <= datetime.now(timezone.utc)
 
     def test_a_start_time_in_the_future_is_taken_as_now(self, service):
         """The task store has its own clock: it can be ahead of the gateway's."""
@@ -127,13 +127,12 @@ class TestTransition:
             running_at=before + timedelta(minutes=5),
         )
 
-        assert before <= event.created <= datetime.now(timezone.utc)
+        assert before <= event.occurred_at <= datetime.now(timezone.utc)
 
     def test_a_start_time_without_timezone_is_ignored_and_the_job_still_turns_running(self, service, caplog):
         """Comparing it with the aware times would raise, and the job would never leave PENDING."""
         author = User.objects.create_user(username="running-at-author-naive")
         job = Job.objects.create(author=author, status=Job.PENDING)
-        before = datetime.now(timezone.utc)
 
         with caplog.at_level(logging.WARNING):
             event = service.pending_to_running(
@@ -145,7 +144,7 @@ class TestTransition:
 
         job.refresh_from_db()
         assert job.status == Job.RUNNING
-        assert before <= event.created <= datetime.now(timezone.utc)
+        assert event.occurred_at is None
         assert "has no timezone" in caplog.text
 
     def test_a_start_time_before_the_job_existed_is_taken_as_its_creation(self, service):
@@ -159,7 +158,38 @@ class TestTransition:
             running_at=job.created - timedelta(minutes=5),
         )
 
-        assert event.created == job.created
+        assert event.occurred_at == job.created
+
+    def test_a_time_before_the_previous_status_is_taken_as_that_status(self, service):
+        """Two clocks: RUNNING must not read as earlier than the PENDING it follows."""
+        author = User.objects.create_user(username="running-at-author-5")
+        job = Job.objects.create(author=author, status=Job.QUEUED)
+        pending = service.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS)
+
+        event = service.pending_to_running(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            running_at=pending.created - timedelta(seconds=30),
+        )
+
+        assert event.occurred_at == pending.created
+
+    def test_to_terminal_records_the_time_it_really_ended(self, service):
+        author = User.objects.create_user(username="terminal-at-author-1")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.RUNNING))
+        ended = datetime.now(timezone.utc) - timedelta(seconds=3)
+
+        event = service.to_terminal(
+            job,
+            Job.FAILED,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            occurred_at=ended,
+        )
+
+        assert event.occurred_at == ended
+        assert JobEvent.objects.first_terminal_at(job.id) == ended
 
     def test_creates_the_status_change_event(self, service):
         author = User.objects.create_user(username="change-status-author-2")
@@ -247,6 +277,22 @@ class TestBillingOutbox:
         rows = Outbox.objects.filter(job=job)
         assert {row.channel for row in rows} == {OutboxChannel.LICENSE_FEE, OutboxChannel.JOB_USAGE}
         assert {row.payload["data"]["job_started_at"] for row in rows} == {started.isoformat()}
+
+    def test_the_usage_message_ends_when_the_job_really_ended(self, service, user):
+        job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+        ended = started + timedelta(seconds=20)
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
+        )
+
+        service.to_succeeded(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, occurred_at=ended
+        )
+
+        usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
+        assert usage.payload["data"]["job_started_at"] == started.isoformat()
+        assert usage.payload["data"]["metric_value"] == 20
 
     def test_succeeded_enqueues_both_messages_even_without_a_running_event(self, service, user):
         """The short-job-between-two-polls case: never observed RUNNING, still owes the fee."""

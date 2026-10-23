@@ -59,8 +59,8 @@ def _jobs_from_queryset(jobs_qs):
             if event.event_type != JobEventType.STATUS_CHANGE:
                 continue
             status = event.data.get("status")
-            if status and event.created:
-                status_events.append((event.created, status))
+            if status and event.happened_at:
+                status_events.append((event.happened_at, status))
         jobs.append(
             {
                 "id": str(job.id),

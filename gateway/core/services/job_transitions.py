@@ -12,6 +12,7 @@ import logging
 from datetime import datetime, timezone
 
 from django.db import transaction
+from django.db.models.functions import Coalesce
 
 from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
@@ -19,7 +20,7 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.domain.workload_payload import build_workload_payload, is_mirrored
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program, WorkloadMirror
 from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
 
@@ -94,13 +95,12 @@ class JobTransitionService:
     ) -> JobEvent:
         """The job started running: a job_started event is sent, best effort, once it is written.
 
-        running_at is when it really started, if the caller knows: the event is stamped with it instead of
-        with now, and billing and the Runtime API read the start of the job from that event.
+        running_at is when it really started, if the caller knows: it is stored in the event as occurred_at, and
+        billing and the Runtime API read the start of the job from there.
         """
-        job_start_time = self._clamp_running_at(job, running_at)
         with transaction.atomic():
             event = self._change_status(
-                job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, job_start_time=job_start_time
+                job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, occurred_at=running_at
             )
         self._send_job_in_progress(job, job_started=True)
         return event
@@ -156,10 +156,19 @@ class JobTransitionService:
             self._enqueue_workload(job)
         return Job.STOPPED
 
-    def to_terminal(
-        self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_terminal(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        status: str,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        occurred_at: datetime | None = None,
     ) -> JobEvent:
-        """to_succeeded, to_failed or to_stopped, for the caller that only knows the final status."""
+        """to_succeeded, to_failed or to_stopped, for the caller that only knows the final status.
+
+        occurred_at is when it really ended, if the caller knows, like running_at in pending_to_running."""
         transition = {
             Job.SUCCEEDED: self.to_succeeded,
             Job.FAILED: self.to_failed,
@@ -167,43 +176,76 @@ class JobTransitionService:
         }.get(status)
         if transition is None:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
-        return transition(job, origin=origin, context=context, job_fields=job_fields)
+        return transition(job, origin=origin, context=context, job_fields=job_fields, occurred_at=occurred_at)
 
-    def to_succeeded(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_succeeded(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        occurred_at: datetime | None = None,
     ) -> JobEvent:
         """The job finished. A job cannot succeed without having run, so its license fee is always owed."""
         with transaction.atomic():
-            event = self._change_status(job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields)
+            event = self._change_status(
+                job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields, occurred_at=occurred_at
+            )
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
-                self._enqueue_job_usage(job, job_started_at, event.created)
+                self._enqueue_job_usage(job, job_started_at, event.happened_at)
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
         return event
 
-    def to_failed(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_failed(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        occurred_at: datetime | None = None,
     ) -> JobEvent:
         """The job failed."""
-        return self.to_stopped_or_failed(job, Job.FAILED, origin=origin, context=context, job_fields=job_fields)
+        return self.to_stopped_or_failed(
+            job, Job.FAILED, origin=origin, context=context, job_fields=job_fields, occurred_at=occurred_at
+        )
 
-    def to_stopped(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_stopped(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        occurred_at: datetime | None = None,
     ) -> JobEvent:
         """The job was stopped, by a user or by the scheduler."""
-        return self.to_stopped_or_failed(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
+        return self.to_stopped_or_failed(
+            job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields, occurred_at=occurred_at
+        )
 
-    def to_stopped_or_failed(
-        self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
+    def to_stopped_or_failed(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        status: str,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None,
+        occurred_at: datetime | None = None,
     ) -> JobEvent:
         """Called only when failed or stopped"""
         with transaction.atomic():
-            event = self._change_status(job, status, origin=origin, context=context, job_fields=job_fields)
+            event = self._change_status(
+                job, status, origin=origin, context=context, job_fields=job_fields, occurred_at=occurred_at
+            )
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
-                self._enqueue_job_usage(job, job_started_at, event.created)
+                self._enqueue_job_usage(job, job_started_at, event.happened_at)
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
@@ -218,7 +260,7 @@ class JobTransitionService:
         origin: JobEventOrigin,
         context: JobEventContext,
         job_fields: dict | None,
-        job_start_time: datetime | None = None,
+        occurred_at: datetime | None = None,
     ) -> JobEvent:
         """
         Transition the job's status, validating the state change is valid. It must run inside a transaction,
@@ -227,7 +269,7 @@ class JobTransitionService:
         Steps:
             - LOCK: Lock the job by id (Django raises if there is no transaction open)
             - Reads the job status again fresh from db and validate the transition
-            - Adds a new JobEvent, created at job_start_time or now
+            - Adds a new JobEvent, with occurred_at when the caller knows when it really happened
             - Changes the job status + extra fields
         """
         current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=job.pk)
@@ -236,25 +278,34 @@ class JobTransitionService:
             raise InvalidJobTransitionException(f"Job {job.id}: invalid transition {current_status} -> {status}")
 
         event = JobEvent.objects.add_status_event(
-            job_id=job.id, origin=origin, context=context, status=status, created=job_start_time
+            job_id=job.id,
+            origin=origin,
+            context=context,
+            status=status,
+            occurred_at=self._clamp_occurred_at(job, occurred_at),
         )
         job.update_fields({"status": status, **(job_fields or {})})
         return event
 
     @staticmethod
-    def _clamp_running_at(job: Job, running_at: datetime | None) -> datetime:
-        """The start time of the job: running_at kept between the creation of the job and now, or now when
-        there is no usable running_at. It comes from the clock of another service, so it can read as a
-        moment that has not happened here yet, or before the job existed."""
-        now = datetime.now(timezone.utc)
-        if running_at is None:
-            logger.warning("job_id=%s has no running time from Code Engine, using now instead", job.id)
-            return now
-        if running_at.utcoffset() is None:
-            # Comparing it with the aware times below would raise, and block the job from ever turning RUNNING
-            logger.warning("job_id=%s running_at %s has no timezone, using now instead", job.id, running_at)
-            return now
-        return min(max(running_at, job.created), now)
+    def _clamp_occurred_at(job: Job, occurred_at: datetime | None) -> datetime | None:
+        """occurred_at kept between the last thing that happened to the job and now, or None when there is no usable
+        one (the event then reads as happened when it was written). It comes from the clock of another service, so it
+        can read as a moment that has not happened here yet, or before the status it follows."""
+        if occurred_at is None:
+            return None
+        if occurred_at.utcoffset() is None:
+            # Comparing it with the aware times below would raise, and block the job from ever changing status
+            logger.warning("job_id=%s occurred_at %s has no timezone, ignoring it", job.id, occurred_at)
+            return None
+        last_event_at = (
+            JobEvent.objects.filter(job_id=job.id, event_type=JobEventType.STATUS_CHANGE)
+            .annotate(happened=Coalesce("occurred_at", "created"))
+            .order_by("-happened")
+            .values_list("happened", flat=True)
+            .first()
+        )
+        return min(max(occurred_at, last_event_at or job.created), datetime.now(timezone.utc))
 
     @staticmethod
     def _region(job: Job) -> str | None:

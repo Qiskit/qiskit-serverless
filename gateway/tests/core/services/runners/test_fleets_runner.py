@@ -1316,7 +1316,8 @@ def _object(key, last_modified):
 
 
 class TestRunningSince:
-    """get_running_timestamp() reads when Code Engine wrote the ``running`` key, and never raises."""
+    """get_running_timestamp() and get_state_timestamp() read when Code Engine wrote the key of a state, and never
+    raise."""
 
     _STARTED = datetime(2026, 8, 26, 19, 10, 14, tzinfo=timezone.utc)
 
@@ -1333,6 +1334,26 @@ class TestRunningSince:
         )
 
         assert runner.get_running_timestamp() == self._STARTED
+
+    @pytest.mark.parametrize(
+        "key, status",
+        [(_V3_SUCCEEDED, Job.SUCCEEDED), (_V3_FAILED, Job.FAILED), (_V3_CANCELED, Job.STOPPED)],
+    )
+    def test_a_terminal_status_is_when_its_key_was_written(self, key, status):
+        ended = self._STARTED + timedelta(minutes=2)
+        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED), _object(key, ended)]})
+
+        assert runner.get_state_timestamp(status) == ended
+
+    def test_a_terminal_status_without_its_key_has_no_time(self):
+        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+
+        assert runner.get_state_timestamp(Job.SUCCEEDED) is None
+
+    def test_a_status_without_a_task_state_has_no_time(self):
+        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+
+        assert runner.get_state_timestamp(Job.QUEUED) is None
 
     def test_it_is_timezone_aware(self):
         runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})

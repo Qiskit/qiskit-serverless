@@ -8,6 +8,7 @@ import uuid
 from enum import StrEnum
 
 from django.db.models import QuerySet
+from django.db.models.functions import Coalesce
 
 logger = logging.getLogger("core.JobEvents")
 
@@ -71,9 +72,9 @@ class JobEventQuerySet(QuerySet):
         origin: JobEventOrigin,
         context: JobEventContext,
         status: str,
-        created: datetime | None = None,
+        occurred_at: datetime | None = None,
     ):
-        """Status change event for jobs, created now unless the time it really happened is given."""
+        """Status change event for jobs, with the time it really happened when another service knows it."""
 
         logger.info(
             "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
@@ -84,14 +85,13 @@ class JobEventQuerySet(QuerySet):
             context,
         )
 
-        extra = {"created": created} if created is not None else {}
         return self.create(
             job_id=job_id,
             origin=origin,
             context=context,
             event_type=JobEventType.STATUS_CHANGE,
             data={"status": status},
-            **extra,
+            occurred_at=occurred_at,
         )
 
     def first_running_at(self, job_id: uuid.UUID):
@@ -100,12 +100,7 @@ class JobEventQuerySet(QuerySet):
         """
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 
-        event = (
-            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
-            .order_by("created")
-            .first()
-        )
-        return event.created if event else None
+        return self._first_happened_at(job_id, [Job.RUNNING])
 
     def first_terminal_at(self, job_id: uuid.UUID):
         """When this job first reached a terminal status, from its own event history.
@@ -113,12 +108,18 @@ class JobEventQuerySet(QuerySet):
         """
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
 
+        return self._first_happened_at(job_id, Job.TERMINAL_STATUSES)
+
+    def _first_happened_at(self, job_id: uuid.UUID, statuses):
+        """When the job first reached any of statuses: occurred_at of the event, or created for the events
+        that have none."""
         event = (
-            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status__in=Job.TERMINAL_STATUSES)
-            .order_by("created")
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status__in=statuses)
+            .annotate(happened=Coalesce("occurred_at", "created"))
+            .order_by("happened")
             .first()
         )
-        return event.created if event else None
+        return event.happened if event else None
 
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,
