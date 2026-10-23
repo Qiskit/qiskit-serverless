@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    The backoffice now refuses to link a provider to the shared default Code Engine project
+    (``CE_DEFAULT_PROJECT_NAME``). Linking one there made every new custom function upload fail,
+    because the default project only takes custom functions while no provider is linked to it.
