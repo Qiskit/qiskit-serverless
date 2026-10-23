@@ -13,6 +13,7 @@ from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
+from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.schedule import FleetsJobCanceller, first_cancel_refusal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -264,9 +265,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             try:
                 if self.update_job_status(job):
                     counter += 1
+            except DB_EXCEPTIONS:
+                # Main counts consecutive database failures to restart the pod, so this must reach it
+                raise
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.exception(
-                    "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
+                    "job_id=%s Failed to publish the event or update the job, the job is checked again next iteration",
+                    job.id,
                 )
 
         # Every job whose status was read, not only the ones that changed: a job still RUNNING counts, and so does
