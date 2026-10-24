@@ -35,9 +35,13 @@ class CoreConfig(AppConfig):
         if settings.IS_GATEWAY or settings.IS_SCHEDULER:
             logger.info("[BOOT] CoreApp.ready in %s", "gateway" if settings.IS_GATEWAY else "scheduler")
 
+            from django.db import connections  # pylint: disable=import-outside-toplevel
+
             from core.models import Config  # pylint: disable=import-outside-toplevel
 
             Config.add_defaults()
+            # the boot thread serves no request, so no request signal would ever close its connection
+            connections.close_all()
         else:
             logger.info("[BOOT] CoreApp.ready in command %s", settings.COMMAND)
 

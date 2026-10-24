@@ -91,7 +91,7 @@ application:
   logsMaximumSize: "52428800" # 50Mb in bytes
   logFormat: json
   database:
-    # Seconds each thread keeps its Postgres connection open between requests. 0 closes it after each request.
+    # Max age in seconds of a reused Postgres connection. 0 closes it after each request.
     connMaxAge: 60
   security:
     hstsSeconds: 0  # 0 means disabled
