@@ -470,6 +470,9 @@ class TestIBMQuantumPlatformAuthentication:
 
         assert [call.request.req_kwargs["timeout"] for call in responses.calls] == [7, 7, 7]
 
+    def test_the_jwks_keys_fetch_has_the_timeout(self):
+        assert IBMQuantumPlatform.jwks_client.timeout == settings.IBM_CLOUD_API_TIMEOUT
+
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
