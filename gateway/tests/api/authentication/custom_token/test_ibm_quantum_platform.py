@@ -438,10 +438,11 @@ class TestIBMQuantumPlatformAuthentication:
         settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
         settings.IAM_IBM_CLOUD_CACHE_TTL = 60
 
-        with patch("api.utils.random.random", return_value=1.0), patch.object(cache, "set") as cache_set:
+        with patch("api.utils.random.random", return_value=1.0) as draw, patch.object(cache, "set") as cache_set:
             CustomTokenBackend().authenticate(_create_request())
 
         assert [call.kwargs["timeout"] for call in cache_set.call_args_list] == [48, 48, 48]
+        assert draw.call_count == 1
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")

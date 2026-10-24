@@ -44,7 +44,8 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
     def __init__(self, api_key: str, crn: str):
         self.iam_url = settings.IAM_IBM_CLOUD_BASE_URL
-        self.cache_ttl = settings.IAM_IBM_CLOUD_CACHE_TTL
+        # one draw per request, so the entries of one user expire together and share one IAM token call
+        self.cache_ttl = jittered_cache_ttl(settings.IAM_IBM_CLOUD_CACHE_TTL)
         self.resource_controller_url = settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
         self.api_key = api_key
         self.api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
@@ -146,10 +147,6 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
         return [AuthenticationGroup(group_name=group_id, account=self.account_id) for group_id in group_ids]
 
-    def _cache(self, key: str, value: Any) -> None:
-        """Store an IBM Cloud answer for the cache TTL, shortened at random so entries do not expire together."""
-        cache.set(key, value, timeout=jittered_cache_ttl(self.cache_ttl))
-
     def _request_or_cache_jwt_data(self) -> Any:
         cache_key = f"auth:jwt:{self.api_key_hash}"
         decoded = cache.get(cache_key)
@@ -165,7 +162,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
                 algorithms=["RS256"],
                 options={"verify_exp": True, "verify_iat": True},
             )
-            self._cache(cache_key, decoded)
+            cache.set(cache_key, decoded, timeout=self.cache_ttl)
         except (requests.exceptions.RequestException, PyJWKClientConnectionError) as transient_error:
             # IAM (or the JWKS endpoint) was unreachable or timed out. This is a
             # transient backend problem, not a bad API key: ask the caller to retry.
@@ -231,7 +228,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         # travels inside the free-form "extensions" configuration object, which
         # is absent for instances that are not provisioned through one.
         subscription_id = (instance.get("extensions") or {}).get("subscription_id")
-        self._cache(cache_key, (resource_plan_id, subscription_id))
+        cache.set(cache_key, (resource_plan_id, subscription_id), timeout=self.cache_ttl)
 
         return resource_plan_id, subscription_id
 
@@ -267,7 +264,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         ]
         group_ids = [access_group["id"] for access_group in access_groups_filtered]
 
-        self._cache(cache_key, group_ids)
+        cache.set(cache_key, group_ids, timeout=self.cache_ttl)
         return group_ids
 
     def get_account_id(self):
