@@ -131,7 +131,6 @@ class TestAuthMechanism:
 
 
 def test_postgres_reuses_connections_with_health_checks(monkeypatch):
-    """The Postgres database keeps a connection for 60 seconds and checks it before reuse."""
     monkeypatch.setenv("DEBUG", "1")
     monkeypatch.delenv("DATABASE_CONN_MAX_AGE", raising=False)
     monkeypatch.delitem(sys.modules, "pytest", raising=False)

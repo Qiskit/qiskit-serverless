@@ -492,8 +492,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
-            - name: DATABASE_CONN_MAX_AGE
-              value: {{ .Values.application.database.connMaxAge | quote }}
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
