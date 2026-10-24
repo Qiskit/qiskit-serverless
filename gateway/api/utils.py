@@ -19,9 +19,6 @@ from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("api.api.utils")
 
-# Largest share of a cache TTL that jittered_cache_ttl removes
-CACHE_TTL_JITTER_FRACTION = 0.2
-
 
 def try_json_loads(data: str) -> Tuple[bool, Optional[dict]]:
     """Dumb check if data is json :)"""
@@ -156,7 +153,7 @@ def jittered_cache_ttl(ttl: int) -> int:
     """The TTL shortened by a random 0 to 20 %, at least 1 s. A TTL of 0 or less is returned as is."""
     if ttl <= 0:
         return ttl
-    return max(1, int(ttl * (1 - CACHE_TTL_JITTER_FRACTION * random.random())))
+    return max(1, int(ttl * (1 - 0.2 * random.random())))
 
 
 def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:

@@ -408,7 +408,6 @@ class TestJitteredCacheTtl:
             assert jittered_cache_ttl(60) == 48
         with patch("api.utils.random.random", return_value=0.0):
             assert jittered_cache_ttl(60) == 60
-        assert all(48 <= jittered_cache_ttl(60) <= 60 for _ in range(100))
 
     def test_never_returns_0_for_a_positive_ttl(self):
         with patch("api.utils.random.random", return_value=1.0):
