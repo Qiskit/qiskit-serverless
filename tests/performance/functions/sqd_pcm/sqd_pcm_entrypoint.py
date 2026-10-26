@@ -17,6 +17,7 @@
 """
 SQD-PCM Function Template source code.
 """
+
 import datetime as _perf_datetime  # pylint: disable=wrong-import-order
 
 # only in the main process: each spawn worker imports this file again as __mp_main__
@@ -415,9 +416,7 @@ def run_function(
     transpiled = pass_manager.run(circuit)
 
     end_optimizing = time.time()
-    logger.info(
-        f"Optimization level: {opt_level}, ops: {transpiled.count_ops()}, depth: {transpiled.depth()}"
-    )
+    logger.info(f"Optimization level: {opt_level}, ops: {transpiled.count_ops()}, depth: {transpiled.depth()}")
 
     two_q_depth = transpiled.depth(lambda x: x.operation.num_qubits == 2)
     logger.info(f"Two-qubit gate depth: {two_q_depth}")
@@ -525,8 +524,7 @@ def run_function(
     ):
         os.environ[_tv] = str(threads_per_worker)
     logger.info(
-        f"Worker BLAS threads: {threads_per_worker} "
-        f"(available_cpus={available_cpus}, max_workers={max_workers})"
+        f"Worker BLAS threads: {threads_per_worker} " f"(available_cpus={available_cpus}, max_workers={max_workers})"
     )
 
     # Start workers with "spawn", not the Linux default "fork". By this point the
@@ -657,10 +655,7 @@ def run_function(
 
             solve_time = time.time() - start_solve
             solve_time_total += solve_time
-            logger.info(
-                f"Iteration {i} timing: prep {prep_time:.1f} s, "
-                f"parallel solve {solve_time:.1f} s"
-            )
+            logger.info(f"Iteration {i} timing: prep {prep_time:.1f} s, " f"parallel solve {solve_time:.1f} s")
 
             for j in range(n_batches):
                 energy_sci, coeffs_sci, avg_occs, spin, g_solv = res[j]
