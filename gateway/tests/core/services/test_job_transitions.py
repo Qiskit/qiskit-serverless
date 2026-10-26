@@ -734,6 +734,19 @@ class TestTransitionMetrics:
         finally:
             external_call_metrics.disable()
 
+    def test_queued_to_pending_on_a_job_stopped_meanwhile_is_recorded_as_rejected_and_still_raises(self, service, user):
+        registry = CollectorRegistry()
+        external_call_metrics.enable(registry)
+        try:
+            job = Job.objects.create(author=user, status=Job.STOPPED)
+
+            with pytest.raises(InvalidJobTransitionException):
+                service.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS)
+
+            assert self._count(registry, "job_transition_queued_to_pending", "rejected") == 1
+        finally:
+            external_call_metrics.disable()
+
     def test_nothing_is_recorded_when_recording_is_disabled(self, service, user):
         registry = CollectorRegistry()
         external_call_metrics.enable(registry)
