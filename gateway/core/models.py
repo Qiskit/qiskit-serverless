@@ -660,6 +660,11 @@ class Job(models.Model):
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
+    fleet_deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the fleet delete was accepted",
+    )
     result = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
@@ -770,6 +775,12 @@ class Job(models.Model):
             models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
             # Backs the admin changelist search by fleet_id.
             models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
+            # Backs the retention scan in FreeFleetsResources. The condition is JobQuerySet.held_fleets.
+            models.Index(
+                fields=["updated"],
+                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False, runner=Program.FLEETS),
+                name="job_fleet_undeleted_idx",
+            ),
         ]
 
     @classmethod
@@ -848,6 +859,14 @@ class Job(models.Model):
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
+
+    @property
+    def fleet_region(self) -> str | None:
+        """The region this job's fleet lives in: its own snapshot, or its program's project."""
+        if self.ce_region:
+            return self.ce_region
+        project = self.program.code_engine_project if self.program_id else None
+        return project.region if project else None
 
     def update_fields(self, fields_map: dict) -> None:
         """Persist an explicit field map bypassing optimistic-locking validation.

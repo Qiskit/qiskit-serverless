@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Set, Tuple, Self
 
-from django.db.models import OuterRef, QuerySet, Subquery
+from django.db.models.functions import Coalesce, NullIf
+from django.db.models import OuterRef, QuerySet, Subquery, Value
 from django.contrib.auth.models import AbstractUser
 
 from core.enums.type_filter import TypeFilter
@@ -64,6 +65,18 @@ class JobQuerySet(QuerySet):
         return self.annotate(
             _last_event_at=Subquery(events.order_by("-created").values("created")[:1]),
             _first_running_at=Subquery(events.running_status_events().values("created")[:1]),
+        )
+
+    def held_fleets(self) -> Self:
+        """Fleets jobs whose Code Engine fleet we have not deleted: a fleet_id and no stamp."""
+        from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)
+
+    def with_fleet_region(self) -> Self:
+        """Annotate ``fleet_region_sql``, the SQL form of ``Job.fleet_region``. Not in held_fleets, for its index."""
+        return self.annotate(
+            fleet_region_sql=Coalesce(NullIf("ce_region", Value("")), "program__code_engine_project__region")
         )
 
     def user_jobs_page(

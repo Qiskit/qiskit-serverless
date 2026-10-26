@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from urllib3.exceptions import MaxRetryError, NameResolutionError, ProtocolError, ReadTimeoutError
+from urllib3.util.retry import Retry
 
 from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud import call_metrics
@@ -62,7 +63,12 @@ def get_ce_auth(api_key: str, region: str) -> CEAuth:
         config.api_key["Authorization"] = client_provider.tokens.get_token()
 
     cfg.refresh_api_key_hook = refresh_token
-    return CEAuth(api_client=_MeteredApiClient(cfg), client_provider=client_provider)
+    api_client = _MeteredApiClient(cfg)
+    # urllib3 retries a timed-out read on a DELETE 3 times, which holds the single-threaded scheduler 4x its timeout
+    api_client.rest_client.pool_manager.connection_pool_kw["retries"] = Retry.DEFAULT.new(
+        allowed_methods=Retry.DEFAULT_ALLOWED_METHODS - {"DELETE"}
+    )
+    return CEAuth(api_client=api_client, client_provider=client_provider)
 
 
 class _MeteredApiClient(ApiClient):
