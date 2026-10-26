@@ -16,7 +16,7 @@ _MOD = "scheduler.tasks.schedule_fleets_jobs"
 @pytest.fixture(autouse=True)
 def _fleets_limits():
     with (
-        patch(f"{_MOD}.fleets_jobs_per_user", return_value=40),
+        patch(f"{_MOD}.Config.active_jobs_per_user", return_value=40),
         patch(f"{_MOD}.fleets_jobs_per_tick", return_value=3),
     ):
         yield

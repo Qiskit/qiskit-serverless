@@ -36,7 +36,6 @@ from scheduler.schedule import (
     FleetsFleetDeleter,
     FleetsJobSubmitter,
     fleets_jobs_per_tick,
-    fleets_jobs_per_user,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
 )
@@ -194,12 +193,6 @@ class TestScheduleApi(APITestCase):
         assert fleets_jobs_per_tick() == 200
         Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "-1")
         assert fleets_jobs_per_tick() == 0
-
-    def test_fleets_jobs_per_user_is_the_active_job_limit(self):
-        Config.add_defaults()
-        assert fleets_jobs_per_user() == 50
-        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "250")
-        assert fleets_jobs_per_user() == 250
 
     def _queued(self, user, runner=Program.FLEETS, **identity):
         program = TestUtils.create_program(program_title="Program", author=user)

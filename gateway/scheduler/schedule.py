@@ -425,11 +425,6 @@ def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
     return [job for job in ranked if job.rank <= budgets[job.author_id]][:slots]
 
 
-def fleets_jobs_per_user() -> int:
-    """The gateway.limits.active_jobs_per_user Config, which also caps the running Fleets jobs of one user."""
-    return Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)
-
-
 def fleets_jobs_per_tick() -> int:
     """The scheduler.fleets.jobs_per_tick Config, where less than 0 means 0."""
     return max(Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK, default=5), 0)

@@ -109,3 +109,9 @@ class TestConfig:
         Config.set(ConfigKey.FILLER_SLOTS, "not-a-number")
 
         assert Config.get_int(ConfigKey.FILLER_SLOTS, default=7) == 7
+
+    def test_active_jobs_per_user_reads_the_config(self):
+        Config.add_defaults()
+        assert Config.active_jobs_per_user() == 50
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "250")
+        assert Config.active_jobs_per_user() == 250
