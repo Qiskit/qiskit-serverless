@@ -8,7 +8,7 @@ import os
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.checks import Error, Tags, register
-from django.db import models as django_models
+from django.db import connections, models as django_models
 
 logger = logging.getLogger("core")
 
@@ -35,12 +35,10 @@ class CoreConfig(AppConfig):
         if settings.IS_GATEWAY or settings.IS_SCHEDULER:
             logger.info("[BOOT] CoreApp.ready in %s", "gateway" if settings.IS_GATEWAY else "scheduler")
 
-            from django.db import connections  # pylint: disable=import-outside-toplevel
-
             from core.models import Config  # pylint: disable=import-outside-toplevel
 
             Config.add_defaults()
-            # the boot thread serves no request, so no request signal would ever close its connection
+            # with gunicorn --threads no request runs on this thread, so nothing else would close it
             connections.close_all()
         else:
             logger.info("[BOOT] CoreApp.ready in command %s", settings.COMMAND)
