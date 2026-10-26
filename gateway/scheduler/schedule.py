@@ -16,11 +16,18 @@ from django.db.models.functions import RowNumber
 from opentelemetry import trace
 
 from core.config_key import ConfigKey
+from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
-from core.services.runners import get_runner, AbstractRunner, RunnerError, RunnerRetryableError
+from core.services.runners import (
+    get_runner,
+    AbstractRunner,
+    CosRetryableError,
+    RunnerError,
+    RunnerRetryableError,
+)
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
@@ -63,12 +70,12 @@ def execute_ray_job(job: Job) -> Job:
 
 
 def build_fleets_circuit_breaker() -> CircuitBreaker:
-    """A fresh circuit breaker for one Code Engine region, with the thresholds of the Fleets Config entries."""
+    """A fresh circuit breaker for one region, with the thresholds of the Fleets Config entries."""
     return CircuitBreaker(ConfigKey.FLEETS_BREAKER_FAILURES, ConfigKey.FLEETS_BREAKER_PAUSE_SECONDS)
 
 
-class CodeEngineBreakers:
-    """One circuit breaker per Code Engine region, shared by every scheduler call to that region."""
+class RegionBreakers:
+    """One circuit breaker per region for a single dependency."""
 
     def __init__(self) -> None:
         self.breakers: dict[str | None, CircuitBreaker] = {}
@@ -83,16 +90,37 @@ class CodeEngineBreakers:
         """Whether the breaker of this region is open."""
         return self.get_breaker(region).is_open
 
+    def paused_regions(self) -> list[str | None]:
+        """The regions whose breaker is open right now, out of the ones asked for so far."""
+        return [region for region, breaker in self.breakers.items() if breaker.is_open]
 
-class FleetsJobSubmitter:
-    """Submits Fleets jobs to Code Engine behind one circuit breaker per region, shared by every caller."""
 
-    def __init__(self, transitions: JobTransitionService, breakers: CodeEngineBreakers | None = None):
-        self.transitions = transitions
-        self.breakers = breakers or CodeEngineBreakers()
+class FleetsBreakers:
+    """One breaker per region for COS, for Code Engine (shared by submit and cancel), and for the fleet cleanup."""
+
+    def __init__(self) -> None:
+        self.cos = RegionBreakers()
+        self.code_engine = RegionBreakers()
+        self.cleanup = RegionBreakers()
 
     def paused(self, region: str | None) -> bool:
-        """Whether the breaker of this region is open."""
+        """Whether either dependency of this region is paused."""
+        return self.cos.paused(region) or self.code_engine.paused(region)
+
+    def registries(self) -> dict[str, RegionBreakers]:
+        """Each registry by the name the breaker gauge uses for it."""
+        return {"code_engine": self.code_engine, "cos": self.cos, "cleanup": self.cleanup}
+
+
+class FleetsJobSubmitter:
+    """Submits Fleets jobs to Code Engine behind the COS and Code Engine breakers of the job's region."""
+
+    def __init__(self, transitions: JobTransitionService, breakers: FleetsBreakers | None = None):
+        self.transitions = transitions
+        self.breakers = breakers or FleetsBreakers()
+
+    def paused(self, region: str | None) -> bool:
+        """Whether either dependency of this region is paused."""
         return self.breakers.paused(region)
 
     def submit(self, job: Job, ctx, *, context: JobEventContext = JobEventContext.SCHEDULE_JOBS) -> None:
@@ -120,20 +148,26 @@ class FleetsJobSubmitter:
             InvalidJobTransitionException: the row left QUEUED while it was being submitted, so the
                 fleet created for it has been cancelled.
         """
-        breaker = self.breakers.get_breaker(job.ce_region)
-        if breaker.is_open:
+        if self.paused(job.ce_region):
             raise RunnerRetryableError(f"Fleets submits to region {job.ce_region} are paused by the circuit breaker")
+        cos = self.breakers.cos.get_breaker(job.ce_region)
+        code_engine = self.breakers.code_engine.get_breaker(job.ce_region)
         start = time.monotonic()
         tracer = trace.get_tracer("scheduler.tracer")
-        with tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
+        with observe_operation(FLEET_SUBMIT), tracer.start_as_current_span("scheduler.submit", context=ctx) as span:
 
             runner = get_runner(job)
             try:
                 # Fleets runner set only fleet_id
                 runner.submit()
-                breaker.record_success()
+                # a completed submit proves both dependencies answered
+                cos.record_success()
+                code_engine.record_success()
+            except CosRetryableError:
+                cos.record_failure()
+                raise
             except RunnerRetryableError:
-                breaker.record_failure()
+                code_engine.record_failure()
                 raise
             except RunnerError as ex:
                 logger.error(
@@ -197,7 +231,7 @@ class FleetsJobSubmitter:
                 job.fleet_id,
                 str(ex),
             )
-            # Nothing will retry this: the row is terminal, so no scheduler task reads it again.
+            # No task retries the cancel. The fleet cleanup deletes the fleet after its retention window.
             JobEvent.objects.add_error_event(
                 job_id=job.id,
                 origin=JobEventOrigin.SCHEDULER,
@@ -210,15 +244,15 @@ class FleetsJobSubmitter:
 
 
 class FleetsJobCanceller:
-    """Cancels Fleets jobs in Code Engine behind the same per-region breakers the submitter uses."""
+    """Cancels Fleets jobs in Code Engine behind the Code Engine breaker the submitter uses."""
 
-    def __init__(self, transitions: JobTransitionService, breakers: CodeEngineBreakers | None = None):
+    def __init__(self, transitions: JobTransitionService, breakers: FleetsBreakers | None = None):
         self.transitions = transitions
-        self.breakers = breakers or CodeEngineBreakers()
+        self.breakers = breakers or FleetsBreakers()
 
     def paused(self, region: str | None) -> bool:
-        """Whether the breaker of this region is open."""
-        return self.breakers.paused(region)
+        """Whether Code Engine in this region is paused."""
+        return self.breakers.code_engine.paused(region)
 
     def cancel(self, job: Job, *, context: JobEventContext) -> bool:
         """Cancel a job's fleet and record STOPPING. ``False`` when there is nothing to cancel.
@@ -237,7 +271,7 @@ class FleetsJobCanceller:
             # Nothing is sent, so there is nothing for the breaker to learn
             return False
 
-        breaker = self.breakers.get_breaker(job.ce_region)
+        breaker = self.breakers.code_engine.get_breaker(job.ce_region)
         if breaker.is_open:
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
@@ -256,6 +290,40 @@ class FleetsJobCanceller:
         breaker.record_success()
         _REFUSED_CANCEL_WARNED.discard(str(job.id))
         return written == Job.STOPPING
+
+
+class FleetsFleetDeleter:
+    """Deletes the fleets of terminal jobs behind a breaker of its own."""
+
+    def __init__(self, breakers: FleetsBreakers):
+        self.breakers = breakers
+
+    def paused(self, region: str | None) -> bool:
+        """Whether fleet deletes in this region are paused."""
+        return self.breakers.cleanup.paused(region)
+
+    def paused_regions(self) -> list[str | None]:
+        """The regions whose cleanup breaker is open right now."""
+        return self.breakers.cleanup.paused_regions()
+
+    def delete(self, job: Job) -> bool:
+        """Deletes a job's fleet. ``True`` when the fleet is gone.
+
+        Raises:
+            RunnerRetryableError: while the region's breaker is open, or when Code Engine did not answer.
+        """
+        region = job.fleet_region
+        if self.paused(region):
+            raise RunnerRetryableError(f"Fleet deletes in region {region} are paused by the circuit breaker")
+        return get_runner(job).free_resources()
+
+    def record_cycle(self, region: str | None, *, answered: bool) -> None:
+        """Counts one cleanup cycle for a region."""
+        breaker = self.breakers.cleanup.get_breaker(region)
+        if answered:
+            breaker.record_success()
+        else:
+            breaker.record_failure()
 
 
 def first_cancel_refusal(job: Job) -> bool:

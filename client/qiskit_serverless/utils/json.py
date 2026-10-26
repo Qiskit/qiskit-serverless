@@ -34,7 +34,7 @@ from typing import List, Optional, Type, Callable, Dict, Any, Union
 import requests
 
 from qiskit_serverless.exception import QiskitServerlessException
-from qiskit_serverless.utils.errors import format_err_msg, ErrorCodes
+from qiskit_serverless.utils.errors import format_err_msg, ErrorCodes, ErrorCodeType
 
 
 class JsonSerializable(ABC):
@@ -76,6 +76,11 @@ def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
 
 
 _MAX_BODY_SNIPPET_LEN = 500
+
+
+def _error(code: ErrorCodeType, details: str) -> QiskitServerlessException:
+    """The exception for a failed request, carrying its code."""
+    return QiskitServerlessException(format_err_msg(code, details), code=code)
 
 
 def _body_snippet(text: Optional[str]) -> str:
@@ -121,12 +126,7 @@ def raise_for_non_ok_response(response: requests.Response) -> None:
         details = "".join(str(value) for value in json_data.values()) if isinstance(json_data, Dict) else str(json_data)
     except json.JSONDecodeError:
         details = _body_snippet(response.text)
-    raise QiskitServerlessException(
-        format_err_msg(
-            response.status_code,
-            details,
-        )
-    )
+    raise _error(response.status_code, details)
 
 
 def safe_json_request_as_list(request: Callable[..., requests.Response]) -> List[Any]:
@@ -181,7 +181,7 @@ def safe_json_request(
     Returns:
         parsed json response
     """
-    error_message: Optional[str] = None
+    error: Optional[QiskitServerlessException] = None
     try:
         response = request()
     except (
@@ -191,18 +191,12 @@ def safe_json_request(
         # The request never got a response: a dropped connection, a TLS error, or a
         # timeout. This is usually transient and a retry succeeds, so it must not be
         # reported as a configuration or authentication problem.
-        error_message = format_err_msg(
-            ErrorCodes.CONN1001,
-            str(connection_exception.args),
-        )
+        error = _error(ErrorCodes.CONN1001, str(connection_exception.args))
     except requests.exceptions.RequestException as request_exception:
-        error_message = format_err_msg(
-            ErrorCodes.AUTH1001,
-            str(request_exception.args),
-        )
+        error = _error(ErrorCodes.AUTH1001, str(request_exception.args))
 
-    if error_message:
-        raise QiskitServerlessException(error_message)
+    if error:
+        raise error
 
     try:
         json_data = json.loads(response.text)
@@ -213,31 +207,16 @@ def safe_json_request(
         # the HTTP status and a snippet of the body so the real cause is
         # visible, rather than a bare JSON1001 that hides it.
         if response is not None and not response.ok:
-            raise QiskitServerlessException(
-                format_err_msg(
-                    response.status_code,
-                    _body_snippet(response.text),
-                )
-            ) from json_error
+            raise _error(response.status_code, _body_snippet(response.text)) from json_error
         # A successful (2xx) response with an empty body is a truncated or blank
         # success from the service or an intermediary. It is transient and a retry
         # succeeds, so report it as such. Endpoints that legitimately return no
         # body (204) are handled by their callers before reaching this point.
         if response is None or not response.text.strip():
-            raise QiskitServerlessException(
-                format_err_msg(
-                    ErrorCodes.EMPTY1001,
-                    str(json_error.args),
-                )
-            ) from json_error
+            raise _error(ErrorCodes.EMPTY1001, str(json_error.args)) from json_error
         # A successful (2xx) response whose non-empty body we cannot decode is a
         # genuine violation of the server contract: report it as a decoding error.
-        raise QiskitServerlessException(
-            format_err_msg(
-                ErrorCodes.JSON1001,
-                str(json_error.args),
-            )
-        ) from json_error
+        raise _error(ErrorCodes.JSON1001, str(json_error.args)) from json_error
 
     if response is not None and not response.ok:
         # When response is not ok, the expected json
@@ -250,11 +229,6 @@ def safe_json_request(
         for error_string in json_data.values():
             error_msg += str(error_string)
 
-        raise QiskitServerlessException(
-            format_err_msg(
-                response.status_code,
-                str(error_msg),
-            )
-        )
+        raise _error(response.status_code, str(error_msg))
 
     return json_data

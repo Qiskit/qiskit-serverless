@@ -49,6 +49,9 @@ started is never replaced. Without a ``replace_key`` nothing changes. ``would_ac
 a ``submit`` with that ``replace_key`` would be accepted now, which ``status(pool).free_slots`` cannot: with a full
 pool ``free_slots`` is 0 even when the replacement would be accepted. It is only a hint, because another thread can
 change the pool before ``submit`` runs: the return value of ``submit`` is the answer.
+``discard(pool, replace_key)`` removes the task still waiting under that ``replace_key``, cancels its future and counts
+it as ``canceled``, so a result that nobody needs any more does not take a thread. It returns True if it did, and False
+if there is no such task or it already started: a started task is never touched.
 
 Tasks must be short and must not depend on the caller's request or transaction. A task that raises is logged, and the
 exception is kept in its future. The pool's threads open their own database connections, which are closed when each task
@@ -397,6 +400,17 @@ class BackgroundExecutor:
             return cycle.pending(pool) < cycle.pool_limit or (
                 replace_key is not None and cycle.waiting_index(pool, replace_key) is not None
             )
+
+    def discard(self, pool: BackgroundPool, replace_key: str) -> bool:
+        """Cancel the task of ``pool`` still waiting under ``replace_key``. Its slot is free at once and whoever waits
+        for its future is released. Returns False when none is waiting, and a task that already started is never
+        touched. Raises BackgroundExecutorNotInitializedError if ``init`` was not called in this process."""
+        cycle = self._current_cycle()
+        with cycle.cond:  # a thread takes a task under this lock, so it either runs it or it is discarded here
+            index = cycle.waiting_index(pool, replace_key)
+            if index is None:
+                return False
+            return cycle.queues[pool][index].future.cancel()  # its done callback removes it and counts it as canceled
 
     def status(self, pool: BackgroundPool) -> PoolStatus:
         """How loaded ``pool`` is right now. Raises BackgroundExecutorNotInitializedError if ``init`` was not called in
