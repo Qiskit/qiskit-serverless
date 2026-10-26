@@ -5,6 +5,8 @@ metadata:
   name: {{ include "gateway.fullname" . }}
   labels:
     {{- include "gateway.labels" . | nindent 4 }}
+  annotations:
+    reloader.stakater.com/auto: "true"
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -366,6 +368,8 @@ metadata:
   name: scheduler
   labels:
     {{- include "scheduler.labels" . | nindent 4 }}
+  annotations:
+    reloader.stakater.com/auto: "true"
 spec:
   # The scheduler loop is not safe to run twice: replicas stays at 1 whatever
   # autoscaling does to the gateway, and Recreate keeps the old pod from
