@@ -56,7 +56,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             )
             return
 
-        jobs_per_tick = Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK, default=5)
+        jobs_per_tick = Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK)
         if jobs_per_tick < 1:
             logger.warning("Fleets submits are off: scheduler.fleets.jobs_per_tick is %s.", jobs_per_tick)
             return
@@ -65,7 +65,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             slots=min(free_slots, jobs_per_tick),
             gpu=False,
             runner=Program.FLEETS,
-            jobs_per_user=Config.active_jobs_per_user(),
+            jobs_per_user=Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER),
         )
 
         skipped_regions: set[str | None] = set()

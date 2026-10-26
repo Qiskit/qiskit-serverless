@@ -1120,8 +1120,3 @@ class Config(models.Model):
         except ValueError:
             logger.warning("Config key '%s' has a non-integer value '%s'; using default %s", key.value, value, default)
             return default
-
-    @classmethod
-    def active_jobs_per_user(cls) -> int:
-        """The most jobs one user can have queued or running, and the most Fleets jobs one user can have running."""
-        return cls.get_int(ConfigKey.ACTIVE_JOBS_PER_USER, default=50)

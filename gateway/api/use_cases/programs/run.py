@@ -17,6 +17,7 @@ from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.clients.functions_operator_client import get_functions_operator_client
+from core.config_key import ConfigKey
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -161,7 +162,7 @@ class RunFunctionUseCase:
             message = function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
             raise FunctionDisabledException(message=message)
 
-        active_jobs_limit = Config.active_jobs_per_user()
+        active_jobs_limit = Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER)
         if active_jobs_limit_reached(user, active_jobs_limit):
             raise ActiveJobLimitExceeded(active_jobs_limit)
 
