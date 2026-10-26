@@ -458,6 +458,8 @@ class TestUtils:
         if isinstance(program, str):
             program = TestUtils.create_program(author=author, program_title=program)
 
+        # Like the run use case, the job keeps the runner its function had when it was created
+        kwargs.setdefault("runner", program.runner)
         job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
 
         # Creating associate JobEvent for creation of job (status will be QUEUED)
