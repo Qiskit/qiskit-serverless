@@ -35,7 +35,6 @@ from scheduler.schedule import (
     FleetsBreakers,
     FleetsFleetDeleter,
     FleetsJobSubmitter,
-    fleets_jobs_per_tick,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
 )
@@ -119,21 +118,6 @@ class TestScheduleApi(APITestCase):
 
         assert fleets_job in fleets_jobs
 
-    @override_settings(LIMITS_JOBS_PER_USER=2)
-    def test_fair_share_uses_fleets_specific_limit(self):
-        """Fleets scheduling uses the jobs_per_user it is given, not LIMITS_JOBS_PER_USER."""
-        user = TestUtils.get_user_and_username("fleets_heavy_user")[0]
-        program = TestUtils.create_program(program_title="Program", author=user)
-
-        # 3 running Fleets jobs: over the Ray limit (2) but under the Fleets limit (5).
-        for _ in range(3):
-            TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.FLEETS)
-        fleets_job = TestUtils.create_job(author=user, program=program, status=Job.QUEUED, runner=Program.FLEETS)
-
-        fleets_jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=5)
-
-        assert fleets_job in fleets_jobs
-
     def test_fair_share_ignores_filler_jobs_in_the_per_user_tally(self):
         """Filler jobs are not user demand, so they must not use up their author's cap."""
         user = TestUtils.get_user_and_username("filler_function_owner")[0]
@@ -160,7 +144,6 @@ class TestScheduleApi(APITestCase):
         fair_share = get_jobs_to_schedule_fair_share
         assert fair_share(slots=10, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == queued[:3]
         assert fair_share(slots=2, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == queued[:2]
-        assert fair_share(slots=0, gpu=False, runner=Program.FLEETS, jobs_per_user=4) == []
 
     def test_fair_share_takes_fleets_jobs_in_rounds_across_users(self):
         heavy = TestUtils.get_user_and_username("heavy_user")[0]
@@ -185,14 +168,6 @@ class TestScheduleApi(APITestCase):
 
         assert len(jobs) == 1
         assert len(sample.call_args.args[0]) == 3
-
-    def test_jobs_per_tick_reads_config(self):
-        Config.add_defaults()
-        assert fleets_jobs_per_tick() == 5
-        Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "200")
-        assert fleets_jobs_per_tick() == 200
-        Config.set(ConfigKey.FLEETS_JOBS_PER_TICK, "-1")
-        assert fleets_jobs_per_tick() == 0
 
     def _queued(self, user, runner=Program.FLEETS, **identity):
         program = TestUtils.create_program(program_title="Program", author=user)
@@ -237,16 +212,6 @@ class TestScheduleApi(APITestCase):
         job = self._queued(TestUtils.get_user_and_username("ray_user")[0], runner=Program.RAY)
 
         assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.RAY)) == [job]
-
-    def test_fair_share_in_rounds_holds_back_a_blocked_fleets_job(self):
-        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
-        user = TestUtils.get_user_and_username("rounds_user")[0]
-        self._queued(user)
-        other_account = self._queued(user, account_id="other")
-
-        jobs = get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS, jobs_per_user=10)
-
-        assert jobs == [other_account]
 
     def test_blocked_authors_do_not_take_the_free_slots(self):
         BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")

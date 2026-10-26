@@ -15,7 +15,6 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.schedule import (
     FleetsJobSubmitter,
-    fleets_jobs_per_tick,
     get_jobs_to_schedule_fair_share,
 )
 from scheduler.kill_signal import KillSignal
@@ -52,7 +51,8 @@ class ScheduleFleetsJobs(SchedulerTask):
 
         logger.info("%s free Fleets slots.", free_slots)
 
-        if free_slots < 1:
+        slots = min(free_slots, Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK, default=5))
+        if slots < 1:
             logger.info(
                 "No slots available. Resource consumption: %s / %s",
                 number_of_slots_running,
@@ -61,7 +61,7 @@ class ScheduleFleetsJobs(SchedulerTask):
             return
 
         jobs = get_jobs_to_schedule_fair_share(
-            slots=min(free_slots, fleets_jobs_per_tick()),
+            slots=slots,
             gpu=False,
             runner=Program.FLEETS,
             jobs_per_user=Config.active_jobs_per_user(),

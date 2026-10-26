@@ -18,7 +18,7 @@ from opentelemetry import trace
 from core.config_key import ConfigKey
 from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
+from core.models import BlockedCloudResource, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import (
@@ -358,20 +358,11 @@ def get_jobs_to_schedule_fair_share(
 
     # maybe refactor this using big SQL query :thinking:
 
-    if slots < 1:
-        return []
-
-    max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
-
-    # Per-user concurrency is tracked independently per runner: Fleets and Ray
-    # have separate limits and separate running-job tallies, so a user's Fleets
-    # jobs don't count against their Ray budget and vice versa.
     if jobs_per_user is None:
         jobs_per_user = settings.LIMITS_JOBS_PER_USER
 
     # Filler jobs are not user demand, and they belong to the author of the filler
     # function, so counting them would stop that person's own jobs being promoted.
-    # This one query serves both the Ray and the Fleets limit.
     running_jobs_per_user = {
         entry["author"]: entry["running_jobs_count"]
         for entry in Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
@@ -396,8 +387,8 @@ def get_jobs_to_schedule_fair_share(
         return []
 
     # Sample from every waiting user, so a small slots value does not give the same users every tick
-    if len(author_date_list) > max_limit:
-        author_date_list = random.sample(author_date_list, k=max_limit)
+    if len(author_date_list) > slots:
+        author_date_list = random.sample(author_date_list, k=slots)
 
     if runner == Program.FLEETS:
         budgets = {
@@ -419,15 +410,10 @@ def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
         .with_program()
         .select_related("program__code_engine_project")
         .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
-        .filter(rank__lte=min(max(budgets.values()), slots))
+        .filter(rank__lte=slots)
         .order_by("rank", "created")
     )
     return [job for job in ranked if job.rank <= budgets[job.author_id]][:slots]
-
-
-def fleets_jobs_per_tick() -> int:
-    """The scheduler.fleets.jobs_per_tick Config, where less than 0 means 0."""
-    return max(Config.get_int(ConfigKey.FLEETS_JOBS_PER_TICK, default=5), 0)
 
 
 def check_job_timeout(job: Job):

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from core.config_key import ConfigKey
 from core.models import Job, Program
 from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
@@ -13,13 +14,22 @@ from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, name="jobs_per_tick")
 def _fleets_limits():
+    config = {ConfigKey.FLEETS_JOBS_PER_TICK: 3}
     with (
         patch(f"{_MOD}.Config.active_jobs_per_user", return_value=40),
-        patch(f"{_MOD}.fleets_jobs_per_tick", return_value=3),
+        patch(f"{_MOD}.Config.get_int", side_effect=lambda key, default=0: config[key]),
     ):
-        yield
+        yield config
+
+
+def test_jobs_per_tick_zero_submits_nothing(jobs_per_tick):
+    jobs_per_tick[ConfigKey.FLEETS_JOBS_PER_TICK] = 0
+    with patch(f"{_MOD}.get_jobs_to_schedule_fair_share") as mock_fair_share:
+        _make_task()._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
+
+    mock_fair_share.assert_not_called()
 
 
 def _make_task():
