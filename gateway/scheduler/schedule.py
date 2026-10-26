@@ -1,7 +1,6 @@
 """Scheduling related functions."""
 
 import logging
-import random
 import time
 from typing import List
 from datetime import datetime, timedelta
@@ -380,15 +379,14 @@ def get_jobs_to_schedule_fair_share(
         queued = queued.exclude(blocked)
 
     author_date_list = list(
-        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))
+        queued.exclude(author__in=users_at_max_capacity)
+        .values("author")
+        .annotate(job_date=Min("created"))
+        .order_by("job_date")[:slots]
     )
 
     if len(author_date_list) == 0:
         return []
-
-    # Sample from every waiting user, so a small slots value does not give the same users every tick
-    if len(author_date_list) > slots:
-        author_date_list = random.sample(author_date_list, k=slots)
 
     if runner == Program.FLEETS:
         budgets = {

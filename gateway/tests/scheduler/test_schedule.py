@@ -1,7 +1,7 @@
 """Tests scheduling."""
 
-import random
 import uuid
+from datetime import timedelta
 from collections import deque
 from unittest.mock import MagicMock, patch
 
@@ -159,15 +159,15 @@ class TestScheduleApi(APITestCase):
 
         assert jobs == [heavy_jobs[0], light_job, heavy_jobs[1]]
 
-    def test_fair_share_picks_the_users_from_every_waiting_user(self):
-        for name in ("first_user", "second_user", "third_user"):
+    def test_fair_share_serves_the_users_who_waited_longest_first(self):
+        oldest, middle, newest = (
             self._queued(TestUtils.get_user_and_username(name)[0])
+            for name in ("oldest_user", "middle_user", "newest_user")
+        )
+        Job.objects.filter(id=newest.id).update(created=oldest.created - timedelta(hours=1))
+        Job.objects.filter(id=middle.id).update(created=oldest.created - timedelta(hours=2))
 
-        with patch("scheduler.schedule.random.sample", wraps=random.sample) as sample:
-            jobs = get_jobs_to_schedule_fair_share(slots=1, gpu=False, runner=Program.FLEETS)
-
-        assert len(jobs) == 1
-        assert len(sample.call_args.args[0]) == 3
+        assert list(get_jobs_to_schedule_fair_share(slots=2, gpu=False, runner=Program.FLEETS)) == [middle, newest]
 
     def _queued(self, user, runner=Program.FLEETS, **identity):
         program = TestUtils.create_program(program_title="Program", author=user)
