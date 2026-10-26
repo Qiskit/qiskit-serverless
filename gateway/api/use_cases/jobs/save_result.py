@@ -42,7 +42,7 @@ class JobSaveResultUseCase:
         if not can_save_result:
             raise JobNotFoundException(job_id)
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             raise InvalidAccessException("Fleets results are written by the SDK via RESULTS_PATH")
 
         result_storage = get_result_storage(job)

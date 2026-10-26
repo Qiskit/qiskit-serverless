@@ -36,7 +36,7 @@ class GetJobResultUseCase:
 
         storage = get_result_storage(job)
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             try:
                 url = cast(FleetsResultStorage, storage).get_url()
             except (ValueError, NotImplementedError):

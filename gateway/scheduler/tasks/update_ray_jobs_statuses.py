@@ -17,6 +17,7 @@ from scheduler.schedule import (
     fail_job_insufficient_resources,
 )
 
+from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -178,11 +179,21 @@ class UpdateRayJobsStatuses(SchedulerTask):
         for job in jobs:
             if self.kill_signal.received:
                 return
-            if job.gpu and update_gpu_jobs:
-                if self.update_job_status(job):
+            if not (update_gpu_jobs if job.gpu else update_ray_jobs):
+                continue
+            try:
+                changed = self.update_job_status(job)
+            except DB_EXCEPTIONS:
+                # Never swallowed: main.py counts consecutive database failures to restart the pod
+                raise
+            except Exception:  # pylint: disable=broad-exception-caught
+                # One broken job must not stop the others from being updated
+                logger.exception("job_id=%s Error updating the job status, skipping it", job.id)
+                continue
+            if changed:
+                if job.gpu:
                     gpu_counter += 1
-            elif not job.gpu and update_ray_jobs:
-                if self.update_job_status(job):
+                else:
                     ray_counter += 1
 
         if ray_counter:

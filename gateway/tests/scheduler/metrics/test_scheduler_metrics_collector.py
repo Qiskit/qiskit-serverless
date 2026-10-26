@@ -34,11 +34,17 @@ class TestFleetsAndCloudCallMetrics:
 
         registry = CollectorRegistry()
         metrics = SchedulerMetrics(registry)
-        metrics.set_fleets_breaker_open(True, "us-east")
-        metrics.set_fleets_breaker_open(False, None)
+        metrics.set_fleets_breaker_open(True, "cleanup", "us-east")
+        metrics.set_fleets_breaker_open(False, "code_engine", None)
 
-        assert registry.get_sample_value("scheduler_fleets_breaker_open", {"region": "us-east"}) == 1
-        assert registry.get_sample_value("scheduler_fleets_breaker_open", {"region": "none"}) == 0
+        assert (
+            registry.get_sample_value("scheduler_fleets_breaker_open", {"dependency": "cleanup", "region": "us-east"})
+            == 1
+        )
+        assert (
+            registry.get_sample_value("scheduler_fleets_breaker_open", {"dependency": "code_engine", "region": "none"})
+            == 0
+        )
 
     def test_the_cloud_call_histograms_take_the_recorder_labels(self):
         from prometheus_client import CollectorRegistry

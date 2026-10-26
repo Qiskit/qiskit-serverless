@@ -2,6 +2,7 @@
 
 from core.models import Job, Program
 from core.services.runners.abstract_runner import (
+    CosRetryableError,
     RunnerError,
     RunnerRetryableError,
     AbstractRunner,

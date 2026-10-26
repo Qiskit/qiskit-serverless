@@ -62,6 +62,9 @@ _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 # a connect plus a read that times out.
 _CANCEL_TIMEOUT_SECONDS = (1, 5)
 
+# (connect, read) for the delete. get_ce_auth turns off urllib3's read retry for a DELETE, so this is the whole wait.
+_DELETE_TIMEOUT_SECONDS = (1, 5)
+
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
 # rather than on the bare 409, so an unrelated conflict still surfaces instead of being read as
 # "nothing to cancel".
@@ -454,30 +457,28 @@ class FleetHandler:
 
         return cancel_sent
 
-    def delete_job(self, identifier: str) -> None:
+    def delete_job(self, identifier: str) -> bool:
         """
         Delete a fleet ("job") by name or UUID without attempting a cancel.
 
-        Args:
-            identifier: Fleet UUID or fleet name.
+        ``False`` means a 404: the fleet is gone, or it never lived in this project, and the two are
+        not distinguishable here.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved.
-            ApiException: If delete_fleet fails with an error other than 404 or 429.
+            ApiException: Anything other than a 404, a 429 included, so the caller owns the backoff.
+            ReadTimeoutError: If Code Engine did not answer within ``_DELETE_TIMEOUT_SECONDS``.
         """
         fleet_id = self._resolve_fleet_id(identifier)
-        while True:
-            try:
-                self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
-                return
-            except ApiException as exc:
-                if exc.status == 404:
-                    return
-                if exc.status == 429:
-                    logger.warning("Rate limited deleting fleet %s — backing off 60s", fleet_id)
-                    time.sleep(60.0)
-                    continue
+        try:
+            self._fleets_api.delete_fleet(
+                project_id=self.project_id, id=fleet_id, _request_timeout=_DELETE_TIMEOUT_SECONDS
+            )
+            return True
+        except ApiException as exc:
+            if exc.status != 404:
                 raise
+            return False
 
     def _wait_until_state(
         self,

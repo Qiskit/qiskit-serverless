@@ -5,6 +5,8 @@ requires-python = ">=3.12"
 
 [tool.black]
 line-length = 120
+# copied from qiskit-function-templates, kept as upstream wrote them
+extend-exclude = "performance/functions/sqd_pcm/"
 
 [tool.pytest.ini_options]
 # Stream logs live so each NTC/gateway access is visible during the run.

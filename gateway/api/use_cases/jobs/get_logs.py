@@ -38,7 +38,7 @@ class GetJobLogsUseCase:
 
         logs_storage = get_logs_storage(job)
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             url = logs_storage.get_public_logs_url()
             if url:
                 logger.info("[jobs-logs] user_id=%s job_id=%s | Redirecting to presigned URL", user.id, job_id)
@@ -60,7 +60,7 @@ class GetJobLogsUseCase:
             if not lines.public_logs:
                 return GetLogsResponse(raw_log="")
 
-            logger.info("Getting logs from runner=%s job_id=%s", job.program.runner, job.id)
+            logger.info("Getting logs from runner=%s job_id=%s", job.runner, job.id)
 
             raw_log = "\n".join(lines.public_logs) + "\n"
             return GetLogsResponse(raw_log=raw_log)

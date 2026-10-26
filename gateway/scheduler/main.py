@@ -10,7 +10,7 @@ from core.models import Config
 from core.services.background_executor import get_background_executor
 from core.services.job_transitions import JobTransitionService
 from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
-from scheduler.schedule import CodeEngineBreakers, FleetsJobCanceller, FleetsJobSubmitter
+from scheduler.schedule import FleetsBreakers, FleetsJobCanceller, FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -18,7 +18,8 @@ from scheduler.kill_signal import KillSignal
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
 from scheduler.tasks.consume_blocked_account_events import ConsumeBlockedAccountEvents
 from scheduler.tasks.export_fleets_breakers import ExportFleetsBreakers
-from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.free_fleets_resources import FreeFleetsResources
+from scheduler.tasks.free_ray_resources import FreeRayResources
 from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
@@ -48,8 +49,8 @@ class Main:
         # One service for every task that changes a job status, so the Kafka producers are created once, and only the
         # scheduler sends the intermediate workload statuses.
         transitions = JobTransitionService(workload_mirror=WorkloadBestEffortMirror())
-        # one breaker per Code Engine region, shared by every task that calls it
-        breakers = CodeEngineBreakers()
+        # one breaker per dependency per region
+        breakers = FleetsBreakers()
         submitter = FleetsJobSubmitter(transitions, breakers)
         canceller = FleetsJobCanceller(transitions, breakers)
 
@@ -66,7 +67,8 @@ class Main:
             OutboxTask(self.kill_signal, self.metrics),
             # after the status updates, so it counts the freshest real jobs
             BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter, canceller),
-            FreeResources(self.kill_signal, self.metrics),  # Ray only
+            FreeRayResources(self.kill_signal, self.metrics),
+            FreeFleetsResources(self.kill_signal, self.metrics, breakers),
             # last, so it sees the breakers every Fleets task touched in this tick
             ExportFleetsBreakers(self.metrics, breakers),
         ]
