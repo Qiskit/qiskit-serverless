@@ -512,7 +512,19 @@ class BlockedCloudResource(models.Model):
     row identity comes from id, never from a business column. The three columns
     are nullable so that narrower rule shapes (e.g., account-only) can be added
     later without a migration.
+
+    Each limit billing-service enforces blocks on its own, and the Event Streams region it was
+    reported from is kept with it: a resource can have one row per reason and region, an unblock
+    removes only its own row, and any row left still blocks the resource.
     """
+
+    # Reasons, one per billing-service topic
+    TOTAL = "total"
+    NON_QUANTUM = "non_quantum"
+    REASONS = [
+        (TOTAL, "Total"),
+        (NON_QUANTUM, "Non-quantum"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -521,6 +533,8 @@ class BlockedCloudResource(models.Model):
     account = models.CharField(max_length=255, null=True, blank=True, default=None)
     plan = models.CharField(max_length=255, null=True, blank=True, default=None)
     subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+    reason = models.CharField(max_length=20, choices=REASONS, help_text="Which limit blocked the resource")
+    region = models.CharField(max_length=50, help_text="Event Streams region that reported the block")
 
     class Meta:
         app_label = "api"
@@ -533,6 +547,8 @@ class BlockedCloudResource(models.Model):
                 Coalesce("account", Value("")),
                 Coalesce("plan", Value("")),
                 Coalesce("subscription", Value("")),
+                F("reason"),
+                F("region"),
                 name="unique_blocked_resource",
             ),
             models.CheckConstraint(
@@ -551,6 +567,8 @@ class BlockedCloudResource(models.Model):
             parts.append(f"plan={self.plan}")
         if self.subscription:
             parts.append(f"subscription={self.subscription}")
+        parts.append(f"reason={self.reason}")
+        parts.append(f"region={self.region}")
         return f"BlockedCloudResource({', '.join(parts)})"
 
     @classmethod
@@ -561,7 +579,8 @@ class BlockedCloudResource(models.Model):
     @classmethod
     def blocked_jobs_filter(cls) -> models.Q | None:
         """A Job filter matching the jobs blocks() would block, or None when nothing is blocked."""
-        rows = cls.objects.values_list("account", "plan", "subscription")
+        # distinct: a resource blocked for more than one reason or region has a row for each
+        rows = cls.objects.values_list("account", "plan", "subscription").distinct()
         jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
         return reduce(operator.or_, jobs) if jobs else None
 
