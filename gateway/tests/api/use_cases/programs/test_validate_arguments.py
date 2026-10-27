@@ -17,6 +17,7 @@ from api.domain.arguments_schema import (
     exceeds_max_nodes,
     validate_arguments_in_isolation,
 )
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from api.use_cases.programs.validate_arguments import MAX_MESSAGE_LENGTH, ValidateArgumentsUseCase, validate_arguments
@@ -781,8 +782,10 @@ class TestValidateArgumentsUseCase:
         with pytest.raises(FunctionNotFoundException):
             ValidateArgumentsUseCase().execute(user, accessible, "nonexistent-fn", None, "{}")
 
-    def test_raises_not_found_when_no_permission_for_custom_function(self, user):
+    def test_raises_not_entitled_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
 
-        with pytest.raises(FunctionNotFoundException):
+        with pytest.raises(CustomFunctionNotEntitledException) as exc_info:
             ValidateArgumentsUseCase().execute(user, accessible, "my-fn", None, "{}")
+
+        assert "function-custom.run" in str(exc_info.value)
