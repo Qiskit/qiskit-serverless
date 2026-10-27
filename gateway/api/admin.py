@@ -129,6 +129,7 @@ class ProviderAdmin(admin.ModelAdmin):
 
     search_fields = ["name", "code_engine_project__project_name"]
     list_display = ["name", "code_engine_project"]
+    list_select_related = ["code_engine_project"]
     filter_horizontal = ["admin_groups"]
 
 
@@ -399,15 +400,12 @@ class ProgramAdmin(admin.ModelAdmin):
         "disabled",
     ]
 
+    # Columns shown in the list, plus default_size for `sizes_summary`.
+    list_select_related = ["default_size", "provider", "author"]
+
     def get_queryset(self, request):
-        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
-        # so rendering the default's label does not fire a query per row.
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("default_size")
-            .annotate(declared_sizes_count=Count("function_sizes"))
-        )
+        # Count the size rows once per changelist for `sizes_summary`.
+        return super().get_queryset(request).annotate(declared_sizes_count=Count("function_sizes"))
 
     @admin.display(description="Sizes", ordering="declared_sizes_count")
     def sizes_summary(self, obj):
@@ -1013,6 +1011,7 @@ class JobEventAdmin(admin.ModelAdmin):
     """JobEventAdmin."""
 
     list_display = ("created", "job", "event_type", "origin", "context")
+    list_select_related = ["job"]
     date_hierarchy = "created"
 
 

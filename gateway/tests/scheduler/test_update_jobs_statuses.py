@@ -71,6 +71,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.latest_event_at"),
             patch(f"{_MOD}.save_logs_to_storage"),
             patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
@@ -92,6 +93,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.latest_event_at"),
             patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
         ):
@@ -125,7 +127,7 @@ class TestRunSkipsBrokenJob:
             patch(f"{_MOD}.Job.objects") as objects,
             patch.object(task, "update_job_status", side_effect=[NotImplementedError, True]) as update,
         ):
-            objects.filter.return_value.exclude.return_value = [broken, healthy]
+            objects.filter.return_value.exclude.return_value.select_related.return_value = [broken, healthy]
             task.run()
 
         assert update.call_count == 2
@@ -138,7 +140,10 @@ class TestRunSkipsBrokenJob:
             patch(f"{_MOD}.Job.objects") as objects,
             patch.object(task, "update_job_status", side_effect=OperationalError) as update,
         ):
-            objects.filter.return_value.exclude.return_value = [_make_ray_job(), _make_ray_job()]
+            objects.filter.return_value.exclude.return_value.select_related.return_value = [
+                _make_ray_job(),
+                _make_ray_job(),
+            ]
             with pytest.raises(OperationalError):
                 task.run()
 
