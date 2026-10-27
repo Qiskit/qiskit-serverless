@@ -322,6 +322,18 @@ Fleets job could not be stopped from the backoffice at all. The job is billed
 for what it really ran, the same as a stop from the client.</p></li>
 </ul>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/v1/programs/run/</span></code> now returns a <code class="docutils literal notranslate"><span class="pre">warning</span></code> field when the
+account, plan and subscription of the request are blocked. The job is still
+queued, but it will not start until the block is lifted. The field is left
+out when nothing is blocked.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code>
+now shows the gateway’s warning with <code class="xref py py-func docutils literal notranslate"><span class="pre">warnings.warn()</span></code>, so a user whose
+account is blocked knows why the job is not starting. With an older gateway
+nothing changes.</p></li>
+</ul>
+<ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BackgroundExecutor.discard(pool,</span> <span class="pre">replace_key)</span></code> removes a task that is still waiting in the queue under that
 <code class="docutils literal notranslate"><span class="pre">replace_key</span></code>, so a result that is no longer needed does not take a thread. A task that already started is
 never touched. The discarded task is counted as <code class="docutils literal notranslate"><span class="pre">canceled</span></code>.</p></li>

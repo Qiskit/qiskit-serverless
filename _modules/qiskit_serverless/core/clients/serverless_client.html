@@ -673,6 +673,9 @@
             <span class="n">job_id</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"id"</span><span class="p">)</span>
             <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">"job.id"</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"warning"</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">"warning"</span><span class="p">],</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">Job</span><span class="p">(</span>
             <span class="n">job_id</span><span class="p">,</span>
             <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
