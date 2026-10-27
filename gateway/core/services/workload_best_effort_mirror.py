@@ -13,7 +13,7 @@ from prometheus_client import Counter
 
 from core.clients.functions_operator_client import get_functions_operator_client
 from core.domain.workload_payload import (
-    _WORKLOAD_STATUS_MAPPING,
+    WORKLOAD_STATUS_MAPPING,
     build_workload_payload,
     is_mirrored,
     should_be_mirrored,
@@ -96,7 +96,7 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
         if not should_be_mirrored(job):
             return
 
-        status = _WORKLOAD_STATUS_MAPPING.get(job.status)
+        status = WORKLOAD_STATUS_MAPPING.get(job.status)
         try:
             if not is_mirrored(job):
                 return

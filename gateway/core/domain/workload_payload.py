@@ -21,7 +21,7 @@ CUSTOM_FUNCTIONS = "custom"  # entry of the mirror setting that stands for the f
 
 # Seven job states here, seven labels on the Runtime API side. The order the Runtime API enforces is
 # Queued < Pending < Running < Stopping < the terminal ones.
-_WORKLOAD_STATUS_MAPPING = {
+WORKLOAD_STATUS_MAPPING = {
     Job.QUEUED: "Queued",
     Job.PENDING: "Pending",
     Job.RUNNING: "Running",
@@ -83,7 +83,7 @@ def build_workload_payload(job: Job) -> dict:
             "provider": provider.name if provider else None,
             "crn": job.instance_crn,
             "user_id": job.author.username,
-            "status": _WORKLOAD_STATUS_MAPPING[job.status],
+            "status": WORKLOAD_STATUS_MAPPING[job.status],
             "compute_profile": job.compute_profile_id,
             "size": job.size_label,
             "created_at": created_at.isoformat() if created_at else None,
