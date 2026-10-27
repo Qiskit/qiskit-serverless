@@ -116,6 +116,14 @@ class Provider(models.Model):
     def __str__(self):
         return f"{self.name}"
 
+    def clean(self):
+        """Keep a provider off the shared default project, which only takes custom functions without one."""
+        super().clean()
+        if self.code_engine_project and self.code_engine_project.project_name == settings.CE_DEFAULT_PROJECT_NAME:
+            raise ValidationError(
+                {"code_engine_project": "This is the shared default project. A provider needs its own project."}
+            )
+
 
 class Program(ExportModelOperationsMixin("program"), models.Model):
     """Program model."""
