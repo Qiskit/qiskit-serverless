@@ -496,6 +496,11 @@ instance CRN can fail with a <code class="docutils literal notranslate"><span cl
 Runtime API does not accept the job. Retrying the request later is safe.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The function list is now ordered by title, and the jobs of a function
+(<code class="docutils literal notranslate"><span class="pre">/programs/&lt;id&gt;/get_jobs</span></code>) are now ordered newest first, like the job
+list. Both had no fixed order before.</p></li>
+</ul>
+<ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">scheduler_loop_duration_seconds</span></code> and <code class="docutils literal notranslate"><span class="pre">scheduler_task_duration_seconds</span></code>
 now have buckets up to 30 minutes. The old buckets stopped at 10 seconds.</p></li>
 </ul>
@@ -573,6 +578,13 @@ map, changed the size of every job still running with it, so the license fee was
 size’s rate or waived. <code class="docutils literal notranslate"><span class="pre">Job.function_size</span></code> is kept as a link to the catalog row.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The scheduler no longer hides a database error in the Fleets status loop,
+so a database outage restarts it as intended.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The Ray timeout check no longer fails for a running job with no events.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now measures the duration of its loop, its tasks and its
 internal waits with a monotonic clock instead of the wall clock, so a clock
 adjustment (NTP correction, VM pause) can no longer show up as a very long
@@ -606,6 +618,10 @@ token cache. The gateway does not record it.</p></li>
 <li><p>The IAM token used for Cloud Object Storage and the Runtime API is now
 renewed in a background thread when less than 40% of its life, or 10
 minutes, is left, so a request no longer waits for the renewal.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The gateway and the scheduler make fewer database queries: lists and
+scheduler loops no longer run one extra query per row.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_fleet_deletes_total</span></code>, the fleet
