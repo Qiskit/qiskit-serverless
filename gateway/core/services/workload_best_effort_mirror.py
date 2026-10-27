@@ -98,6 +98,8 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
             replace_key = f"job:{job.id}"
             executor = get_background_executor()
             if not executor.would_accept(BackgroundPool.RUNTIME_API, replace_key):
+                # We did what we could, but it couldn't be sent... message is lost,
+                # that's what best effort is all about...
                 _count(status, "dropped")
                 return
             envelope = build_workload_payload(job)
