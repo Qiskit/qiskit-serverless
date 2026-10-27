@@ -6,10 +6,10 @@ import pytest
 
 from core.config_key import ConfigKey
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.model_managers.job_events import JobEventContext
-from core.models import BlockedCloudResource, Config, Job, Program
+from core.model_managers.job_events import JobEventContext, JobEventType
+from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.services.runners import RunnerError, RunnerRetryableError
-from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
+from scheduler.tasks.stop_blocked_fleets_jobs import BLOCKED_RESOURCE_ERROR_CODE, StopBlockedFleetsJobs
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
@@ -30,6 +30,10 @@ def _make_task():
     canceller.paused.return_value = False
     canceller.cancel.return_value = True
     return StopBlockedFleetsJobs(kill_signal, canceller)
+
+
+def _error_events(job):
+    return list(JobEvent.objects.filter(job=job, event_type=JobEventType.ERROR))
 
 
 def _make_job(status=Job.RUNNING, **fields):
@@ -112,3 +116,35 @@ def test_a_cancel_that_does_not_land_writes_nothing_and_the_next_job_is_still_tr
 
     assert task.canceller.cancel.call_count == 2
     task.canceller.transitions.to_stopped.assert_not_called()
+
+
+def test_the_error_code_is_the_one_the_client_reads():
+    assert BLOCKED_RESOURCE_ERROR_CODE == "BLOCKED_RESOURCE"
+
+
+@pytest.mark.parametrize("cancelled", [True, False])
+def test_a_stopped_job_gets_an_error_event_naming_the_block(cancelled):
+    task = _make_task()
+    task.canceller.cancel.return_value = cancelled
+    job = _make_job()
+
+    task.run()
+
+    [event] = _error_events(job)
+    assert event.context == JobEventContext.BLOCKED_RESOURCE_STOP
+    assert event.data["code"] == BLOCKED_RESOURCE_ERROR_CODE
+    assert "blocked" in event.data["message"]
+    assert event.data["args"] == {"account_id": "acct", "plan_id": "plan", "subscription_id": "sub"}
+
+
+@pytest.mark.parametrize(
+    "error", [RunnerRetryableError("429"), RunnerError("no project"), InvalidJobTransitionException("lost race")]
+)
+def test_a_cancel_that_does_not_land_writes_no_error_event(error):
+    task = _make_task()
+    task.canceller.cancel.side_effect = error
+    job = _make_job()
+
+    task.run()
+
+    assert not _error_events(job)
