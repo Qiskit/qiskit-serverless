@@ -67,7 +67,7 @@ from qiskit_serverless.utils import ServerlessRuntimeService
 logger = logging.getLogger(__name__)
 
 _FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
-_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 32, 60)
+_BACKOFF_SECONDS = (1, 2, 4, 8, 16, 30)
 _BACKOFF_JITTER = 0.1
 _RETRY_SECONDS = 300
 _MIN_POLL_INTERVAL_SECONDS = 1
@@ -274,25 +274,44 @@ class Job:
 
         return error_result
 
-    def result(self, wait=True, cadence=30, verbose=False, maxwait=0):
-        """Return results of the job.
+    def result(
+        self,
+        wait: bool = True,
+        cadence: Optional[float] = None,
+        verbose: bool = False,
+        maxwait: int = 0,
+        timeout: Optional[float] = None,
+    ):
+        """Return the results of the job, waiting first with :meth:`wait_for_final_state` when ``wait`` is set.
+
         Args:
-            wait: flag denoting whether to wait for the
-                job result to be populated before returning
-            cadence: time to wait between checking if job has
-                been terminated
-            verbose: flag denoting whether to log a heartbeat
-                while waiting for job result to populate
+            wait: wait until the job ends before reading the results.
+            cadence: fixed seconds between status checks instead of the backoff, like ``poll_interval``.
+            verbose: print the status changes while waiting, like :meth:`wait_for_final_state`.
+            maxwait: deprecated, use ``timeout``. Waits at most ``maxwait`` times ``cadence`` seconds, then reads the
+                results anyway.
+            timeout: seconds to wait. ``None`` waits until the job ends.
+
+        Raises:
+            TimeoutError: if the job does not end within ``timeout``. The job keeps running.
+            QiskitServerlessException: if the job ends in ERROR, or a status check fails.
         """
-        if wait:
-            if verbose:
-                logging.info("Waiting for job result.")
-            count = 0
-            while not self.in_terminal_state() and (maxwait == 0 or count < maxwait):
-                count += 1
-                time.sleep(cadence)
-                if verbose:
-                    logging.info(count)
+        if maxwait:
+            warnings.warn(
+                "`maxwait` is deprecated and will be removed in a future release. Use `timeout` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if timeout is not None:
+                raise ValueError("Pass either `maxwait` or `timeout`, not both.")
+        if wait and maxwait:
+            cadence = 30 if cadence is None else cadence
+            try:
+                self.wait_for_final_state(timeout=maxwait * cadence, poll_interval=cadence, verbose=verbose)
+            except TimeoutError:
+                pass
+        elif wait:
+            self.wait_for_final_state(timeout=timeout, poll_interval=cadence, verbose=verbose)
 
         if self.status() == "ERROR":
             error_message = self.error_message()
@@ -325,7 +344,7 @@ class Job:
     ) -> str:
         """Wait until the job is DONE, ERROR or CANCELED, and return that status.
 
-        By default it checks after 1, 2, 4, 8, 16 and 32 s, then every 60 s, and starts again from 1 s when the
+        By default it checks after about 1, 2, 4, 8 and 16 s, then about every 30 s, and starts again from 1 s when the
         main status changes or the job enters post-processing. A fixed ``poll_interval`` (at least 1 s) replaces
         that backoff. Short network errors and 429, 502, 503 or 504 answers are retried.
 
@@ -364,12 +383,7 @@ class Job:
                 if failing_since is None:
                     failing_since = time.monotonic()
                 give_up = failing_since + _RETRY_SECONDS if deadline is None else deadline
-                if not is_transient_error(error) or time.monotonic() >= give_up:
-                    raise
-                logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
-                if verbose:
-                    code = getattr(error, "_code", None)
-                    print(f"{_elapsed(start)}  status check failed ({code}), retrying", flush=True)
+                self._raise_unless_transient(error, give_up, start, verbose)
                 time.sleep(_next_wait(step, give_up, poll_interval))
                 step += 1
                 continue
@@ -387,6 +401,16 @@ class Job:
                 raise TimeoutError(f"Job {self.job_id} is still {status} after {timeout} s.")
             time.sleep(_next_wait(step, deadline, poll_interval))
             step += 1
+
+    def _raise_unless_transient(
+        self, error: QiskitServerlessException, give_up: float, start: float, verbose: bool
+    ) -> None:
+        """Raise the error unless it is transient and there is time left to retry."""
+        if not is_transient_error(error) or time.monotonic() >= give_up:
+            raise error
+        logger.info("Status check for job %s failed, retrying: %s", self.job_id, error)
+        if verbose:
+            print(f"{_elapsed(start)}  status check failed ({getattr(error, '_code', None)}), retrying", flush=True)
 
     def _print_error_message(self):
         """Print why the job failed. A failure to fetch it does not change the result of the wait."""
@@ -576,7 +600,7 @@ def _next_wait(step: int, deadline: Optional[float], poll_interval: Optional[flo
         wait = max(float(poll_interval), _MIN_POLL_INTERVAL_SECONDS)
     else:
         base = _BACKOFF_SECONDS[min(step, len(_BACKOFF_SECONDS) - 1)]
-        wait = base * random.uniform(1 - _BACKOFF_JITTER, 1 + _BACKOFF_JITTER)
+        wait = base * random.uniform(1 - _BACKOFF_JITTER, 1)
     if deadline is not None:
         wait = min(wait, max(deadline - time.monotonic(), 0))
     return wait

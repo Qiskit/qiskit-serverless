@@ -8,13 +8,13 @@ features:
         job.wait_for_final_state(timeout=600)
         # 'DONE'
 
-    It checks the status after 1, 2, 4, 8, 16 and 32 seconds, then every 60
+    It checks the status after 1, 2, 4, 8 and 16 seconds, then every 30
     seconds, and starts again from 1 second when the main status changes or the
     job enters post-processing. So a short job is seen within seconds, and a
     long job makes fewer requests than a loop that checks every few seconds. If
-    the status does not change for a while, the end can be seen up to about 60
-    seconds late. ``poll_interval`` sets a fixed interval instead, of at least 1
-    second.
+    the status does not change for a while, the end can be seen up to about 30
+    seconds late. ``poll_interval`` sets a fixed interval instead, of at least
+    1 second.
 
     A ``timeout`` raises ``TimeoutError`` and never cancels the job. Short
     network errors and ``429``, ``502``, ``503`` or ``504`` answers are retried

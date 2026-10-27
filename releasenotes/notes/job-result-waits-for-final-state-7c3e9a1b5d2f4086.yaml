@@ -1,0 +1,25 @@
+---
+features:
+  - |
+    :meth:`~qiskit_serverless.core.job.Job.result` now waits with
+    :meth:`~qiskit_serverless.core.job.Job.wait_for_final_state`, so it gets the
+    same backoff and the same retries on short network errors and ``429``,
+    ``502``, ``503`` or ``504`` answers. It also takes a new ``timeout``
+    argument, which raises ``TimeoutError`` and never cancels the job::
+
+        job.result(timeout=600)
+upgrade:
+  - |
+    :meth:`~qiskit_serverless.core.job.Job.result` no longer checks every 30
+    seconds by default. It checks after 1, 2, 4, 8 and 16 seconds, then every
+    30 seconds, so a short job returns within seconds. ``cadence`` still sets a
+    fixed interval. ``verbose=True`` now prints the status changes instead of
+    logging a counter.
+deprecations:
+  - |
+    The ``maxwait`` argument of :meth:`~qiskit_serverless.core.job.Job.result`
+    is deprecated. Use ``timeout`` instead, which sets the wait in seconds and
+    raises ``TimeoutError`` when it runs out. Until it is removed, ``maxwait``
+    waits at most ``maxwait`` times ``cadence`` seconds, then reads the results
+    anyway, as before. ``maxwait`` and ``timeout`` together raise
+    ``ValueError``.
