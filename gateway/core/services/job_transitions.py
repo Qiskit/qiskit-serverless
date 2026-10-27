@@ -302,14 +302,14 @@ class JobTransitionService:
         A job transitioning to terminal in this same scheduler tick will produce both an in-progress and a
         completed event; consumers key on the job_started / job_completed flags.
         """
-        # send(timeout=0) never raises, but it is caught anyway in case a sender implementation changes in the future
+        if job.filler:
+            return
         try:
-            if job.filler:
-                return
             job_started_at = JobEvent.objects.first_running_at(job.id)
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
-            # timeout=0: send and return at once, without waiting for the ack or a flush
+            # timeout=0: send and return at once, without waiting for the ack or a flush. It never raises error,
+            # but it is caught anyway in case a sender implementation changes in the future
             self.sender.send(payload, timeout=0)
         except RuntimeError as ex:
             # never expected: the sender already drops and logs its own failures
