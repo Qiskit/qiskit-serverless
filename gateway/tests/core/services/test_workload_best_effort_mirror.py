@@ -87,7 +87,7 @@ def test_happy_path_submits_the_envelope_and_the_task_puts_it(
 
     executor.submit.assert_called_once()
     call = executor.submit.call_args
-    assert call.args[:2] == (BackgroundPool.RUNTIME_API, workload_best_effort_mirror._put)
+    assert call.args[:2] == (BackgroundPool.RUNTIME_API, workload_best_effort_mirror._put_background_task)
     function_id, body, sent_status = call.args[2:]
     assert function_id == str(job.id)
     assert body["status"] == status
@@ -96,7 +96,7 @@ def test_happy_path_submits_the_envelope_and_the_task_puts_it(
     executor.would_accept.assert_called_once_with(BackgroundPool.RUNTIME_API, f"job:{job.id}")
 
     with django_assert_num_queries(0):
-        workload_best_effort_mirror._put(function_id, body, sent_status)
+        workload_best_effort_mirror._put_background_task(function_id, body, sent_status)
 
     client.put_function.assert_called_once_with(function_id, body, timeout=3)
     assert _count(status, "sent") == sent_before + 1
@@ -147,7 +147,7 @@ def test_the_task_swallows_a_put_failure_and_counts_failed(client):
     client.put_function.side_effect = RuntimeError("boom")
     before = _count("Running", "failed")
 
-    workload_best_effort_mirror._put("fid", {"crn": CRN}, "Running")
+    workload_best_effort_mirror._put_background_task("fid", {"crn": CRN}, "Running")
 
     assert _count("Running", "failed") == before + 1
 

@@ -12,7 +12,12 @@ from django.db.utils import InterfaceError, OperationalError
 from prometheus_client import Counter
 
 from core.clients.functions_operator_client import get_functions_operator_client
-from core.domain.workload_payload import _STATUS, build_workload_payload, is_mirrored, should_be_mirrored
+from core.domain.workload_payload import (
+    _WORKLOAD_STATUS_MAPPING,
+    build_workload_payload,
+    is_mirrored,
+    should_be_mirrored,
+)
 from core.models import Job
 from core.services.background_executor import (
     BackgroundExecutorNotInitializedError,
@@ -47,7 +52,7 @@ def _count(status: str | None, outcome: str) -> None:
         _MIRROR.labels(status, outcome).inc()
 
 
-def _put(function_id: str, body: dict, status: str) -> None:
+def _put_background_task(function_id: str, body: dict, status: str) -> None:
     """The task of the pool: network only, never the ORM, and it never raises."""
     try:
         get_functions_operator_client().put_function(function_id, body, timeout=_PUT_TIMEOUT)
@@ -91,7 +96,7 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
         if not should_be_mirrored(job):
             return
 
-        status = _STATUS.get(job.status)
+        status = _WORKLOAD_STATUS_MAPPING.get(job.status)
         try:
             if not is_mirrored(job):
                 return
@@ -105,7 +110,7 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
             envelope = build_workload_payload(job)
             future = executor.submit(
                 BackgroundPool.RUNTIME_API,
-                _put,
+                _put_background_task,
                 envelope["function_id"],
                 envelope["body"],
                 status,
