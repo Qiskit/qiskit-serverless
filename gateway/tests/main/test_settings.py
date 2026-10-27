@@ -143,6 +143,11 @@ def test_postgres_reuses_connections_with_health_checks_and_a_tcp_timeout(monkey
     assert database["CONN_HEALTH_CHECKS"] is True
     assert database["OPTIONS"]["tcp_user_timeout"] == 30000
 
+    monkeypatch.delenv("DATABASE_CONN_MAX_AGE")
+    importlib.reload(main.settings)
+
+    assert main.settings.DATABASES["default"]["CONN_MAX_AGE"] == 0
+
 
 def test_template_dirs_use_etc_gateway_not_tmp():
     """The extra template dir must be /etc/gateway/templates, never /tmp.

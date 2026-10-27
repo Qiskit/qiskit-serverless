@@ -4,11 +4,13 @@ upgrade:
     The gateway and the scheduler now reuse each database connection for up
     to 60 seconds, instead of opening a new one for every request and every
     scheduler loop. Set ``application.database.connMaxAge`` in the gateway
-    chart to change it. ``0`` restores the old behaviour. Each gunicorn thread
-    keeps one connection, so the gateway holds ``pods x workers x threads``
-    connections even when it is idle, and the scheduler holds one.
+    chart, or ``DATABASE_CONN_MAX_AGE`` without the chart, to change it. ``0``
+    restores the old behaviour and is the default without the chart. Each
+    gunicorn thread keeps one connection, so the gateway holds
+    ``pods x workers x threads`` connections even when it is idle, and the
+    scheduler holds one.
 fixes:
   - |
     A database connection that the network drops without a reply now fails
-    after at most 30 seconds, and a connection attempt after 10 seconds,
+    after about 40 seconds, and a connection attempt after 10 seconds,
     instead of hanging for many minutes.
