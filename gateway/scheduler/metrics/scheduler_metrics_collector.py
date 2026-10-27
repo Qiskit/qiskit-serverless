@@ -14,6 +14,7 @@ from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 _TICK_BUCKETS_UP_TO_30_MIN = (0.01, 0.025, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1200, 1800)
 TICK_BUCKETS = _TICK_BUCKETS_UP_TO_30_MIN + (3600, 7200, 14400, float("inf"))
 CLOUD_CALL_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, float("inf"))
+FLEET_DELETE_OUTCOMES = ("deleted", "failed", "gave_up")
 
 
 class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
@@ -48,6 +49,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             "Items a scheduler task handled (jobs submitted, jobs whose status was checked). Divide the rate of "
             "scheduler_task_duration_seconds_sum by the rate of this to get the cost per item.",
             labelnames=("task_name",),
+            registry=self.registry,
+        )
+        self.fleet_deletes_total = Counter(
+            "scheduler_fleet_deletes_total",
+            "Fleet deletes Code Engine answered, by project and outcome (deleted, failed or gave_up). A 429 or a "
+            "timeout is not counted, it shows on scheduler_fleets_breaker_open.",
+            labelnames=("project", "outcome"),
             registry=self.registry,
         )
         self.fleets_jobs_skipped_by_breaker_total = Counter(
@@ -254,6 +262,15 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         """Count the items a task handled in a tick. A zero count is not recorded."""
         if count > 0:
             self.task_items_total.labels(task_name=task_name).inc(count)
+
+    def init_fleet_deletes(self, project: str) -> None:
+        """Create a project's delete series at 0, so the first failure shows in increase() and rate()."""
+        for outcome in FLEET_DELETE_OUTCOMES:
+            self.fleet_deletes_total.labels(project=project, outcome=outcome)
+
+    def increment_fleet_deletes(self, project: str, outcome: str) -> None:
+        """Count one fleet delete, outcome one of FLEET_DELETE_OUTCOMES. gave_up is the attempt that hit the limit."""
+        self.fleet_deletes_total.labels(project=project, outcome=outcome).inc()
 
     def increment_fleets_jobs_skipped_by_breaker(self, region: str | None, count: int = 1) -> None:
         """Count queued Fleets jobs not submitted because their region's breaker was open."""

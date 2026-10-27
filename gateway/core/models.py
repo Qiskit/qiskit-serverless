@@ -29,7 +29,7 @@ from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
-from core.model_managers.jobs import JobQuerySet
+from core.model_managers.jobs import UNASSIGNED_PROJECT, JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
 logger = logging.getLogger("core.models")
@@ -842,6 +842,11 @@ class Job(models.Model):
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
+
+    @property
+    def fleet_project(self) -> str:
+        """The project this job's fleet counts under in the fleet metrics."""
+        return self.ce_project_name or UNASSIGNED_PROJECT
 
     @property
     def fleet_region(self) -> str | None:
