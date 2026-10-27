@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    The IAM token, Resource Controller, Access Groups and JWKS keys calls that
+    check a user now use the ``IBM_CLOUD_API_TIMEOUT`` setting (default 10
+    seconds). Before, they waited up to 60 seconds, or 30 seconds for the JWKS
+    keys, so a slow IBM Cloud could block a gateway worker for that long. A
+    timeout returns a 503 that asks the user to try again. A value of 0 or less
+    now stops the gateway at boot.

@@ -40,7 +40,9 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
     end-points that we will make use of them in this service.
     """
 
-    jwks_client = PyJWKClient(f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/keys")
+    jwks_client = PyJWKClient(
+        f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/keys", timeout=settings.IBM_CLOUD_API_TIMEOUT
+    )
 
     def __init__(self, api_key: str, crn: str):
         self.iam_url = settings.IAM_IBM_CLOUD_BASE_URL
@@ -50,7 +52,9 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         self.api_key = api_key
         self.api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         self.crn = crn
+        self.http_config = {"timeout": settings.IBM_CLOUD_API_TIMEOUT}
         self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
+        self.authenticator.token_manager.http_config = self.http_config
         self.account_id: Optional[str] = None
         self.iam_id: Optional[str] = None
         self.plan_id: Optional[str] = None
@@ -194,6 +198,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         try:
             resource_controller = ResourceControllerV2(self.authenticator)
             resource_controller.set_service_url(self.resource_controller_url)
+            resource_controller.set_http_config(self.http_config)
             instance = resource_controller.get_resource_instance(id=self.crn).get_result()
         except requests.exceptions.RequestException as request_exception:
             # A timeout or connection error reaching the Resource Controller is a
@@ -242,6 +247,7 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
         try:
             access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
             access_groups_service.set_service_url(self.iam_url)
+            access_groups_service.set_http_config(self.http_config)
             access_groups_response = access_groups_service.list_access_groups(account_id=self.account_id).get_result()
         except requests.exceptions.RequestException as request_exception:
             # Access Groups was unreachable or timed out. Returning no groups here would
