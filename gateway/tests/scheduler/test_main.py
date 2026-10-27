@@ -107,6 +107,16 @@ class TestMain:
         assert called == True
         assert task.run.call_count == 1
 
+    def test_each_loop_runs_the_per_request_connection_check(self):
+        task = MagicMock()
+        task.run.side_effect = lambda: setattr(self.scheduler_main.kill_signal, "received", True)
+        self.scheduler_main.tasks = [task]
+
+        with patch("scheduler.main.close_old_connections") as close_old:
+            self.scheduler_main.run()
+
+        close_old.assert_called_once_with()
+
     def test_every_task_is_closed_once_the_loop_finishes(self):
         """So the Kafka consumers leave their groups instead of holding partitions after shutdown."""
 
