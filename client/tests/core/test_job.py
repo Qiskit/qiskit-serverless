@@ -33,6 +33,7 @@ from qiskit_serverless.core.constants import (
     RESULTS_PATH,
 )
 from qiskit_serverless.core.job import (
+    BLOCKED_RESOURCE_ERROR_CODE,
     Job,
     is_running_in_serverless,
     save_result,
@@ -406,6 +407,49 @@ class TestJobResult:
         expected_error_msg = "\n| Message: Job execution failed\n| Code: M123\n| Exception: ServerlessError\n| Details:\n|   - my-args: 123"
         assert expected_error_msg == str(exc_info.value)
         assert expected_error_msg == job.error_message()
+
+    @staticmethod
+    def _cancelled_job(*error_codes):
+        mock_service = Mock()
+        mock_service.status.return_value = "CANCELED"
+        mock_service.result.return_value = '{"partial": 1}'
+        mock_service.events.return_value = [
+            JobEvent(
+                event_type="ERROR",
+                origin="SCHEDULER",
+                context="Mock",
+                created="",
+                data={"message": f"message for {code}", "exception": "Error", "code": code},
+            )
+            for code in error_codes
+        ]
+        return Job(job_id="test-job", job_service=mock_service), mock_service
+
+    def test_the_blocked_resource_code_is_the_one_the_gateway_writes(self):
+        assert BLOCKED_RESOURCE_ERROR_CODE == "BLOCKED_RESOURCE"
+
+    def test_result_raises_for_a_job_cancelled_because_its_resource_is_blocked(self):
+        job, mock_service = self._cancelled_job("FLEET_LEFT_RUNNING", BLOCKED_RESOURCE_ERROR_CODE)
+
+        with pytest.raises(QiskitServerlessException, match=f"message for {BLOCKED_RESOURCE_ERROR_CODE}"):
+            job.result(wait=False)
+
+        mock_service.events.assert_called_once_with("test-job", type="ERROR")
+        mock_service.result.assert_not_called()
+
+    @pytest.mark.parametrize("error_codes", [(), ("FLEET_LEFT_RUNNING",)])
+    def test_result_returns_as_before_for_any_other_cancelled_job(self, error_codes):
+        job, _ = self._cancelled_job(*error_codes)
+
+        assert job.result(wait=False) == {"partial": 1}
+
+    def test_result_does_not_read_events_for_a_job_that_succeeded(self):
+        mock_service = Mock()
+        mock_service.status.return_value = "DONE"
+        mock_service.result.return_value = '{"ok": 1}'
+
+        assert Job(job_id="test-job", job_service=mock_service).result(wait=False) == {"ok": 1}
+        mock_service.events.assert_not_called()
 
 
 class TestJobInTerminalState:

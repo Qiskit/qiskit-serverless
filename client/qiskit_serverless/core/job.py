@@ -67,6 +67,8 @@ from qiskit_serverless.utils import ServerlessRuntimeService
 logger = logging.getLogger(__name__)
 
 _FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
+# The code the gateway writes on a job it cancelled because its account, plan or subscription is blocked
+BLOCKED_RESOURCE_ERROR_CODE = "BLOCKED_RESOURCE"
 _BACKOFF_SECONDS = (1, 2, 4, 8, 16, 32, 60)
 _BACKOFF_JITTER = 0.1
 _RETRY_SECONDS = 300
@@ -300,6 +302,11 @@ class Job:
                 raise QiskitServerlessException(error_message)
 
             raise QiskitServerlessException(self.filtered_logs(include=r"(?i)error|exception"))
+
+        if self.status() == "CANCELED":
+            for event in self.events(type="ERROR"):
+                if event.data.get("code") == BLOCKED_RESOURCE_ERROR_CODE:
+                    raise QiskitServerlessException(format_err_event(event))
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._job_service.result(self.job_id)
