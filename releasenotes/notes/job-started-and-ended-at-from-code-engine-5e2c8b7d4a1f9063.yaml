@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    The moment a job running on IBM Cloud Code Engine starts running, and the moment it ends, are now the
+    time Code Engine wrote the ``running`` and the terminal state of its task, read from the task store,
+    instead of the time the scheduler noticed them. They are stored in ``Job.running_started_at`` and in
+    the new ``Job.ended_at``, and the start and the end sent to billing and to the Runtime API are read from
+    them, so both ends of a billed duration come from the same clock. They fall back to the time the
+    scheduler noticed when the task store cannot be read, and a job ended by the scheduler itself (a timeout,
+    a stop that was not confirmed) has no Code Engine time.
+    The job events keep the time the scheduler wrote them: the job timeline does not change.
+upgrade:
+  - |
+    This adds a database migration that only adds the nullable column ``ended_at`` to ``Job`` and needs no
+    downtime. ``running_started_at`` already exists. Jobs that have neither field keep using their status
+    events.

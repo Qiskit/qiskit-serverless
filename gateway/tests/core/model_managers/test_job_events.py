@@ -4,8 +4,6 @@ The outbox row that mirrors a status event is written by JobTransitionService, s
 tests live in tests/core/services/test_job_transitions.py.
 """
 
-from datetime import datetime, timedelta, timezone
-
 import pytest
 from django.contrib.auth.models import User
 
@@ -34,45 +32,8 @@ def _add_status_event(job, status):
     )
 
 
-class TestAddStatusEvent:
-    """Unit tests for JobEventQuerySet.add_status_event()."""
-
-    def test_the_event_is_created_now_by_default(self, job):
-        before = datetime.now(timezone.utc)
-
-        event = _add_status_event(job, Job.RUNNING)
-
-        assert before <= event.created <= datetime.now(timezone.utc)
-
-    def test_the_event_can_be_created_when_it_really_happened(self, job):
-        happened = datetime.now(timezone.utc) - timedelta(seconds=5)
-
-        event = JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-            created=happened,
-        )
-
-        event.refresh_from_db()
-        assert event.created == happened
-
-
 class TestFirstRunningAt:
     """Unit tests for JobEventQuerySet.first_running_at()."""
-
-    def test_returns_the_time_the_running_event_was_created_with(self, job):
-        happened = datetime.now(timezone.utc) - timedelta(seconds=5)
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-            created=happened,
-        )
-
-        assert JobEvent.objects.first_running_at(job.id) == happened
 
     def test_returns_none_when_the_job_never_ran(self, job):
         assert JobEvent.objects.first_running_at(job.id) is None

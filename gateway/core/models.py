@@ -749,7 +749,10 @@ class Job(models.Model):
         blank=True,
         help_text="IBM Cloud subscription ID of the instance, captured at job creation time",
     )
+    # When the job started and ended running, as the runner reports it (Code Engine for a Fleets job), or when the
+    # scheduler noticed it. Billing and the Runtime API read them through started_running_at / finished_at.
     running_started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
     ce_project_name = models.CharField(
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
     )
@@ -782,6 +785,15 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
+
+    def started_running_at(self):
+        """When the job started running: running_started_at, or the first RUNNING event for the jobs without it.
+        None if it never ran."""
+        return self.running_started_at or JobEvent.objects.first_running_at(self.id)
+
+    def finished_at(self):
+        """When the job ended: ended_at, or the first terminal event for the jobs without it. None if it did not."""
+        return self.ended_at or JobEvent.objects.first_terminal_at(self.id)
 
     @property
     def compute_profile_id(self) -> str | None:
@@ -884,8 +896,7 @@ class JobEvent(models.Model):
     event_type = models.CharField(max_length=100, blank=False, null=False)
     origin = models.CharField(max_length=100, blank=False, null=False)
     context = models.CharField(max_length=100, blank=False, null=False)
-    # A default and not auto_now_add, so an event can be created with the time it really happened
-    created = models.DateTimeField(default=timezone.now, null=True)
+    created = models.DateTimeField(auto_now_add=True, null=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
     objects: JobEventQuerySet = JobEventQuerySet.as_manager()

@@ -1,7 +1,6 @@
 """Job events model manager."""
 
 import logging
-from datetime import datetime
 from typing import Any
 import uuid
 
@@ -71,9 +70,8 @@ class JobEventQuerySet(QuerySet):
         origin: JobEventOrigin,
         context: JobEventContext,
         status: str,
-        created: datetime | None = None,
     ):
-        """Status change event for jobs, created now unless the time it really happened is given."""
+        """Status change event for jobs."""
 
         logger.info(
             "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
@@ -84,14 +82,12 @@ class JobEventQuerySet(QuerySet):
             context,
         )
 
-        extra = {"created": created} if created is not None else {}
         return self.create(
             job_id=job_id,
             origin=origin,
             context=context,
             event_type=JobEventType.STATUS_CHANGE,
             data={"status": status},
-            **extra,
         )
 
     def first_running_at(self, job_id: uuid.UUID):
