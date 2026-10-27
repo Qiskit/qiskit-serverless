@@ -451,6 +451,11 @@ through <code class="docutils literal notranslate"><span class="pre">STOPPING</s
 The <code class="docutils literal notranslate"><span class="pre">scheduler.blocked_jobs_stop.enabled</span></code> configuration turns this off at
 runtime without a deploy.</p></li>
 </ul>
+<ul class="simple">
+<li><p>The scheduler now sends the Pending, Running and Stopping statuses of the
+jobs that were registered in the Runtime API (those created while
+<code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> covered them) to the Runtime API, best effort.</p></li>
+</ul>
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Link to this heading">¶</a></h3>
