@@ -466,6 +466,16 @@ operator sees an error instead of a silent write when Code Engine cannot be
 reached. The Qiskit Runtime jobs a job started are not cancelled from the
 backoffice: that needs the caller’s own service credentials.</p></li>
 </ul>
+<ul class="simple">
+<li><p>The gateway and the scheduler now reuse each database connection for up
+to 60 seconds, instead of opening a new one for every request and every
+scheduler loop. Set <code class="docutils literal notranslate"><span class="pre">application.database.connMaxAge</span></code> in the gateway
+chart, or <code class="docutils literal notranslate"><span class="pre">DATABASE_CONN_MAX_AGE</span></code> without the chart, to change it. <code class="docutils literal notranslate"><span class="pre">0</span></code>
+restores the old behaviour and is the default without the chart. Each
+gunicorn thread keeps one connection, so the gateway holds
+<code class="docutils literal notranslate"><span class="pre">pods</span> <span class="pre">x</span> <span class="pre">workers</span> <span class="pre">x</span> <span class="pre">threads</span></code> connections even when it is idle, and the
+scheduler holds one.</p></li>
+</ul>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">api_job.compute_profile</span></code> database column has been dropped, along with
 its historical data. The gateway stopped reading and writing it in 0.37.0 and
@@ -533,6 +543,11 @@ for run), instead of a misleading <code class="docutils literal notranslate"><sp
 <span class="pre">exist.&quot;</span></code>. A function that is genuinely missing still returns <code class="docutils literal notranslate"><span class="pre">404</span></code>. The
 error for provider functions is unchanged, so that it keeps hiding the
 existence of providers the caller cannot access.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A database connection that the network drops without a reply now fails
+after about 40 seconds, and a connection attempt after 10 seconds,
+instead of hanging for many minutes.</p></li>
 </ul>
 <ul class="simple">
 <li><p>A failed request for an IAM token that the caller retries is now logged as
