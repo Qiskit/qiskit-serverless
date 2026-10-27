@@ -15,7 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, first_cancel_refusal
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, latest_event_at
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -42,7 +42,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self.canceller = canceller or FleetsJobCanceller(self.transitions)
 
     def update_job_status(self, job: Job) -> bool:
-        """Update status of one Fleets job. Returns True if status changed."""
+        """Update status of one Fleets job, loaded with ``with_event_times()``. Returns True if status changed."""
         if not job.fleet_id:
             if job.status == Job.STOPPING:
                 # fleet_id is admin-editable, and the check below never looks again
@@ -63,7 +63,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.error(
                 "job_id=%s user_id=%s error=%s Could not read the status, treating it as unknown",
                 job.id,
-                job.author.id,
+                job.author_id,
                 str(ex),
             )
             new_status = None
@@ -94,7 +94,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.error(
                 "job_id=%s user_id=%s status=%s Unknown new job status: %s",
                 job.id,
-                job.author.id,
+                job.author_id,
                 job.status,
                 new_status,
             )
@@ -113,7 +113,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.warning(
                 "job_id=%s user_id=%s stop not confirmed after %ss, writing STOPPED anyway.",
                 job.id,
-                job.author.id,
+                job.author_id,
                 _STOPPING_DEADLINE_SECONDS,
             )
             final_status = Job.STOPPED
@@ -140,7 +140,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
-            job.author.id,
+            job.author_id,
             job.status,
             new_status,
         )
@@ -166,7 +166,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.info(
                 "job_id=%s user_id=%s Changing status from %s to %s",
                 job.id,
-                job.author.id,
+                job.author_id,
                 job.status,
                 Job.RUNNING,
             )
@@ -178,7 +178,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
                 logger.info("job_id=%s transition rejected from %s, skipping RUNNING: %s", job.id, job.status, str(ex))
         else:
-            self.transitions.running_to_running(job)
+            self.transitions.running_to_running(job, job_started_at=job.first_running_at)
 
     def stop_job_if_timeout(self, job: Job) -> bool:
         """Stop a job that has outlived PROGRAM_TIMEOUT. Returns True if it ended the job."""
@@ -186,15 +186,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return False
 
         timeout = settings.PROGRAM_TIMEOUT
-        latest_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-        reference_time = latest_event.created if latest_event else job.created
-        endtime = reference_time + timedelta(hours=timeout)
         # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
         # breaker from logging one line per timed-out job per tick.
-        if datetime.now(tz=endtime.tzinfo) < endtime or self.canceller.paused(job.ce_region):
+        if not self._timed_out(job) or self.canceller.paused(job.ce_region):
             return False
 
-        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author.id, timeout)
+        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author_id, timeout)
         try:
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerRetryableError as ex:
@@ -218,6 +215,15 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # stop() wrote STOPPED itself, so only the counter is left
             self._increment_terminal_counter(job)
         return True
+
+    @staticmethod
+    def _timed_out(job: Job) -> bool:
+        """Check the time loaded with the job first, it rules out almost every job without a query. The events are
+        read again before a stop, because the loaded time misses an event written after the job list was read: the
+        RUNNING one ``to_running`` just wrote, or a sub status sent from inside the job."""
+        if not check_job_timeout(job, job.last_event_at or job.created):
+            return False
+        return check_job_timeout(job, latest_event_at(job))
 
     def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
         """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
@@ -251,31 +257,40 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         counter = 0
         checked = 0
+        db_error = None
         # Note: with LIMITS_MAX_FLEETS potentially reaching 1000+ concurrent jobs, updating statuses
         # sequentially will become a bottleneck. This loop should be parallelized using multiple
         # threads or batched processing for performance reasons.
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS).select_related(
-            "author", "program__code_engine_project", "program__provider"
+        # Join what a status pass reads: program and project (runner), provider (metrics, billing), author
+        # (Runtime API mirror). The size comes from function_size_name, so its row is not joined.
+        jobs = (
+            Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=Program.FLEETS)
+            .select_related("author", "program__provider", "program__code_engine_project")
+            .with_event_times()
         )
-        for job in jobs:
-            if self.kill_signal.received:
-                logger.info("Kill signal received, stopping status update cycle")
-                return
-            checked += 1
-            try:
-                if self.update_job_status(job):
-                    counter += 1
-            except DB_EXCEPTIONS:
-                # Main counts consecutive database failures to restart the pod, so this must reach it
-                raise
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.exception(
-                    "job_id=%s Failed to publish the event or update the job, the job is checked again next iteration",
-                    job.id,
-                )
+        try:
+            for job in jobs:
+                if self.kill_signal.received:
+                    logger.info("Kill signal received, stopping status update cycle")
+                    return
+                checked += 1
+                try:
+                    if self.update_job_status(job):
+                        counter += 1
+                except DB_EXCEPTIONS as ex:
+                    # Keep going so one failing job does not skip the others, then raise for main.py
+                    logger.exception("job_id=%s Database error, the job is retried next iteration", job.id)
+                    db_error = db_error or ex
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.exception(
+                        "job_id=%s Failed to publish event, skipping DB update — will retry next iteration", job.id
+                    )
+        finally:
+            # Every job whose status was read, not only the ones that changed: a job still RUNNING counts, and so
+            # does one whose status could not be read, which is the slow one when COS is degraded.
+            self.metrics.increment_task_items(self.name, checked)
+            if counter:
+                logger.info("Updated %s Fleets jobs.", counter)
 
-        # Every job whose status was read, not only the ones that changed: a job still RUNNING counts, and so does
-        # one whose status could not be read, which is the slow one when COS is degraded.
-        self.metrics.increment_task_items(self.name, checked)
-        if counter:
-            logger.info("Updated %s Fleets jobs.", counter)
+        if db_error is not None:
+            raise db_error

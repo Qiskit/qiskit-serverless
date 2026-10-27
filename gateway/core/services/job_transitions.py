@@ -110,15 +110,16 @@ class JobTransitionService:
         """The job started running: a job_started event is sent, best effort, once it is written."""
         with transaction.atomic():
             event = self._change_status(job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields)
-        self._send_job_in_progress(job, job_started=True)
+        # A job reaches RUNNING only once, so this event is its start time
+        self._send_job_in_progress(job, job_started=True, job_started_at=event.created)
         self.workload_mirror.send(job)
         return event
 
-    def running_to_running(self, job: Job) -> None:
+    def running_to_running(self, job: Job, job_started_at: datetime | None) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
         with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
-            self._send_job_in_progress(job, job_started=False)
+            self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
 
     def stop(
         self,
@@ -293,7 +294,7 @@ class JobTransitionService:
             Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
 
-    def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
+    def _send_job_in_progress(self, job: Job, job_started: bool, job_started_at: datetime | None) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
 
         The sender is asked not to wait for the broker (timeout=0): it does not raise for a message it cannot
@@ -305,7 +306,6 @@ class JobTransitionService:
         if job.filler:
             return
         try:
-            job_started_at = JobEvent.objects.first_running_at(job.id)
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
             # timeout=0: send and return at once, without waiting for the ack or a flush. It never raises error,
