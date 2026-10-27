@@ -1548,7 +1548,9 @@ class TestProgramApiRuntimeInstances:
             "permissions,expected_status",
             [
                 ({PLATFORM_PERMISSION_CUSTOM_RUN}, status.HTTP_200_OK),
-                (set(), status.HTTP_404_NOT_FOUND),
+                # No run entitlement -> 403 naming the missing entitlement, not a
+                # misleading 404 "doesn't exist" (the function is the caller's own).
+                (set(), status.HTTP_403_FORBIDDEN),
             ],
         )
         def test_run_custom_function(self, client, authorize, permissions, expected_status):
@@ -1671,7 +1673,9 @@ class TestProgramApiRuntimeInstances:
             "permissions,expected_status",
             [
                 ({PLATFORM_PERMISSION_CUSTOM_WRITE}, status.HTTP_200_OK),
-                (set(), status.HTTP_404_NOT_FOUND),
+                # No write entitlement -> 403 naming the missing entitlement, not a
+                # misleading 404 "doesn't exist" (the caller is creating their own).
+                (set(), status.HTTP_403_FORBIDDEN),
             ],
         )
         def test_upload_custom_function(self, client, authorize, permissions, expected_status):

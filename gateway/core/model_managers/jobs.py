@@ -41,6 +41,9 @@ class JobFilters:
     created_after: Optional[datetime] = None
 
 
+UNASSIGNED_PROJECT = "unassigned"
+
+
 class JobQuerySet(QuerySet):
     """Job events query set to transform into a manager."""
 
@@ -72,6 +75,12 @@ class JobQuerySet(QuerySet):
         from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
 
         return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)
+
+    def with_fleet_project(self) -> Self:
+        """Annotate ``fleet_project_sql``, the SQL form of ``Job.fleet_project``."""
+        return self.annotate(
+            fleet_project_sql=Coalesce(NullIf("ce_project_name", Value("")), Value(UNASSIGNED_PROJECT))
+        )
 
     def with_fleet_region(self) -> Self:
         """Annotate ``fleet_region_sql``, the SQL form of ``Job.fleet_region``. Not in held_fleets, for its index."""
