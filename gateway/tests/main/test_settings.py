@@ -130,7 +130,7 @@ class TestAuthMechanism:
         ]
 
 
-def test_postgres_reuses_connections_with_health_checks(monkeypatch):
+def test_postgres_closes_connections_by_default_and_fails_dropped_ones(monkeypatch):
     monkeypatch.setenv("DEBUG", "1")
     monkeypatch.delenv("DATABASE_CONN_MAX_AGE", raising=False)
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
@@ -139,8 +139,26 @@ def test_postgres_reuses_connections_with_health_checks(monkeypatch):
 
     database = main.settings.DATABASES["default"]
     assert database["ENGINE"] == "django_prometheus.db.backends.postgresql"
-    assert database["CONN_MAX_AGE"] == 60
+    assert database["CONN_MAX_AGE"] == 0
     assert database["CONN_HEALTH_CHECKS"] is True
+    assert database["OPTIONS"] == {
+        "connect_timeout": 10,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 3,
+        "tcp_user_timeout": 30000,
+    }
+
+
+def test_postgres_reuses_connections_when_conn_max_age_is_set(monkeypatch):
+    monkeypatch.setenv("DEBUG", "1")
+    monkeypatch.setenv("DATABASE_CONN_MAX_AGE", "60")
+    monkeypatch.delitem(sys.modules, "pytest", raising=False)
+
+    importlib.reload(main.settings)
+
+    assert main.settings.DATABASES["default"]["CONN_MAX_AGE"] == 60
 
 
 def test_template_dirs_use_etc_gateway_not_tmp():
