@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
@@ -52,11 +53,15 @@ class TestUploadFunctionUseCase:
         assert result.pk == existing.pk
         assert result.title == "my-fn"
 
-    def test_raises_not_found_when_no_permission_for_custom_function(self, user):
+    def test_raises_not_entitled_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
 
-        with pytest.raises(FunctionNotFoundException):
+        with pytest.raises(CustomFunctionNotEntitledException) as exc_info:
             UploadFunctionUseCase().execute(user, accessible, UploadFunctionInput(title="my-fn", entrypoint="main.py"))
+
+        # The message names the real cause (the missing entitlement), not a misleading
+        # "doesn't exist" -- this is the user's own namespace, so there is nothing to hide.
+        assert "function-custom.write" in str(exc_info.value)
 
     def test_creates_provider_function(self, user):
         group = TestUtils.get_or_create_group("my-provider")

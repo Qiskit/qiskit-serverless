@@ -8,6 +8,7 @@ from django.db import transaction
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
@@ -150,8 +151,15 @@ class RunFunctionUseCase:
                 legacy_permission_name=RUN_PROGRAM_PERMISSION,
             )
         else:
-            if JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
-                function = Function.objects.get_user_function(user, data.title)
+            # Split the entitlement gate from the existence lookup so the two causes do
+            # not collapse into one misleading "doesn't exist": a user in their own
+            # namespace has nothing to hide, so being unentitled to run custom functions
+            # is named outright (403) rather than masked as a missing function (404).
+            if not JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
+                raise CustomFunctionNotEntitledException(
+                    title=data.title, operation=CustomFunctionNotEntitledException.RUN
+                )
+            function = Function.objects.get_user_function(user, data.title)
 
         if function is None:
             raise FunctionNotFoundException(function=data.title, provider=data.provider_name)
