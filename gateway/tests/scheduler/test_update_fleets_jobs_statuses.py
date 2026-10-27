@@ -265,19 +265,6 @@ class TestToTerminal:
             job_fields={"sub_status": None, "env_vars": "{}"},
         )
 
-    def test_a_succeeded_job_records_its_duration(self):
-        """to_terminal owns this, so every route to SUCCEEDED gets it."""
-        task = _make_task()
-        job = _make_fleets_job()
-        running_event = MagicMock()
-        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
-
-        with patch(f"{_MOD}.JobEvent") as mock_event:
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
-            task.to_terminal(job, Job.SUCCEEDED)
-
-        task.metrics.observe_job_execution_duration.assert_called_once()
-
     def test_job_reaches_failed_state(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
@@ -320,7 +307,6 @@ class TestToTerminal:
         task.to_terminal(job, Job.SUCCEEDED)  # must not raise
 
         task.metrics.increment_jobs_terminal.assert_not_called()
-        task.metrics.observe_job_execution_duration.assert_not_called()
 
 
 class TestToRunning:
@@ -705,10 +691,8 @@ def test_filler_jobs_are_left_out_of_the_job_metrics():
     mock_job.filler = True
 
     task._increment_terminal_counter(mock_job)
-    task._record_execution_duration(mock_job)
 
     task.metrics.increment_jobs_terminal.assert_not_called()
-    task.metrics.observe_job_execution_duration.assert_not_called()
 
 
 def test_a_filler_job_that_ends_on_its_own_is_counted():

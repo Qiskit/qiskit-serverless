@@ -17,6 +17,7 @@ from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.workload_payload import build_workload_payload, is_mirrored
+from core import job_status_metrics
 from core.external_call_metrics import (
     JOB_IN_PROGRESS_EVENT,
     JOB_TRANSITION_PENDING_TO_RUNNING,
@@ -239,6 +240,10 @@ class JobTransitionService:
 
         event = JobEvent.objects.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
         job.update_fields({"status": status, **(job_fields or {})})
+        if job_status_metrics.enabled() and not job.filler:
+            entered = JobEvent.objects.first_status_at(job.id, current_status)
+            if entered is not None:
+                job_status_metrics.observe(current_status, status, job.gpu, entered, event.created)
         return event
 
     @staticmethod

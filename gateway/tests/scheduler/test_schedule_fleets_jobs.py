@@ -41,44 +41,6 @@ def test_fleets_execute_called_with_ctx():
     mock_execute.assert_called_once_with(mock_job, mock_ctx)
 
 
-def test_a_submit_that_did_not_reach_pending_records_no_queue_wait():
-    """The queue-wait sample is only meaningful for a job that actually started. submit() raises
-    rather than returning, so reaching the metric at all means the job is PENDING."""
-    task = _make_task()
-    mock_job = MagicMock(status=Job.QUEUED, gpu=False, env_vars='{"traceparent": null}', filler=False)
-    mock_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-    with (
-        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
-        patch.object(task.submitter, "submit", side_effect=RunnerError("Code Engine refused")),
-        patch(f"{_MOD}.TraceContextTextMapPropagator"),
-    ):
-        task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
-
-    task.metrics.observe_queue_wait_time.assert_not_called()
-
-
-def test_add_queue_wait_time_metric_skips_filler_jobs():
-    """Filler jobs skip the queue by design; the wait-time metric is only for real jobs."""
-    task = _make_task()
-
-    filler_job = MagicMock(spec=Job)
-    filler_job.filler = True
-    filler_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    filler_job.gpu = False
-
-    task.add_queue_wait_time_metric(filler_job)
-    task.metrics.observe_queue_wait_time.assert_not_called()
-
-    real_job = MagicMock(spec=Job)
-    real_job.filler = False
-    real_job.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    real_job.gpu = False
-
-    task.add_queue_wait_time_metric(real_job)
-    task.metrics.observe_queue_wait_time.assert_called_once()
-
-
 def test_a_code_engine_failure_skips_only_that_region_for_the_tick():
     task = _make_task()
     failing = MagicMock(env_vars="{}", ce_region="us-east")

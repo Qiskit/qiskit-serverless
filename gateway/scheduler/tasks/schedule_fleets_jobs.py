@@ -2,7 +2,6 @@
 
 import json
 import logging
-from datetime import datetime, timezone
 
 from django.conf import settings
 
@@ -91,20 +90,7 @@ class ScheduleFleetsJobs(SchedulerTask):
                 continue
 
             submitted += 1
-            self.add_queue_wait_time_metric(job)
 
         self.metrics.increment_task_items(self.name, submitted)
         if submitted:
             logger.info("%s jobs are scheduled for execution.", submitted)
-
-    def add_queue_wait_time_metric(self, job: Job):
-        """Add queue wait time metric."""
-        if job.filler:
-            # Filler jobs skip the queue by design; one that reaches here was
-            # rescued from QUEUED by fair-share, and its wait says nothing about
-            # how long real work waits.
-            return
-        now = datetime.now(timezone.utc)
-        wait_seconds = (now - job.created).total_seconds()
-        job_compute_type = "gpu" if job.gpu else "cpu"
-        self.metrics.observe_queue_wait_time(wait_seconds, job_compute_type)
