@@ -506,6 +506,11 @@ user cannot use it.</p></li>
 <section id="bug-fixes">
 <span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p>Cached IAM, Resource Controller, access groups and Runtime API answers now
+expire at a random 80 to 100 % of their TTL, so the entries written in a
+burst no longer expire together and call IBM Cloud at once.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The gateway and the scheduler now reuse a Code Engine Fleets project’s COS
 client for 60 seconds. Before, every status poll of every running job and
 every COS request made its own Code Engine call to read the COS HMAC secret,
@@ -526,6 +531,14 @@ a warning instead of an error. The wait for IAM is 3 seconds to connect
 and 5 seconds to read, as it was for Code Engine and COS before they shared
 the IAM token provider, instead of 3 seconds for both. A rejected API key
 is still logged as an error.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The IAM token, Resource Controller, Access Groups and JWKS keys calls that
+check a user now use the <code class="docutils literal notranslate"><span class="pre">IBM_CLOUD_API_TIMEOUT</span></code> setting (default 10
+seconds). Before, they waited up to 60 seconds, or 30 seconds for the JWKS
+keys, so a slow IBM Cloud could block a gateway worker for that long. A
+timeout returns a 503 that asks the user to try again. A value of 0 or less
+now stops the gateway at boot.</p></li>
 </ul>
 <ul class="simple">
 <li><p>A Fleets job now keeps the size it ran with. The new <code class="docutils literal notranslate"><span class="pre">Job.function_size_name</span></code> column stores the size
@@ -569,6 +582,14 @@ token cache. The gateway does not record it.</p></li>
 <li><p>The IAM token used for Cloud Object Storage and the Runtime API is now
 renewed in a background thread when less than 40% of its life, or 10
 minutes, is left, so a request no longer waits for the renewal.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_fleet_deletes_total</span></code>, the fleet
+deletes of the cleanup by Code Engine project and outcome: <code class="docutils literal notranslate"><span class="pre">deleted</span></code>,
+<code class="docutils literal notranslate"><span class="pre">failed</span></code> or <code class="docutils literal notranslate"><span class="pre">gave_up</span></code>. Its <code class="docutils literal notranslate"><span class="pre">project</span></code> label matches
+<code class="docutils literal notranslate"><span class="pre">scheduler_held_fleets</span></code>. A delete that Code Engine did not answer, for
+example a 429, is not counted here, it shows on
+<code class="docutils literal notranslate"><span class="pre">scheduler_fleets_breaker_open</span></code>.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The scheduler now exposes <code class="docutils literal notranslate"><span class="pre">scheduler_task_items_total</span></code> (jobs submitted
