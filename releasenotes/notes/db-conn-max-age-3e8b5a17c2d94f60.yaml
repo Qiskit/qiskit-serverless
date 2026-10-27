@@ -6,12 +6,9 @@ upgrade:
     ``application.database.connMaxAge`` to change it. ``0`` restores the old
     behaviour. Each gunicorn thread keeps one connection, so the gateway holds
     ``pods x workers x threads`` connections even when it is idle. The
-    scheduler and any run without ``DATABASE_CONN_MAX_AGE`` still close the
-    connection after each request.
+    scheduler is not changed, and still opens a new connection on every loop.
 fixes:
   - |
     A database connection that the network drops without a reply now fails
-    after at most 30 seconds, and a new connection after 10 seconds, instead
-    of hanging for many minutes. The gateway and the scheduler set
-    ``connect_timeout``, TCP keepalive and ``tcp_user_timeout`` on every
-    Postgres connection.
+    after at most 30 seconds, and a connection attempt after 10 seconds,
+    instead of hanging for many minutes.
