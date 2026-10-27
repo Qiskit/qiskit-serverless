@@ -18,6 +18,7 @@ from rest_framework import exceptions
 from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.domain.exceptions.service_unavailable_exception import ServiceUnavailable
 from api.services.authentication.authentication_base import AuthenticationBase
+from api.utils import jittered_cache_ttl
 
 logger = logging.getLogger("api.IBMQuantumPlatform")
 
@@ -43,7 +44,8 @@ class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instan
 
     def __init__(self, api_key: str, crn: str):
         self.iam_url = settings.IAM_IBM_CLOUD_BASE_URL
-        self.cache_ttl = settings.IAM_IBM_CLOUD_CACHE_TTL
+        # one draw per request, so the entries of one user expire together and share one IAM token call
+        self.cache_ttl = jittered_cache_ttl(settings.IAM_IBM_CLOUD_CACHE_TTL)
         self.resource_controller_url = settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
         self.api_key = api_key
         self.api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
