@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.function_sizes import normalize_function_size, parse_function_sizes
@@ -184,7 +185,12 @@ class UploadFunctionUseCase:
                 raise FunctionNotFoundException(function=data.title, provider=data.provider)
         else:
             if not ProgramAccessPolicies.can_create(user, accessible_functions):
-                raise FunctionNotFoundException(function=data.title, provider=None)
+                # No provider namespace to hide here (the user owns this title), so name
+                # the real cause -- a missing custom-functions entitlement -- rather than
+                # the misleading "doesn't exist" a 404 would give.
+                raise CustomFunctionNotEntitledException(
+                    title=data.title, operation=CustomFunctionNotEntitledException.UPLOAD
+                )
             existing = Function.objects.filter(title=data.title, author=user).first()
 
         if existing is None:

@@ -2,6 +2,7 @@
 
 import base64
 import json
+import re
 import time
 from unittest.mock import MagicMock, patch
 import pytest
@@ -430,6 +431,23 @@ class TestIBMQuantumPlatformAuthentication:
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
     @responses.activate
+    def test_cache_ttl_is_jittered(
+        self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
+    ):
+        _mock_iam_services(mock_get_resource_instance, mock_list_access_groups)
+        _add_mock_response("IBMid-JITTER", "jitter_account")
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        settings.IAM_IBM_CLOUD_CACHE_TTL = 60
+
+        with patch("api.utils.random.random", return_value=1.0) as draw, patch.object(cache, "set") as cache_set:
+            CustomTokenBackend().authenticate(_create_request())
+
+        assert [call.kwargs["timeout"] for call in cache_set.call_args_list] == [48, 48, 48]
+        assert draw.call_count == 1
+
+    @patch.object(IamAccessGroupsV2, "list_access_groups")
+    @patch.object(ResourceControllerV2, "get_resource_instance")
+    @responses.activate
     def test_different_tokens_use_separate_cache(
         self, mock_get_resource_instance: MagicMock, mock_list_access_groups: MagicMock, settings
     ):
@@ -448,6 +466,29 @@ class TestIBMQuantumPlatformAuthentication:
         assert user_b.username == "IBMid-USER-B"
         assert mock_get_resource_instance.call_count == 2
         assert mock_list_access_groups.call_count == 2
+
+    @responses.activate
+    def test_every_ibm_cloud_call_sends_the_timeout(self, settings):
+        settings.RESOURCE_PLANS_ID_ALLOWED = [RESOURCE_PLAN_ID]
+        settings.IBM_CLOUD_API_TIMEOUT = 7
+        _add_mock_response("IBMid-TIMEOUT-SET", "abc18abcd41546508b35dfe0627109c4")
+        responses.add(
+            responses.GET,
+            re.compile(f"{settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL}/v2/resource_instances/.*"),
+            json={"resource_plan_id": RESOURCE_PLAN_ID},
+        )
+        responses.add(
+            responses.GET,
+            re.compile(f"{settings.IAM_IBM_CLOUD_BASE_URL}/v2/groups.*"),
+            json={"groups": []},
+        )
+
+        CustomTokenBackend().authenticate(_create_request())
+
+        assert [call.request.req_kwargs["timeout"] for call in responses.calls] == [7, 7, 7]
+
+    def test_the_jwks_keys_fetch_has_the_timeout(self):
+        assert IBMQuantumPlatform.jwks_client.timeout == settings.IBM_CLOUD_API_TIMEOUT
 
 
 CRN = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
