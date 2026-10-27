@@ -5,10 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.utils import timezone
+from prometheus_client import CollectorRegistry
 
 from core.config_key import ConfigKey
 from core.models import Config, Job, Program
 from core.services.runners import RunnerRetryableError
+from scheduler.metrics.scheduler_metrics_collector import FLEET_DELETE_OUTCOMES, SchedulerMetrics
 from scheduler.tasks.free_fleets_resources import (
     FreeFleetsResources,
     MAX_ATTEMPTS_PER_FLEET,
@@ -25,10 +27,10 @@ _RETENTION_HOURS = 48
 _BREAKER_FAILURES = 5
 
 
-def _make_task():
+def _make_task(metrics=None):
     kill_signal = MagicMock()
     kill_signal.received = False
-    return FreeFleetsResources(kill_signal=kill_signal, metrics=MagicMock())
+    return FreeFleetsResources(kill_signal=kill_signal, metrics=metrics or MagicMock())
 
 
 @pytest.fixture
@@ -159,6 +161,36 @@ def test_the_oldest_fleet_given_up_on_is_the_one_forgotten(fleets_program, monke
             task._count_failure(job)  # pylint: disable=protected-access
 
     assert task._giving_up_on() == [str(job.id) for job in jobs[1:]]  # pylint: disable=protected-access
+
+
+@pytest.mark.parametrize("ce_project_name, label", [(None, "unassigned"), ("", "unassigned"), ("ce-test", "ce-test")])
+def test_the_fleet_project_is_the_same_in_python_and_in_sql(fleets_program, ce_project_name, label):
+    job = _terminal_job(fleets_program, age_hours=1, ce_project_name=ce_project_name)
+
+    assert job.fleet_project == label
+    assert Job.objects.with_fleet_project().get(pk=job.pk).fleet_project_sql == label
+
+
+def test_counts_each_delete_by_project_and_outcome(fleets_program):
+    registry = CollectorRegistry()
+    task = _make_task(SchedulerMetrics(registry))
+
+    def deletes():
+        return tuple(
+            registry.get_sample_value("scheduler_fleet_deletes_total", {"project": "ce-test", "outcome": outcome})
+            for outcome in FLEET_DELETE_OUTCOMES
+        )
+
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="broken")
+    _run(task, error=RunnerRetryableError("Too Many Requests"))
+    assert deletes() == (0, 0, 0)
+
+    for _ in range(MAX_ATTEMPTS_PER_FLEET):
+        _run(task, deleted=False)
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")
+    _run(task, deleted=True)
+
+    assert deletes() == (1, MAX_ATTEMPTS_PER_FLEET - 1, 1)
 
 
 def test_does_nothing_while_disabled_but_still_reports(fleets_program):

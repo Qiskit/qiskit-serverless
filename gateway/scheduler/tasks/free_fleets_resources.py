@@ -4,11 +4,11 @@ import logging
 import time
 from datetime import timedelta
 
-from django.db.models import Count, Q, Value
-from django.db.models.functions import Coalesce, NullIf
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.config_key import ConfigKey
+from core.model_managers.jobs import UNASSIGNED_PROJECT
 from core.models import Config, Job
 from core.services.runners import RunnerRetryableError
 
@@ -27,7 +27,6 @@ MAX_TRACKED_FAILURES = 500
 DEFAULT_RETENTION_HOURS = 336
 DEFAULT_QUOTA_PER_PROJECT = 1000
 DEFAULT_FORCE_AT_PERCENT = 80
-UNASSIGNED_PROJECT = "unassigned"
 
 
 class FreeFleetsResources(SchedulerTask):
@@ -156,6 +155,7 @@ class FreeFleetsResources(SchedulerTask):
         if self.deleter.delete(job):
             job.update_fields({"fleet_deleted_at": timezone.now()})
             self._failed_attempts.pop(str(job.id), None)
+            self.metrics.increment_fleet_deletes(job.fleet_project, "deleted")
             return True
 
         self._count_failure(job)
@@ -169,13 +169,15 @@ class FreeFleetsResources(SchedulerTask):
                 self._failed_attempts.pop(next(iter(self._failed_attempts)))
         failures = self._failed_attempts.get(job_id, 0) + 1
         self._failed_attempts[job_id] = failures
-        if failures >= MAX_ATTEMPTS_PER_FLEET:
+        gave_up = failures >= MAX_ATTEMPTS_PER_FLEET
+        if gave_up:
             del self._failed_attempts[job_id]
             if len(self._given_up) >= MAX_TRACKED_FAILURES:
                 self._given_up.pop(next(iter(self._given_up)))
             self._given_up[job_id] = None
+        self.metrics.increment_fleet_deletes(job.fleet_project, "gave_up" if gave_up else "failed")
         logger.log(
-            logging.ERROR if failures >= MAX_ATTEMPTS_PER_FLEET else logging.WARNING,
+            logging.ERROR if gave_up else logging.WARNING,
             "job_id=%s fleet_id=%s not deleted on attempt %s, it still holds a slot in its project",
             job.id,
             job.fleet_id,
@@ -185,18 +187,17 @@ class FreeFleetsResources(SchedulerTask):
     def _count_held_fleets(self) -> dict[str, int]:
         """Count the fleets we hold per project, whatever the job status, and report them."""
         counts = {
-            row["ce_project"]: row["total"]
-            for row in (
-                Job.objects.held_fleets()
-                .annotate(ce_project=Coalesce(NullIf("ce_project_name", Value("")), Value(UNASSIGNED_PROJECT)))
-                .values("ce_project")
-                .annotate(total=Count("id"))
-            )
+            row["fleet_project_sql"]: row["total"]
+            for row in Job.objects.held_fleets()
+            .with_fleet_project()
+            .values("fleet_project_sql")
+            .annotate(total=Count("id"))
         }
         try:
             self.metrics.clear_held_fleets()
             for project, total in counts.items():
                 self.metrics.set_held_fleets(total, project)
+                self.metrics.init_fleet_deletes(project)
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.error("Could not report the held fleets: %s", ex)
         return counts
