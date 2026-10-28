@@ -927,3 +927,19 @@ def test_the_submitter_and_the_deleter_do_not_pause_each_other(mock_trace, mock_
     assert deleter.paused("us-east") is False
     assert deleter.paused("eu-de") is True
     assert submitter.paused("eu-de") is False
+
+
+@pytest.mark.django_db
+def test_a_failed_fleet_read_pauses_the_cleanup_of_its_region():
+    _open_breakers_after_one_failure()
+    deleter = FleetsFleetDeleter(FleetsBreakers())
+    handler = MagicMock()
+
+    with patch("scheduler.schedule.project_has_fleet", side_effect=RunnerRetryableError("unavailable")) as check:
+        with pytest.raises(RunnerRetryableError):
+            deleter.fleet_exists(handler, "us-east", "fleet-1")
+        with pytest.raises(RunnerRetryableError):
+            deleter.list_fleets(handler, "us-east", deadline=0)
+
+    assert deleter.paused("us-east") is True
+    check.assert_called_once()

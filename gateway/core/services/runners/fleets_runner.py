@@ -89,6 +89,58 @@ def _fleet_name_segment(value: str) -> str:
     return slug[:_FLEET_NAME_SEGMENT_MAX].strip("-") or "unknown"
 
 
+def _api_key() -> str:
+    """The IBM Cloud API key from Django settings, or RunnerError when it is not set."""
+    api_key = settings.IBM_CLOUD_API_KEY
+    if not api_key:
+        raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
+    return api_key
+
+
+def cleanup_fleet_handler(project: CodeEngineProject) -> FleetHandler:
+    """A handler for the fleet cleanup's reads, with no urllib3 read retry. Several threads can share it."""
+    return FleetHandler(
+        ce_api_client=get_ce_auth(_api_key(), project.region, retry_reads=False).api_client,
+        project_id=project.project_id,
+    )
+
+
+def list_project_fleets(handler: FleetHandler, deadline: float) -> dict[str, str]:
+    """The status of every fleet in the handler's project, by fleet id.
+
+    Raises:
+        RunnerRetryableError: When Code Engine or IAM did not answer, or the pages took past ``deadline``.
+        RunnerError: For anything a retry will not fix, such as a 403.
+    """
+    return _read_fleets(handler, lambda: handler.list_fleet_statuses(deadline))
+
+
+def project_has_fleet(handler: FleetHandler, fleet_id: str) -> bool:
+    """Whether the handler's project still has this fleet, ``False`` only on a 404. Raises like the list."""
+    return _read_fleets(handler, lambda: handler.fleet_exists(fleet_id))
+
+
+def _read_fleets(handler: FleetHandler, read):
+    """Run one fleet read and map its errors to the runner errors."""
+    try:
+        return read()
+    except ApiException as ex:
+        status = ex.status or 0
+        if status in (0, 429) or status >= 500:
+            raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+        raise RunnerError(f"Code Engine API error: {ex.reason}", ex) from ex
+    except MaxRetryError as ex:
+        if isinstance(ex.reason, NameResolutionError):
+            raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
+        raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
+    except (ReadTimeoutError, ProtocolError, TimeoutError) as ex:
+        raise RunnerRetryableError(f"Code Engine request failed: {ex}", ex) from ex
+    except RetryableError as ex:
+        raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
+    except Exception as ex:
+        raise RunnerError(f"Unable to read the fleets of project {handler.project_id}", ex) from ex
+
+
 class FleetsRunner(AbstractRunner):
     """Runner that executes jobs on IBM Code Engine Fleets.
 
@@ -639,7 +691,7 @@ class FleetsRunner(AbstractRunner):
 
         if self._handler is None:
             try:
-                ce_api_client = get_ce_auth(self._get_api_key(), self._project.region).api_client
+                ce_api_client = get_ce_auth(_api_key(), self._project.region).api_client
                 self._handler = FleetHandler(
                     ce_api_client=ce_api_client,
                     project_id=self._project.project_id,
@@ -843,20 +895,6 @@ class FleetsRunner(AbstractRunner):
                 self._project.cos_key_name,
             ]
         )
-
-    def _get_api_key(self) -> str:
-        """Return the IBM Cloud API key from Django settings.
-
-        Returns:
-            API key string.
-
-        Raises:
-            RunnerError: If not configured.
-        """
-        api_key = settings.IBM_CLOUD_API_KEY
-        if not api_key:
-            raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
-        return api_key
 
     def _get_image(self) -> str:
         """Return the container image for the fleet.

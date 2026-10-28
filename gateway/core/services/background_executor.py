@@ -118,6 +118,7 @@ class BackgroundPool(Enum):
     """Who is submitting. Add a member for each new caller: the pools split the limit evenly."""
 
     RUNTIME_API = "runtime_api"  # calls to the Runtime API
+    CODE_ENGINE = "code_engine"  # fleet lists and fleet checks of the fleet cleanup
 
 
 class TaskOutcome(Enum):

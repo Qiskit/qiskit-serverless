@@ -1,0 +1,21 @@
+---
+fixes:
+  - |
+    The fleet cleanup now decides that a Code Engine project is over its quota
+    from the fleets Code Engine lists, and not from the jobs in the database.
+    The database also counts fleets that are already gone, for example fleets
+    deleted by hand, so the cleanup deleted fleets inside the retention window
+    while the project was far from full. The quota cap of a project waits for
+    its first Code Engine list, and stops again when Code Engine cannot be
+    listed for ten minutes. The retention window keeps running in both cases.
+upgrade:
+  - |
+    ``fleet_deleted_at`` is now set only when Code Engine confirms the fleet is
+    gone, and not when it accepts the delete. A fleet the cleanup deleted, or one
+    deleted another way, gets a ``FLEET_DELETED`` job event when it is stamped.
+    The first scheduler after the upgrade checks the held fleets Code Engine no
+    longer lists, so the stale rows are stamped and ``scheduler_held_fleets``
+    comes back to the Code Engine number.
+    ``scheduler_fleet_deletes_total`` gets the outcome ``deleting``, counted when
+    Code Engine accepts a delete. ``deleted`` is now counted when the fleet is
+    confirmed gone.

@@ -2,6 +2,7 @@
 
 import logging
 import random
+import threading
 import time
 from typing import List
 from datetime import datetime, timedelta
@@ -17,7 +18,7 @@ from opentelemetry import trace
 from core.config_key import ConfigKey
 from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import BlockedCloudResource, Job, JobEvent, Program
+from core.models import BlockedCloudResource, CodeEngineProject, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import (
@@ -27,6 +28,8 @@ from core.services.runners import (
     RunnerError,
     RunnerRetryableError,
 )
+from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
+from core.services.runners.fleets_runner import cleanup_fleet_handler, list_project_fleets, project_has_fleet
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
@@ -78,12 +81,14 @@ class RegionBreakers:
 
     def __init__(self) -> None:
         self.breakers: dict[str | None, CircuitBreaker] = {}
+        self._lock = threading.Lock()
 
     def get_breaker(self, region: str | None) -> CircuitBreaker:
         """The circuit breaker for this region (null included), built the first time it is asked for."""
-        if region not in self.breakers:
-            self.breakers[region] = build_fleets_circuit_breaker()
-        return self.breakers[region]
+        with self._lock:
+            if region not in self.breakers:
+                self.breakers[region] = build_fleets_circuit_breaker()
+            return self.breakers[region]
 
     def paused(self, region: str | None) -> bool:
         """Whether the breaker of this region is open."""
@@ -91,7 +96,9 @@ class RegionBreakers:
 
     def paused_regions(self) -> list[str | None]:
         """The regions whose breaker is open right now, out of the ones asked for so far."""
-        return [region for region, breaker in self.breakers.items() if breaker.is_open]
+        with self._lock:
+            breakers = list(self.breakers.items())
+        return [region for region, breaker in breakers if breaker.is_open]
 
 
 class FleetsBreakers:
@@ -311,10 +318,46 @@ class FleetsFleetDeleter:
         Raises:
             RunnerRetryableError: while the region's breaker is open, or when Code Engine did not answer.
         """
-        region = job.fleet_region
-        if self.paused(region):
-            raise RunnerRetryableError(f"Fleet deletes in region {region} are paused by the circuit breaker")
+        self._raise_if_paused(job.fleet_region)
         return get_runner(job).free_resources()
+
+    def handler(self, project_name: str) -> tuple[FleetHandler, str]:
+        """A handler for the reads of the Code Engine project with this name, and its region.
+
+        Raises:
+            RunnerError: when the project is unknown or the API key is not set.
+        """
+        project = CodeEngineProject.objects.select_by_name(project_name)
+        if project is None:
+            raise RunnerError(f"No Code Engine project named {project_name}")
+        return cleanup_fleet_handler(project), project.region
+
+    def list_fleets(self, handler: FleetHandler, region: str, deadline: float) -> dict[str, str]:
+        """The status of every fleet in the handler's project, by fleet id. Safe to call from a background thread.
+
+        Raises:
+            RunnerRetryableError: while the region's breaker is open, or when Code Engine did not answer.
+            RunnerError: when Code Engine refused the list.
+        """
+        return self._read(region, lambda: list_project_fleets(handler, deadline))
+
+    def fleet_exists(self, handler: FleetHandler, region: str, fleet_id: str) -> bool:
+        """Whether the handler's project still has this fleet. Safe to call from a background thread."""
+        return self._read(region, lambda: project_has_fleet(handler, fleet_id))
+
+    def _read(self, region: str, read):
+        self._raise_if_paused(region)
+        try:
+            result = read()
+        except RunnerRetryableError:
+            self.record_cycle(region, answered=False)
+            raise
+        self.record_cycle(region, answered=True)
+        return result
+
+    def _raise_if_paused(self, region: str | None) -> None:
+        if self.paused(region):
+            raise RunnerRetryableError(f"Fleet cleanup in region {region} is paused by the circuit breaker")
 
     def record_cycle(self, region: str | None, *, answered: bool) -> None:
         """Counts one cleanup cycle for a region."""

@@ -12,6 +12,7 @@ from core.model_managers.jobs import UNASSIGNED_PROJECT
 from core.models import Config, Job
 from core.services.runners import RunnerRetryableError
 
+from scheduler.fleet_cache import FleetCache
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -27,6 +28,8 @@ MAX_TRACKED_FAILURES = 500
 DEFAULT_RETENTION_HOURS = 336
 DEFAULT_QUOTA_PER_PROJECT = 1000
 DEFAULT_FORCE_AT_PERCENT = 80
+OVER_QUOTA = "over_quota"
+RETENTION = "retention"
 
 
 class FreeFleetsResources(SchedulerTask):
@@ -43,6 +46,9 @@ class FreeFleetsResources(SchedulerTask):
         self.deleter = FleetsFleetDeleter(breakers or FleetsBreakers())
         self._failed_attempts: dict[str, int] = {}
         self._given_up: dict[str, None] = {}
+        self.fleets = FleetCache(
+            self.deleter, on_deleted=lambda project: self.metrics.increment_fleet_deletes(project, "deleted")
+        )
 
     def run(self):
         """Delete the fleets past the retention window or over their project's quota, and report what we hold."""
@@ -57,15 +63,17 @@ class FreeFleetsResources(SchedulerTask):
         if not Config.get_bool(ConfigKey.FLEETS_CLEANUP_ENABLED):
             return
 
+        assigned = {project: held for project, held in counts.items() if project != UNASSIGNED_PROJECT}
+        self.fleets.refresh(list(assigned))
         failed_regions: set[str | None] = set()
         answered_regions: set[str | None] = set()
-        candidates = self._jobs_to_clean(self._projects_over_quota(counts), self.deleter.paused_regions())
+        candidates = self._jobs_to_clean(self._projects_over_quota(assigned), self.deleter.paused_regions())
 
         # the first delete always goes, so a slow cycle still makes progress
         deadline = (
             time.monotonic() + Config.get_int(ConfigKey.FLEETS_CLEANUP_BUDGET_MS, default=DEFAULT_BUDGET_MS) / 1000
         )
-        for position, job in enumerate(candidates):
+        for position, (job, reason) in enumerate(candidates):
             if self.kill_signal.received or (position and time.monotonic() >= deadline):
                 break
             region = job.fleet_region
@@ -73,7 +81,7 @@ class FreeFleetsResources(SchedulerTask):
                 continue
 
             try:
-                if self._delete_and_stamp(job):
+                if self._delete(job, reason):
                     answered_regions.add(region)
             except RunnerRetryableError as ex:
                 logger.warning("job_id=%s region=%s fleet not deleted: %s", job.id, region, ex)
@@ -84,7 +92,7 @@ class FreeFleetsResources(SchedulerTask):
         for region in answered_regions - failed_regions:
             self.deleter.record_cycle(region, answered=True)
 
-    def _jobs_to_clean(self, over_quota: dict[str, int], paused_regions: list[str | None]) -> list[Job]:
+    def _jobs_to_clean(self, over_quota: dict[str, int], paused_regions: list[str | None]) -> list[tuple[Job, str]]:
         """The jobs this cycle may delete: the projects over their quota first, then the retention window.
 
         A project over its quota takes only the fleets it needs to get back under the threshold, and a
@@ -98,19 +106,22 @@ class FreeFleetsResources(SchedulerTask):
             .select_related("program__code_engine_project")
             .exclude(self._in_regions(paused_regions))
             .exclude(id__in=self._giving_up_on())
+            .exclude(fleet_id__in=list(self.fleets.deleting()))
         )
 
-        jobs: list[Job] = []
+        jobs: list[tuple[Job, str]] = []
         for project, needed in over_quota.items():
             if len(jobs) >= budget:
                 break
             take = min(needed, budget - len(jobs))
-            jobs += list(deletable.filter(ce_project_name=project).order_by("updated")[:take])
+            alive = deletable.filter(ce_project_name=project, fleet_id__in=list(self.fleets.alive(project)))
+            jobs += [(job, OVER_QUOTA) for job in alive.order_by("updated")[:take]]
 
         if len(jobs) < budget:
-            jobs += list(
-                self._past_the_window(deletable).exclude(id__in=[job.id for job in jobs])[: budget - len(jobs)]
-            )
+            taken = [job.id for job, _reason in jobs]
+            jobs += [
+                (job, RETENTION) for job in self._past_the_window(deletable).exclude(id__in=taken)[: budget - len(jobs)]
+            ]
         return jobs
 
     @staticmethod
@@ -133,29 +144,26 @@ class FreeFleetsResources(SchedulerTask):
         return matched
 
     def _projects_over_quota(self, counts: dict[str, int]) -> dict[str, int]:
-        """How many fleets each project over its quota has to lose to get back under the threshold."""
+        """How many fleets each project over its quota has to lose, counted on the Code Engine statuses."""
         percent = Config.get_int(ConfigKey.FLEETS_CLEANUP_FORCE_AT_PERCENT, default=DEFAULT_FORCE_AT_PERCENT)
         quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
         if not 1 <= percent < 100 or quota < 1:
             return {}
 
         threshold = quota * percent // 100
-        return {
-            project: held - threshold + 1
-            for project, held in counts.items()
-            if project != UNASSIGNED_PROJECT and held >= threshold
-        }
+        needs = {project: self.fleets.need(project, threshold, held) for project, held in counts.items()}
+        return {project: need for project, need in needs.items() if need > 0}
 
     def _giving_up_on(self) -> list[str]:
         """Job ids that failed MAX_ATTEMPTS_PER_FLEET times, so one bad row cannot fill the batch."""
         return list(self._given_up)
 
-    def _delete_and_stamp(self, job: Job) -> bool:
-        """Delete one job's fleet and stamp it. A failure is counted so a bad row is skipped later."""
+    def _delete(self, job: Job, reason: str) -> bool:
+        """Delete one job's fleet. Its row is stamped once a GET finds it deleted. A failure is counted."""
         if self.deleter.delete(job):
-            job.update_fields({"fleet_deleted_at": timezone.now()})
+            self.fleets.record_delete(job.fleet_project, str(job.id), job.fleet_id, reason)
             self._failed_attempts.pop(str(job.id), None)
-            self.metrics.increment_fleet_deletes(job.fleet_project, "deleted")
+            self.metrics.increment_fleet_deletes(job.fleet_project, "deleting")
             return True
 
         self._count_failure(job)

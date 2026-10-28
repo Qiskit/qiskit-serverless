@@ -1,5 +1,7 @@
 """Tests for FreeFleetsResources."""
 
+import time
+from concurrent.futures import Future
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -8,8 +10,10 @@ from django.utils import timezone
 from prometheus_client import CollectorRegistry
 
 from core.config_key import ConfigKey
-from core.models import Config, Job, Program
+from core.model_managers.job_events import JobEventType
+from core.models import Config, Job, JobEvent, Program
 from core.services.runners import RunnerRetryableError
+from scheduler.fleet_cache import CHECK_EVERY_SECONDS
 from scheduler.metrics.scheduler_metrics_collector import FLEET_DELETE_OUTCOMES, SchedulerMetrics
 from scheduler.tasks.free_fleets_resources import (
     FreeFleetsResources,
@@ -30,7 +34,18 @@ _BREAKER_FAILURES = 5
 def _make_task(metrics=None):
     kill_signal = MagicMock()
     kill_signal.received = False
-    return FreeFleetsResources(kill_signal=kill_signal, metrics=metrics or MagicMock())
+    task = FreeFleetsResources(kill_signal=kill_signal, metrics=metrics or MagicMock())
+    task.fleets._submit = _run_now  # pylint: disable=protected-access
+    task.fleets._has_room = lambda: True  # pylint: disable=protected-access
+    return task
+
+
+def _run_now(fn, *args, replace_key=None):  # pylint: disable=unused-argument
+    """Run a background task in the test thread, so one cycle lists, checks and stamps."""
+    future = Future()
+    fn(*args)
+    future.set_result(None)
+    return future
 
 
 @pytest.fixture
@@ -71,9 +86,23 @@ def _age(job, age_hours):
     job.refresh_from_db()
 
 
-def _run(task, *, deleted=True, error=None):
-    with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
-        if error:
+def _listed_from_db(handler, region, deadline):  # pylint: disable=unused-argument
+    return {job.fleet_id: "standby" for job in Job.objects.held_fleets().filter(ce_project_name=handler.project_id)}
+
+
+def _run(task, *, deleted=True, error=None, listed=_listed_from_db, exists=True):
+    """Run one cycle. ``listed`` is what Code Engine lists, a dict or a function. ``exists`` answers every GET."""
+    listing = listed if callable(listed) else lambda handler, region, deadline: listed
+    with (
+        patch(
+            f"{_SCHEDULE_MOD}.FleetsFleetDeleter.handler",
+            side_effect=lambda name: (MagicMock(project_id=name), "us-east"),
+        ),
+        patch(f"{_SCHEDULE_MOD}.FleetsFleetDeleter.list_fleets", side_effect=listing),
+        patch(f"{_SCHEDULE_MOD}.FleetsFleetDeleter.fleet_exists", return_value=exists),
+        patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner,
+    ):
+        if error is not None:
             get_runner.return_value.free_resources.side_effect = error
         else:
             get_runner.return_value.free_resources.return_value = deleted
@@ -81,15 +110,14 @@ def _run(task, *, deleted=True, error=None):
     return get_runner.return_value.free_resources
 
 
-def test_deletes_the_fleet_and_stamps_the_job_past_the_window(fleets_program):
+def test_deletes_the_fleet_past_the_window(fleets_program):
     job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    task = _make_task()
 
-    free_resources = _run(_make_task())
+    free_resources = _run(task)
 
     free_resources.assert_called_once()
-    job.refresh_from_db()
-    assert job.fleet_deleted_at is not None
-    assert job.fleet_id == "fleet-1"
+    assert task.fleets.deleting() == {job.fleet_id}
 
 
 def test_does_not_delete_a_fleet_twice(fleets_program):
@@ -113,14 +141,14 @@ def test_keeps_a_fleet_inside_the_window(fleets_program):
     assert job.fleet_deleted_at is None
 
 
-def test_does_not_stamp_a_fleet_it_could_not_delete(fleets_program):
-    job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+def test_a_fleet_it_could_not_delete_is_not_marked_deleting(fleets_program):
+    _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    task = _make_task()
 
-    free_resources = _run(_make_task(), deleted=False)
+    free_resources = _run(task, deleted=False)
 
     free_resources.assert_called_once()
-    job.refresh_from_db()
-    assert job.fleet_deleted_at is None
+    assert task.fleets.deleting() == set()
 
 
 def test_gives_up_on_a_fleet_after_three_attempts(fleets_program):
@@ -134,8 +162,7 @@ def test_gives_up_on_a_fleet_after_three_attempts(fleets_program):
     free_resources = _run(task, deleted=True)
 
     assert free_resources.call_count == 1
-    assert Job.objects.filter(fleet_id="fine", fleet_deleted_at__isnull=False).exists()
-    assert Job.objects.filter(fleet_id="broken", fleet_deleted_at__isnull=True).exists()
+    assert task.fleets.deleting() == {"fine"}
 
 
 def test_counting_new_failures_does_not_forget_a_fleet_already_given_up_on(fleets_program, monkeypatch):
@@ -183,14 +210,17 @@ def test_counts_each_delete_by_project_and_outcome(fleets_program):
 
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="broken")
     _run(task, error=RunnerRetryableError("Too Many Requests"))
-    assert deletes() == (0, 0, 0)
+    assert deletes() == (0, 0, 0, 0)
 
     for _ in range(MAX_ATTEMPTS_PER_FLEET):
         _run(task, deleted=False)
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="fine")
     _run(task, deleted=True)
+    assert deletes() == (1, 0, MAX_ATTEMPTS_PER_FLEET - 1, 1)
 
-    assert deletes() == (1, MAX_ATTEMPTS_PER_FLEET - 1, 1)
+    task.fleets._clock = lambda: time.monotonic() + CHECK_EVERY_SECONDS + 1  # pylint: disable=protected-access
+    _run(task, exists=False)
+    assert deletes() == (1, 1, MAX_ATTEMPTS_PER_FLEET - 1, 1)
 
 
 def test_does_nothing_while_disabled_but_still_reports(fleets_program):
@@ -214,8 +244,7 @@ def test_a_broken_metrics_report_does_not_stop_the_deletes(fleets_program):
     free_resources = _run(task)
 
     free_resources.assert_called_once()
-    job.refresh_from_db()
-    assert job.fleet_deleted_at is not None
+    assert task.fleets.deleting() == {job.fleet_id}
 
 
 def test_keeps_a_stopping_job(fleets_program):
@@ -285,10 +314,11 @@ def test_deletes_one_fleet_and_stops_once_the_time_budget_is_spent(fleets_progra
     for n in range(3):
         _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + n + 1, fleet_id=f"fleet-{n}")
 
-    free_resources = _run(_make_task())
+    task = _make_task()
+    free_resources = _run(task)
 
     free_resources.assert_called_once()
-    assert Job.objects.held_fleets().count() == 2
+    assert len(task.fleets.deleting()) == 1
 
 
 def test_deletes_at_most_one_batch_per_cycle(fleets_program):
@@ -304,12 +334,11 @@ def test_a_failed_region_does_not_stop_the_other_regions(fleets_program):
     _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 2, fleet_id="in-us", ce_region="us-east")
     healthy = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1, fleet_id="in-eu", ce_region="eu-de")
 
-    with patch(f"{_SCHEDULE_MOD}.get_runner") as get_runner:
-        get_runner.return_value.free_resources.side_effect = [RunnerRetryableError("unavailable"), True]
-        _make_task().run()
+    task = _make_task()
 
-    healthy.refresh_from_db()
-    assert healthy.fleet_deleted_at is not None
+    _run(task, error=[RunnerRetryableError("unavailable"), True])
+
+    assert task.fleets.deleting() == {healthy.fleet_id}
 
 
 @pytest.mark.parametrize("ce_region", [None, ""])
@@ -324,9 +353,7 @@ def test_a_paused_region_reached_through_the_program_does_not_fill_the_batch(fle
 
     _run(task)
 
-    healthy.refresh_from_db()
-    assert healthy.fleet_deleted_at is not None
-    assert Job.objects.held_fleets().filter(fleet_id__startswith="legacy-").count() == DEFAULT_MAX_DELETES_PER_CYCLE
+    assert task.fleets.deleting() == {healthy.fleet_id}
 
 
 def test_a_clean_cycle_clears_the_delete_failures(fleets_program):
@@ -383,13 +410,12 @@ def test_deletes_a_fleet_inside_the_window_when_its_project_is_over_the_quota(fl
     oldest = _terminal_job(fleets_program, age_hours=2, fleet_id="fleet-1")
     newest = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
 
-    free_resources = _run(_make_task())
+    task = _make_task()
+    free_resources = _run(task)
 
     free_resources.assert_called_once()
-    oldest.refresh_from_db()
-    newest.refresh_from_db()
-    assert oldest.fleet_deleted_at is not None
-    assert newest.fleet_deleted_at is None
+    assert task.fleets.deleting() == {oldest.fleet_id}
+    assert newest.fleet_id not in task.fleets.deleting()
 
 
 def test_a_retention_backlog_does_not_starve_the_quota_cap(fleets_program):
@@ -400,11 +426,11 @@ def test_a_retention_backlog_does_not_starve_the_quota_cap(fleets_program):
         )
     urgent = _terminal_job(fleets_program, age_hours=1, fleet_id="urgent-1", ce_project_name="busy-project")
     _terminal_job(fleets_program, age_hours=1, fleet_id="urgent-2", ce_project_name="busy-project")
+    task = _make_task()
 
-    _run(_make_task())
+    _run(task)
 
-    urgent.refresh_from_db()
-    assert urgent.fleet_deleted_at is not None
+    assert urgent.fleet_id in task.fleets.deleting()
 
 
 def test_the_cap_takes_no_more_than_the_project_needs(fleets_program):
@@ -412,10 +438,11 @@ def test_the_cap_takes_no_more_than_the_project_needs(fleets_program):
     for n in range(5):
         _terminal_job(fleets_program, age_hours=n + 1, fleet_id=f"fleet-{n}")
 
-    free_resources = _run(_make_task())
+    task = _make_task()
+    free_resources = _run(task)
 
     assert free_resources.call_count == 4
-    assert Job.objects.held_fleets().count() == 1
+    assert "fleet-0" not in task.fleets.deleting()
 
 
 def test_only_the_project_over_the_quota_loses_its_fresh_fleets(fleets_program):
@@ -423,13 +450,12 @@ def test_only_the_project_over_the_quota_loses_its_fresh_fleets(fleets_program):
     busy = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-1")
     _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-2")
     quiet = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-3", ce_project_name="quiet-project")
+    task = _make_task()
 
-    _run(_make_task())
+    _run(task)
 
-    busy.refresh_from_db()
-    quiet.refresh_from_db()
-    assert busy.fleet_deleted_at is not None
-    assert quiet.fleet_deleted_at is None
+    assert busy.fleet_id in task.fleets.deleting()
+    assert quiet.fleet_id not in task.fleets.deleting()
 
 
 def test_never_deletes_a_running_fleet_even_at_the_full_quota(fleets_program):
@@ -437,14 +463,12 @@ def test_never_deletes_a_running_fleet_even_at_the_full_quota(fleets_program):
     running = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-running")
     Job.objects.filter(pk=running.id).update(status=Job.RUNNING)
     terminal = _terminal_job(fleets_program, age_hours=1, fleet_id="fleet-terminal")
+    task = _make_task()
 
-    free_resources = _run(_make_task())
+    free_resources = _run(task)
 
     free_resources.assert_called_once()
-    running.refresh_from_db()
-    terminal.refresh_from_db()
-    assert running.fleet_deleted_at is None
-    assert terminal.fleet_deleted_at is not None
+    assert task.fleets.deleting() == {terminal.fleet_id}
 
 
 def test_fleets_without_a_project_do_not_trip_the_quota(fleets_program):
@@ -454,11 +478,52 @@ def test_fleets_without_a_project_do_not_trip_the_quota(fleets_program):
     ]
     busy = _terminal_job(fleets_program, age_hours=1, fleet_id="busy-1", ce_project_name="busy-project")
     _terminal_job(fleets_program, age_hours=1, fleet_id="busy-2", ce_project_name="busy-project")
+    task = _make_task()
 
-    _run(_make_task())
+    _run(task)
 
-    busy.refresh_from_db()
-    assert busy.fleet_deleted_at is not None
-    for job in unassigned:
-        job.refresh_from_db()
-        assert job.fleet_deleted_at is None
+    assert task.fleets.deleting() == {busy.fleet_id}
+    assert not {job.fleet_id for job in unassigned} & task.fleets.deleting()
+
+
+def test_the_cap_counts_the_fleets_code_engine_lists(fleets_program):
+    _force_at(quota=4, percent=50)
+    for n in range(3):
+        _terminal_job(fleets_program, age_hours=n + 1, fleet_id=f"fleet-{n}")
+
+    free_resources = _run(_make_task(), listed={"fleet-0": "standby"}, exists=False)
+
+    free_resources.assert_not_called()
+    assert Job.objects.held_fleets().count() == 1
+
+
+def test_a_delete_marks_the_fleet_deleting_and_a_404_stamps_it(fleets_program):
+    job = _terminal_job(fleets_program, age_hours=_RETENTION_HOURS + 1)
+    task = _make_task()
+
+    _run(task)
+    job.refresh_from_db()
+    assert job.fleet_deleted_at is None
+    assert task.fleets.deleting() == {job.fleet_id}
+
+    task.fleets._clock = lambda: time.monotonic() + CHECK_EVERY_SECONDS + 1  # pylint: disable=protected-access
+    second = _run(task, exists=False)
+
+    second.assert_not_called()
+    job.refresh_from_db()
+    assert job.fleet_deleted_at is not None
+    event = JobEvent.objects.get(job=job, event_type=JobEventType.FLEET_DELETED)
+    assert event.data == {"fleet_id": job.fleet_id, "reason": "retention"}
+
+
+def test_a_deleting_fleet_counts_until_its_404(fleets_program):
+    _force_at(quota=4, percent=50)
+    for n in range(3):
+        _terminal_job(fleets_program, age_hours=3 - n, fleet_id=f"fleet-{n}")
+    task = _make_task()
+
+    first = _run(task)
+    second = _run(task)
+
+    assert first.call_count == 2
+    second.assert_not_called()

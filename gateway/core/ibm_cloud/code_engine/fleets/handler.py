@@ -42,7 +42,7 @@ import json
 import logging
 import re
 import time
-from typing import Any
+from typing import Any, Iterator
 
 from core.ibm_cloud.code_engine.ce_client import ApiClient
 from core.ibm_cloud.code_engine.ce_client.api.fleets_api import FleetsApi
@@ -64,6 +64,9 @@ _CANCEL_TIMEOUT_SECONDS = (1, 5)
 
 # (connect, read) for the delete. get_ce_auth turns off urllib3's read retry for a DELETE, so this is the whole wait.
 _DELETE_TIMEOUT_SECONDS = (1, 5)
+
+# (connect, read) for one page of the fleet list, and for one fleet.
+_LIST_TIMEOUT_SECONDS = (1, 5)
 
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
 # rather than on the bare 409, so an unrelated conflict still surfaces instead of being read as
@@ -197,21 +200,44 @@ class FleetHandler:
     def find_fleet_id(self, name: str) -> str | None:
         """The id of the fleet with this name in the project, or None.
 
-        Reads every page, because the list puts the oldest fleets first, and reads the raw JSON, because the
-        generated model rejects a ``standby`` fleet.
+        Reads every page, because the list puts the oldest fleets first.
         """
+        return next((fleet.get("id") for fleet in self._iter_fleets() if fleet.get("name") == name), None)
+
+    def list_fleet_statuses(self, deadline: float) -> dict[str, str]:
+        """The status of every fleet in the project, by fleet id. TimeoutError past ``deadline``, a monotonic time."""
+        return {fleet["id"]: fleet.get("status") for fleet in self._iter_fleets(deadline)}
+
+    def fleet_exists(self, fleet_id: str) -> bool:
+        """Whether the project still has this fleet. ``False`` only on a 404, anything else but a 2xx raises."""
+        try:
+            self._fleets_api.get_fleet(
+                project_id=self.project_id, id=fleet_id, _preload_content=False, _request_timeout=_LIST_TIMEOUT_SECONDS
+            ).release_conn()
+            return True
+        except ApiException as exc:
+            if exc.status == 404:
+                return False
+            raise
+
+    def _iter_fleets(self, deadline: float | None = None) -> Iterator[dict]:
+        """Every fleet in the project, as raw JSON because the generated model rejects a ``standby`` fleet."""
         start = None
         while True:
-            kwargs: dict[str, Any] = {"limit": 100, "_preload_content": False}
+            if deadline is not None and time.monotonic() > deadline:
+                raise TimeoutError(f"Listing the fleets of project {self.project_id} took too long")
+            kwargs: dict[str, Any] = {
+                "limit": 100,
+                "_preload_content": False,
+                "_request_timeout": _LIST_TIMEOUT_SECONDS,
+            }
             if start:
                 kwargs["start"] = start
             page = json.loads(self._fleets_api.list_fleets(project_id=self.project_id, **kwargs).data)
-            for fleet in page.get("fleets") or []:
-                if fleet.get("name") == name:
-                    return fleet.get("id")
+            yield from page.get("fleets") or []
             start = (page.get("next") or {}).get("start")
             if not start:
-                return None
+                return
 
     def resolve_subnet_pool_id(self, name: str) -> str:
         """Resolve a subnet pool name to its id within this project.

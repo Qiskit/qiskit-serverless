@@ -14,7 +14,7 @@ from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 _TICK_BUCKETS_UP_TO_30_MIN = (0.01, 0.025, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1200, 1800)
 TICK_BUCKETS = _TICK_BUCKETS_UP_TO_30_MIN + (3600, 7200, 14400, float("inf"))
 CLOUD_CALL_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, float("inf"))
-FLEET_DELETE_OUTCOMES = ("deleted", "failed", "gave_up")
+FLEET_DELETE_OUTCOMES = ("deleting", "deleted", "failed", "gave_up")
 
 
 class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
@@ -53,8 +53,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.fleet_deletes_total = Counter(
             "scheduler_fleet_deletes_total",
-            "Fleet deletes Code Engine answered, by project and outcome (deleted, failed or gave_up). A 429 or a "
-            "timeout is not counted, it shows on scheduler_fleets_breaker_open.",
+            "Fleet deletes Code Engine answered, by project and outcome: deleting once it accepted the delete, "
+            "deleted once a GET found the fleet gone, failed or gave_up. A 429 or a timeout is not counted, it "
+            "shows on scheduler_fleets_breaker_open.",
             labelnames=("project", "outcome"),
             registry=self.registry,
         )

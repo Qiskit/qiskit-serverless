@@ -21,7 +21,11 @@ import importlib
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from core.ibm_cloud.code_engine.fleets.cos import queue_prefix
+from core.models import Program
+from tests.utils import TestUtils
 
 _MOCK_ENV = {
     "MINIO_ENDPOINT": "http://minio:9000",
@@ -69,3 +73,20 @@ def test_mock_cancel_job_reports_the_cancel_as_delivered():
         Key=f"{prefix}canceled/0/fleet-123-0/canceled",
         Body=b"",
     )
+
+
+@pytest.mark.django_db
+def test_mock_list_fleet_statuses_lists_the_held_fleets_of_the_project():
+    fleets_mock = _load_fleets_mock()
+    program = TestUtils.create_program(
+        program_title="a-function",
+        author="function_owner",
+        runner=Program.FLEETS,
+        code_engine_project=TestUtils.get_or_create_ce_project(project_name="ce-test", project_id="ce-id"),
+    )
+    TestUtils.create_job(author=program.author, program=program, fleet_id="fleet-1", ce_project_name="ce-test")
+    handler = MagicMock(project_id="ce-id")
+
+    statuses = fleets_mock._mock_list_fleet_statuses(handler, deadline=0)  # pylint: disable=protected-access
+
+    assert statuses == {"fleet-1": "standby"}

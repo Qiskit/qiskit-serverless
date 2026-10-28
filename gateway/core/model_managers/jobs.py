@@ -6,7 +6,9 @@ from datetime import datetime
 from typing import Optional, Set, Tuple, Self
 
 from django.db.models.functions import Coalesce, NullIf
-from django.db.models import OuterRef, QuerySet, Subquery, Value
+from django.db import transaction
+from django.db.models import F, OuterRef, Q, QuerySet, Subquery, Value
+from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 
 from core.enums.type_filter import TypeFilter
@@ -75,6 +77,29 @@ class JobQuerySet(QuerySet):
         from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
 
         return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)
+
+    def stamp_fleet_deleted(self, job_id, fleet_id: str, reason: str) -> bool:
+        """Stamp ``fleet_deleted_at`` and write the job event, once. ``False`` when another writer stamped it first."""
+        from core.models import JobEvent  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        now = timezone.now()
+        with transaction.atomic():
+            stamped = (
+                self.held_fleets()
+                .filter(pk=job_id, fleet_id=fleet_id)
+                .update(fleet_deleted_at=now, updated=now, version=F("version") + 1)
+            )
+            if stamped:
+                JobEvent.objects.add_fleet_deleted_event(job_id, fleet_id, reason)
+        return bool(stamped)
+
+    def missing_from_list(self, project_name: str, listed, listed_at: datetime) -> tuple[Self, Self]:
+        """The project's held fleets a Code Engine list does not show: the new ones, and the ones terminal before it."""
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        missing = self.held_fleets().filter(ce_project_name=project_name).exclude(fleet_id__in=list(listed))
+        stale = Q(status__in=Job.TERMINAL_STATUSES, updated__lt=listed_at)
+        return missing.exclude(stale), missing.filter(stale)
 
     def with_fleet_project(self) -> Self:
         """Annotate ``fleet_project_sql``, the SQL form of ``Job.fleet_project``."""

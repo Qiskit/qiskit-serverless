@@ -21,6 +21,7 @@ COS sub-manager tests live in test_job_cos_unit.py.
 
 import json
 import logging
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -165,6 +166,28 @@ def _name_conflict() -> ApiException:
 def _fleets_page(fleets, next_start=None):
     body = {"fleets": fleets, **({"next": {"start": next_start}} if next_start else {})}
     return MagicMock(data=json.dumps(body).encode())
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_list_fleet_statuses_reads_every_page(mock_fleets_api_cls, project_id):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.list_fleets.side_effect = [
+        _fleets_page([{"id": "a", "status": "standby"}], next_start="100"),
+        _fleets_page([{"id": "b", "status": "deleting"}]),
+    ]
+
+    assert handler.list_fleet_statuses(deadline=time.monotonic() + 60) == {"a": "standby", "b": "deleting"}
+    assert mock_fleets_api.list_fleets.call_args.kwargs["start"] == "100"
+    assert mock_fleets_api.list_fleets.call_args.kwargs["_request_timeout"] == (1, 5)
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_list_fleet_statuses_raises_past_the_deadline(mock_fleets_api_cls, project_id):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+
+    with pytest.raises(TimeoutError):
+        handler.list_fleet_statuses(deadline=time.monotonic() - 1)
+    mock_fleets_api.list_fleets.assert_not_called()
 
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")

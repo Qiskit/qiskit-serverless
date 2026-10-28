@@ -32,7 +32,7 @@ from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
-from core.services.runners.fleets_runner import FleetsRunner
+from core.services.runners.fleets_runner import FleetsRunner, list_project_fleets, project_has_fleet
 from tests.utils import TestUtils
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
@@ -1047,25 +1047,21 @@ def test_is_cos_configured_false_when_project_missing():
     assert runner._is_cos_configured() is False  # pylint: disable=protected-access
 
 
-def test_get_api_key_returns_from_settings():
-    """_get_api_key() returns IBM_CLOUD_API_KEY from settings."""
-    runner, _ = _make_runner()
-
+def test_api_key_returns_from_settings():
+    """_api_key() returns IBM_CLOUD_API_KEY from settings."""
     with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
         mock_settings.IBM_CLOUD_API_KEY = "my-api-key"
-        result = runner._get_api_key()  # pylint: disable=protected-access
+        result = fleets_runner_module._api_key()  # pylint: disable=protected-access
 
     assert result == "my-api-key"
 
 
-def test_get_api_key_raises_when_not_configured():
-    """_get_api_key() raises RunnerError when no API key is configured."""
-    runner, _ = _make_runner()
-
+def test_api_key_raises_when_not_configured():
+    """_api_key() raises RunnerError when no API key is configured."""
     with patch(f"{_RUNNER_MOD}.settings") as mock_settings:
         mock_settings.IBM_CLOUD_API_KEY = None
         with pytest.raises(RunnerError, match="IBM_CLOUD_API_KEY"):
-            runner._get_api_key()  # pylint: disable=protected-access
+            fleets_runner_module._api_key()  # pylint: disable=protected-access
 
 
 def test_get_fleet_name_returns_from_api():
@@ -1445,7 +1441,7 @@ class TestExecutionProject:
         with (
             patch(f"{_RUNNER_MOD}.get_ce_auth") as get_ce_auth,
             patch(f"{_RUNNER_MOD}.FleetHandler") as handler_cls,
-            patch.object(FleetsRunner, "_get_api_key", return_value="an-api-key"),
+            patch(f"{_RUNNER_MOD}._api_key", return_value="an-api-key"),
         ):
             assert FleetsRunner(job).free_resources() is True
 
@@ -1495,3 +1491,30 @@ class TestExecutionProject:
         with patch.object(runner, "connect") as connect:
             assert runner.free_resources() is False
         connect.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error, retryable",
+    [
+        (ApiException(status=503, reason="error"), True),
+        (TimeoutError("too slow"), True),
+        (RetryableError("IAM is down"), True),
+        (ApiException(status=403, reason="error"), False),
+    ],
+)
+def test_list_project_fleets_retries_only_what_a_retry_can_fix(error, retryable):
+    handler = MagicMock(project_id="ce-id")
+    handler.list_fleet_statuses.side_effect = error
+
+    with pytest.raises(RunnerError) as exc:
+        list_project_fleets(handler, deadline=0)
+
+    assert (type(exc.value) is RunnerRetryableError) is retryable
+
+
+def test_project_has_fleet_maps_its_errors_like_the_list():
+    handler = MagicMock(project_id="ce-id")
+    handler.fleet_exists.side_effect = ApiException(status=503, reason="error")
+
+    with pytest.raises(RunnerRetryableError):
+        project_has_fleet(handler, "fleet-1")

@@ -37,7 +37,7 @@ from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix, task_state_from_key
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
-from core.models import CodeEngineProject
+from core.models import CodeEngineProject, Job
 
 logger = logging.getLogger("FleetsMock")
 
@@ -51,6 +51,9 @@ FLEET_STATE_ARCHIVE_BUCKET = "fleet-state-archive"
 MINIO_ENDPOINT = os.environ["MINIO_ENDPOINT"]
 MINIO_ACCESS_KEY = os.environ["MINIO_ACCESS_KEY"]
 MINIO_SECRET_KEY = os.environ["MINIO_SECRET_KEY"]
+
+# Fleets the mock delete was called on. Process memory, like the scheduler that calls it
+_DELETED_FLEETS: set[str] = set()
 
 _patches: list = []
 _MOCK_S3: tuple[int, object] | None = None
@@ -309,7 +312,24 @@ def _mock_delete_job(self, identifier):  # pylint: disable=unused-argument
         ``True``, the way a real delete reports that the project held the fleet.
     """
     logger.info("Mock: pretending to delete fleet [%s] in project [%s]", identifier, self.project_id)
+    _DELETED_FLEETS.add(identifier)
     return True
+
+
+def _mock_list_fleet_statuses(self, deadline):  # pylint: disable=unused-argument
+    """Every held fleet of the project as ``standby``, without the deleted ones, so the quota cap works here."""
+    project = CodeEngineProject.objects.filter(project_id=self.project_id).first()
+    if project is None:
+        return {}
+    jobs = Job.objects.held_fleets().filter(ce_project_name=project.project_name)
+    return {
+        fleet_id: "standby" for fleet_id in jobs.values_list("fleet_id", flat=True) if fleet_id not in _DELETED_FLEETS
+    }
+
+
+def _mock_fleet_exists(self, fleet_id):  # pylint: disable=unused-argument
+    """``False`` once the mock deleted the fleet, so a deleted fleet is confirmed gone on a mocked stack."""
+    return fleet_id not in _DELETED_FLEETS
 
 
 def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argument
@@ -377,6 +397,14 @@ def install_mocks():
         patch(
             "core.ibm_cloud.code_engine.fleets.handler.FleetHandler.delete_job",
             _mock_delete_job,
+        ),
+        patch(
+            "core.ibm_cloud.code_engine.fleets.handler.FleetHandler.list_fleet_statuses",
+            _mock_list_fleet_statuses,
+        ),
+        patch(
+            "core.ibm_cloud.code_engine.fleets.handler.FleetHandler.fleet_exists",
+            _mock_fleet_exists,
         ),
     ]
 

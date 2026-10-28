@@ -52,6 +52,9 @@ class JobEventContext(StrEnum):
     # Scheduler: a PENDING or RUNNING job of a blocked resource was stopped (status STOPPING or STOPPED)
     BLOCKED_RESOURCE_STOP = "BLOCKED_RESOURCE_STOP"
 
+    # Scheduler: Code Engine no longer has the fleet of a job, so it stopped holding a slot
+    FREE_FLEETS_RESOURCES = "FREE_FLEETS_RESOURCES"
+
 
 class JobEventType(StrEnum):
     """Job events type enum."""
@@ -59,6 +62,7 @@ class JobEventType(StrEnum):
     ERROR = "ERROR"
     STATUS_CHANGE = "STATUS_CHANGE"
     SUB_STATUS_CHANGE = "SUB_STATUS_CHANGE"
+    FLEET_DELETED = "FLEET_DELETED"
 
 
 class JobEventQuerySet(QuerySet):
@@ -170,6 +174,17 @@ class JobEventQuerySet(QuerySet):
             context=context,
             event_type=JobEventType.ERROR,
             data={"code": code, "message": message, "exception": exception, "args": args},
+        )
+
+    def add_fleet_deleted_event(self, job_id: uuid.UUID, fleet_id: str, reason: str):
+        """The job's Code Engine fleet is gone, for ``reason``."""
+        logger.info("[add_fleet_deleted_event] job_id=%s fleet_id=%s | %s", job_id, fleet_id, reason)
+        return self.create(
+            job_id=job_id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.FREE_FLEETS_RESOURCES,
+            event_type=JobEventType.FLEET_DELETED,
+            data={"fleet_id": fleet_id, "reason": reason},
         )
 
     def get_job_events(  # pylint:  disable=too-many-positional-arguments
