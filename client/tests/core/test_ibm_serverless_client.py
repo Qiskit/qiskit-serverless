@@ -31,7 +31,7 @@ from qiskit_serverless.core.constants import (
 from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.exception import QiskitServerlessException
 
-_LIST_INSTANCES = "qiskit_ibm_runtime.accounts.account.CloudAccount.list_instances"
+_LIST_INSTANCES = "qiskit_ibm_runtime.accounts.account.Account.list_instances"
 _VERIFY_CREDS = "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
 _CONFIG_FILE = "qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE"
 
