@@ -10,7 +10,11 @@ from prometheus_client import REGISTRY
 from core.models import Job, Program, WorkloadMirror
 from core.services import workload_best_effort_mirror
 from core.services.background_executor import BackgroundExecutorNotInitializedError, BackgroundPool
-from core.services.workload_best_effort_mirror import NoOpWorkloadMirror, WorkloadBestEffortMirror
+from core.services.workload_best_effort_mirror import (
+    NoOpWorkloadMirror,
+    WorkloadBestEffortMirror,
+    WorkloadInlineMirror,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -175,3 +179,30 @@ def test_the_no_op_mirror_touches_nothing(executor, django_assert_num_queries):
 
     executor.would_accept.assert_not_called()
     executor.submit.assert_not_called()
+
+
+def test_the_inline_mirror_puts_on_the_calling_thread_and_counts_nothing(executor, client):
+    job = _job(Job.STOPPING)
+    before = (_count("Stopping", "sent"), _count("Stopping", "failed"))
+
+    WorkloadInlineMirror().send(job)
+
+    kwargs = client.put_function.call_args.kwargs
+    assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 3)
+    executor.submit.assert_not_called()
+    assert (_count("Stopping", "sent"), _count("Stopping", "failed")) == before
+
+
+def test_the_inline_mirror_swallows_any_failure(client):
+    client.put_function.side_effect = RuntimeError("boom")
+
+    WorkloadInlineMirror().send(_job(Job.STOPPING))
+
+    with patch(f"{MODULE}.is_mirrored", side_effect=OperationalError("down")):
+        WorkloadInlineMirror().send(_job(Job.STOPPING))
+
+
+def test_the_inline_mirror_skips_a_job_without_a_mirror_row(client):
+    WorkloadInlineMirror().send(_job(Job.STOPPING, mirrored=False))
+
+    client.put_function.assert_not_called()

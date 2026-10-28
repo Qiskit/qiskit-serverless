@@ -9,6 +9,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 from core.models import Job, Program, RuntimeJob
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
+from core.services.workload_best_effort_mirror import WorkloadInlineMirror
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError
 from core.utils import retry_function
 from api.access_policies.jobs import JobAccessPolicies
@@ -60,8 +61,9 @@ class StopJobUseCase:
             return " ".join(self.status_messages)
 
         try:
-            # Kafka is disabled on the gateway, so the service sends nothing from here.
-            transitions = JobTransitionService()
+            # Kafka is disabled on the gateway, so the service sends no billing event from here. STOPPING goes to the
+            # Runtime API on this thread, best effort, because the gateway has no background executor.
+            transitions = JobTransitionService(workload_mirror=WorkloadInlineMirror())
             if job.runner == Program.RAY:
                 # Ray has no cancel to confirm. The cluster is asked to stop further down.
                 transitions.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)

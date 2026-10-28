@@ -2,7 +2,8 @@
 
 The terminal status does not go through here: it goes through the WORKLOAD outbox channel, which guarantees delivery
 and repairs any intermediate status lost here. ``send`` runs on the scheduler thread, and only the network call runs on
-the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for the Runtime API.
+the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for the Runtime API. The gateway has no
+background executor, so it uses ``WorkloadInlineMirror``, which makes the call on the thread of the request.
 """
 
 import logging
@@ -123,3 +124,20 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("job_id=%s workload status not sent: %s", job.id, type(ex).__name__)
             _count(status, "failed")
+
+
+class WorkloadInlineMirror(WorkloadMirrorSender):
+    """Sends the current status of a mirrored job on the calling thread, for the gateway, which has no background
+    executor. The request waits at most the timeout of the PUT (the token has its own). Nothing is counted: the gateway
+    runs several workers without Prometheus multiprocess mode (see ``core/external_call_metrics.py``), so a counter
+    would be wrong. A failure is only logged, and a lost status is repaired by the terminal one."""
+
+    def send(self, job: Job) -> None:
+        """Send the status of ``job``, which the caller has already committed. It never raises."""
+        if not should_be_mirrored(job):
+            return
+        try:
+            if is_mirrored(job):
+                get_functions_operator_client().put_function(**build_workload_payload(job), timeout=_PUT_TIMEOUT)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning("job_id=%s workload status %s not sent: %s", job.id, job.status, type(ex).__name__)

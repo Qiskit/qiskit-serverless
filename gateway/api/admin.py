@@ -48,6 +48,7 @@ from core.models import (
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.services.job_transitions import JobTransitionService
+from core.services.workload_best_effort_mirror import WorkloadInlineMirror
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage.job_file_explorer import JobFileExplorer
 
@@ -759,7 +760,7 @@ class JobAdmin(admin.ModelAdmin):
             messages.error(request, "This job can't be stopped from here.")
             return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
-        transitions = JobTransitionService()
+        transitions = JobTransitionService(workload_mirror=WorkloadInlineMirror())
         try:
             # The fork is what each engine owes: Ray has no cancel to confirm, Fleets does. A
             # stop strategy per runner is tracked separately.

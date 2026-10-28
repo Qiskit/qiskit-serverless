@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 
 from api.admin import JobAdmin
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import Job, JobEvent, Program
+from core.models import Job, JobEvent, Program, WorkloadMirror
 from core.services.runners import RunnerError, RunnerRetryableError
 
 
@@ -164,6 +164,30 @@ class TestJobAdmin(APITestCase):
         event = JobEvent.objects.get(job_id=job.id)
         assert event.origin == JobEventOrigin.BACKOFFICE
         assert event.context == JobEventContext.STOP_JOB
+
+    def test_stop_job_button_sends_stopping_to_the_runtime_api(self):
+        user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
+        program = Program.objects.create(title=f"{user.username}-custom", author=user, runner=Program.FLEETS)
+        job = Job.objects.create(
+            status=Job.RUNNING,
+            author_id=user.pk,
+            program=program,
+            runner=Program.FLEETS,
+            fleet_id="fleet-123",
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        )
+        WorkloadMirror.objects.create(job=job)
+        runner = MagicMock()
+        runner.stop.return_value = True
+
+        with (
+            patch("core.services.job_transitions.get_runner", return_value=runner),
+            patch("core.services.workload_best_effort_mirror.get_functions_operator_client") as get_client,
+        ):
+            self._post_stop(job, user)
+
+        kwargs = get_client.return_value.put_function.call_args.kwargs
+        assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 3)
 
     def test_stop_job_button_ends_a_fleets_job_with_no_fleet(self):
         """Nothing to cancel, so the row goes straight to STOPPED and the scheduler never sees it."""
