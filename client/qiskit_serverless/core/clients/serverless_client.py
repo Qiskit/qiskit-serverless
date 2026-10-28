@@ -1099,6 +1099,7 @@ class IBMServerlessClient(ServerlessClient):
         *,
         function_size: Optional[str] = None,
         suppress_low_usage_warning: bool = False,
+        bypass_usage_check: bool = False,
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
@@ -1115,6 +1116,9 @@ class IBMServerlessClient(ServerlessClient):
             suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime
                 quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for exhausted quota
                 (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.
+            bypass_usage_check: If ``True``, skip the client-side runtime quota check entirely, including
+                the low-quota warning, so ``suppress_low_usage_warning`` has no effect. The gateway still
+                enforces its own quota checks.
 
         Returns:
             :class:`~qiskit_serverless.core.job.Job` handle for the submitted run.
@@ -1125,7 +1129,8 @@ class IBMServerlessClient(ServerlessClient):
         """
         backend_name = (arguments or {}).get("backend_name")
 
-        self._check_usage(suppress_low_usage_warning)
+        if not bypass_usage_check:
+            self._check_usage(suppress_low_usage_warning)
 
         if backend_name:
             # Single-backend lookup — fast and confirms access without a full instance listing.
