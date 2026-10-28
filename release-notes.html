@@ -322,6 +322,18 @@ Fleets job could not be stopped from the backoffice at all. The job is billed
 for what it really ran, the same as a stop from the client.</p></li>
 </ul>
 <ul class="simple">
+<li><p>When the scheduler cancels a Fleets job because its account, plan and
+subscription are blocked, the gateway now records an <code class="docutils literal notranslate"><span class="pre">ERROR</span></code> event on the
+job with the code <code class="docutils literal notranslate"><span class="pre">BLOCKED_RESOURCE</span></code> and a message explaining the cause.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">result()</span></code> now raises
+<a class="reference internal" href="stubs/qiskit_serverless.QiskitServerlessException.html#qiskit_serverless.QiskitServerlessException" title="qiskit_serverless.exception.QiskitServerlessException"><code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code></a> for a job
+cancelled because its account, plan or subscription is blocked, explaining
+why it was cancelled and why its result may be missing or incomplete. Jobs
+cancelled for any other reason return their result as before.</p></li>
+</ul>
+<ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/v1/programs/run/</span></code> now returns a <code class="docutils literal notranslate"><span class="pre">warning</span></code> field when the
 account, plan and subscription of the request are blocked. The job is still
 queued, but it will not start until the block is lifted. The field is left
