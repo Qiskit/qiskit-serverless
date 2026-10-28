@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional, Set, Tuple, Self
 
 from django.db.models.functions import Coalesce, NullIf
-from django.db.models import QuerySet, Value
+from django.db.models import OuterRef, QuerySet, Subquery, Value
 from django.contrib.auth.models import AbstractUser
 
 from core.enums.type_filter import TypeFilter
@@ -41,6 +41,9 @@ class JobFilters:
     created_after: Optional[datetime] = None
 
 
+UNASSIGNED_PROJECT = "unassigned"
+
+
 class JobQuerySet(QuerySet):
     """Job events query set to transform into a manager."""
 
@@ -48,11 +51,36 @@ class JobQuerySet(QuerySet):
         """Fetch the job's program and its provider in the same query."""
         return self.select_related("program__provider")
 
+    def with_scheduler_context(self) -> Self:
+        """Join the author, program, provider, Code Engine project and config that the scheduler reads."""
+        return self.select_related("author", "program__provider", "program__code_engine_project", "config")
+
+    def with_event_times(self) -> Self:
+        """Load two event times with each job, so a loop does not query them per job. Read them with the
+        ``Job.last_event_at`` (timeout) and ``Job.first_running_at`` (usage) properties, which raise without this.
+
+        The values are as of the query: an event written later in the same pass is not in them.
+        """
+        from core.models import JobEvent  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        events = JobEvent.objects.filter(job=OuterRef("pk"))
+        # Underscored: a property and an annotation cannot share a name, Django would fail to set it
+        return self.annotate(
+            _last_event_at=Subquery(events.order_by("-created").values("created")[:1]),
+            _first_running_at=Subquery(events.running_status_events().values("created")[:1]),
+        )
+
     def held_fleets(self) -> Self:
         """Fleets jobs whose Code Engine fleet we have not deleted: a fleet_id and no stamp."""
         from core.models import Program  # pylint: disable=import-outside-toplevel, cyclic-import
 
         return self.filter(runner=Program.FLEETS, fleet_id__isnull=False, fleet_deleted_at__isnull=True)
+
+    def with_fleet_project(self) -> Self:
+        """Annotate ``fleet_project_sql``, the SQL form of ``Job.fleet_project``."""
+        return self.annotate(
+            fleet_project_sql=Coalesce(NullIf("ce_project_name", Value("")), Value(UNASSIGNED_PROJECT))
+        )
 
     def with_fleet_region(self) -> Self:
         """Annotate ``fleet_region_sql``, the SQL form of ``Job.fleet_region``. Not in held_fleets, for its index."""

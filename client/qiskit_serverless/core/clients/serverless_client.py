@@ -371,6 +371,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
+        if response_data.get("warning"):
+            warnings.warn(response_data["warning"], stacklevel=2)
+
         return Job(
             job_id,
             job_service=self,
