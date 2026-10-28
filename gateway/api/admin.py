@@ -760,6 +760,7 @@ class JobAdmin(admin.ModelAdmin):
             messages.error(request, "This job can't be stopped from here.")
             return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
+        # Mirror the job (STOPPING) is inline (same thread) and best effort: a sending error is ignored
         transitions = JobTransitionService(workload_mirror=WorkloadInlineMirror())
         try:
             # The fork is what each engine owes: Ray has no cancel to confirm, Fleets does. A
