@@ -121,6 +121,20 @@ class TestReasonsAndRegions:
 
         assert _reasons_and_regions() == [("total", "eu-de")]
 
+    @pytest.mark.parametrize("topic", [_TOTAL_TOPIC, _NON_QUANTUM_TOPIC])
+    def test_the_same_event_twice_for_a_reason_leaves_one_row(self, topic):
+        _handle(_event(), topic=topic)
+        _handle(_event(), topic=topic)
+
+        assert len(_reasons_and_regions()) == 1
+
+    def test_an_unblock_in_a_region_without_a_row_is_a_no_op(self):
+        _handle(_event(), region="us-east")
+
+        _handle(_event(deleted=True), region="eu-de")
+
+        assert _reasons_and_regions() == [("total", "us-east")]
+
     def test_an_event_from_a_topic_without_a_reason_is_invalid(self):
         with pytest.raises(InvalidEventError, match="no blocking reason"):
             _handle(_event(), topic="unknown-topic")
