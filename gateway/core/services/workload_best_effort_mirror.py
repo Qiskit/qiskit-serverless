@@ -127,10 +127,7 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
 
 
 class WorkloadInlineMirror(WorkloadMirrorSender):
-    """Sends the current status of a mirrored job on the calling thread, for the gateway, which has no background
-    executor. The request waits at most the timeout of the PUT (the token has its own). Nothing is counted: the gateway
-    runs several workers without Prometheus multiprocess mode (see ``core/external_call_metrics.py``), so a counter
-    would be wrong. A failure is only logged, and a lost status is repaired by the terminal one."""
+    """Mirror a job on the calling thread, for the gateway, which has no background executor."""
 
     def send(self, job: Job) -> None:
         """Send the status of ``job``, which the caller has already committed. It never raises."""
