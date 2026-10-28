@@ -206,7 +206,8 @@ def test_a_real_status_pass_reads_no_events_per_job(world):
 
 
 def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
-    """A blocked-jobs pass is two queries (blocked rows, then jobs), however many jobs there are."""
+    """A blocked-jobs pass is three queries (blocked rows, jobs, then one insert of the stopped jobs' error events),
+    however many jobs there are."""
     from unittest.mock import MagicMock  # pylint: disable=import-outside-toplevel
 
     from core.config_key import ConfigKey  # pylint: disable=import-outside-toplevel
@@ -242,7 +243,7 @@ def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
     add_blocked(2)
     few = one_pass()
     add_blocked(20)
-    assert one_pass() == few == 2
+    assert one_pass() == few == 3
     assert len(seen) == 2 + 22
 
     # nothing blocked: only the blocked rows are read, no job query
