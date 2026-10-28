@@ -5,6 +5,7 @@
 import logging
 import operator
 import uuid
+from datetime import datetime
 from enum import StrEnum
 from functools import reduce
 
@@ -29,7 +30,7 @@ from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
-from core.model_managers.jobs import JobQuerySet
+from core.model_managers.jobs import UNASSIGNED_PROJECT, JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
 logger = logging.getLogger("core.models")
@@ -817,6 +818,22 @@ class Job(models.Model):
             label = self.function_size.function_size
         return label.upper() if label else None
 
+    @property
+    def last_event_at(self) -> datetime | None:
+        """When the job's latest event was written, or None if it has none. Needs ``with_event_times()``."""
+        return self._event_time("_last_event_at")
+
+    @property
+    def first_running_at(self) -> datetime | None:
+        """When the job first reached RUNNING, or None if it never did. Needs ``with_event_times()``."""
+        return self._event_time("_first_running_at")
+
+    def _event_time(self, annotation: str) -> datetime | None:
+        """Read an annotation from ``with_event_times()``, raising when the queryset did not load it."""
+        if annotation not in self.__dict__:
+            raise RuntimeError(f"Job {self.id}: load the job with JobQuerySet.with_event_times() to read {annotation}")
+        return self.__dict__[annotation]
+
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
 
@@ -842,6 +859,11 @@ class Job(models.Model):
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
+
+    @property
+    def fleet_project(self) -> str:
+        """The project this job's fleet counts under in the fleet metrics."""
+        return self.ce_project_name or UNASSIGNED_PROJECT
 
     @property
     def fleet_region(self) -> str | None:

@@ -11,9 +11,10 @@ def readiness(request):
     if not ApiConfig.is_ready:
         return JsonResponse({"status": "api_config_not_ready"}, status=503)
 
+    # opening a cursor connects, or runs the CONN_HEALTH_CHECKS SELECT 1 on a reused connection
     try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
+        with connection.cursor():
+            pass
     except OperationalError:
         return JsonResponse({"status": "database_unavailable"}, status=503)
 

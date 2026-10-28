@@ -72,6 +72,41 @@ def test_jobs_this_task_does_not_cancel(fields):
     task.canceller.cancel.assert_not_called()
 
 
+def test_a_null_column_only_matches_a_null_one():
+    BlockedCloudResource.objects.create(account="acct-only")
+    task = _make_task()
+    whole_account = _make_job(account_id="acct-only", plan_id=None, subscription_id=None)
+    _make_job(account_id="acct-only", plan_id="plan", subscription_id="sub")
+
+    task.run()
+
+    task.canceller.cancel.assert_called_once_with(whole_account, context=JobEventContext.BLOCKED_RESOURCE_STOP)
+
+
+def test_every_blocked_row_is_matched_in_the_same_pass():
+    BlockedCloudResource.objects.create(account="acct-2", plan="plan-2", subscription="sub-2")
+    task = _make_task()
+    first = _make_job()
+    second = _make_job(account_id="acct-2", plan_id="plan-2", subscription_id="sub-2")
+    _make_job(account_id="acct-3", plan_id="plan", subscription_id="sub")
+
+    task.run()
+
+    assert {call.args[0] for call in task.canceller.cancel.call_args_list} == {first, second}
+
+
+def test_a_blocked_job_whose_program_was_deleted_is_still_stopped():
+    task = _make_task()
+    task.canceller.cancel.return_value = False
+    job = _make_job()
+    Job.objects.filter(pk=job.pk).update(program=None)
+
+    task.run()
+
+    task.canceller.transitions.to_stopped.assert_called_once()
+    assert task.canceller.transitions.to_stopped.call_args.args == (job,)
+
+
 def test_the_kill_switch_turns_the_task_off():
     Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
     task = _make_task()
