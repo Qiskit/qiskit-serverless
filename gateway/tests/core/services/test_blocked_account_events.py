@@ -14,12 +14,21 @@ def _event(account="acc-1", plan="plan-1", subscription="sub-1", **extra) -> dic
     return {"account_id": account, "plan_id": plan, "subscription_id": subscription, **extra}
 
 
-def _handle(payload: dict) -> None:
-    BlockedAccountEventsService().handle(payload, "key", "us-east")
+_TOTAL_TOPIC = "total-topic"
+_NON_QUANTUM_TOPIC = "non-quantum-topic"
+_TOPIC_REASONS = {_TOTAL_TOPIC: BlockedCloudResource.TOTAL, _NON_QUANTUM_TOPIC: BlockedCloudResource.NON_QUANTUM}
+
+
+def _handle(payload: dict, topic: str = _TOTAL_TOPIC, region: str = "us-east") -> None:
+    BlockedAccountEventsService(_TOPIC_REASONS).handle(payload, "key", region, topic)
 
 
 def _rows() -> list[tuple]:
     return sorted(BlockedCloudResource.objects.values_list("account", "plan", "subscription"))
+
+
+def _reasons_and_regions() -> list[tuple]:
+    return sorted(BlockedCloudResource.objects.values_list("reason", "region"))
 
 
 @pytest.mark.django_db
@@ -66,6 +75,69 @@ class TestUnblock:
     def test_a_prefixed_deleted_event_removes_the_row(self):
         _handle(_event(account="a/acc-1"))
         _handle(_event(account="a/acc-1", deleted=True))
+
+        assert not _rows()
+
+
+@pytest.mark.django_db
+class TestReasonsAndRegions:
+    """Each limit and each region blocks on its own: a resource runs again only once every one has lifted."""
+
+    def test_the_row_keeps_its_topics_reason_and_its_region(self):
+        _handle(_event(), topic=_NON_QUANTUM_TOPIC, region="eu-de")
+
+        assert _reasons_and_regions() == [("non_quantum", "eu-de")]
+
+    def test_both_limits_blocking_leave_a_row_each(self):
+        _handle(_event(), topic=_TOTAL_TOPIC)
+        _handle(_event(), topic=_NON_QUANTUM_TOPIC)
+
+        assert _reasons_and_regions() == [("non_quantum", "us-east"), ("total", "us-east")]
+
+    @pytest.mark.parametrize("lifted, still_blocking", [(_TOTAL_TOPIC, "non_quantum"), (_NON_QUANTUM_TOPIC, "total")])
+    def test_lifting_one_limit_keeps_the_other_blocking(self, lifted, still_blocking):
+        _handle(_event(), topic=_TOTAL_TOPIC)
+        _handle(_event(), topic=_NON_QUANTUM_TOPIC)
+
+        _handle(_event(deleted=True), topic=lifted)
+
+        assert _reasons_and_regions() == [(still_blocking, "us-east")]
+        assert BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1")
+
+    def test_lifting_both_limits_unblocks_the_resource(self):
+        _handle(_event(), topic=_TOTAL_TOPIC)
+        _handle(_event(), topic=_NON_QUANTUM_TOPIC)
+
+        _handle(_event(deleted=True), topic=_NON_QUANTUM_TOPIC)
+        _handle(_event(deleted=True), topic=_TOTAL_TOPIC)
+
+        assert not BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1")
+
+    def test_an_unblock_in_one_region_keeps_another_regions_block(self):
+        _handle(_event(), region="us-east")
+        _handle(_event(), region="eu-de")
+
+        _handle(_event(deleted=True), region="us-east")
+
+        assert _reasons_and_regions() == [("total", "eu-de")]
+
+    @pytest.mark.parametrize("topic", [_TOTAL_TOPIC, _NON_QUANTUM_TOPIC])
+    def test_the_same_event_twice_for_a_reason_leaves_one_row(self, topic):
+        _handle(_event(), topic=topic)
+        _handle(_event(), topic=topic)
+
+        assert len(_reasons_and_regions()) == 1
+
+    def test_an_unblock_in_a_region_without_a_row_is_a_no_op(self):
+        _handle(_event(), region="us-east")
+
+        _handle(_event(deleted=True), region="eu-de")
+
+        assert _reasons_and_regions() == [("total", "us-east")]
+
+    def test_an_event_from_a_topic_without_a_reason_is_invalid(self):
+        with pytest.raises(InvalidEventError, match="no blocking reason"):
+            _handle(_event(), topic="unknown-topic")
 
         assert not _rows()
 
