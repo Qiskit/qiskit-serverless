@@ -33,8 +33,10 @@ from core.models import (
     PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
+from core.ibm_cloud.code_engine.fleets.utils import build_fleets_storage_paths
 from core.services.job_transitions import JobTransitionService
 from core.services.storage import get_arguments_storage
+from core.services.storage.job_storage_paths import save_storage_paths
 from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("api.api.use_cases.programs.run")
@@ -228,7 +230,10 @@ class RunFunctionUseCase:
             env.update(json.loads(function.env_vars))
         job.env_vars = json.dumps(env)
 
-        arguments_storage = get_arguments_storage(job)
+        # A Fleets job's paths are built once, here: the arguments go to that key, the row saved with the job keeps
+        # it, and the container reads it at submit, however long the job waits in the queue.
+        storage_paths = build_fleets_storage_paths(job) if job.runner == Function.FLEETS else None
+        arguments_storage = get_arguments_storage(job, storage_paths)
         arguments_storage.save(data.arguments)
 
         mirror_error: EngineUnavailableException | None = None
@@ -237,6 +242,8 @@ class RunFunctionUseCase:
                 if data.config_data:
                     job.config = JobConfig.objects.create(**data.config_data)
                 job.save()
+                if storage_paths:
+                    save_storage_paths(job, storage_paths)
                 JobEvent.objects.add_status_event(
                     job_id=job.id,
                     origin=JobEventOrigin.API,

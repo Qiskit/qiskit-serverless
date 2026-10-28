@@ -3,6 +3,7 @@
 import logging
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -13,7 +14,9 @@ from core.models import Config, Job, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import RunnerError, RunnerRetryableError
+from core.ibm_cloud.code_engine.fleets.utils import build_fleets_storage_paths
 from core.services.storage import get_arguments_storage
+from core.services.storage.job_storage_paths import save_storage_paths
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
@@ -144,8 +147,8 @@ class BalanceFillerJobs(SchedulerTask):
             return None
 
         if program.runner != Program.FLEETS:
-            # get_arguments_storage dispatches on runner, so a Ray program would put
-            # the arguments where the Fleets submit cannot find them.
+            # Filler jobs are Fleets jobs, so a Ray program would get Fleets
+            # storage paths it can never use.
             self._log_deactivated(f"function {program} runner is {program.runner}, expected {Program.FLEETS}")
             return None
 
@@ -266,9 +269,13 @@ class BalanceFillerJobs(SchedulerTask):
         # Two except blocks because a failure before job.save() leaves no row, and one
         # after it leaves a row nothing else can reach.
         try:
-            # Arguments first: a COS failure then leaves no orphan row behind.
-            get_arguments_storage(job).save("{}")
-            job.save()
+            # Arguments first: a COS failure then leaves no orphan row behind. The job and its storage paths are
+            # saved together, so a filler job never exists without them.
+            storage_paths = build_fleets_storage_paths(job)
+            get_arguments_storage(job, storage_paths).save("{}")
+            with transaction.atomic():
+                job.save()
+                save_storage_paths(job, storage_paths)
         except DB_EXCEPTIONS:
             # Never swallowed: main.py counts consecutive database failures to restart
             # the pod, and returning normally here would clear a streak.
