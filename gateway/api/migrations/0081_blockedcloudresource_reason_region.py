@@ -5,14 +5,18 @@ import django.db.models.functions.comparison
 from django.db import migrations, models
 
 
+def delete_blocked_resources(apps, schema_editor):
+    apps.get_model("api", "BlockedCloudResource").objects.all().delete()
+
+
 class Migration(migrations.Migration):
-    """No default for the new columns: the table has to be emptied before migrating."""
 
     dependencies = [
         ("api", "0080_job_fleet_deleted_at_job_fleet_undeleted_idx"),
     ]
 
     operations = [
+        migrations.RunPython(delete_blocked_resources, migrations.RunPython.noop),
         migrations.RemoveConstraint(
             model_name="blockedcloudresource",
             name="unique_blocked_resource",
