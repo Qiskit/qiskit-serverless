@@ -226,7 +226,7 @@ def test_running_at_and_ended_at_are_the_job_fields_when_it_has_them():
     _add_status_event(job, Job.SUCCEEDED)
     started = datetime.now(timezone.utc) - timedelta(minutes=5)
     ended = started + timedelta(minutes=1)
-    job.update_fields({"running_started_at": started, "ended_at": ended})
+    job.update_fields({"running_started_at": started, "running_ended_at": ended})
 
     body = build_workload_payload(job)["body"]
 

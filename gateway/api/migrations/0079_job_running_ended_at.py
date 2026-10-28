@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="job",
-            name="ended_at",
+            name="running_ended_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

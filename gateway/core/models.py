@@ -750,9 +750,9 @@ class Job(models.Model):
         help_text="IBM Cloud subscription ID of the instance, captured at job creation time",
     )
     # When the job started and ended running, as the runner reports it (Code Engine for a Fleets job), or when the
-    # scheduler noticed it. Billing and the Runtime API read them through started_running_at / finished_at.
+    # scheduler noticed it. Billing and the Runtime API read them through started_at() / ended_at().
     running_started_at = models.DateTimeField(null=True, blank=True)
-    ended_at = models.DateTimeField(null=True, blank=True)
+    running_ended_at = models.DateTimeField(null=True, blank=True)
     ce_project_name = models.CharField(
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
     )
@@ -786,14 +786,15 @@ class Job(models.Model):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
 
-    def started_running_at(self):
+    def started_at(self):
         """When the job started running: running_started_at, or the first RUNNING event for the jobs without it.
         None if it never ran."""
         return self.running_started_at or JobEvent.objects.first_running_at(self.id)
 
-    def finished_at(self):
-        """When the job ended: ended_at, or the first terminal event for the jobs without it. None if it did not."""
-        return self.ended_at or JobEvent.objects.first_terminal_at(self.id)
+    def ended_at(self):
+        """When the job ended: running_ended_at, or the first terminal event for the jobs without it. None if it did
+        not."""
+        return self.running_ended_at or JobEvent.objects.first_terminal_at(self.id)
 
     @property
     def compute_profile_id(self) -> str | None:

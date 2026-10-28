@@ -160,7 +160,7 @@ class TestRunnerTimestamps:
         )
 
         job.refresh_from_db()
-        assert job.ended_at == ended
+        assert job.running_ended_at == ended
 
     def test_a_terminal_status_without_the_time_records_when_it_was_written(self, service):
         author = User.objects.create_user(username="ended-at-author-2")
@@ -169,7 +169,7 @@ class TestRunnerTimestamps:
         event = service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
 
         job.refresh_from_db()
-        assert job.ended_at == event.created
+        assert job.running_ended_at == event.created
 
     def test_an_end_before_the_job_started_running_is_taken_as_that_start(self, service):
         """Two clocks: the job must not end before it started."""
@@ -188,7 +188,7 @@ class TestRunnerTimestamps:
         )
 
         job.refresh_from_db()
-        assert job.ended_at == started
+        assert job.running_ended_at == started
 
     def test_other_statuses_do_not_write_either_field(self, service):
         author = User.objects.create_user(username="no-timestamp-author")
@@ -198,7 +198,7 @@ class TestRunnerTimestamps:
 
         job.refresh_from_db()
         assert job.running_started_at is None
-        assert job.ended_at is None
+        assert job.running_ended_at is None
 
     def test_a_job_without_running_started_at_reads_it_from_its_events(self):
         author = User.objects.create_user(username="fallback-author-1")
@@ -216,8 +216,8 @@ class TestRunnerTimestamps:
             status=Job.SUCCEEDED,
         )
 
-        assert job.started_running_at() == running.created
-        assert job.finished_at() == ended.created
+        assert job.started_at() == running.created
+        assert job.ended_at() == ended.created
 
     def test_the_job_fields_win_over_the_events(self):
         author = User.objects.create_user(username="fallback-author-2")
@@ -230,17 +230,17 @@ class TestRunnerTimestamps:
         )
         started = datetime.now(timezone.utc) - timedelta(minutes=5)
         ended = started + timedelta(minutes=1)
-        job.update_fields({"running_started_at": started, "ended_at": ended})
+        job.update_fields({"running_started_at": started, "running_ended_at": ended})
 
-        assert job.started_running_at() == started
-        assert job.finished_at() == ended
+        assert job.started_at() == started
+        assert job.ended_at() == ended
 
     def test_a_job_that_never_ran_has_neither(self):
         author = User.objects.create_user(username="fallback-author-3")
         job = Job.objects.create(author=author, status=Job.QUEUED)
 
-        assert job.started_running_at() is None
-        assert job.finished_at() is None
+        assert job.started_at() is None
+        assert job.ended_at() is None
 
 
 class TestTransition:

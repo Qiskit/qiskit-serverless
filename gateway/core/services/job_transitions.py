@@ -191,8 +191,8 @@ class JobTransitionService:
                 job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields, happened_at=ended_at
             )
             if _is_usage_billable(job):
-                job_started_at = job.started_running_at()
-                self._enqueue_job_usage(job, job_started_at, job.finished_at())
+                job_started_at = job.started_at()
+                self._enqueue_job_usage(job, job_started_at, job.ended_at())
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
@@ -242,8 +242,8 @@ class JobTransitionService:
                 job, status, origin=origin, context=context, job_fields=job_fields, happened_at=ended_at
             )
             if _is_usage_billable(job):
-                job_started_at = job.started_running_at()
-                self._enqueue_job_usage(job, job_started_at, job.finished_at())
+                job_started_at = job.started_at()
+                self._enqueue_job_usage(job, job_started_at, job.ended_at())
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
@@ -265,13 +265,13 @@ class JobTransitionService:
         so whatever the caller stores next commits or rolls back together with the status change.
 
         happened_at is when the runner says the status was reached, for RUNNING and the terminal statuses: it goes
-        to job.running_started_at or job.ended_at, and the event keeps being of now.
+        to job.running_started_at or job.running_ended_at, and the event keeps being of now.
 
         Steps:
             - LOCK: Lock the job by id (Django raises if there is no transaction open)
             - Reads the job status again fresh from db and validate the transition
             - Adds a new JobEvent
-            - Changes the job status + extra fields, and running_started_at or ended_at
+            - Changes the job status + extra fields, and running_started_at or running_ended_at
         """
         current_status = Job.objects.select_for_update().values_list("status", flat=True).get(pk=job.pk)
 
@@ -287,13 +287,13 @@ class JobTransitionService:
     @staticmethod
     def _timestamp_fields(job: Job, status: str, happened_at: datetime | None, written_at: datetime) -> dict:
         """The job field that holds when status was reached, if it has one: running_started_at for RUNNING and
-        ended_at for a terminal status. It is happened_at kept between the last moment the job is known to have
+        running_ended_at for a terminal status. It is happened_at kept between the last moment the job is known to have
         been in and now, or written_at when there is no usable happened_at. It comes from the clock of another
         service, so it can read as a moment that has not happened here yet, or before the job existed."""
         if status == Job.RUNNING:
             field, earliest = "running_started_at", job.created
         elif status in Job.TERMINAL_STATUSES:
-            field, earliest = "ended_at", job.running_started_at or job.created
+            field, earliest = "running_ended_at", job.running_started_at or job.created
         else:
             return {}
         if happened_at is None:
@@ -358,7 +358,7 @@ class JobTransitionService:
         try:
             if job.filler:
                 return
-            job_started_at = job.started_running_at()
+            job_started_at = job.started_at()
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
             # timeout=0: send and return at once, without waiting for the ack or a flush
