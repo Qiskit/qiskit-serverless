@@ -151,6 +151,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         )
         # Read before the transition opens its transaction: no network call with the job locked
         ended_at = runner.get_state_timestamp(new_status) if runner else None
+        if runner and ended_at is None:
+            # The task store has just reported this state, so a missing time is Code Engine or COS failing
+            logger.warning(
+                "job_id=%s fleet_id=%s no Code Engine time for %s, the job ends when the scheduler noticed it",
+                job.id,
+                job.fleet_id,
+                new_status,
+            )
         try:
             self.transitions.to_terminal(
                 job,
@@ -180,6 +188,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             )
             # Read before the transition opens its transaction: no network call with the job locked
             running_at = runner.get_state_timestamp(Job.RUNNING)
+            if running_at is None:
+                logger.warning(
+                    "job_id=%s fleet_id=%s no Code Engine time for %s, the job starts when the scheduler noticed it",
+                    job.id,
+                    job.fleet_id,
+                    Job.RUNNING,
+                )
             try:
                 self.transitions.pending_to_running(
                     job,
@@ -250,10 +265,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # Filler jobs run until something needs their slot, so their lifetime
             # says nothing about how long real work takes.
             return
-        running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
-        if running_event is None:
+        # The same start and end billing reads, so the dashboard shows the duration that is billed
+        started_at, ended_at = job.started_at(), job.ended_at()
+        if started_at is None or ended_at is None:
             return
-        duration = (datetime.now(timezone.utc) - running_event.created).total_seconds()
+        duration = max((ended_at - started_at).total_seconds(), 0)
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.observe_job_execution_duration(duration, provider)
 

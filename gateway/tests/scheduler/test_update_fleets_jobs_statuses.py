@@ -1,5 +1,6 @@
 """Unit tests for UpdateFleetsJobsStatuses."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, MagicMock, patch
 
@@ -83,6 +84,8 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
             setattr(job, field, value)
 
     job.update_fields = MagicMock(side_effect=_apply_update_fields)
+    job.started_at.return_value = datetime.now(timezone.utc) - timedelta(seconds=60)
+    job.ended_at.return_value = datetime.now(timezone.utc)
     return job
 
 
@@ -271,18 +274,77 @@ class TestToTerminal:
             ended_at=None,
         )
 
-    def test_a_succeeded_job_records_its_duration(self):
-        """to_terminal owns this, so every route to SUCCEEDED gets it."""
+    def test_a_succeeded_job_records_the_duration_billing_reads(self):
+        """to_terminal owns this, so every route to SUCCEEDED gets it. The duration is from the job's own start and
+        end, the ones billing reads, and not from the events."""
         task = _make_task()
         job = _make_fleets_job()
-        running_event = MagicMock()
-        running_event.created = datetime.now(timezone.utc) - timedelta(seconds=30)
+        started = datetime.now(timezone.utc) - timedelta(seconds=90)
+        job.started_at.return_value = started
+        job.ended_at.return_value = started + timedelta(seconds=30)
+        job.program_id = None
 
-        with patch(f"{_MOD}.JobEvent") as mock_event:
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = running_event
-            task.to_terminal(job, Job.SUCCEEDED)
+        task.to_terminal(job, Job.SUCCEEDED)
 
-        task.metrics.observe_job_execution_duration.assert_called_once()
+        task.metrics.observe_job_execution_duration.assert_called_once_with(30.0, "custom")
+
+    @pytest.mark.parametrize("missing", ["started_at", "ended_at"])
+    def test_no_duration_is_recorded_without_both_ends(self, missing):
+        task = _make_task()
+        job = _make_fleets_job()
+        job.started_at.return_value = datetime.now(timezone.utc) - timedelta(seconds=90)
+        job.ended_at.return_value = datetime.now(timezone.utc)
+        getattr(job, missing).return_value = None
+
+        task.to_terminal(job, Job.SUCCEEDED)
+
+        task.metrics.observe_job_execution_duration.assert_not_called()
+
+    def test_a_duration_is_never_negative(self):
+        """Two clocks: an end read from the task store can precede a start read from the events."""
+        task = _make_task()
+        job = _make_fleets_job()
+        ended = datetime.now(timezone.utc)
+        job.started_at.return_value = ended + timedelta(seconds=5)
+        job.ended_at.return_value = ended
+
+        task.to_terminal(job, Job.SUCCEEDED)
+
+        assert task.metrics.observe_job_execution_duration.call_args.args[0] == 0
+
+    def test_a_missing_end_time_from_the_task_store_is_logged(self, caplog):
+        """The task store has just reported the state, so no time for it is Code Engine or COS failing."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        runner = MagicMock()
+        runner.get_state_timestamp.return_value = None
+
+        with caplog.at_level(logging.WARNING):
+            task.to_terminal(job, Job.FAILED, runner)
+
+        assert "no Code Engine time for FAILED" in caplog.text
+        assert "fleet_id=fleet-123" in caplog.text
+
+    def test_an_end_time_from_the_task_store_is_not_logged(self, caplog):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        runner = MagicMock()
+        runner.get_state_timestamp.return_value = datetime.now(timezone.utc)
+
+        with caplog.at_level(logging.WARNING):
+            task.to_terminal(job, Job.FAILED, runner)
+
+        assert "no Code Engine time" not in caplog.text
+
+    def test_a_status_the_scheduler_decided_is_not_logged_as_a_missing_time(self, caplog):
+        """A timeout or an unconfirmed stop has no key in the task store: no time is the normal case."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+
+        with caplog.at_level(logging.WARNING):
+            task.to_terminal(job, Job.FAILED)
+
+        assert "no Code Engine time" not in caplog.text
 
     def test_the_transition_gets_the_time_code_engine_wrote_the_terminal_state(self):
         task = _make_task()
@@ -384,6 +446,29 @@ class TestToRunning:
         task.transitions.pending_to_running.assert_called_once_with(
             job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
         )
+
+    def test_a_missing_start_time_from_the_task_store_is_logged(self, caplog):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        runner = MagicMock()
+        runner.get_state_timestamp.return_value = None
+
+        with caplog.at_level(logging.WARNING):
+            task.to_running(job, runner)
+
+        assert "no Code Engine time for RUNNING" in caplog.text
+        assert "fleet_id=fleet-123" in caplog.text
+
+    def test_a_start_time_from_the_task_store_is_not_logged(self, caplog):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        runner = MagicMock()
+        runner.get_state_timestamp.return_value = datetime.now(timezone.utc)
+
+        with caplog.at_level(logging.WARNING):
+            task.to_running(job, runner)
+
+        assert "no Code Engine time" not in caplog.text
 
     def test_the_start_time_is_read_before_the_transition(self):
         """The transition holds a transaction and a lock on the job: the COS call must not be inside it."""
