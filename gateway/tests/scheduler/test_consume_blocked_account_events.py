@@ -72,6 +72,10 @@ class TestConsumeBlockedAccountEventsEnabled:
         assert kwargs["group_id"] == "qiskit-serverless-scheduler-blocked-accounts-production"
         assert isinstance(kwargs["handler"].__self__, BlockedAccountEventsService)
         assert kwargs["handler"].__func__ is BlockedAccountEventsService.handle
+        assert kwargs["handler"].__self__.topic_reasons == {
+            "quantum.production.blocked-account-plans.v1": "total",
+            "quantum.production.blocked-account-plans-non-quantum.v1": "non_quantum",
+        }
 
     def test_consumer_is_built_once_and_reused_by_every_tick(self, settings):
         settings.EVENT_STREAMS_ENABLED = True
