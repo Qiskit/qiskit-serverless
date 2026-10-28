@@ -12,6 +12,7 @@ from core.services.background_executor import (
     BackgroundPool,
     get_background_executor,
 )
+from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
@@ -70,6 +71,11 @@ class TestMain:
         assert len(tasks) == len(sharing)
         assert len({id(task.transitions) for task in tasks} | {id(s.transitions) for s in submitters}) == 1
 
+    def test_the_shared_transition_service_mirrors_the_intermediate_statuses(self):
+        task = next(t for t in self.scheduler_main.tasks if isinstance(t, UpdateFleetsJobsStatuses))
+
+        assert isinstance(task.transitions.workload_mirror, WorkloadBestEffortMirror)
+
     def test_the_tasks_that_submit_fleets_jobs_share_one_submitter(self):
         sharing = (ScheduleFleetsJobs, BalanceFillerJobs)
         tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
@@ -106,6 +112,16 @@ class TestMain:
 
         assert called == True
         assert task.run.call_count == 1
+
+    def test_each_loop_runs_the_per_request_connection_check(self):
+        task = MagicMock()
+        task.run.side_effect = lambda: setattr(self.scheduler_main.kill_signal, "received", True)
+        self.scheduler_main.tasks = [task]
+
+        with patch("scheduler.main.close_old_connections") as close_old:
+            self.scheduler_main.run()
+
+        close_old.assert_called_once_with()
 
     def test_every_task_is_closed_once_the_loop_finishes(self):
         """So the Kafka consumers leave their groups instead of holding partitions after shutdown."""

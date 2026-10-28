@@ -178,6 +178,18 @@ DATABASES = {
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # seconds a connection is reused across requests, 0 closes it after each request
+        "CONN_MAX_AGE": int(os.environ.get("DATABASE_CONN_MAX_AGE", "0")),
+        "CONN_HEALTH_CHECKS": True,
+        # fail a connection that the network dropped without a reply, instead of hanging for minutes
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+            "tcp_user_timeout": 30000,
+        },
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
