@@ -68,7 +68,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             new_status = None
 
         if job.status == Job.STOPPING:
-            return self.confirm_stop(job, new_status)
+            return self.confirm_stop(job, new_status, runner)
 
         if new_status is None:
             logger.debug("job_id=%s status unknown, bounding the wait", job.id)
@@ -78,7 +78,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             return self.stop_job_if_timeout(job)
 
         if new_status in Job.TERMINAL_STATUSES:
-            self.to_terminal(job, new_status)
+            self.to_terminal(job, new_status, runner)
 
         elif new_status == Job.PENDING:
             # don't change the status... job still trying to start
@@ -100,7 +100,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         return True
 
-    def confirm_stop(self, job: Job, new_status: str | None) -> bool:
+    def confirm_stop(self, job: Job, new_status: str | None, runner: FleetsRunner | None = None) -> bool:
         """End a STOPPING job with whatever terminal state the task store reports, or STOPPED on the deadline.
 
         No cancel is sent from here: whoever asked for the stop already sent it.
@@ -108,6 +108,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         if new_status in Job.TERMINAL_STATUSES:
             logger.info("job_id=%s leaving STOPPING, task store reported %s", job.id, new_status)
             final_status = new_status
+            source = runner
         elif self._stopping_deadline_passed(job):
             logger.warning(
                 "job_id=%s user_id=%s stop not confirmed after %ss, writing STOPPED anyway.",
@@ -116,10 +117,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 _STOPPING_DEADLINE_SECONDS,
             )
             final_status = Job.STOPPED
+            source = None
         else:
             return False
 
-        self.to_terminal(job, final_status)
+        self.to_terminal(job, final_status, source)
         return True
 
     @staticmethod
@@ -133,8 +135,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         reference_time = stopping_event.created if stopping_event else job.updated
         return datetime.now(timezone.utc) - reference_time >= timedelta(seconds=_STOPPING_DEADLINE_SECONDS)
 
-    def to_terminal(self, job: Job, new_status: str) -> None:
-        """Persist a terminal status transition, then count it and record a succeeded job's duration."""
+    def to_terminal(self, job: Job, new_status: str, runner: FleetsRunner | None = None) -> None:
+        """Persist a terminal status transition, then count it and record a succeeded job's duration.
+
+        The runner is given when the task store reported new_status: the job then ends when Code Engine wrote it.
+        Without it (a timeout, an unconfirmed stop, a job with no fleet) the status is the scheduler's own decision
+        and the job ends now."""
         stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
@@ -143,6 +149,16 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
+        # Read before the transition opens its transaction: no network call with the job locked
+        ended_at = runner.get_state_timestamp(new_status) if runner else None
+        if runner and ended_at is None:
+            # The task store has just reported this state, so a missing time is Code Engine or COS failing
+            logger.warning(
+                "job_id=%s fleet_id=%s no Code Engine time for %s, the job ends when the scheduler noticed it",
+                job.id,
+                job.fleet_id,
+                new_status,
+            )
         try:
             self.transitions.to_terminal(
                 job,
@@ -150,6 +166,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
                 job_fields={"sub_status": None, "env_vars": "{}"},
+                ended_at=ended_at,
             )
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
@@ -170,7 +187,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 Job.RUNNING,
             )
             # Read before the transition opens its transaction: no network call with the job locked
-            running_at = runner.get_running_timestamp()
+            running_at = runner.get_state_timestamp(Job.RUNNING)
+            if running_at is None:
+                logger.warning(
+                    "job_id=%s fleet_id=%s no Code Engine time for %s, the job starts when the scheduler noticed it",
+                    job.id,
+                    job.fleet_id,
+                    Job.RUNNING,
+                )
             try:
                 self.transitions.pending_to_running(
                     job,
@@ -241,10 +265,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # Filler jobs run until something needs their slot, so their lifetime
             # says nothing about how long real work takes.
             return
-        running_event = JobEvent.objects.filter(job=job, data__status=Job.RUNNING).order_by("-created").first()
-        if running_event is None:
+        # The same start and end billing reads, so the dashboard shows the duration that is billed
+        started_at, ended_at = job.started_at(), job.ended_at()
+        if started_at is None or ended_at is None:
             return
-        duration = (datetime.now(timezone.utc) - running_event.created).total_seconds()
+        duration = max((ended_at - started_at).total_seconds(), 0)
         provider = job.program.provider.name if job.program_id and job.program.provider_id else "custom"
         self.metrics.observe_job_execution_duration(duration, provider)
 
