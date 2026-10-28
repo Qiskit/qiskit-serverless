@@ -187,7 +187,7 @@ class TestJobAdmin(APITestCase):
             self._post_stop(job, user)
 
         kwargs = get_client.return_value.put_function.call_args.kwargs
-        assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 3)
+        assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 2)
 
     def test_stop_job_button_ends_a_fleets_job_with_no_fleet(self):
         """Nothing to cancel, so the row goes straight to STOPPED and the scheduler never sees it."""

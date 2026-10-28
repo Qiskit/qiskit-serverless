@@ -29,6 +29,7 @@ from core.services.background_executor import (
 logger = logging.getLogger("core.WorkloadBackgroundMirror")
 
 _PUT_TIMEOUT = 3  # seconds
+_INLINE_PUT_TIMEOUT = 2  # seconds, shorter because a request of the gateway waits for it (gunicorn gives it 25)
 _STATUSES = ("Pending", "Running", "Stopping")
 _OUTCOMES = ("sent", "failed", "dropped")
 # The same two classes as DB_EXCEPTIONS in scheduler/health.py, which core may not import. They are re-raised so the
@@ -135,6 +136,6 @@ class WorkloadInlineMirror(WorkloadMirrorSender):
             return
         try:
             if is_mirrored(job):
-                get_functions_operator_client().put_function(**build_workload_payload(job), timeout=_PUT_TIMEOUT)
+                get_functions_operator_client().put_function(**build_workload_payload(job), timeout=_INLINE_PUT_TIMEOUT)
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("job_id=%s workload status %s not sent: %s", job.id, job.status, type(ex).__name__)

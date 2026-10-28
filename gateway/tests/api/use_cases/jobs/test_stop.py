@@ -116,7 +116,7 @@ class TestStopFleetsJob:
             put = get_client.return_value.put_function
             StopJobUseCase().execute(job.id, None, author)
             kwargs = put.call_args.kwargs
-            assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 3)
+            assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 2)
 
             put.side_effect = RuntimeError("boom")
             job.refresh_from_db()

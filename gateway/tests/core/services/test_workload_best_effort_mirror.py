@@ -188,7 +188,7 @@ def test_the_inline_mirror_puts_on_the_calling_thread_and_counts_nothing(executo
     WorkloadInlineMirror().send(job)
 
     kwargs = client.put_function.call_args.kwargs
-    assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 3)
+    assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 2)
     executor.submit.assert_not_called()
     assert (_count("Stopping", "sent"), _count("Stopping", "failed")) == before
 

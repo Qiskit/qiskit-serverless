@@ -164,7 +164,7 @@ go to the Runtime API and not to Kafka, and they are not part of the outbox. `Wo
 status after the transition has committed, never inside its transaction. Only the scheduler passes it
 (`JobTransitionService(workload_mirror=...)`); the gateway uses a no-op mirror and sends nothing, except for a stop it
 requests (the stop endpoint and the backoffice button), which uses `WorkloadInlineMirror`: it sends `Stopping` on the
-thread of the request with a `PUT` of 3 seconds, counts nothing (the gateway has no Prometheus multiprocess mode) and
+thread of the request with a `PUT` of 2 seconds, counts nothing (the gateway has no Prometheus multiprocess mode) and
 only logs an error. It only sends for a
 job that has a `WorkloadMirror` row. The payload is built on the scheduler thread and the `PUT` runs on the
 `RUNTIME_API` background pool with the `replace_key` `job:<id>`, so a newer status replaces an older one that is
