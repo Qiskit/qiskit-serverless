@@ -160,7 +160,7 @@ job run" and no second query to find out.
 ### Intermediate status mirror
 
 The intermediate statuses of a mirrored job (`Pending`, `Running` and `Stopping`) are also best effort, but they
-go to the Runtime API and not to Kafka, and they are not part of the outbox. `WorkloadBestEffortMirror` sends the
+go to the Runtime API and not to Kafka, and they are not part of the outbox. `WorkloadBackgroundMirror` sends the
 status after the transition has committed, never inside its transaction. Only the scheduler passes it
 (`JobTransitionService(workload_mirror=...)`); the gateway uses a no-op mirror and sends nothing, except for a stop it
 requests (the stop endpoint and the backoffice button), which uses `WorkloadInlineMirror`: it sends `Stopping` on the

@@ -61,7 +61,7 @@ class StopJobUseCase:
             return " ".join(self.status_messages)
 
         try:
-            # Kafka is disabled on the gateway, so the service sends no billing event from here. 
+            # Gateay has Kafka disabled: no billing event are sent.
             # Mirror the job (STOPPING) is inline (same thread) and best effort: a sending error is ignored
             transitions = JobTransitionService(workload_mirror=WorkloadInlineMirror())
             if job.runner == Program.RAY:

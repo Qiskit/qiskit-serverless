@@ -26,7 +26,7 @@ from core.services.background_executor import (
     get_background_executor,
 )
 
-logger = logging.getLogger("core.WorkloadBestEffortMirror")
+logger = logging.getLogger("core.WorkloadBackgroundMirror")
 
 _PUT_TIMEOUT = 3  # seconds
 _STATUSES = ("Pending", "Running", "Stopping")
@@ -81,7 +81,7 @@ class NoOpWorkloadMirror(WorkloadMirrorSender):
         """Does nothing: no Config, no database and no executor."""
 
 
-class WorkloadBestEffortMirror(WorkloadMirrorSender):
+class WorkloadBackgroundMirror(WorkloadMirrorSender):
     """Sends the current status of a mirrored job. Building it does no work."""
 
     def send(self, job: Job) -> None:

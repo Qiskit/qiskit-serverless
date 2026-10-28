@@ -190,7 +190,7 @@ def test_a_real_status_pass_reads_no_events_per_job(world):
         task = UpdateFleetsJobsStatuses(
             kill_signal=MagicMock(received=False),
             metrics=MagicMock(),
-            transitions=JobTransitionService(sender=MagicMock()),
+            transitions=JobTransitionService(billing_sender=MagicMock()),
         )
         runner = MagicMock()
         runner.status.return_value = Job.RUNNING
