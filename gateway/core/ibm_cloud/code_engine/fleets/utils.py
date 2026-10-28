@@ -34,12 +34,15 @@ Example::
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional
 
 from django.conf import settings
 
+from core.domain.storage_paths import StoragePaths
 from core.models import CodeEngineProject, Job
+
+ARGUMENTS_FILENAME = "arguments.json"
 
 FUNCTION_USER_DATA_PATH = "/function_user_data"  # user bucket  — function-scoped data (entrypoint, wrapper, user files)
 JOB_USER_DATA_PATH = "/job_user_data"  # user bucket  — job-scoped data (arguments, logs, results)
@@ -94,7 +97,9 @@ class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
     container_result_path: str  # written by the function on completion (read back via cos_results_key)
 
 
-def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEngineProject) -> list[dict[str, str]]:
+def build_run_volume_mounts_for_job(
+    paths: FleetJobPaths, project: CodeEngineProject, saved: StoragePaths | None = None
+) -> list[dict[str, str]]:
     """Build the complete volume mounts list for a fleet job.
 
     Custom jobs get 2 mounts (user bucket only).
@@ -103,17 +108,21 @@ def build_run_volume_mounts_for_job(paths: FleetJobPaths, project: CodeEnginePro
     Args:
         paths: Pre-computed paths for the job (from :func:`build_job_paths`).
         project: CodeEngineProject with PDS names.
+        saved: The paths saved when the job was created. When given, the data stores are the saved ones, so the
+            job writes to the bucket the gateway reads.
 
     Returns:
         Volume mount definitions ready for ``run_volume_mounts``.
     """
+    user_pds = saved.user_pds if saved else project.pds_name_users
+    provider_pds = saved.provider_pds if saved else project.pds_name_providers
     mounts = [
-        (FUNCTION_USER_DATA_PATH, project.pds_name_users, paths.cos_user_function_prefix),
-        (JOB_USER_DATA_PATH, project.pds_name_users, paths.cos_user_job_prefix),
+        (FUNCTION_USER_DATA_PATH, user_pds, paths.cos_user_function_prefix),
+        (JOB_USER_DATA_PATH, user_pds, paths.cos_user_job_prefix),
     ]
     if paths.cos_provider_function_prefix:
-        mounts.append((FUNCTION_PROVIDER_DATA_PATH, project.pds_name_providers, paths.cos_provider_function_prefix))
-        mounts.append((JOB_PROVIDER_DATA_PATH, project.pds_name_providers, paths.cos_provider_job_prefix))
+        mounts.append((FUNCTION_PROVIDER_DATA_PATH, provider_pds, paths.cos_provider_function_prefix))
+        mounts.append((JOB_PROVIDER_DATA_PATH, provider_pds, paths.cos_provider_job_prefix))
     return build_run_volume_mounts(mounts=mounts)
 
 
@@ -317,8 +326,82 @@ def build_provider_job_paths(job: Job) -> FleetJobPaths:
     )
 
 
-def build_job_paths(job: Job) -> FleetJobPaths:
-    """Dispatcher: returns custom or provider COS paths depending on job type."""
-    if job.program.provider:
-        return build_provider_job_paths(job)
-    return build_custom_job_paths(job)
+def build_job_paths(job: Job, saved: StoragePaths | None = None) -> FleetJobPaths:
+    """Dispatcher: returns custom or provider COS paths depending on job type.
+
+    Args:
+        job: The job to build the paths for.
+        saved: The paths saved when the job was created. When given, the prefixes and keys come from them, and so
+            do the container file paths: each is its mount point plus the end of the saved key, so the job writes
+            exactly the key the gateway reads, even if a file name changed in the code while the job was queued.
+    """
+    paths = build_provider_job_paths(job) if job.program.provider else build_custom_job_paths(job)
+    if saved is None:
+        return paths
+
+    # The entrypoint and the wrapper are not saved, they are uploaded at submit under the function prefix
+    if paths.cos_provider_function_prefix:
+        old_function_prefix, new_function_prefix = paths.cos_provider_function_prefix, saved.provider_function_prefix
+    else:
+        old_function_prefix, new_function_prefix = paths.cos_user_function_prefix, saved.user_function_prefix
+
+    def in_saved_function_prefix(key: str) -> str:
+        return f"{new_function_prefix}{key[len(old_function_prefix):]}"
+
+    def in_mount(mount_path: str, key: str, prefix: str) -> str:
+        return f"{mount_path}{key[len(prefix):]}"
+
+    return replace(
+        paths,
+        cos_user_function_prefix=saved.user_function_prefix,
+        cos_user_job_prefix=saved.user_job_prefix,
+        cos_provider_function_prefix=saved.provider_function_prefix,
+        cos_provider_job_prefix=saved.provider_job_prefix,
+        cos_user_log_key=saved.user_log_key,
+        cos_results_key=saved.results_key,
+        cos_provider_log_key=saved.provider_log_key,
+        cos_function_entrypoint=in_saved_function_prefix(paths.cos_function_entrypoint),
+        cos_docker_entrypoint=in_saved_function_prefix(paths.cos_docker_entrypoint),
+        container_public_log_path=in_mount(JOB_USER_DATA_PATH, saved.user_log_key, saved.user_job_prefix),
+        container_arguments_path=in_mount(JOB_USER_DATA_PATH, saved.arguments_key, saved.user_job_prefix),
+        container_result_path=in_mount(JOB_USER_DATA_PATH, saved.results_key, saved.user_job_prefix),
+        container_private_log_path=(
+            in_mount(JOB_PROVIDER_DATA_PATH, saved.provider_log_key, saved.provider_job_prefix)
+            if saved.provider_log_key and saved.provider_job_prefix
+            else None
+        ),
+    )
+
+
+def build_fleets_storage_paths(job: Job) -> StoragePaths:
+    """Where the job's files go with today's layout and the function's current Code Engine project.
+
+    Saved when the job is created, and used as is for a job that has no saved paths.
+
+    Raises:
+        ValueError: If the function has no Code Engine project, or the project has no user data bucket.
+    """
+    project = job.program.code_engine_project
+    if not project:
+        raise ValueError(f"Program '{job.program.title}' has no CodeEngineProject assigned")
+    if not project.cos_bucket_user_data_name:
+        raise ValueError(f"CodeEngineProject '{project.project_name}' has no cos_bucket_user_data_name configured")
+
+    paths = build_job_paths(job)
+    is_provider_job = paths.cos_provider_job_prefix is not None
+    return StoragePaths(
+        cos_region=project.region,
+        cos_instance_name=project.cos_instance_name or None,
+        user_bucket=project.cos_bucket_user_data_name,
+        provider_bucket=(project.cos_bucket_provider_data_name or None) if is_provider_job else None,
+        user_pds=project.pds_name_users,
+        provider_pds=(project.pds_name_providers or None) if is_provider_job else None,
+        user_function_prefix=paths.cos_user_function_prefix,
+        user_job_prefix=paths.cos_user_job_prefix,
+        provider_function_prefix=paths.cos_provider_function_prefix,
+        provider_job_prefix=paths.cos_provider_job_prefix,
+        arguments_key=f"{paths.cos_user_job_prefix}/{ARGUMENTS_FILENAME}",
+        results_key=paths.cos_results_key,
+        user_log_key=paths.cos_user_log_key,
+        provider_log_key=paths.cos_provider_log_key,
+    )

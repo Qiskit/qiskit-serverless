@@ -1013,6 +1013,42 @@ class WorkloadMirror(models.Model):
         return f"<WorkloadMirror job={self.job_id}>"
 
 
+class JobStoragePaths(models.Model):
+    """Where the files of a Fleets job live in COS (see core/domain/storage_paths.py). The row is written in the
+    transaction that creates the job, after its arguments are uploaded, and the container's mounts and every reader
+    take the bucket and key from it, so a later change to the layout, the bucket names or the Code Engine project
+    only affects new jobs. The names are copies, not foreign keys, so a change to the project doesn't move the row.
+    Jobs created before this table get their row from the backfill_job_storage_paths command; until then, and for
+    jobs without one, the paths are built with today's layout."""
+
+    job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True, related_name="storage_paths")
+    created = models.DateTimeField(auto_now_add=True)
+
+    cos_region = models.CharField(max_length=255)
+    cos_instance_name = models.CharField(max_length=255, null=True, blank=True)
+    user_bucket = models.CharField(max_length=255)
+    provider_bucket = models.CharField(max_length=255, null=True, blank=True)
+    user_pds = models.CharField(max_length=255)
+    provider_pds = models.CharField(max_length=255, null=True, blank=True)
+
+    user_function_prefix = models.CharField(max_length=1024)
+    user_job_prefix = models.CharField(max_length=1024)
+    provider_function_prefix = models.CharField(max_length=1024, null=True, blank=True)
+    provider_job_prefix = models.CharField(max_length=1024, null=True, blank=True)
+
+    arguments_key = models.CharField(max_length=1024)
+    results_key = models.CharField(max_length=1024)
+    user_log_key = models.CharField(max_length=1024)
+    provider_log_key = models.CharField(max_length=1024, null=True, blank=True)
+
+    class Meta:
+        app_label = "api"
+        verbose_name_plural = "job storage paths"
+
+    def __str__(self):
+        return f"<JobStoragePaths job={self.job_id}>"
+
+
 class GroupMetadata(models.Model):
     """
     This model will store metadata from different resources for Group
