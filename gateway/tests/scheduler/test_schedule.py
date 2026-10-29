@@ -58,6 +58,8 @@ class TestScheduleApi(APITestCase):
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path, settings, db):
         settings.MEDIA_ROOT = str(tmp_path)
+        Config.add_defaults()
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""
@@ -187,6 +189,13 @@ class TestScheduleApi(APITestCase):
         assert not get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
 
         rule.delete()
+
+        assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)) == [job]
+
+    def test_fair_share_does_not_hold_back_a_blocked_job_while_blocked_resources_are_not_enforced(self):
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        job = self._queued(TestUtils.get_user_and_username("unenforced_user")[0])
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
 
         assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)) == [job]
 

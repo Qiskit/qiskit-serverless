@@ -16,11 +16,16 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.test import TestCase
 
-from core.models import BlockedCloudResource
+from core.config_key import ConfigKey
+from core.models import BlockedCloudResource, Config
 
 
 class TestBlockedCloudResource(TestCase):
     """Tests for BlockedCloudResource model."""
+
+    def setUp(self):
+        Config.add_defaults()
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
 
     def test_inserting_same_rule_twice_raises_integrity_error(self):
         """The unique constraint over the scope prevents duplicate rows."""
@@ -97,3 +102,11 @@ class TestBlockedCloudResource(TestCase):
         assert not BlockedCloudResource.blocks("acct-123", "plan-456", None)
         assert not BlockedCloudResource.blocks("acct-999", "plan-456", "sub-789")
         assert BlockedCloudResource.blocks("acct-999", None, None)
+
+    def test_nothing_is_blocked_while_blocked_resources_are_not_enforced(self):
+        """The rows are kept, but neither blocks() nor blocked_jobs_filter() acts on them."""
+        BlockedCloudResource.objects.create(account="acct-123", plan="plan-456", subscription="sub-789")
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
+
+        assert not BlockedCloudResource.blocks("acct-123", "plan-456", "sub-789")
+        assert BlockedCloudResource.blocked_jobs_filter() is None

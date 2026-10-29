@@ -20,6 +20,7 @@ _BLOCKED = {"account_id": "acct", "plan_id": "plan", "subscription_id": "sub"}
 @pytest.fixture(autouse=True)
 def blocked_resource():
     Config.add_defaults()
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
 
 
