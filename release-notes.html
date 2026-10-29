@@ -356,6 +356,15 @@ subscription are blocked. The job stays <code class="docutils literal notranslat
 slot from other users, and it is submitted normally once the block is lifted.</p></li>
 </ul>
 <ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">IBMServerlessClient.run()</span></code> accepts a new keyword-only argument, <code class="docutils literal notranslate"><span class="pre">bypass_usage_check</span></code>.
+When set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, the client-side runtime quota check is skipped entirely: no
+<a class="reference internal" href="stubs/qiskit_serverless.QiskitServerlessException.html#qiskit_serverless.QiskitServerlessException" title="qiskit_serverless.QiskitServerlessException"><code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code></a> is raised for exhausted quota and no warning is emitted for
+low quota. Instead, a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> is emitted to remind you that the job will be submitted
+even if the remaining quota is insufficient to complete it; this warning can be silenced with
+<code class="docutils literal notranslate"><span class="pre">suppress_usage_warning=True</span></code>. The backend access checks still run, and the gateway still
+enforces its own quota checks. The default is <code class="docutils literal notranslate"><span class="pre">False</span></code>, which keeps the existing behavior.</p></li>
+</ul>
+<ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/{id}/</span></code> now returns a short-lived job status token in
 the <code class="docutils literal notranslate"><span class="pre">X-Job-Status-Token</span></code> header, to the author of a job that has not
 ended. The new <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/{id}/status/</span></code> accepts only that token,
@@ -501,6 +510,13 @@ reads the compute profile from <code class="docutils literal notranslate"><span 
 that has run this migration, because their <code class="docutils literal notranslate"><span class="pre">Job</span></code> model still declares the
 column. Upgrade to 0.37.0 before upgrading to this release.</p>
 </li>
+</ul>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">suppress_low_usage_warning</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">IBMServerlessClient.run()</span></code> has been renamed
+to <code class="docutils literal notranslate"><span class="pre">suppress_usage_warning</span></code>, since it now suppresses both the low-quota warning and the
+warning emitted when <code class="docutils literal notranslate"><span class="pre">bypass_usage_check=True</span></code>. The warning emitted when usage information
+cannot be retrieved is still shown, so a failed quota check is never silent.
+Calls that pass <code class="docutils literal notranslate"><span class="pre">suppress_low_usage_warning</span></code> must be updated to use <code class="docutils literal notranslate"><span class="pre">suppress_usage_warning</span></code>.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Migration <code class="docutils literal notranslate"><span class="pre">0078</span></code> fills <code class="docutils literal notranslate"><span class="pre">function_size_name</span></code> for existing jobs with the current label of their size
