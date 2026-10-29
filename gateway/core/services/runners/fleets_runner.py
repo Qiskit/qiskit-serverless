@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import tarfile
+import time
 from io import BytesIO
 
 from django.conf import settings
@@ -67,6 +68,18 @@ _WARNED_FLEETS_LIMIT = 10_000
 # characters and refused 70 as TOOLONG. Two segments of twelve, the 36 character job id and two hyphens
 # make at most 62.
 _FLEET_NAME_SEGMENT_MAX = 12
+
+
+def count_fleets(project: CodeEngineProject, deadline_seconds: float) -> int:
+    """How many fleets the project holds, read with no urllib3 read retry. RunnerError on any failure."""
+    if not settings.IBM_CLOUD_API_KEY:
+        raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
+    try:
+        api_client = get_ce_auth(settings.IBM_CLOUD_API_KEY, project.region, retry_reads=False).api_client
+        handler = FleetHandler(ce_api_client=api_client, project_id=project.project_id)
+        return handler.count_fleets(time.monotonic() + deadline_seconds)
+    except Exception as ex:
+        raise RunnerError(f"Unable to count the fleets of project {project.project_name}", ex) from ex
 
 
 def _fleet_name_segment(value: str) -> str:

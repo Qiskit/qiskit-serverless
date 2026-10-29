@@ -25,6 +25,9 @@ from contextlib import contextmanager
 from typing import Iterator
 from unittest.mock import MagicMock, patch
 
+import pytest
+from urllib3.exceptions import ReadTimeoutError
+
 from core.ibm_cloud import get_ce_auth
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.clients.iam_token_provider import get_iam_token_provider
@@ -131,3 +134,16 @@ def test_the_code_engine_client_re_reads_the_token_before_a_request() -> None:
     cfg = ce_auth.api_client.configuration
     assert cfg.api_key == {}  # nothing is read at build time
     assert cfg.get_api_key_with_prefix("Authorization") == "Bearer fresh-token"
+
+
+def test_a_code_engine_client_without_read_retries_raises_a_timed_out_read_at_once() -> None:
+    with (
+        patch("core.ibm_cloud.clients.get_iam_token_provider"),
+        patch("core.ibm_cloud.clients.ibm_boto3_client"),
+    ):
+        ce_auth = get_ce_auth("dummy-key", "us-east", retry_reads=False)
+
+    retries = ce_auth.api_client.rest_client.pool_manager.connection_pool_kw["retries"]
+    with pytest.raises(ReadTimeoutError):
+        retries.increment(method="GET", url="/", error=ReadTimeoutError(None, "/", "read timed out"))
+    assert not retries.is_retry("GET", 429, has_retry_after=True)

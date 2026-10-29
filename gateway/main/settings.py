@@ -677,8 +677,8 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.quota_per_project": {
         "default": "1000",
         "type": "integer",
-        "description": "How many fleets one Code Engine project can hold. Only the cleanup reads it, so it is "
-        "not the LIMITS_MAX_FLEETS concurrency cap.",
+        "description": "How many fleets one Code Engine project can hold. The submit keeps a job QUEUED when its "
+        "project has no free fleet, and the cleanup reads it too. It is not the LIMITS_MAX_FLEETS concurrency cap.",
     },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
