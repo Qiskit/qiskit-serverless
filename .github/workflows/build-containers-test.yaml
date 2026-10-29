@@ -18,6 +18,10 @@ jobs:
     # (ray-node/Dockerfile, gateway/Dockerfile) even though the Dockerfiles now live under
     # docker-images/. dockerfile is the real path we build. Drop the label indirection once the
     # ruleset is updated (or once ray-node is removed).
+    #
+    # Per-leg keys: `target` is the Dockerfile stage ("" for the single-stage
+    # files); `heavy` marks a leg too large to export, set on the GPU leg only and
+    # falsy elsewhere, and read by the step conditions below.
     name: Test build containers (${{ matrix.label }}, ${{ matrix.python }})
     runs-on: ubuntu-latest
     strategy:
@@ -26,16 +30,53 @@ jobs:
         include:
           - label: ray-node/Dockerfile          # label kept to match the required check name
             dockerfile: docker-images/ray-node/Dockerfile
+            target: ""                           # default (only) stage
             python: "3.12"
+          # The CPU Fleets runtime. --target selector is required: selector-gpu is
+          # the last stage of that Dockerfile, so a bare build would resolve to the
+          # CUDA image.
           - label: fleet-node/Dockerfile         # not required in CI
             dockerfile: docker-images/fleet-node/Dockerfile
+            target: selector
             python: "3.12"
+          # The CUDA Fleets runtime, and the only thing in this repo that builds
+          # selector-gpu. Its stage asserts itself (pin drift, ldconfig, sonames)
+          # in RUN steps, so a green build here is the check.
+          #
+          # Its own label on purpose: the check name embeds matrix.label, so a new
+          # label adds a check rather than renaming one the branch ruleset already
+          # requires by exact string. Not a required check until that string is
+          # added to the ruleset.
+          - label: fleet-node/Dockerfile (gpu)
+            dockerfile: docker-images/fleet-node/Dockerfile
+            target: selector-gpu
+            python: "3.12"
+            # Too large to export: `cacheonly` runs the build (asserts included)
+            # but writes no image, keeping 9.9 GB out of the daemon's store. Also
+            # gates the disk-reclaim and Inspect steps below.
+            heavy: true
           - label: gateway/Dockerfile            # unchanged (label == path)
             dockerfile: gateway/Dockerfile
+            target: ""                           # default (only) stage
             python: "3.12"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      # The GPU leg needs ~2.5 GB downloaded for a 9.9 GB image against roughly
+      # 25 GB free on a stock runner. Dropping toolchains this repo never builds
+      # against buys ~10 GB. Skipped elsewhere so the other legs stay fast.
+      - name: Reclaim disk
+        if: matrix.heavy
+        run: |
+          echo "before:"; df -h / | tail -1
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/local/share/boost \
+            /usr/share/swift || true
+          echo "after:"; df -h / | tail -1
       - name: Setup buildx
         uses: docker/setup-buildx-action@v4
       - name: Build ${{ matrix.dockerfile }}
@@ -43,8 +84,18 @@ jobs:
         with:
           context: .
           file: ./${{ matrix.dockerfile }}
-          load: true
+          # Empty means the default (last) stage, which is what the two
+          # single-stage Dockerfiles want.
+          target: ${{ matrix.target }}
+          # The heavy leg exports nothing, so it is neither loaded nor inspected.
+          # Mutually exclusive: setting both would export twice.
+          load: ${{ !matrix.heavy }}
+          outputs: ${{ matrix.heavy && 'type=cacheonly' || '' }}
           tags: image:test
       - name: Inspect
+        if: ${{ !matrix.heavy }}
         run: |
           docker image inspect image:test
+      - name: Disk left
+        if: always() && matrix.heavy
+        run: df -h / | tail -1
