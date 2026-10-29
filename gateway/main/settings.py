@@ -178,6 +178,18 @@ DATABASES = {
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # seconds a connection is reused across requests, 0 closes it after each request
+        "CONN_MAX_AGE": int(os.environ.get("DATABASE_CONN_MAX_AGE", "0")),
+        "CONN_HEALTH_CHECKS": True,
+        # fail a connection that the network dropped without a reply, instead of hanging for minutes
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+            "tcp_user_timeout": 30000,
+        },
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
@@ -467,10 +479,13 @@ QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL", "https://quantum.test.cloud.ibm.com")
 RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # Read timeout, in seconds, for the IBM Cloud calls made while authenticating a request
-# (IAM token, Resource Controller, and the entitlements lookup). Kept short so a slow or
-# hung backend does not hold a gateway worker: long enough to ride out a normal latency
-# spike, short enough to fail fast and let the client retry.
+# (IAM token and keys, Resource Controller, Access Groups, and the entitlements lookup).
+# Kept short so a slow or hung backend does not hold a gateway worker: long enough to ride
+# out a normal latency spike, short enough to fail fast and let the client retry.
 IBM_CLOUD_API_TIMEOUT = int(os.environ.get("IBM_CLOUD_API_TIMEOUT", "10"))
+if IBM_CLOUD_API_TIMEOUT <= 0:
+    # requests refuses a timeout of 0, so every login would fail
+    raise ImproperlyConfigured(f"IBM_CLOUD_API_TIMEOUT must be above 0, got {IBM_CLOUD_API_TIMEOUT}.")
 # The Runtime API is region-scoped. RUNTIME_API_BASE_URL serves the default region on the
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
@@ -679,10 +694,10 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "How long the scheduler stops calling a dependency in a region once its breaker trips.",
     },
     "scheduler.blocked_jobs_stop.enabled": {
-        "default": "true",
+        "default": "false",
         "type": "boolean",
-        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
-        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
+        "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "
+        "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
     },
 }
 

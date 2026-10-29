@@ -21,9 +21,14 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.domain.function_sizes import normalize_function_size
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job, JobConfig
+from core.models import BlockedCloudResource, Job, JobConfig
 
 logger = logging.getLogger("api.api.v1.views.programs.run")
+
+BLOCKED_RESOURCE_WARNING = (
+    "This job was queued, but your account, plan or subscription is blocked. "
+    "It will not start until the block is lifted."
+)
 
 
 class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
@@ -103,10 +108,22 @@ class OutputSerializer(serializers.ModelSerializer):
     """Response serializer for a queued job."""
 
     compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    # Documents the field run_program adds, only when the job's resource is blocked
+    warning = serializers.CharField(read_only=True, required=False)
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile_fk", "size_source"]
+        fields = [
+            "id",
+            "result",
+            "status",
+            "program",
+            "created",
+            "arguments",
+            "compute_profile_fk",
+            "size_source",
+            "warning",
+        ]
         ref_name = "ProgramsRunOutput"
 
 
@@ -182,4 +199,7 @@ def run_program(request: Request) -> Response:
         ),
     )
     logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
-    return Response(OutputSerializer(job).data)
+    data = OutputSerializer(job).data
+    if BlockedCloudResource.blocks(account_id, plan_id, subscription_id):
+        data["warning"] = BLOCKED_RESOURCE_WARNING
+    return Response(data)

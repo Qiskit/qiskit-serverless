@@ -73,3 +73,15 @@ def test_the_status_lists_keep_their_shape():
 
     assert set(Job.ACTIVE_STATUSES) == all_statuses - set(Job.TERMINAL_STATUSES)
     assert set(Job.RUNNING_STATUSES) < set(Job.ACTIVE_STATUSES)
+
+
+def test_the_event_times_need_with_event_times(user):
+    """A job loaded without with_event_times() raises instead of answering None, which would read as no events."""
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+
+    with pytest.raises(RuntimeError, match="with_event_times"):
+        _ = Job.objects.get(pk=job.pk).last_event_at
+
+    loaded = Job.objects.with_event_times().get(pk=job.pk)
+    assert loaded.last_event_at is None
+    assert loaded.first_running_at is None

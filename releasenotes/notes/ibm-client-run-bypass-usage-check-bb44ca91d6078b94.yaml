@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    :meth:`.IBMServerlessClient.run` accepts a new keyword-only argument, ``bypass_usage_check``.
+    When set to ``True``, the client-side runtime quota check is skipped entirely: no
+    :class:`.QiskitServerlessException` is raised for exhausted quota and no warning is emitted for
+    low quota. Instead, a ``UserWarning`` is emitted to remind you that the job will be submitted
+    even if the remaining quota is insufficient to complete it; this warning can be silenced with
+    ``suppress_usage_warning=True``. The backend access checks still run, and the gateway still
+    enforces its own quota checks. The default is ``False``, which keeps the existing behavior.
+upgrade:
+  - |
+    The ``suppress_low_usage_warning`` argument of :meth:`.IBMServerlessClient.run` has been renamed
+    to ``suppress_usage_warning``, since it now suppresses both the low-quota warning and the
+    warning emitted when ``bypass_usage_check=True``. The warning emitted when usage information
+    cannot be retrieved is still shown, so a failed quota check is never silent.
+    Calls that pass ``suppress_low_usage_warning`` must be updated to use ``suppress_usage_warning``.
