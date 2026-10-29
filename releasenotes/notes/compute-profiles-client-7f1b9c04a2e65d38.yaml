@@ -1,0 +1,36 @@
+---
+features:
+  - |
+    Adds client methods to discover compute profiles — the resource tiers a Fleets function's
+    ``sizes_map`` can name — instead of hard-coding identifier strings.
+
+    ``client.compute_profiles()`` returns the registered catalog; printing it shows an aligned
+    table, so no iteration is needed::
+
+        >>> print(client.compute_profiles())
+        24x120          (24 vCPU / 120 GB)
+        24x120x1l40s    (24 vCPU / 120 GB / 1l40s)
+        20x320x2a100    (20 vCPU / 320 GB / 2a100)
+
+    ``client.compute_profile(...)`` returns a single profile, validated against the catalog,
+    by id or by exact resources (``cpu``/``memory`` as ``int`` or ``str``, optional ``gpu``)::
+
+        client.compute_profile("20x320x2a100")
+        client.compute_profile(cpu=24, memory=120)              # CPU-only
+        client.compute_profile(cpu=24, memory=120, gpu="1l40s")
+
+    When nothing matches, it raises and lists the available profiles.
+  - |
+    A function's ``sizes_map`` now accepts ``ComputeProfile`` objects as values, in addition to
+    the raw ``compute_profile_id`` strings. The two are interchangeable — an object is sent as
+    its id, so the upload payload is unchanged::
+
+        function = QiskitFunction(
+            title="my-function", entrypoint="my_file.py", runner="fleets",
+            sizes_map={
+                "s": client.compute_profile(cpu=24, memory=120),   # validated object
+                "l": "20x320x2a100",                                # or a raw id string
+            },
+            default_size="s",
+        )
+        client.upload(function)
