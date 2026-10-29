@@ -223,9 +223,13 @@ def sanitize_file_name(name: Optional[str]):
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
 
 
-def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
+def get_baked_dependencies() -> Dict[str, Requirement]:
     """
-    Create dictionary of allowed additional dependencies for function providers.
+    Return the dependencies baked into the runtime (selector) images.
+
+    This is the "packing list" for the runtime images: it is read-only discovery of
+    what the image already ships, surfaced to users through the ``dependencies-versions``
+    endpoint so they know what they do *not* need to bring themselves.
 
     The format of the read file should be a requirements.txt file.
     """
@@ -263,39 +267,3 @@ def active_jobs_limit_reached(author: str) -> bool:
     user_active_jobs_count = Job.objects.filter(author=author, status__in=Job.ACTIVE_STATUSES).count()
 
     return user_active_jobs_count >= active_jobs_limit
-
-
-DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long
-
-
-def check_whitelisted(dependencies: List[Requirement], inject_version_if_missing=False) -> List[Requirement]:
-    """
-    check if a list of dependencies are whitelisted.
-
-    if "inject_version_if_missing" is True, the dependencies that has an empty version,
-    will receive the version of the whitelist.
-    """
-    whitelist_deps = create_dynamic_dependencies_whitelist()
-
-    for dependency in dependencies:
-        whitelisted_dependency = whitelist_deps.get(dependency.name)
-        if not whitelisted_dependency:
-            raise ValueError(
-                f"Dependency `{dependency.name}` is not allowed. "
-                f"You can request the dependency here: {DEPENDENCY_REQUEST_URL}"
-            )
-
-        req_version_list = list(dependency.specifier)
-        if len(req_version_list) == 0:
-            if inject_version_if_missing:
-                dependency.specifier = whitelisted_dependency.specifier
-            continue
-
-        req_version = list(dependency.specifier)[0].version
-        if not whitelisted_dependency.specifier.contains(req_version):
-            raise ValueError(
-                f"Dependency ({dependency.name}) version ({req_version})"
-                f" is not allowed. Valid versions: {whitelisted_dependency}"
-            )
-
-    return dependencies
