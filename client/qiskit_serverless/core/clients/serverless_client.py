@@ -1098,7 +1098,8 @@ class IBMServerlessClient(ServerlessClient):
         provider: Optional[str] = None,
         *,
         function_size: Optional[str] = None,
-        suppress_low_usage_warning: bool = False,
+        suppress_usage_warning: bool = False,
+        bypass_usage_check: bool = False,
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
@@ -1112,9 +1113,14 @@ class IBMServerlessClient(ServerlessClient):
             provider: Optional provider name override.
             function_size: Declared size label (e.g. ``"m"``) to run at; resolves through the
                 function's size catalog on the gateway.
-            suppress_low_usage_warning: If ``True``, suppress the warning when remaining runtime
-                quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. The exception for exhausted quota
+            suppress_usage_warning: If ``True``, suppress the warning when remaining runtime
+                quota is below ``USAGE_LOW_THRESHOLD_SECONDS`` and the warning emitted when
+                ``bypass_usage_check`` is ``True``. The warning emitted when usage information
+                cannot be retrieved is still shown, and the exception for exhausted quota
                 (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.
+            bypass_usage_check: If ``True``, skip the client-side runtime quota check entirely, including
+                the exhausted-quota exception and the low-quota warning. A warning is emitted instead,
+                unless ``suppress_usage_warning`` is ``True``. The gateway still enforces its own quota checks.
 
         Returns:
             :class:`~qiskit_serverless.core.job.Job` handle for the submitted run.
@@ -1125,7 +1131,15 @@ class IBMServerlessClient(ServerlessClient):
         """
         backend_name = (arguments or {}).get("backend_name")
 
-        self._check_usage(suppress_low_usage_warning)
+        if not bypass_usage_check:
+            self._check_usage(suppress_low_usage_warning=suppress_usage_warning)
+        elif not suppress_usage_warning:
+            warnings.warn(
+                f"bypass_usage_check=True: skipping the runtime quota check for instance '{self.instance}'. "
+                "The job will be submitted even if the remaining quota is insufficient to complete it, "
+                "and usage may still be billed. "
+                "Pass suppress_usage_warning=True to silence this warning."
+            )
 
         if backend_name:
             # Single-backend lookup — fast and confirms access without a full instance listing.
