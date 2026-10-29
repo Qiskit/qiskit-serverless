@@ -1,0 +1,28 @@
+---
+features:
+  - |
+    Adds a ``GET /api/v1/compute-profiles/`` endpoint that lists the compute profiles
+    registered on the deployment — the profiles a Fleets function's ``sizes_map`` may name.
+    Each entry carries ``compute_profile_id``, ``cpu``, ``gpu`` and ``memory``::
+
+        GET /api/v1/compute-profiles/
+        [
+          {"compute_profile_id": "24x120",       "cpu": "24", "gpu": null,    "memory": "120"},
+          {"compute_profile_id": "20x320x2a100", "cpu": "20", "gpu": "2a100", "memory": "320"}
+        ]
+  - |
+    When an upload names a compute profile that is not registered, the validation error now
+    lists the available profiles — one per line, CPU-only first and then GPU profiles by
+    increasing memory, with aligned specs — so the user can see what to use instead::
+
+        Unknown compute profile 'typo-profile' for size 'l'. Available profiles:
+        24x120          (24 vCPU / 120 GB)
+        24x120x1l40s    (24 vCPU / 120 GB / 1l40s)
+        20x320x2a100    (20 vCPU / 320 GB / 2a100)
+        160x1792x8h100  (160 vCPU / 1792 GB / 8h100)
+upgrade:
+  - |
+    The compute-profile ``name`` is no longer included in API responses. It was an internal
+    label and is omitted from the new ``compute-profiles`` endpoint and from the compute
+    profile nested in job and run responses (``compute_profile_fk``). The identifying field,
+    ``compute_profile_id``, is unchanged.
