@@ -104,7 +104,9 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         entrypoint: is a script that will be executed as a job
             ex: job.py
         env_vars: env vars
-        dependencies: list of python dependencies to execute a program
+        dependencies: DEPRECATED and no longer installs anything; accepted but ignored, and
+            will be removed in a future release. See ``client.dependencies_versions()`` for
+            what the runtime image already ships.
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
@@ -235,7 +237,9 @@ class RunnableQiskitFunction(QiskitFunction):
         entrypoint: is a script that will be executed as a job
             ex: job.py
         env_vars: env vars
-        dependencies: list of python dependencies to execute a program
+        dependencies: DEPRECATED and no longer installs anything; accepted but ignored, and
+            will be removed in a future release. See ``client.dependencies_versions()`` for
+            what the runtime image already ships.
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program

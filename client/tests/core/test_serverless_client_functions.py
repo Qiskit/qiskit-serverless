@@ -15,6 +15,7 @@
 import json
 import os
 import tempfile
+import warnings
 from unittest.mock import MagicMock, patch, Mock
 
 import pytest
@@ -102,6 +103,37 @@ class TestUploadMethod:
         assert call_kwargs["token"] == "test-token"
         assert call_kwargs["client"] == mock_client
         assert result == mock_function
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_warns_when_dependencies_set(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() emits a DeprecationWarning when the deprecated `dependencies=` is used."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(
+            title="test-function",
+            image="test-image:latest",
+            dependencies=["numpy", "scipy"],
+        )
+
+        with pytest.warns(DeprecationWarning, match="no longer installs anything"):
+            mock_client.upload(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_does_not_warn_without_dependencies(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() does not emit a DeprecationWarning when `dependencies=` is unset."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            mock_client.upload(program)
 
     @patch("qiskit_serverless.core.clients.serverless_client.trace")
     def test_upload_raises_when_neither_image_nor_entrypoint(self, mock_trace, mock_client):
