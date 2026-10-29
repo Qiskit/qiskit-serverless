@@ -35,7 +35,7 @@ class StopBlockedFleetsJobs(SchedulerTask):
 
         The blocked rows are read once per pass, so a change to them applies from the next tick.
         """
-        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
+        if not Config.get_bool(ConfigKey.BLOCKED_RESOURCES_ENFORCED):
             return
         blocked = BlockedCloudResource.blocked_jobs_filter()
         if blocked is None:

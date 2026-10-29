@@ -574,12 +574,22 @@ class BlockedCloudResource(models.Model):
 
     @classmethod
     def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
-        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL."""
+        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL.
+
+        Always False while blocked resources are not enforced.
+        """
+        if not Config.get_bool(ConfigKey.BLOCKED_RESOURCES_ENFORCED):
+            return False
         return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
 
     @classmethod
     def blocked_jobs_filter(cls) -> models.Q | None:
-        """A Job filter matching the jobs blocks() would block, or None when nothing is blocked."""
+        """A Job filter matching the jobs blocks() would block, or None when nothing is blocked.
+
+        Always None while blocked resources are not enforced.
+        """
+        if not Config.get_bool(ConfigKey.BLOCKED_RESOURCES_ENFORCED):
+            return None
         # distinct: a resource blocked for more than one reason or region has a row for each
         rows = cls.objects.values_list("account", "plan", "subscription").distinct()
         jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
