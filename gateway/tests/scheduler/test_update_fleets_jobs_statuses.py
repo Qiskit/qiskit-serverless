@@ -706,7 +706,7 @@ def test_to_terminal_writes_the_job_through_the_real_service():
         author=author, runner=Program.FLEETS, status=Job.RUNNING, sub_status=Job.MAPPING, env_vars='{"k": "v"}'
     )
     task = _make_task()
-    task.transitions = JobTransitionService(sender=MagicMock())
+    task.transitions = JobTransitionService(billing_sender=MagicMock())
 
     task.to_terminal(job, Job.FAILED)
 
@@ -738,7 +738,7 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
     sender = MagicMock()
     sender.send.side_effect = RuntimeError("kafka down")
     task = _make_task()
-    task.transitions = JobTransitionService(sender=sender)
+    task.transitions = JobTransitionService(billing_sender=sender)
     mock_runner = MagicMock()
     mock_runner.status.return_value = Job.RUNNING
 
@@ -1088,7 +1088,7 @@ def _run_real_pass(reported_status, on_status=None):
     """Run one pass with a fake runner and a fake canceller. Returns the sender."""
     sender = MagicMock()
     task = _make_task()
-    task.transitions = JobTransitionService(sender=sender)
+    task.transitions = JobTransitionService(billing_sender=sender)
 
     def status():
         if on_status:

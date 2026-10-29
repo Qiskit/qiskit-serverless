@@ -561,7 +561,7 @@ def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
 
     with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
         with pytest.raises(InvalidJobTransitionException):
-            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(job, None)
+            FleetsJobSubmitter(JobTransitionService(billing_sender=MagicMock())).submit(job, None)
 
     job.refresh_from_db()
     assert job.status == Job.STOPPED
@@ -582,7 +582,7 @@ def test_a_failed_submit_records_its_reason_in_the_database():
 
     with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
         with pytest.raises(RunnerError):
-            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(
+            FleetsJobSubmitter(JobTransitionService(billing_sender=MagicMock())).submit(
                 job, None, context=JobEventContext.FILLER_SUBMIT
             )
 

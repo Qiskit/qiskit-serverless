@@ -84,13 +84,22 @@ class JobTransitionService:
         Job.STOPPED: set(),
     }
 
-    def __init__(self, sender: Sender | None = None, workload_mirror: WorkloadMirrorSender | None = None):
-        """The sender of the best effort events.
-        By default, it creates the sender based on EVENT_STREAMS_ENABLED (so the scheduler has KafkaSender, and
-        the Gateway (stop jobs only) has NoOpSender).
-        The workload mirror sends the intermediate statuses to the Runtime API. By default it sends nothing,
-        and only the scheduler passes a real one."""
-        self.sender = sender if sender is not None else build_kafka_sender()
+    def __init__(self, billing_sender: Sender | None = None, workload_mirror: WorkloadMirrorSender | None = None):
+        """
+        Billing events and workloads mirror are sent through Outbox to ensure their delivery.
+
+        However, there are other kinds of billing events and workloads that are "best effort": we try to send them
+        but if the sending fails, they are ignored.
+
+            - billing_sender best effort billing messages. It uses EVENT_STREAMS_ENABLED (Scheduler uses
+            KafkaSender, which sends without wait, and Gateway (stop jobs only) uses NoOpSender).
+
+            - workload_mirror. Used only for the intermediate statuses to the Runtime API. Scheduler uses
+            WorkloadBackgroundMirror (needs a background executer), Gateway uses WorkloadInlineMirror (same thread).
+
+        """
+
+        self.billing_sender = billing_sender if billing_sender is not None else build_kafka_sender()
         self.workload_mirror = workload_mirror if workload_mirror is not None else NoOpWorkloadMirror()
 
     @observer_method(JOB_TRANSITION_QUEUED_TO_PENDING, rejected_by=_REJECTED)
@@ -310,7 +319,7 @@ class JobTransitionService:
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
             # timeout=0: send and return at once, without waiting for the ack or a flush. It never raises error,
             # but it is caught anyway in case a sender implementation changes in the future
-            self.sender.send(payload, timeout=0)
+            self.billing_sender.send(payload, timeout=0)
         except RuntimeError as ex:
             # never expected: the sender already drops and logs its own failures
             logger.error(
