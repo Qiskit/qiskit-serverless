@@ -33,6 +33,7 @@ Core abstractions
     save_result
     QiskitPattern
     QiskitFunction
+    ComputeProfile
     is_running_in_serverless
     get_runtime_service
 
@@ -53,4 +54,5 @@ from .job import (
     get_runtime_service,
 )
 from .function import QiskitPattern, QiskitFunction
+from .compute_profile import ComputeProfile
 from .serverless_error import ServerlessError
