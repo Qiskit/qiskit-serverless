@@ -27,6 +27,7 @@ Qiskit Serverless provider
 """
 
 # pylint: disable=duplicate-code,too-many-lines
+import glob
 import json
 import os.path
 import os
@@ -36,7 +37,7 @@ import time
 import warnings
 from pathlib import Path
 from urllib.parse import urlparse
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Optional, List, Dict, Any, Union
 from collections.abc import Callable
 
@@ -102,6 +103,84 @@ _STATUS_TOKEN_HEADER = "X-Job-Status-Token"
 # The gateway signs the token for 5 minutes, so the client stops using it 30 s before
 _STATUS_TOKEN_REUSE_SECONDS = 270
 _TOKEN_REFUSED_CODES = (401, 403, 404)
+
+# A requirement looks like "name[extras]<specifier>", e.g. "numpy>=2",
+# "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1", or a bare "mypkg".
+_REQUIREMENT_RE = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*(?:\[[^\]]*\])?\s*(.*?)\s*$")
+
+
+def _split_requirement(requirement: str) -> tuple:
+    """Split a requirement string into (name, specifier-or-version).
+
+    For a baked entry like ``"numpy==2.1.0"`` the second item is the pinned version
+    ``"2.1.0"``; for a user requirement like ``"jax<0.5"`` it is the specifier ``"<0.5"``.
+    Extras are dropped. A bare name yields an empty specifier.
+    """
+    match = _REQUIREMENT_RE.match(requirement)
+    if not match:
+        return requirement.strip(), ""
+    name, spec = match.group(1), match.group(2).strip()
+    # Normalize a bare "==x" baked pin down to just the version for display/comparison.
+    if spec.startswith("=="):
+        spec = spec[2:].strip()
+    return name, spec
+
+
+def _normalize_dep_name(name: str) -> str:
+    """PEP 503 name normalization: lowercase, runs of -_. collapse to a single '-'."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _spec_allows(spec: str, baked_version: str) -> bool:
+    """Best-effort check that a baked version satisfies a user specifier.
+
+    Deliberately simple and dependency-free: an exact ``==`` or bare version must match the
+    baked version; anything else (ranges like ``>=2``, ``<0.5``) is treated as compatible so the
+    report does not raise false clashes. The report is advisory, not an installer.
+    """
+    spec = spec.strip()
+    if not spec:
+        return True
+    if spec.startswith("=="):
+        return spec[2:].strip() == baked_version
+    # A bare version with no operator (e.g. report entry already reduced to "2.1.0").
+    if re.match(r"^[0-9]", spec):
+        return spec == baked_version
+    return True
+
+
+@dataclass
+class DependencyReportEntry:
+    """One row of a :class:`DependencyReport`.
+
+    ``status`` is one of ``"baked"`` (already in the image, don't bring), ``"bring"`` (upload a
+    wheel), or ``"clash"`` (the image ships a different version).
+    """
+
+    requirement: str
+    status: str
+    note: str
+
+
+class DependencyReport(List[DependencyReportEntry]):
+    """A list of :class:`DependencyReportEntry` that prints as an aligned table.
+
+    Behaves like an ordinary list; only ``str``/``repr`` differ so
+    ``print(client.dependency_report([...]))`` shows the table without the caller iterating.
+    """
+
+    def __str__(self) -> str:
+        return _format_dependency_report(self)
+
+    def __repr__(self) -> str:
+        return _format_dependency_report(self)
+
+
+def _format_dependency_report(entries: List[DependencyReportEntry]) -> str:
+    header = ("requirement", "status", "note")
+    rows = [header] + [(e.requirement, e.status, e.note) for e in entries]
+    widths = [max(len(row[col]) for row in rows) for col in range(3)]
+    return "\n".join("  ".join(cell.ljust(widths[col]) for col, cell in enumerate(row)) for row in rows)
 
 
 class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
@@ -849,6 +928,75 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def provider_file_upload(self, file: str, function: QiskitFunction):
         """Uploads a file in the specific provider's Qiskit Function folder."""
         return self._files_client.provider_upload(file, function)
+
+    def add_wheels(self, function: QiskitFunction, patterns: List[str]) -> List[str]:
+        """Upload locally-built wheels to a function's file area.
+
+        Each pattern is a local path or glob (e.g. ``"dist/mypkg-1.0-*.whl"``); every match
+        must be a ``.whl`` file. This is a thin wrapper over :meth:`file_upload` that expands
+        the patterns and uploads each wheel, so they are available to the function at runtime.
+        Install them from your entrypoint with ``install_uploaded_wheels()``.
+
+        Args:
+            function: the function whose file area the wheels are uploaded to.
+            patterns: local paths or globs matching the wheel files to upload.
+
+        Returns:
+            The uploaded wheel file names, in upload order.
+
+        Raises:
+            QiskitServerlessException: if a pattern matches no files, or a match is not a
+                ``.whl`` file.
+        """
+        paths: List[str] = []
+        for pattern in patterns:
+            matches = sorted(glob.glob(pattern))
+            if not matches:
+                raise QiskitServerlessException(f"No files match wheel pattern: {pattern}")
+            paths.extend(matches)
+
+        non_wheels = [p for p in paths if not p.endswith(".whl")]
+        if non_wheels:
+            raise QiskitServerlessException(f"add_wheels only accepts .whl files; got: {', '.join(non_wheels)}")
+
+        uploaded: List[str] = []
+        for path in paths:
+            self.file_upload(path, function)
+            uploaded.append(os.path.basename(path))
+        return uploaded
+
+    def dependency_report(self, requirements: List[str]) -> "DependencyReport":
+        """Diff your requirements against what the runtime image already ships.
+
+        For each requirement this reports whether it is already ``baked`` into the image (so you
+        should not bring it), needs to be brought as a wheel (``bring``), or ``clashes`` with a
+        different baked version. It is a client-side diff over :meth:`dependencies_versions`; it
+        uploads nothing. The result prints as an aligned table.
+
+        Args:
+            requirements: requirement strings, e.g. ``["numpy>=2", "mypkg", "jax<0.5"]``.
+
+        Returns:
+            A :class:`DependencyReport` (a list of :class:`DependencyReportEntry` that prints as
+            a table).
+        """
+        baked = {}
+        for dep in self.dependencies_versions():
+            name, version = _split_requirement(dep)
+            baked[_normalize_dep_name(name)] = version
+
+        entries: List[DependencyReportEntry] = []
+        for requirement in requirements:
+            name, spec = _split_requirement(requirement)
+            baked_version = baked.get(_normalize_dep_name(name))
+            if baked_version is None:
+                status, note = "bring", "not in image — upload a wheel"
+            elif spec and not _spec_allows(spec, baked_version):
+                status, note = "clash", f"image ships {name}=={baked_version}"
+            else:
+                status, note = "baked", f"already in image ({name}=={baked_version})"
+            entries.append(DependencyReportEntry(requirement=requirement, status=status, note=note))
+        return DependencyReport(entries)
 
 
 class IBMServerlessClient(ServerlessClient):
