@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    Added a way to bring Python packages that are not baked into the runtime
+    image: build a wheel locally, upload it with your function, and install it
+    from your entrypoint at run time.
+
+    * :meth:`~qiskit_serverless.ServerlessClient.add_wheels` uploads local wheel
+      files (paths or globs) to a function's file area.
+    * :meth:`~qiskit_serverless.ServerlessClient.dependency_report` diffs a list of
+      requirements against what the runtime image already ships, reporting each as
+      already present, to bring as a wheel, or clashing with a baked version. It is
+      a client-side check and uploads nothing.
+    * :func:`~qiskit_serverless.install_uploaded_wheels`, called from the entrypoint,
+      installs the uploaded wheels offline and makes them importable.
+
+    Wheels are installed on every execution, and each wheel must contain everything
+    it needs that is not already shipped in the image. See the "Bring your own
+    wheels" guide in the function-features documentation.
