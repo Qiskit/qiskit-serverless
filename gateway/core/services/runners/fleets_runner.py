@@ -53,6 +53,8 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     build_run_env_variables,
     build_run_volume_mounts_for_job,
 )
+from core.domain.storage_paths import StoragePaths
+from core.services.storage.job_storage_paths import get_storage_paths
 
 logger = logging.getLogger("FleetsRunner")
 
@@ -146,26 +148,28 @@ class FleetsRunner(AbstractRunner):
             RunnerRetryableError: If Code Engine, COS or IAM failed in a way a later try can fix.
             RunnerError: If submission fails for any other reason.
         """
-        paths = self._upload_to_cos()
-        self._create_fleet(paths)
+        paths, saved = self._upload_to_cos()
+        self._create_fleet(paths, saved)
 
-    def _upload_to_cos(self) -> FleetJobPaths:
-        """Upload the job's arguments and program to COS. No failure here can have created a fleet."""
+    def _upload_to_cos(self) -> tuple[FleetJobPaths, StoragePaths]:
+        """Upload the job's program to COS, under the paths saved for the job. No failure here can have created a
+        fleet."""
         try:
             if not self._project:
                 self._project = self._get_project()
             if not self._is_cos_configured():
                 raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
-            paths = build_job_paths(self.job)
+            saved = get_storage_paths(self.job)
+            paths = build_job_paths(self.job, saved)
             with observe_operation(FLEET_SUBMIT_UPLOAD):
-                self._upload_program_to_cos(paths)
+                self._upload_program_to_cos(paths, saved)
             logger.info(
                 "COS configured for job_id [%s]: user_key=[%s] provider_key=[%s]",
                 self.job.id,
                 paths.cos_user_log_key,
                 paths.cos_provider_log_key,
             )
-            return paths
+            return paths, saved
         except RunnerError:
             raise
         except ClientError as ex:
@@ -195,7 +199,7 @@ class FleetsRunner(AbstractRunner):
             logger.error("Failed to upload job_id=[%s] to COS: %s", self.job.id, ex)
             raise RunnerError(f"Failed to submit job_id=[{self.job.id}] to Code Engine Fleets", ex) from ex
 
-    def _create_fleet(self, paths: FleetJobPaths) -> None:
+    def _create_fleet(self, paths: FleetJobPaths, saved: StoragePaths | None = None) -> None:
         """Create the job's Code Engine fleet.
 
         Mounts two PDS volumes and sets up the dual-log wrapper (provider log = all output,
@@ -233,7 +237,7 @@ class FleetsRunner(AbstractRunner):
             stored_env_vars = decrypt_env_vars(json.loads(self.job.env_vars))
             extra_fields.update(
                 {
-                    "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project),
+                    "run_volume_mounts": build_run_volume_mounts_for_job(paths, self._project, saved),
                     "run_env_variables": build_run_env_variables(paths, stored_env_vars, functions_identifier),
                     "run_commands": ["python", paths.container_docker_entrypoint],
                 }
@@ -436,9 +440,9 @@ class FleetsRunner(AbstractRunner):
             return None
 
         try:
-            paths = build_job_paths(self.job)
-            user_bucket = self._project.cos_bucket_user_data_name
-            results_key = paths.cos_results_key
+            saved = get_storage_paths(self.job)
+            user_bucket = saved.user_bucket
+            results_key = saved.results_key
 
             logger.debug("Retrieving results for job_id=[%s] from %s/%s", self.job.id, user_bucket, results_key)
 
@@ -659,7 +663,7 @@ class FleetsRunner(AbstractRunner):
             self._cos = get_cos_client(self._project)
         return self._cos
 
-    def _upload_program_to_cos(self, paths: FleetJobPaths) -> None:
+    def _upload_program_to_cos(self, paths: FleetJobPaths, saved: StoragePaths | None = None) -> None:
         """Dispatcher: uploads COS objects for the job before fleet submission.
 
         Dispatches to the appropriate upload method based on job type:
@@ -668,13 +672,14 @@ class FleetsRunner(AbstractRunner):
 
         Args:
             paths: Pre-computed paths from :func:`build_job_paths`.
+            saved: The job's storage paths, whose buckets the files go to. Without them, the project's buckets.
         """
         if self.job.program.artifact:
-            self._upload_custom_image_entrypoint(paths)
+            self._upload_custom_image_entrypoint(paths, saved)
         elif self.job.program.image:
-            self._upload_provider_image_entrypoint(paths)
+            self._upload_provider_image_entrypoint(paths, saved)
 
-    def _upload_custom_image_entrypoint(self, paths: FleetJobPaths) -> None:
+    def _upload_custom_image_entrypoint(self, paths: FleetJobPaths, saved: StoragePaths | None = None) -> None:
         """Extract the program artifact tar and upload files to COS.
 
         Custom jobs: entrypoint → user bucket at function level; other files → user bucket at job level.
@@ -687,7 +692,7 @@ class FleetsRunner(AbstractRunner):
         if not program.artifact:
             return
 
-        user_bucket = self._project.cos_bucket_user_data_name
+        user_bucket = saved.user_bucket if saved else self._project.cos_bucket_user_data_name
 
         # upload template
         template_name = "fleet_custom_job_wrapper.py"
@@ -746,7 +751,7 @@ class FleetsRunner(AbstractRunner):
         if not entrypoint_found:
             raise RunnerError(f"Entrypoint '{program.entrypoint}' not found in artifact for job_id=[{self.job.id}]")
 
-    def _upload_provider_image_entrypoint(self, paths: FleetJobPaths) -> None:
+    def _upload_provider_image_entrypoint(self, paths: FleetJobPaths, saved: StoragePaths | None = None) -> None:
         """Upload COS objects for a provider image job.
 
         Provider jobs: entrypoint (rendered from main.tmpl) and wrapper script →
@@ -761,7 +766,7 @@ class FleetsRunner(AbstractRunner):
         if not program.provider:
             raise RunnerError("_upload_provider_image_entrypoint called on non-provider job")
 
-        provider_bucket = self._project.cos_bucket_provider_data_name
+        provider_bucket = saved.provider_bucket if saved else self._project.cos_bucket_provider_data_name
 
         # upload wrapper script
         wrapper_script = get_template("fleet_provider_job_wrapper.py").render(

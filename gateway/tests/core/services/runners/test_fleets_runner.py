@@ -15,7 +15,7 @@
 import io
 import tarfile
 from contextlib import contextmanager
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from django.conf import settings as django_settings
@@ -27,9 +27,10 @@ from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.models import CodeEngineProject, Job, Program
+from core.models import CodeEngineProject, Job, JobStoragePaths, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
+from core.domain.storage_paths import StoragePaths
 from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner
@@ -55,6 +56,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
         Tuple of ``(runner, mock_handler)``.
     """
     mock_job = MagicMock()
+    type(mock_job).storage_paths = PropertyMock(side_effect=JobStoragePaths.DoesNotExist)  # no saved row
     mock_job.fleet_id = fleet_id
     mock_job.filler = False
     mock_job.ce_project_name = None
@@ -118,6 +120,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
         returns a fleet with id="fleet-abc".
     """
     mock_job = MagicMock()
+    type(mock_job).storage_paths = PropertyMock(side_effect=JobStoragePaths.DoesNotExist)  # no saved row
     mock_job.fleet_id = None
     mock_job.id = "job-uuid"
     mock_job.filler = False
@@ -1117,6 +1120,41 @@ def test_submit_includes_gateway_env_vars():
     assert by_name["ARGUMENTS_PATH"] == "/job_user_data/arguments.json"
     assert by_name["RESULTS_PATH"] == "/job_user_data/results.json"
     assert by_name["PUBLIC_LOG_PATH"] == "/job_user_data/logs.log"
+
+
+def test_submit_mounts_and_writes_to_the_saved_paths():
+    """With a saved row, submit mounts its prefixes from its data stores and points the env vars at its keys."""
+    runner, mock_handler = _make_submit_runner()
+    saved = StoragePaths(
+        cos_region="us-east",
+        cos_instance_name="cos-instance",
+        user_bucket="old-user-bucket",
+        provider_bucket=None,
+        user_pds="old-user-pds",
+        provider_pds=None,
+        user_function_prefix="old/fn/data",
+        user_job_prefix="old/fn/jobs/job-uuid",
+        provider_function_prefix=None,
+        provider_job_prefix=None,
+        arguments_key="old/fn/jobs/job-uuid/args.json",
+        results_key="old/fn/jobs/job-uuid/out/results.json",
+        user_log_key="old/fn/jobs/job-uuid/logs.log",
+        provider_log_key=None,
+    )
+
+    with _patch_settings(), patch(f"{_RUNNER_MOD}.get_storage_paths", return_value=saved):
+        runner.submit()
+
+    extra = mock_handler.submit_job.call_args.kwargs["extra_fields"]
+    mounts = {m["mount_path"]: (m["reference"], m["sub_path"]) for m in extra["run_volume_mounts"]}
+    assert mounts == {
+        "/function_user_data": ("old-user-pds", "old/fn/data"),
+        "/job_user_data": ("old-user-pds", "old/fn/jobs/job-uuid"),
+    }
+    env = {e["name"]: e["value"] for e in extra["run_env_variables"]}
+    assert env["ARGUMENTS_PATH"] == "/job_user_data/args.json"
+    assert env["RESULTS_PATH"] == "/job_user_data/out/results.json"
+    assert extra["run_commands"] == ["python", "/function_user_data/fleet_custom_job_wrapper.py"]
 
 
 def test_submit_arguments_path_set_exactly_once():

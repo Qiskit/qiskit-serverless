@@ -12,15 +12,17 @@
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.test import TestCase
 
+from core.models import JobStoragePaths
 from core.services.storage.job_file_explorer import FileEntry, FileGroup, JobFileExplorer
 
 
 def _make_job(runner="fleets", has_provider=False, artifact=None):
     job = MagicMock()
+    type(job).storage_paths = PropertyMock(side_effect=JobStoragePaths.DoesNotExist)  # no saved row
     job.id = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000001")
     job.author.username = "alice"
     job.runner = runner

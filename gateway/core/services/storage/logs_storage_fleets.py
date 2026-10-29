@@ -20,8 +20,8 @@ from typing import Optional
 from ibm_botocore.exceptions import ClientError
 
 from core.ibm_cloud import get_cos_client
-from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Job
+from core.services.storage.job_storage_paths import get_storage_paths
 from core.services.storage.logs_storage import LogsStorage
 
 logger = logging.getLogger("core.FleetsLogsStorage")
@@ -36,33 +36,23 @@ class FleetsLogsStorage(LogsStorage):
         if not job.program.code_engine_project:
             raise ValueError(f"Program '{job.program.title}' has no CodeEngineProject assigned")
 
-        paths = build_job_paths(job)
+        paths = get_storage_paths(job)
         self._job_id = str(job.id)
         self._user_id = job.author.id
         self._project = job.program.code_engine_project
-        self._public_key = paths.cos_user_log_key
-        self._private_key: Optional[str] = paths.cos_provider_log_key
-        self._user_bucket = self._load_user_bucket()
-        self._provider_bucket = self._load_provider_bucket(job)
+        self._public_key = paths.user_log_key
+        self._private_key: Optional[str] = paths.provider_log_key
+        self._user_bucket = paths.user_bucket
+        self._provider_bucket = self._load_provider_bucket(paths)
 
-    def _load_provider_bucket(self, job: Job):
-        if not job.program.provider:
+    def _load_provider_bucket(self, paths) -> Optional[str]:
+        if not paths.is_provider_job:
             return None
-
-        provider_bucket = self._project.cos_bucket_provider_data_name
-        if not provider_bucket:
+        if not paths.provider_bucket:
             raise ValueError(
                 f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_provider_data_name configured"
             )
-        return provider_bucket
-
-    def _load_user_bucket(self):
-        user_bucket = self._project.cos_bucket_user_data_name
-        if not user_bucket:
-            raise ValueError(
-                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
-            )
-        return user_bucket
+        return paths.provider_bucket
 
     def get_public_logs(self) -> Optional[str]:
         try:
