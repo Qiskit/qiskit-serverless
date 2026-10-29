@@ -246,6 +246,132 @@ class TestRunnerTimestamps:
         assert job.started_at() is None
         assert job.ended_at() is None
 
+    def test_a_job_never_seen_running_records_the_start_the_runner_gives(self, service):
+        """It went from PENDING to its end between two scans: the runner is the only one that knows its start."""
+        author = User.objects.create_user(username="never-running-author-1")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+        ended = datetime.now(timezone.utc) - timedelta(seconds=5)
+
+        service.to_terminal(
+            job,
+            Job.SUCCEEDED,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=started,
+            ended_at=ended,
+        )
+
+        job.refresh_from_db()
+        assert job.running_started_at == started
+        assert job.running_ended_at == ended
+        assert job.started_at() == started
+        assert not JobEvent.objects.filter(job=job, data__status=Job.RUNNING).exists()
+
+    @pytest.mark.parametrize("status", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
+    def test_every_terminal_status_records_the_start(self, service, status):
+        author = User.objects.create_user(username=f"never-running-author-{status}")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        service.to_terminal(
+            job, status, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, started_at=started
+        )
+
+        job.refresh_from_db()
+        assert job.running_started_at == started
+
+    def test_a_job_that_has_a_start_keeps_it(self, service):
+        author = User.objects.create_user(username="never-running-author-2")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, running_at=started
+        )
+
+        service.to_succeeded(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=started - timedelta(seconds=20),
+        )
+
+        job.refresh_from_db()
+        assert job.running_started_at == started
+
+    def test_a_start_before_the_job_existed_is_taken_as_its_creation(self, service):
+        author = User.objects.create_user(username="never-running-author-3")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+
+        service.to_succeeded(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=job.created - timedelta(minutes=5),
+        )
+
+        job.refresh_from_db()
+        assert job.running_started_at == job.created
+
+    def test_a_start_in_the_future_is_taken_as_the_moment_it_was_written(self, service):
+        author = User.objects.create_user(username="never-running-author-4")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+
+        event = service.to_succeeded(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        )
+
+        job.refresh_from_db()
+        assert job.running_started_at == event.created
+
+    def test_a_start_without_timezone_is_not_recorded(self, service, caplog):
+        author = User.objects.create_user(username="never-running-author-5")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+
+        with caplog.at_level(logging.WARNING):
+            service.to_succeeded(
+                job,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                started_at=datetime(2026, 1, 1, 12, 0, 0),
+            )
+
+        job.refresh_from_db()
+        assert job.status == Job.SUCCEEDED
+        assert job.running_started_at is None
+        assert "has no timezone" in caplog.text
+
+    def test_an_end_before_the_start_the_runner_gives_is_taken_as_that_start(self, service):
+        author = User.objects.create_user(username="never-running-author-6")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        service.to_failed(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=started,
+            ended_at=started - timedelta(seconds=10),
+        )
+
+        job.refresh_from_db()
+        assert job.running_started_at == started
+        assert job.running_ended_at == started
+
+    def test_a_job_without_any_start_records_none(self, service):
+        """Stopped while still queued or pending: it never ran, and nothing says otherwise."""
+        author = User.objects.create_user(username="never-running-author-7")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+
+        service.to_stopped(job, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB)
+
+        job.refresh_from_db()
+        assert job.running_started_at is None
+        assert job.running_ended_at is not None
+
 
 class TestTransition:
     """Unit tests for the status change every JobTransitionService transition does."""
@@ -368,6 +494,52 @@ class TestBillingOutbox:
 
         usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert usage.payload["data"]["metric_value"] == 20
+
+    def test_a_job_never_seen_running_bills_from_the_start_the_runner_gives(self, service, user):
+        """The case this exists for: the running folder is gone when the job ends, the task file is not."""
+        job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        service.to_succeeded(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=started,
+            ended_at=started + timedelta(seconds=20),
+        )
+
+        rows = Outbox.objects.filter(job=job)
+        assert {row.channel for row in rows} == {OutboxChannel.LICENSE_FEE, OutboxChannel.JOB_USAGE}
+        assert {row.payload["data"]["job_started_at"] for row in rows} == {started.isoformat()}
+        assert Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE).payload["data"]["metric_value"] == 20
+
+    def test_failed_with_the_start_the_runner_gives_enqueues_both_messages(self, service, user):
+        """Same rule as before, only the source of the start changes: a failed job with a start owes the fee."""
+        job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        service.to_failed(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=started,
+            ended_at=started + timedelta(seconds=20),
+        )
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_stopped_with_the_start_the_runner_gives_enqueues_both_messages(self, service, user):
+        job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
+
+        service.to_stopped(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            started_at=datetime.now(timezone.utc) - timedelta(seconds=30),
+        )
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
 
     def test_succeeded_enqueues_both_messages_even_without_a_running_event(self, service, user):
         """The short-job-between-two-polls case: never observed RUNNING, still owes the fee."""

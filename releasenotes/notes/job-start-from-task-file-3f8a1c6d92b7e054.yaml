@@ -1,0 +1,10 @@
+---
+fixes:
+  - |
+    A Fleets job that went from pending to finished between two scans of the
+    scheduler is now billed for the time it ran. The start of a job used to be
+    read from the ``running`` keys of the Code Engine task store, which are gone
+    once the job ends, so such a job had no start and no license fee. The
+    scheduler now reads ``startedAt`` and ``finishedAt`` from the task file that
+    Code Engine keeps under ``tasks/`` after the task ends. When the file cannot
+    be read, the job starts and ends when the scheduler noticed it.

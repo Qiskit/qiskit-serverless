@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
@@ -28,8 +29,11 @@ from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
+    TaskTimes,
+    parse_task_times,
     queue_prefix,
     task_state_from_key,
+    tasks_prefix,
 )
 
 _IBM_CLOUD_MOD = "core.ibm_cloud"
@@ -456,3 +460,48 @@ class TestQueuePrefixAndState:
         prefix = queue_prefix("proj", "fleet")
         key = f"{prefix}pending/000-00000-0/succeeded/0/2026-08-26T19:09:39Z/uuid"
         assert task_state_from_key(prefix, key) == "pending"
+
+
+class TestTasksPrefix:
+    """The task file layout, which stays after the task ends."""
+
+    def test_it_sits_next_to_the_queue_under_the_newest_version(self):
+        assert tasks_prefix("proj", "fleet") == "ce/proj/fleet/v3/tasks/"
+        assert (
+            tasks_prefix("proj", "fleet").rsplit("tasks/", 1)[0] == queue_prefix("proj", "fleet").rsplit("queue/", 1)[0]
+        )
+
+
+class TestParseTaskTimes:
+    """parse_task_times() reads startedAt and finishedAt, and logs nothing of the content."""
+
+    def test_an_unquoted_timestamp_with_nanoseconds_is_read(self):
+        times = parse_task_times(b"startedAt: 2026-01-02T03:04:05.123456789Z\nfinishedAt: 2026-01-02T03:06:07Z\n", "k")
+
+        assert times == TaskTimes(
+            datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc),
+            datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc),
+        )
+
+    def test_a_quoted_timestamp_with_nanoseconds_is_read(self):
+        times = parse_task_times(b"startedAt: '2026-01-02T03:04:05.123456789Z'\n", "k")
+
+        assert times.started_at == datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc)
+
+    def test_an_offset_other_than_utc_is_kept_aware(self):
+        times = parse_task_times(b"startedAt: '2026-01-02T03:04:05+02:00'\n", "k")
+
+        assert times.started_at == datetime(2026, 1, 2, 1, 4, 5, tzinfo=timezone.utc)
+
+    def test_the_times_of_the_worker_are_ignored(self):
+        content = b"status:\n- startTime: '2026-01-02T03:04:05Z'\n  endTime: '2026-01-02T03:06:07Z'\n"
+
+        assert parse_task_times(content, "k") == TaskTimes()
+
+    def test_null_and_missing_are_none_without_a_warning(self, caplog):
+        assert parse_task_times(b"startedAt: null\n", "k") == TaskTimes()
+        assert "not a timestamp" not in caplog.text
+
+    def test_yaml_cannot_build_python_objects(self):
+        """safe_load: a tag that would run code is an error, not an object."""
+        assert parse_task_times(b"startedAt: !!python/object/apply:os.getcwd []\n", "k") == TaskTimes()

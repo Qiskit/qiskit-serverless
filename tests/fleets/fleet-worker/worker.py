@@ -18,6 +18,7 @@ import os
 import signal
 import subprocess
 import time
+from datetime import datetime, timezone
 
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -110,6 +111,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         exit_code = 1
         status = "failed"
         canceled = False
+        started_at = None
         created_links: list[str] = []
         try:
             self._write_cos_queue_key(project_id, fleet_id, "pending")
@@ -118,6 +120,8 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             self._simulate_startup_delay()
 
             self._write_cos_queue_key(project_id, fleet_id, "running")
+            started_at = self._now()
+            self._write_cos_task_file(project_id, fleet_id, "running", started_at)
 
             run_env = self._prepare_run_env(manifest)
             exit_code, canceled = self._execute_commands(
@@ -160,6 +164,10 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
                 self._write_cos_queue_key(project_id, fleet_id, f"{status}/{code}")
             except (ClientError, BotoCoreError) as write_err:
                 logger.error("Failed to write terminal status for %s: %s", fleet_id, write_err)
+
+        # Like Code Engine, the task file stays after the task ends and holds when it started and finished. Written
+        # for a canceled task too, whose terminal key is the cancel key the gateway wrote.
+        self._write_cos_task_file(project_id, fleet_id, status, started_at, finished_at=self._now())
 
         logger.info("Fleet %s completed with status: %s (exit_code=%d)", fleet_id, status, exit_code)
 
@@ -336,6 +344,56 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
             The queue key prefix, ending in a trailing slash.
         """
         return f"ce/{project_id}/{fleet_id}/v3/queue/"
+
+    @staticmethod
+    def _tasks_prefix(project_id: str, fleet_id: str) -> str:
+        """Build the COS task file key prefix for a fleet.
+
+        Must stay in sync with the gateway's ``tasks_prefix`` (fleets/cos.py).
+
+        Args:
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            The tasks key prefix, ending in a trailing slash.
+        """
+        return f"ce/{project_id}/{fleet_id}/v3/tasks/"
+
+    @staticmethod
+    def _now() -> str:
+        """The current time the way Code Engine writes it in the task file: UTC, RFC 3339."""
+        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+    def _write_cos_task_file(
+        self, project_id: str, fleet_id: str, state: str, started_at: str | None, finished_at: str | None = None
+    ) -> None:
+        """Write the task file Code Engine keeps for the task, only with the fields the gateway reads.
+
+        The file is replaced on every call, so the last one holds the terminal state. A failed write is logged and
+        swallowed: the gateway falls back to the moment it noticed the state.
+
+        Args:
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+            state: The task state (e.g. "running", "succeeded").
+            started_at: When the task started, or None if it never did.
+            finished_at: When the task finished, or None while it runs.
+        """
+        task_id = f"{fleet_id}-0"
+        lines = [f"taskUuid: {task_id}", f"taskState: {state}"]
+        if started_at:
+            lines.append(f"startedAt: {started_at}")
+        if finished_at:
+            lines.append(f"finishedAt: {finished_at}")
+        try:
+            self._storage.client.put_object(
+                Bucket=TASK_STORE_BUCKET,
+                Key=f"{self._tasks_prefix(project_id, fleet_id)}{task_id}",
+                Body="\n".join(lines).encode("utf-8") + b"\n",
+            )
+        except (ClientError, BotoCoreError) as write_err:
+            logger.error("Failed to write the task file for %s: %s", fleet_id, write_err)
 
     def _is_canceled(self, project_id: str, fleet_id: str) -> bool:
         """Check if a canceled queue key exists for this job.

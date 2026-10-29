@@ -189,10 +189,13 @@ class JobTransitionService:
         context: JobEventContext,
         job_fields: dict | None = None,
         ended_at: datetime | None = None,
+        started_at: datetime | None = None,
     ) -> JobEvent:
         """to_succeeded, to_failed or to_stopped, for the caller that only knows the final status.
 
-        ended_at is when it really ended, if the runner knows, like running_at in pending_to_running."""
+        ended_at is when it really ended, if the runner knows, like running_at in pending_to_running. started_at is
+        when it started, for the job that went from PENDING to its end before the scheduler saw it running. It is
+        only used by a job that has no start yet."""
         transition = {
             Job.SUCCEEDED: self.to_succeeded,
             Job.FAILED: self.to_failed,
@@ -200,7 +203,9 @@ class JobTransitionService:
         }.get(status)
         if transition is None:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
-        return transition(job, origin=origin, context=context, job_fields=job_fields, ended_at=ended_at)
+        return transition(
+            job, origin=origin, context=context, job_fields=job_fields, ended_at=ended_at, started_at=started_at
+        )
 
     @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
     def to_succeeded(  # pylint: disable=too-many-positional-arguments
@@ -211,11 +216,18 @@ class JobTransitionService:
         context: JobEventContext,
         job_fields: dict | None = None,
         ended_at: datetime | None = None,
+        started_at: datetime | None = None,
     ) -> JobEvent:
         """The job finished. A job cannot succeed without having run, so its license fee is always owed."""
         with transaction.atomic():
             event = self._change_status(
-                job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields, happened_at=ended_at
+                job,
+                Job.SUCCEEDED,
+                origin=origin,
+                context=context,
+                job_fields=job_fields,
+                happened_at=ended_at,
+                started_at=started_at,
             )
             if _is_usage_billable(job):
                 job_started_at = job.started_at()
@@ -233,10 +245,17 @@ class JobTransitionService:
         context: JobEventContext,
         job_fields: dict | None = None,
         ended_at: datetime | None = None,
+        started_at: datetime | None = None,
     ) -> JobEvent:
         """The job failed."""
         return self.to_stopped_or_failed(
-            job, Job.FAILED, origin=origin, context=context, job_fields=job_fields, ended_at=ended_at
+            job,
+            Job.FAILED,
+            origin=origin,
+            context=context,
+            job_fields=job_fields,
+            ended_at=ended_at,
+            started_at=started_at,
         )
 
     def to_stopped(  # pylint: disable=too-many-positional-arguments
@@ -247,10 +266,17 @@ class JobTransitionService:
         context: JobEventContext,
         job_fields: dict | None = None,
         ended_at: datetime | None = None,
+        started_at: datetime | None = None,
     ) -> JobEvent:
         """The job was stopped, by a user or by the scheduler."""
         return self.to_stopped_or_failed(
-            job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields, ended_at=ended_at
+            job,
+            Job.STOPPED,
+            origin=origin,
+            context=context,
+            job_fields=job_fields,
+            ended_at=ended_at,
+            started_at=started_at,
         )
 
     @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
@@ -263,11 +289,18 @@ class JobTransitionService:
         context: JobEventContext,
         job_fields: dict | None,
         ended_at: datetime | None = None,
+        started_at: datetime | None = None,
     ) -> JobEvent:
         """Called only when failed or stopped"""
         with transaction.atomic():
             event = self._change_status(
-                job, status, origin=origin, context=context, job_fields=job_fields, happened_at=ended_at
+                job,
+                status,
+                origin=origin,
+                context=context,
+                job_fields=job_fields,
+                happened_at=ended_at,
+                started_at=started_at,
             )
             if _is_usage_billable(job):
                 job_started_at = job.started_at()
@@ -287,13 +320,15 @@ class JobTransitionService:
         context: JobEventContext,
         job_fields: dict | None,
         happened_at: datetime | None = None,
+        started_at: datetime | None = None,
     ) -> JobEvent:
         """
         Transition the job's status, validating the state change is valid. It must run inside a transaction,
         so whatever the caller stores next commits or rolls back together with the status change.
 
         happened_at is when the runner says the status was reached, for RUNNING and the terminal statuses: it goes
-        to job.running_started_at or job.running_ended_at, and the event keeps being of now.
+        to job.running_started_at or job.running_ended_at, and the event keeps being of now. started_at is when the job
+        started, for a terminal status of a job that has no running_started_at: it never showed as RUNNING.
 
         Steps:
             - LOCK: Lock the job by id (Django raises if there is no transaction open)
@@ -308,29 +343,57 @@ class JobTransitionService:
 
         event = JobEvent.objects.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
         job.update_fields(
-            {"status": status, **self._timestamp_fields(job, status, happened_at, event.created), **(job_fields or {})}
+            {
+                "status": status,
+                **self._timestamp_fields(job, status, happened_at, event.created, started_at),
+                **(job_fields or {}),
+            }
         )
         return event
 
     @staticmethod
-    def _timestamp_fields(job: Job, status: str, happened_at: datetime | None, written_at: datetime) -> dict:
-        """The job field that holds when status was reached, if it has one: running_started_at for RUNNING and
-        running_ended_at for a terminal status. It is happened_at kept between the last moment the job is known to have
-        been in and now, or written_at when there is no usable happened_at. It comes from the clock of another
-        service, so it can read as a moment that has not happened here yet, or before the job existed."""
+    def _timestamp_fields(
+        job: Job, status: str, happened_at: datetime | None, written_at: datetime, started_at: datetime | None = None
+    ) -> dict:
+        """The job fields that hold when status was reached: running_started_at for RUNNING, and for a terminal
+        status running_ended_at, plus running_started_at when the job has none and started_at says when it started.
+        Each is the time of the runner kept between the last moment the job is known to have been in and now, or
+        written_at when there is no usable time. It comes from the clock of another service, so it can read as a
+        moment that has not happened here yet, or before the job existed."""
         if status == Job.RUNNING:
-            field, earliest = "running_started_at", job.created
-        elif status in Job.TERMINAL_STATUSES:
-            field, earliest = "running_ended_at", job.running_started_at or job.created
-        else:
+            return {
+                "running_started_at": JobTransitionService._bounded(
+                    job, "running_started_at", happened_at, job.created, written_at
+                )
+                or written_at
+            }
+        if status not in Job.TERMINAL_STATUSES:
             return {}
-        if happened_at is None:
-            return {field: written_at}
-        if happened_at.utcoffset() is None:
-            # Comparing it with the aware times below would raise, and block the job from ever changing status
-            logger.warning("job_id=%s %s %s has no timezone, using now instead", job.id, field, happened_at)
-            return {field: written_at}
-        return {field: min(max(happened_at, earliest), written_at)}
+
+        fields = {}
+        job_started_at = job.running_started_at
+        if job_started_at is None and started_at is not None:
+            job_started_at = JobTransitionService._bounded(
+                job, "running_started_at", started_at, job.created, written_at
+            )
+            if job_started_at is not None:
+                fields["running_started_at"] = job_started_at
+        ended_at = JobTransitionService._bounded(
+            job, "running_ended_at", happened_at, job_started_at or job.created, written_at
+        )
+        fields["running_ended_at"] = ended_at or written_at
+        return fields
+
+    @staticmethod
+    def _bounded(job: Job, field: str, value: datetime | None, earliest: datetime, latest: datetime) -> datetime | None:
+        """value kept between earliest and latest, or None when there is no usable value."""
+        if value is None:
+            return None
+        if value.utcoffset() is None:
+            # Comparing it with the aware times would raise, and block the job from ever changing status
+            logger.warning("job_id=%s %s %s has no timezone, using now instead", job.id, field, value)
+            return None
+        return min(max(value, earliest), latest)
 
     @staticmethod
     def _region(job: Job) -> str | None:

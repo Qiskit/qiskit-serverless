@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import tarfile
-from datetime import datetime
 from io import BytesIO
 from typing import Callable
 
@@ -45,9 +44,13 @@ from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
+    TASK_FILE_MAX_BYTES,
     JobCOS,
+    TaskTimes,
+    parse_task_times,
     queue_prefix,
     task_state_from_key,
+    tasks_prefix,
 )
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
@@ -351,45 +354,41 @@ class FleetsRunner(AbstractRunner):
         self._warn_unresolved_state(prefix, keys, found)
         return None
 
-    def get_state_timestamp(self, status: str) -> datetime | None:
-        """When Code Engine wrote the task store key of ``status`` (the earliest, if a retry wrote several), or
-        ``None``. It only improves on the moment the scheduler noticed, so it never raises: no fleet, no key
-        yet and a failing COS all give ``None``."""
+    def get_task_times(self) -> TaskTimes:
+        """When Code Engine says the task started and finished, read from its task file, which unlike the keys under
+        ``queue/`` stays after the task ends. A time that is not known is ``None``. It only improves on the moment
+        the scheduler noticed, so it never raises: no fleet, no file yet, a file that cannot be read and a failing
+        COS all give ``TaskTimes()``."""
         try:
-            modified = self._state_key_times(status)
+            return self._read_task_times()
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not read when fleet [%s] reached %s: %s", self.job.fleet_id, status, exc)
-            return None
+            logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
+            return TaskTimes()
 
-        if any(moment.utcoffset() is None for moment in modified):
-            logger.warning("Fleet [%s] has a %s key time without timezone, ignoring it", self.job.fleet_id, status)
-            return None
-        return min(modified, default=None)
-
-    def _state_key_times(self, status: str) -> list[datetime]:
-        """The modification times of the keys of the task state of status, none when there is none or COS failed."""
-        states = {state for state, mapped in self._STATE_TO_JOB_STATUS if mapped == status}
+    def _read_task_times(self) -> TaskTimes:
+        """Read the task file of the fleet. A job runs a single task, so the first file is the only one."""
         fleet_id = self.job.fleet_id
-        if not fleet_id or not states:
-            return []
+        if not fleet_id:
+            return TaskTimes()
         if not self._project:
             self._project = self._get_project()
         bucket = self._project.cos_bucket_task_store_name
         if not bucket:
-            return []
+            return TaskTimes()
 
-        for version in TASK_STORE_VERSIONS:
-            prefix = queue_prefix(self._project.project_id, fleet_id, version)
-            objects = self._list_task_state_objects(bucket, prefix)
-            if objects is None:
-                return []
-            if objects:
-                return [
-                    obj["last_modified"]
-                    for obj in objects
-                    if obj.get("last_modified") and task_state_from_key(prefix, obj["key"]) in states
-                ]
-        return []
+        prefix = tasks_prefix(self._project.project_id, fleet_id)
+        objects = self._list_task_state_objects(bucket, prefix)
+        # A key ending in "/" is a directory marker, not a task file
+        files = [obj for obj in objects or [] if not obj["key"].endswith("/")]
+        if not files:
+            return TaskTimes()
+
+        key = files[0]["key"]
+        if files[0].get("size", 0) > TASK_FILE_MAX_BYTES:
+            logger.warning("Task file %s is %s bytes, too big to read", key, files[0]["size"])
+            return TaskTimes()
+        content = self._get_cos().get_object_bytes(bucket_name=bucket, key=key)
+        return parse_task_times(content, key)
 
     def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
         """Report a listing that held keys but no state this gateway recognises.

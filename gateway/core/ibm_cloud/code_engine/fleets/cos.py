@@ -15,10 +15,18 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from typing import Any, NamedTuple
+
+import yaml
 
 from core.ibm_cloud.cos.cos_client import COSClient
 
 logger = logging.getLogger("FleetHandler")
+
+# The task file holds the environment of the task, tokens included, so it is never read past this size.
+# The real one is about 3 KiB.
+TASK_FILE_MAX_BYTES = 256 * 1024
 
 
 # Task-store schema versions, newest first. Code Engine writes the task state under a
@@ -71,6 +79,77 @@ def task_state_from_key(prefix: str, key: str) -> str | None:
     if not key.startswith(prefix):
         return None
     return key[len(prefix) :].split("/", 1)[0].strip().lower() or None
+
+
+def tasks_prefix(project_id: str, fleet_id: str, version: str = TASK_STORE_VERSIONS[0]) -> str:
+    """Build the COS task file key prefix for a fleet.
+
+    Code Engine keeps one file per task under ``ce/{project_id}/{fleet_id}/{version}/tasks/``, named after the task
+    id. Unlike the keys under ``queue/``, it stays after the task ends, and it holds when the task started and
+    finished. A job runs a single task, so the prefix holds a single file.
+
+    Args:
+        project_id: The CE project UUID.
+        fleet_id: The fleet UUID.
+        version: Task-store schema version segment. Defaults to the newest.
+
+    Returns:
+        The tasks key prefix, ending in a trailing slash.
+    """
+    return f"ce/{project_id}/{fleet_id}/{version}/tasks/"
+
+
+class TaskTimes(NamedTuple):
+    """When Code Engine says the task started and finished, each ``None`` while unknown."""
+
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+def _aware_datetime(value: Any) -> datetime | None:
+    """The value as an aware datetime, or ``None`` when it is not one. YAML reads an unquoted timestamp as a
+    datetime and a quoted one as a string; both are accepted."""
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.strip())
+        except ValueError:
+            return None
+    if not isinstance(value, datetime) or value.utcoffset() is None:
+        return None
+    return value
+
+
+def parse_task_times(content: bytes, source: str) -> TaskTimes:
+    """Read ``startedAt`` and ``finishedAt`` from the content of a task file.
+
+    The ``startTime`` and ``endTime`` of the worker under ``status`` are not read. The file holds the environment
+    of the task, tokens included, so nothing of its content is logged, not even in the error of a bad YAML.
+
+    Args:
+        content: The task file, YAML.
+        source: Where it comes from, only used to log.
+
+    Returns:
+        The times found. A key that is missing, null, not a timestamp or without a timezone is ``None``.
+    """
+    try:
+        document = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        # Not the message: a YAML error quotes the line it failed on
+        logger.warning("Task file %s is not valid YAML (%s)", source, type(exc).__name__)
+        return TaskTimes()
+    if not isinstance(document, dict):
+        logger.warning("Task file %s is not a YAML mapping", source)
+        return TaskTimes()
+
+    times = {}
+    for field, key in (("started_at", "startedAt"), ("finished_at", "finishedAt")):
+        raw = document.get(key)
+        parsed = _aware_datetime(raw)
+        if raw is not None and parsed is None:
+            logger.warning("Task file %s has a %s that is not a timestamp with a timezone", source, key)
+        times[field] = parsed
+    return TaskTimes(**times)
 
 
 class JobCOS:

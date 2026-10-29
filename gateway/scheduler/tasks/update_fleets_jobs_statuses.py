@@ -11,6 +11,7 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
+from core.ibm_cloud.code_engine.fleets.cos import TaskTimes
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
@@ -139,9 +140,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
     def to_terminal(self, job: Job, new_status: str, runner: FleetsRunner | None = None) -> None:
         """Persist a terminal status transition, then count it and record a succeeded job's duration.
 
-        The runner is given when the task store reported new_status: the job then ends when Code Engine wrote it.
-        Without it (a timeout, an unconfirmed stop, a job with no fleet) the status is the scheduler's own decision
-        and the job ends now."""
+        The runner is given when the task store reported new_status: the job then ends when Code Engine says it did,
+        and a job the scheduler never saw RUNNING also starts when Code Engine says it did. Without it (a timeout, an
+        unconfirmed stop, a job with no fleet) the status is the scheduler's own decision and the job ends now."""
         stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
@@ -151,7 +152,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             new_status,
         )
         # Read before the transition opens its transaction: no network call with the job locked
-        ended_at = runner.get_state_timestamp(new_status) if runner else None
+        times = runner.get_task_times() if runner else TaskTimes()
+        ended_at = times.finished_at
+        # Only a job that has no start yet: one that went from PENDING to its end between two scans never showed as
+        # RUNNING, and the task file is the only place left that says when it started
+        started_at = times.started_at if job.running_started_at is None else None
         if runner and ended_at is None:
             # The task store has just reported this state, so a missing time is Code Engine or COS failing
             logger.warning(
@@ -160,6 +165,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.fleet_id,
                 new_status,
             )
+        if runner and job.running_started_at is None and started_at is None:
+            logger.warning("job_id=%s fleet_id=%s no Code Engine start time for the job", job.id, job.fleet_id)
         try:
             self.transitions.to_terminal(
                 job,
@@ -168,6 +175,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 context=JobEventContext.UPDATE_JOB_STATUS,
                 job_fields={"sub_status": None, "env_vars": "{}"},
                 ended_at=ended_at,
+                started_at=started_at,
             )
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
@@ -188,7 +196,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 Job.RUNNING,
             )
             # Read before the transition opens its transaction: no network call with the job locked
-            running_at = runner.get_state_timestamp(Job.RUNNING)
+            running_at = runner.get_task_times().started_at
             if running_at is None:
                 logger.warning(
                     "job_id=%s fleet_id=%s no Code Engine time for %s, the job starts when the scheduler noticed it",

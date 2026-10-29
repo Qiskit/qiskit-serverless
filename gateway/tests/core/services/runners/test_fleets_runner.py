@@ -1390,146 +1390,158 @@ def test_upload_custom_image_entrypoint_keeps_dotdot_prefixed_name():
     mock_logger.warning.assert_not_called()
 
 
-def _objects_by_version(objects_by_version):
-    """Build a ``list_with_metadata`` stub that answers per task-store schema version, like _cos_by_version."""
-
-    def _list_with_metadata(*, bucket_name, prefix):  # pylint: disable=unused-argument
-        for version, objects in objects_by_version.items():
-            if f"/{version}/queue/" in prefix:
-                return objects
-        return []
-
-    return _list_with_metadata
+_TASKS = "ce/test-project-id/fleet-123/v3/tasks/"
+_TASK_FILE = f"{_TASKS}00000000-0000-0000-0000-000000000001"
 
 
-def _object(key, last_modified):
-    return {"key": key, "size": 0, "last_modified": last_modified}
+def _task_file(started_at="2026-01-02T03:04:05.123456789Z", finished_at="2026-01-02T03:06:07.5Z", **extra):
+    """The task file Code Engine keeps, with invented values and only the keys the gateway reads or must ignore."""
+    lines = ["taskState: successful", "status:", "- worker: fleet-test-0", "  startTime: '2000-01-01T00:00:00Z'"]
+    lines += ["  endTime: '2000-01-01T00:00:09Z'"]
+    for key, value in {"startedAt": started_at, "finishedAt": finished_at, **extra}.items():
+        lines.append(f"{key}: {value}")
+    return ("\n".join(lines) + "\n").encode()
 
 
-class TestRunningSince:
-    """get_state_timestamp() reads when Code Engine wrote the key of a state, and never raises."""
+def _listing(*keys, size=100):
+    return [{"key": key, "size": size, "last_modified": None} for key in keys]
 
-    _STARTED = datetime(2026, 8, 26, 19, 10, 14, tzinfo=timezone.utc)
 
-    def _runner(self, objects_by_version):
+class TestTaskTimes:
+    """get_task_times() reads when Code Engine says the task started and finished, and never raises."""
+
+    _STARTED = datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc)
+    _FINISHED = datetime(2026, 1, 2, 3, 6, 7, 500000, tzinfo=timezone.utc)
+
+    def _runner(self, content=None, listing=None):
         runner, _ = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_with_metadata.side_effect = _objects_by_version(  # pylint: disable=protected-access
-            objects_by_version
-        )
+        cos = runner._cos  # pylint: disable=protected-access
+        cos.list_with_metadata.return_value = _listing(_TASK_FILE) if listing is None else listing
+        cos.get_object_bytes.return_value = _task_file() if content is None else content
         return runner
 
-    def test_it_is_when_the_running_key_was_written(self):
-        runner = self._runner(
-            {"v3": [_object(_V3_PENDING, self._STARTED - timedelta(seconds=30)), _object(_V3_RUNNING, self._STARTED)]}
-        )
+    def test_they_are_startedat_and_finishedat(self):
+        times = self._runner().get_task_times()
 
-        assert runner.get_state_timestamp(Job.RUNNING) == self._STARTED
+        assert times.started_at == self._STARTED
+        assert times.finished_at == self._FINISHED
 
-    @pytest.mark.parametrize(
-        "key, status",
-        [(_V3_SUCCEEDED, Job.SUCCEEDED), (_V3_FAILED, Job.FAILED), (_V3_CANCELED, Job.STOPPED)],
-    )
-    def test_a_terminal_status_is_when_its_key_was_written(self, key, status):
-        ended = self._STARTED + timedelta(minutes=2)
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED), _object(key, ended)]})
+    def test_they_are_timezone_aware(self):
+        times = self._runner().get_task_times()
 
-        assert runner.get_state_timestamp(status) == ended
+        assert times.started_at.utcoffset() == timedelta(0)
+        assert times.finished_at.utcoffset() == timedelta(0)
 
-    def test_a_terminal_status_without_its_key_has_no_time(self):
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+    def test_the_times_of_the_worker_are_not_read(self):
+        """startTime and endTime under status are the worker's, and are not the ones billed."""
+        times = self._runner(_task_file(started_at="null", finished_at="null")).get_task_times()
 
-        assert runner.get_state_timestamp(Job.SUCCEEDED) is None
+        assert times == (None, None)
 
-    def test_a_status_without_a_task_state_has_no_time(self):
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+    def test_quoted_times_are_read_too(self):
+        content = _task_file(started_at="'2026-01-02T03:04:05Z'", finished_at="'2026-01-02T03:06:07Z'")
 
-        assert runner.get_state_timestamp(Job.QUEUED) is None
+        times = self._runner(content).get_task_times()
 
-    def test_it_is_timezone_aware(self):
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+        assert times.started_at == datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+        assert times.finished_at == datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc)
 
-        assert runner.get_state_timestamp(Job.RUNNING).utcoffset() == timedelta(0)
+    def test_a_task_that_has_not_finished_has_only_the_start(self):
+        times = self._runner(_task_file(finished_at="null")).get_task_times()
 
-    def test_it_is_the_earliest_of_several_running_keys(self):
-        """A retry writes another running key: the job started running with the first one."""
-        retry = f"{_V3}running/{_WORKER}/{_T2}/{_T1}/{_TASK}"
-        runner = self._runner(
-            {"v3": [_object(retry, self._STARTED + timedelta(seconds=40)), _object(_V3_RUNNING, self._STARTED)]}
-        )
+        assert times.started_at == self._STARTED
+        assert times.finished_at is None
 
-        assert runner.get_state_timestamp(Job.RUNNING) == self._STARTED
+    def test_a_missing_key_is_none(self):
+        content = b"taskState: pending\n"
 
-    def test_it_is_none_while_the_task_is_only_pending(self):
-        runner = self._runner({"v3": [_object(_V3_PENDING, self._STARTED)]})
+        assert self._runner(content).get_task_times() == (None, None)
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
+    @pytest.mark.parametrize("value", ["not-a-date", "2026-01-02T03:04:05", "'2026-01-02T03:04:05'", "12", "[1, 2]"])
+    def test_a_value_that_is_not_a_timestamp_with_timezone_is_none(self, value, caplog):
+        """A time without timezone cannot be compared with the aware ones downstream."""
+        times = self._runner(_task_file(started_at=value)).get_task_times()
 
-    def test_it_is_none_when_nothing_is_written_yet(self):
-        runner = self._runner({"v3": [], "v2": []})
+        assert times.started_at is None
+        assert times.finished_at == self._FINISHED
+        assert "startedAt that is not a timestamp" in caplog.text
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
+    @pytest.mark.parametrize("content", [b"", b"- a\n- b\n", b"just text", b"{unclosed: ["])
+    def test_a_file_that_is_not_a_yaml_mapping_gives_no_times(self, content):
+        assert self._runner(content).get_task_times() == (None, None)
 
-    def test_it_reads_the_legacy_layout_when_the_current_one_is_empty(self):
-        legacy = f"{_V2}running/{_WORKER}/{_T1}/{_T0}/{_TASK}"
-        runner = self._runner({"v3": [], "v2": [_object(legacy, self._STARTED)]})
+    def test_the_content_is_never_logged(self, caplog):
+        """The file holds tokens, and a YAML error quotes the line it failed on."""
+        self._runner(b"env: {ENV_JOB_GATEWAY_TOKEN: secret-token-value, : [}\n").get_task_times()
 
-        assert runner.get_state_timestamp(Job.RUNNING) == self._STARTED
+        assert "secret-token-value" not in caplog.text
+        assert "is not valid YAML" in caplog.text
 
-    def test_it_is_none_for_a_key_without_a_modification_time(self):
-        runner = self._runner({"v3": [_object(_V3_RUNNING, None)]})
+    def test_it_reads_the_only_file_under_the_tasks_prefix(self):
+        runner = self._runner()
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
+        runner.get_task_times()
 
-    def test_it_is_none_for_a_time_without_timezone(self, caplog):
-        """Nothing downstream can compare it with a time that has one, and it could be any timezone."""
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED.replace(tzinfo=None))]})
+        cos = runner._cos  # pylint: disable=protected-access
+        cos.list_with_metadata.assert_called_once_with(bucket_name="task-store-bucket", prefix=_TASKS)
+        cos.get_object_bytes.assert_called_once_with(bucket_name="task-store-bucket", key=_TASK_FILE)
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
-        assert "without timezone" in caplog.text
+    def test_a_directory_marker_is_not_a_task_file(self):
+        runner = self._runner(listing=_listing(_TASKS, _TASK_FILE))
 
-    def test_it_lists_once_and_reads_no_object(self):
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+        assert runner.get_task_times().started_at == self._STARTED
+        runner._cos.get_object_bytes.assert_called_once()  # pylint: disable=protected-access
 
-        runner.get_state_timestamp(Job.RUNNING)
+    def test_no_file_yet_gives_no_times(self):
+        runner = self._runner(listing=[])
 
-        runner._cos.list_with_metadata.assert_called_once()  # pylint: disable=protected-access
-        runner._cos.list_keys.assert_not_called()  # pylint: disable=protected-access
+        assert runner.get_task_times() == (None, None)
+        runner._cos.get_object_bytes.assert_not_called()  # pylint: disable=protected-access
+
+    def test_a_file_too_big_is_not_read(self, caplog):
+        runner = self._runner(listing=_listing(_TASK_FILE, size=10 * 1024 * 1024))
+
+        assert runner.get_task_times() == (None, None)
+        runner._cos.get_object_bytes.assert_not_called()  # pylint: disable=protected-access
+        assert "too big" in caplog.text
+
+    def test_only_the_current_layout_is_read(self):
+        runner = self._runner()
+
+        runner.get_task_times()
+
+        prefixes = [
+            call.kwargs["prefix"] for call in runner._cos.list_with_metadata.call_args_list
+        ]  # pylint: disable=protected-access
+        assert prefixes == [_TASKS]
 
     def test_it_is_none_without_a_fleet(self):
         runner, _ = _make_runner(fleet_id=None)
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
+        assert runner.get_task_times() == (None, None)
         runner._cos.list_with_metadata.assert_not_called()  # pylint: disable=protected-access
 
     def test_it_is_none_when_the_task_store_bucket_is_not_configured(self):
-        runner = self._runner({"v3": [_object(_V3_RUNNING, self._STARTED)]})
+        runner = self._runner()
         runner._project.cos_bucket_task_store_name = None  # pylint: disable=protected-access
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
+        assert runner.get_task_times() == (None, None)
 
-    def test_a_cos_error_gives_none_instead_of_raising(self, caplog):
-        runner, _ = _make_runner(fleet_id="fleet-123")
+    def test_a_listing_error_gives_no_times_instead_of_raising(self, caplog):
+        runner = self._runner()
         runner._cos.list_with_metadata.side_effect = ClientError(  # pylint: disable=protected-access
             {"Error": {"Code": "AccessDenied"}}, "ListObjectsV2"
         )
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
+        assert runner.get_task_times() == (None, None)
         assert "COS listing failed" in caplog.text
 
-    def test_an_unexpected_error_gives_none_instead_of_raising(self):
-        runner, _ = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_with_metadata.side_effect = RuntimeError("boom")  # pylint: disable=protected-access
+    def test_an_error_reading_the_file_gives_no_times_instead_of_raising(self, caplog):
+        runner = self._runner()
+        runner._cos.get_object_bytes.side_effect = RuntimeError("boom")  # pylint: disable=protected-access
 
-        assert runner.get_state_timestamp(Job.RUNNING) is None
-
-    def test_a_failure_does_not_probe_the_other_layout(self):
-        """Like status(): an unreachable COS would only fail the same way again."""
-        runner, _ = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_with_metadata.side_effect = RuntimeError("boom")  # pylint: disable=protected-access
-
-        runner.get_state_timestamp(Job.RUNNING)
-
-        runner._cos.list_with_metadata.assert_called_once()  # pylint: disable=protected-access
+        assert runner.get_task_times() == (None, None)
+        assert "Could not read the task times" in caplog.text
 
 
 @pytest.mark.django_db
