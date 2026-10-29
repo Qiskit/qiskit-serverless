@@ -4,18 +4,19 @@ import logging
 from typing import Dict
 from packaging.requirements import Requirement
 
-from api.utils import create_dynamic_dependencies_whitelist
+from api.utils import get_baked_dependencies
 
 logger = logging.getLogger("api.AvailableDependenciesVersionsUseCase")
 
 
 class AvailableDependenciesVersionsUseCase:
     """
-    This class will return available dynamic dependencies on execute.
+    Return the dependencies baked into the runtime images (read-only discovery).
     """
 
     def execute(self) -> Dict[str, Requirement]:
         """
-        Get the dependencies from the whitelist
+        Get the dependencies baked into the runtime images, so users can see what
+        the image already ships and does not need to be brought themselves.
         """
-        return create_dynamic_dependencies_whitelist()
+        return get_baked_dependencies()
