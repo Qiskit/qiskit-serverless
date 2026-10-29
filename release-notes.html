@@ -241,6 +241,7 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.ComputeProfile.html">qiskit_serverless.core.ComputeProfile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -344,6 +345,70 @@ out when nothing is blocked.</p></li>
 now shows the gateway’s warning with <code class="xref py py-func docutils literal notranslate"><span class="pre">warnings.warn()</span></code>, so a user whose
 account is blocked knows why the job is not starting. With an older gateway
 nothing changes.</p></li>
+</ul>
+<ul>
+<li><p>Adds client methods to discover compute profiles — the resource tiers a Fleets function’s
+<code class="docutils literal notranslate"><span class="pre">sizes_map</span></code> can name — instead of hard-coding identifier strings.</p>
+<p><code class="docutils literal notranslate"><span class="pre">client.compute_profiles()</span></code> returns the registered catalog; printing it shows an aligned
+table, so no iteration is needed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">compute_profiles</span><span class="p">())</span>
+<span class="go">24x120          (24 vCPU / 120 GB)</span>
+<span class="go">24x120x1l40s    (24 vCPU / 120 GB / 1l40s)</span>
+<span class="go">20x320x2a100    (20 vCPU / 320 GB / 2a100)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">client.compute_profile(...)</span></code> returns a single profile, validated against the catalog,
+by id or by exact resources (<code class="docutils literal notranslate"><span class="pre">cpu</span></code>/<code class="docutils literal notranslate"><span class="pre">memory</span></code> as <code class="docutils literal notranslate"><span class="pre">int</span></code> or <code class="docutils literal notranslate"><span class="pre">str</span></code>, optional <code class="docutils literal notranslate"><span class="pre">gpu</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">compute_profile</span><span class="p">(</span><span class="s2">"20x320x2a100"</span><span class="p">)</span>
+<span class="n">client</span><span class="o">.</span><span class="n">compute_profile</span><span class="p">(</span><span class="n">cpu</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>              <span class="c1"># CPU-only</span>
+<span class="n">client</span><span class="o">.</span><span class="n">compute_profile</span><span class="p">(</span><span class="n">cpu</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">gpu</span><span class="o">=</span><span class="s2">"1l40s"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When nothing matches, it raises and lists the available profiles.</p>
+</li>
+</ul>
+<ul>
+<li><p>A function’s <code class="docutils literal notranslate"><span class="pre">sizes_map</span></code> now accepts <code class="docutils literal notranslate"><span class="pre">ComputeProfile</span></code> objects as values, in addition to
+the raw <code class="docutils literal notranslate"><span class="pre">compute_profile_id</span></code> strings. The two are interchangeable — an object is sent as
+its id, so the upload payload is unchanged:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"my-function"</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">"my_file.py"</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="s2">"fleets"</span><span class="p">,</span>
+    <span class="n">sizes_map</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"s"</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">compute_profile</span><span class="p">(</span><span class="n">cpu</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mi">120</span><span class="p">),</span>   <span class="c1"># validated object</span>
+        <span class="s2">"l"</span><span class="p">:</span> <span class="s2">"20x320x2a100"</span><span class="p">,</span>                                <span class="c1"># or a raw id string</span>
+    <span class="p">},</span>
+    <span class="n">default_size</span><span class="o">=</span><span class="s2">"s"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<ul>
+<li><p>Adds a <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/compute-profiles/</span></code> endpoint that lists the compute profiles
+registered on the deployment — the profiles a Fleets function’s <code class="docutils literal notranslate"><span class="pre">sizes_map</span></code> may name.
+Each entry carries <code class="docutils literal notranslate"><span class="pre">compute_profile_id</span></code>, <code class="docutils literal notranslate"><span class="pre">cpu</span></code>, <code class="docutils literal notranslate"><span class="pre">gpu</span></code> and <code class="docutils literal notranslate"><span class="pre">memory</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">GET</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">v1</span><span class="o">/</span><span class="n">compute</span><span class="o">-</span><span class="n">profiles</span><span class="o">/</span>
+<span class="p">[</span>
+  <span class="p">{</span><span class="s2">"compute_profile_id"</span><span class="p">:</span> <span class="s2">"24x120"</span><span class="p">,</span>       <span class="s2">"cpu"</span><span class="p">:</span> <span class="s2">"24"</span><span class="p">,</span> <span class="s2">"gpu"</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>    <span class="s2">"memory"</span><span class="p">:</span> <span class="s2">"120"</span><span class="p">},</span>
+  <span class="p">{</span><span class="s2">"compute_profile_id"</span><span class="p">:</span> <span class="s2">"20x320x2a100"</span><span class="p">,</span> <span class="s2">"cpu"</span><span class="p">:</span> <span class="s2">"20"</span><span class="p">,</span> <span class="s2">"gpu"</span><span class="p">:</span> <span class="s2">"2a100"</span><span class="p">,</span> <span class="s2">"memory"</span><span class="p">:</span> <span class="s2">"320"</span><span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<ul>
+<li><p>When an upload names a compute profile that is not registered, the validation error now
+lists the available profiles — one per line, CPU-only first and then GPU profiles by
+increasing memory, with aligned specs — so the user can see what to use instead:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Unknown</span> <span class="n">compute</span> <span class="n">profile</span> <span class="s1">'typo-profile'</span> <span class="k">for</span> <span class="n">size</span> <span class="s1">'l'</span><span class="o">.</span> <span class="n">Available</span> <span class="n">profiles</span><span class="p">:</span>
+<span class="mi">24</span><span class="n">x120</span>          <span class="p">(</span><span class="mi">24</span> <span class="n">vCPU</span> <span class="o">/</span> <span class="mi">120</span> <span class="n">GB</span><span class="p">)</span>
+<span class="mi">24</span><span class="n">x120x1l40s</span>    <span class="p">(</span><span class="mi">24</span> <span class="n">vCPU</span> <span class="o">/</span> <span class="mi">120</span> <span class="n">GB</span> <span class="o">/</span> <span class="mi">1</span><span class="n">l40s</span><span class="p">)</span>
+<span class="mi">20</span><span class="n">x320x2a100</span>    <span class="p">(</span><span class="mi">20</span> <span class="n">vCPU</span> <span class="o">/</span> <span class="mi">320</span> <span class="n">GB</span> <span class="o">/</span> <span class="mi">2</span><span class="n">a100</span><span class="p">)</span>
+<span class="mi">160</span><span class="n">x1792x8h100</span>  <span class="p">(</span><span class="mi">160</span> <span class="n">vCPU</span> <span class="o">/</span> <span class="mi">1792</span> <span class="n">GB</span> <span class="o">/</span> <span class="mi">8</span><span class="n">h100</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
 </ul>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BackgroundExecutor.discard(pool,</span> <span class="pre">replace_key)</span></code> removes a task that is still waiting in the queue under that
@@ -492,6 +557,12 @@ hand. It goes through the same transition service as every other stop, so an
 operator sees an error instead of a silent write when Code Engine cannot be
 reached. The Qiskit Runtime jobs a job started are not cancelled from the
 backoffice: that needs the caller’s own service credentials.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The compute-profile <code class="docutils literal notranslate"><span class="pre">name</span></code> is no longer included in API responses. It was an internal
+label and is omitted from the new <code class="docutils literal notranslate"><span class="pre">compute-profiles</span></code> endpoint and from the compute
+profile nested in job and run responses (<code class="docutils literal notranslate"><span class="pre">compute_profile_fk</span></code>). The identifying field,
+<code class="docutils literal notranslate"><span class="pre">compute_profile_id</span></code>, is unchanged.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The gateway and the scheduler now reuse each database connection for up

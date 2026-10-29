@@ -241,6 +241,7 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.ComputeProfile.html">qiskit_serverless.core.ComputeProfile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -384,6 +385,12 @@ file using the default account name.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">backends</span></code>([refresh_cache, name, ...])</p></td>
 <td><p>Return backends accessible through this instance.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_profile</span></code>([compute_profile_id, cpu, ...])</p></td>
+<td><p>Get a single registered compute profile, by id or by exact resources.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_profiles</span></code>()</p></td>
+<td><p>Get the compute profiles registered on this deployment.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">dependencies_versions</span></code>()</p></td>
 <td><p>Get the list of available dependencies and its versions for creating functions</p></td>

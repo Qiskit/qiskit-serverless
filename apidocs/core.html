@@ -241,6 +241,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.ComputeProfile.html">qiskit_serverless.core.ComputeProfile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -330,10 +331,13 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.QiskitFunction.html#qiskit_serverless.core.QiskitFunction" title="qiskit_serverless.core.QiskitFunction"><code class="xref py py-obj docutils literal notranslate"><span class="pre">QiskitFunction</span></code></a>(title[, provider, ...])</p></td>
 <td><p>Serverless QiskitPattern.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.is_running_in_serverless.html#qiskit_serverless.core.is_running_in_serverless" title="qiskit_serverless.core.is_running_in_serverless"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_running_in_serverless</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.ComputeProfile.html#qiskit_serverless.core.ComputeProfile" title="qiskit_serverless.core.ComputeProfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ComputeProfile</span></code></a>(compute_profile_id, cpu, memory)</p></td>
+<td><p>One entry of a deployment's compute-profile catalog.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.is_running_in_serverless.html#qiskit_serverless.core.is_running_in_serverless" title="qiskit_serverless.core.is_running_in_serverless"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_running_in_serverless</span></code></a>()</p></td>
 <td><p>Return <code class="docutils literal notranslate"><span class="pre">True</span></code> if running as a Qiskit serverless program, <code class="docutils literal notranslate"><span class="pre">False</span></code> otherwise.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.get_runtime_service.html#qiskit_serverless.core.get_runtime_service" title="qiskit_serverless.core.get_runtime_service"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_runtime_service</span></code></a>([channel, token, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.get_runtime_service.html#qiskit_serverless.core.get_runtime_service" title="qiskit_serverless.core.get_runtime_service"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_runtime_service</span></code></a>([channel, token, ...])</p></td>
 <td><p>Get a QiskitRuntimeService wrapped into a ServerlessRuntimeService instance that allows to associate runtime job ids to serverless job ids.</p></td>
 </tr>
 </tbody>

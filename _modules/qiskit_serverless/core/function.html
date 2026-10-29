@@ -241,6 +241,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.ComputeProfile.html">qiskit_serverless.core.ComputeProfile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -331,6 +332,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.compute_profile</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComputeProfile</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.job</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Job</span><span class="p">,</span>
     <span class="n">Configuration</span><span class="p">,</span>
@@ -406,7 +409,9 @@
 <span class="sd">        description: description of a program</span>
 <span class="sd">        version: version of a program</span>
 <span class="sd">        sizes_map: the function's ``{size_label: compute_profile}`` t-shirt size catalog,</span>
-<span class="sd">            e.g. ``{"s": "24x120", "m": "16x128"}``. Set it to declare the catalog on upload;</span>
+<span class="sd">            e.g. ``{"s": "24x120", "m": "16x128"}``. Each value is a ``compute_profile_id``</span>
+<span class="sd">            string or a ``ComputeProfile`` object from ``client.compute_profile(...)`` (the two</span>
+<span class="sd">            are interchangeable). Set it to declare the catalog on upload;</span>
 <span class="sd">            it is also how the catalog is carried back in a fetched function, read through</span>
 <span class="sd">            :meth:`RunnableQiskitFunction.sizes`. A size is picked per run with</span>
 <span class="sd">            ``function.run(function_size="s")``; labels are matched case-insensitively and each</span>
@@ -456,7 +461,7 @@
     <span class="c1"># Raw size data carried in the function representation. Stored under names that do not</span>
     <span class="c1"># collide with the sizes()/get_default_size() accessors; the gateway's "sizes" key is</span>
     <span class="c1"># remapped onto sizes_map in from_json.</span>
-    <span class="n">sizes_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">sizes_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ComputeProfile</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">default_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -638,11 +643,11 @@
 <span class="sd">        (``client.function(...)``) to pick up sizes changed after it was loaded.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            dict: ``{size_label: compute_profile}`` mapping each declared size to</span>
+<span class="sd">            dict: ``{size_label: compute_profile_id}`` mapping each declared size to</span>
 <span class="sd">            the compute profile it runs on. Empty when the function declares no</span>
-<span class="sd">            sizes.</span>
+<span class="sd">            sizes. Any ``ComputeProfile`` value is returned as its ``compute_profile_id``.</span>
 <span class="sd">        """</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sizes_map</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">profile</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sizes_map</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_default_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""Return the size used when a run omits an explicit size.</span>

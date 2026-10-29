@@ -1,0 +1,33 @@
+﻿qiskit\_serverless.core.ComputeProfile
+======================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: ComputeProfile
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ComputeProfile.__init__
+      ~ComputeProfile.from_json
+      ~ComputeProfile.specs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ComputeProfile.gpu
+      ~ComputeProfile.compute_profile_id
+      ~ComputeProfile.cpu
+      ~ComputeProfile.memory
+   
+   

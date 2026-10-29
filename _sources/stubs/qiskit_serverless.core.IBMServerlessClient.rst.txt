@@ -16,6 +16,8 @@
       ~IBMServerlessClient.__init__
       ~IBMServerlessClient.backend
       ~IBMServerlessClient.backends
+      ~IBMServerlessClient.compute_profile
+      ~IBMServerlessClient.compute_profiles
       ~IBMServerlessClient.dependencies_versions
       ~IBMServerlessClient.events
       ~IBMServerlessClient.file_delete

@@ -241,6 +241,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../stubs/qiskit_serverless.core.ComputeProfile.html">qiskit_serverless.core.ComputeProfile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
@@ -366,6 +367,11 @@
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.job_event</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobEvent</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.compute_profile</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ComputeProfile</span><span class="p">,</span>
+    <span class="n">ComputeProfileList</span><span class="p">,</span>
+    <span class="n">format_profiles</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.function</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">QiskitFunction</span><span class="p">,</span>
     <span class="n">RunService</span><span class="p">,</span>
@@ -498,6 +504,72 @@
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_profiles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComputeProfileList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get the compute profiles registered on this deployment.</span>
+
+<span class="sd">        These are the profiles a Fleets function's ``sizes_map`` can name. The catalog is</span>
+<span class="sd">        deployment-specific, so discover it here rather than hard-coding identifiers. The</span>
+<span class="sd">        returned list prints as an aligned table, so ``print(client.compute_profiles())`` shows</span>
+<span class="sd">        the catalog without iterating, while still behaving as an ordinary list of</span>
+<span class="sd">        :class:`ComputeProfile`.</span>
+<span class="sd">        """</span>
+        <span class="n">profiles</span> <span class="o">=</span> <span class="n">safe_json_request_as_list</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/compute-profiles/"</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">),</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">ComputeProfileList</span><span class="p">(</span><span class="n">ComputeProfile</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="k">for</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">profiles</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_profile</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">compute_profile_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cpu</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">memory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">gpu</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComputeProfile</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get a single registered compute profile, by id or by exact resources.</span>
+
+<span class="sd">        Validates against the deployment's catalog and returns the matching</span>
+<span class="sd">        :class:`ComputeProfile`, so the result is always a profile the deployment has</span>
+<span class="sd">        registered. Call it one of two ways:</span>
+
+<span class="sd">        - by id: ``client.compute_profile("24x120")``</span>
+<span class="sd">        - by resources: ``client.compute_profile(cpu=24, memory=120[, gpu="1l40s"])`` — ``cpu``</span>
+<span class="sd">          and ``memory`` are required (``int`` or ``str``), ``gpu`` optional (omitted means</span>
+<span class="sd">          CPU-only). Every value given must match a single registered profile exactly.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: if no profile matches (the message lists the available</span>
+<span class="sd">                profiles), or if the arguments mix the two forms / omit required resources.</span>
+<span class="sd">        """</span>
+        <span class="n">by_id</span> <span class="o">=</span> <span class="n">compute_profile_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">by_resources</span> <span class="o">=</span> <span class="n">cpu</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">memory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">gpu</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">by_id</span> <span class="ow">and</span> <span class="n">by_resources</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">"Pass either a compute_profile_id or cpu/memory/gpu, not both."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">by_id</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">by_resources</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">"Provide a compute_profile_id, or cpu and memory."</span><span class="p">)</span>
+
+        <span class="n">profiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_profiles</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">by_id</span><span class="p">:</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">profiles</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">compute_profile_id</span> <span class="o">==</span> <span class="n">compute_profile_id</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">criteria</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"compute_profile_id=</span><span class="si">{</span><span class="n">compute_profile_id</span><span class="si">!r}</span><span class="s2">"</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cpu</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">memory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">"Both cpu and memory are required to match by resources."</span><span class="p">)</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">profiles</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">cpu</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">cpu</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">memory</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">memory</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">gpu</span> <span class="o">==</span> <span class="n">gpu</span><span class="p">),</span>
+                <span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">criteria</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"cpu=</span><span class="si">{</span><span class="n">cpu</span><span class="si">}</span><span class="s2">, memory=</span><span class="si">{</span><span class="n">memory</span><span class="si">}</span><span class="s2">"</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">", gpu=</span><span class="si">{</span><span class="n">gpu</span><span class="si">!r}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">gpu</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">available</span> <span class="o">=</span> <span class="n">format_profiles</span><span class="p">(</span><span class="n">profiles</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"none are registered on this deployment"</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No compute profile matches </span><span class="si">{</span><span class="n">criteria</span><span class="si">}</span><span class="s2">. Available profiles:</span><span class="se">\n</span><span class="si">{</span><span class="n">available</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">match</span>
 
     <span class="c1">####################</span>
     <span class="c1">####### JOBS #######</span>
@@ -1480,10 +1552,13 @@
 <span class="sd">    unset so an upload that does not touch sizes leaves any stored catalog</span>
 <span class="sd">    untouched (the gateway treats an absent field as "not sent") rather than</span>
 <span class="sd">    clearing it.</span>
+
+<span class="sd">    A ``sizes_map`` value may be a ``compute_profile_id`` string or a ``ComputeProfile``</span>
+<span class="sd">    object; ``str()`` serializes either to the same id, so the wire format is identical.</span>
 <span class="sd">    """</span>
     <span class="n">payload</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">sizes_map</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">payload</span><span class="p">[</span><span class="s2">"sizes"</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">sizes_map</span><span class="p">)</span>
+        <span class="n">payload</span><span class="p">[</span><span class="s2">"sizes"</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">program</span><span class="o">.</span><span class="n">sizes_map</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
     <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">default_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">payload</span><span class="p">[</span><span class="s2">"default_size"</span><span class="p">]</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">default_size</span>
     <span class="k">return</span> <span class="n">payload</span>
