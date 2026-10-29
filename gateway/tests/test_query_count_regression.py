@@ -217,7 +217,7 @@ def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
     )
 
     Config.add_defaults()
-    Config.set(ConfigKey.BLOCKED_RESOURCES_ENFORCED, "true")
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
     seen = []
 
@@ -236,7 +236,7 @@ def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
             return True
 
         task.canceller.cancel.side_effect = read_what_a_stop_reads
-        Config.get_bool(ConfigKey.BLOCKED_RESOURCES_ENFORCED)  # warm the config cache, as on a running scheduler
+        Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED)  # warm the config cache, as on a running scheduler
         with CaptureQueriesContext(connection) as ctx:
             task.run()
         return len(ctx)

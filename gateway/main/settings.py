@@ -693,7 +693,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "How long the scheduler stops calling a dependency in a region once its breaker trips.",
     },
-    "scheduler.blocked_resources.enforced": {
+    "scheduler.blocked_jobs_stop.enabled": {
         "default": "false",
         "type": "boolean",
         "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "

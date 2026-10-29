@@ -20,7 +20,7 @@ _BLOCKED = {"account_id": "acct", "plan_id": "plan", "subscription_id": "sub"}
 @pytest.fixture(autouse=True)
 def blocked_resource():
     Config.add_defaults()
-    Config.set(ConfigKey.BLOCKED_RESOURCES_ENFORCED, "true")
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
 
 
@@ -108,8 +108,8 @@ def test_a_blocked_job_whose_program_was_deleted_is_still_stopped():
     assert task.canceller.transitions.to_stopped.call_args.args == (job,)
 
 
-def test_the_task_does_nothing_while_blocked_resources_are_not_enforced():
-    Config.set(ConfigKey.BLOCKED_RESOURCES_ENFORCED, "false")
+def test_the_kill_switch_turns_the_task_off():
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
     task = _make_task()
     _make_job()
 

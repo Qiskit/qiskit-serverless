@@ -54,13 +54,13 @@ def workloads_mirror_off(request):
 
 
 @pytest.fixture(autouse=True)
-def blocked_resources_not_enforced(request):
+def blocked_jobs_stop_disabled(request):
     """A run request reads the blocked resources flag, so every test that uses the database starts with its Config
     row there, off. A test that needs it on sets it with Config.set."""
     if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
         request.getfixturevalue("db")
         Config.objects.get_or_create(
-            name=ConfigKey.BLOCKED_RESOURCES_ENFORCED.value, defaults={"value": "false", "description": "test"}
+            name=ConfigKey.BLOCKED_JOBS_STOP_ENABLED.value, defaults={"value": "false", "description": "test"}
         )
 
 

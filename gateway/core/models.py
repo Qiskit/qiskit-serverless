@@ -578,7 +578,7 @@ class BlockedCloudResource(models.Model):
 
         Always False while blocked resources are not enforced.
         """
-        if not Config.get_bool(ConfigKey.BLOCKED_RESOURCES_ENFORCED):
+        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
             return False
         return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
 
@@ -588,7 +588,7 @@ class BlockedCloudResource(models.Model):
 
         Always None while blocked resources are not enforced.
         """
-        if not Config.get_bool(ConfigKey.BLOCKED_RESOURCES_ENFORCED):
+        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
             return None
         # distinct: a resource blocked for more than one reason or region has a row for each
         rows = cls.objects.values_list("account", "plan", "subscription").distinct()

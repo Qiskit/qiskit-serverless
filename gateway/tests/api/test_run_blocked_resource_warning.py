@@ -17,10 +17,10 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture(autouse=True)
-def blocked_resources_enforced():
+def blocked_jobs_stop_enabled():
     """Blocked resources are not enforced by default, and these tests are about enforcing them."""
     Config.add_defaults()
-    Config.set(ConfigKey.BLOCKED_RESOURCES_ENFORCED, "true")
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
 
 
 def _run(**identity):
@@ -63,7 +63,7 @@ def test_a_resource_that_is_not_blocked_gets_no_warning(identity):
 
 def test_a_blocked_resource_gets_no_warning_while_blocked_resources_are_not_enforced():
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
-    Config.set(ConfigKey.BLOCKED_RESOURCES_ENFORCED, "false")
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
 
     response = _run()
 
