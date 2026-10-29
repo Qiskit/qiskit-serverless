@@ -21,7 +21,6 @@ from qiskit_serverless import ComputeProfile
 from qiskit_serverless.core.clients.serverless_client import ServerlessClient
 from qiskit_serverless.exception import QiskitServerlessException
 
-
 CATALOG = [
     {"compute_profile_id": "24x120", "cpu": "24", "memory": "120", "gpu": None},
     {"compute_profile_id": "24x120x1l40s", "cpu": "24", "memory": "120", "gpu": "1l40s"},
