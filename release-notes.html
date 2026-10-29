@@ -469,8 +469,9 @@ Engine. The gateway records nothing.</p></li>
 account, plan and subscription are blocked, so a resource whose non-quantum
 allowance is exhausted stops consuming Code Engine capacity. The job goes
 through <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> like any other stop and is billed for what it really ran.
-The <code class="docutils literal notranslate"><span class="pre">scheduler.blocked_jobs_stop.enabled</span></code> configuration turns this off at
-runtime without a deploy.</p></li>
+It only happens while the <code class="docutils literal notranslate"><span class="pre">scheduler.blocked_jobs_stop.enabled</span></code>
+configuration is true, which it is not by default, and it can be turned
+on or off at runtime without a deploy.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The scheduler now sends the Pending, Running and Stopping statuses of the
