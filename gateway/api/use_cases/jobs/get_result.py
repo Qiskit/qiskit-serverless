@@ -27,7 +27,7 @@ class GetJobResultUseCase:
             GetResultResponse(result_ready=False) (Fleet, no result yet),
             or GetResultResponse with raw_result set (Ray).
         """
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(job_id)
 
@@ -36,7 +36,7 @@ class GetJobResultUseCase:
 
         storage = get_result_storage(job)
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             try:
                 url = cast(FleetsResultStorage, storage).get_url()
             except (ValueError, NotImplementedError):

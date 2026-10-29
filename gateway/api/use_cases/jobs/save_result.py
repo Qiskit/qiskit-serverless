@@ -34,7 +34,7 @@ class JobSaveResultUseCase:
         Returns:
             Job: The updated job object with the stored result.
         """
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(job_id)
 
@@ -42,7 +42,7 @@ class JobSaveResultUseCase:
         if not can_save_result:
             raise JobNotFoundException(job_id)
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             raise InvalidAccessException("Fleets results are written by the SDK via RESULTS_PATH")
 
         result_storage = get_result_storage(job)

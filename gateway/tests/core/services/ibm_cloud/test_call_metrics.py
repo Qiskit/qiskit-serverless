@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import socket
+import threading
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
 from ibm_botocore.awsrequest import AWSResponse
 from ibm_botocore.exceptions import ClientError
 from urllib3 import HTTPResponse
-from urllib3.exceptions import ProtocolError
+from urllib3.exceptions import ProtocolError, ReadTimeoutError
 
 from core.ibm_cloud import call_metrics, get_ce_auth
 from core.ibm_cloud.clients import IBMCloudClientProvider
@@ -98,3 +101,18 @@ def test_a_code_engine_connection_error_is_recorded_with_its_class(recorder):
         LIST_FLEETS,
         "ProtocolError",
     )
+
+
+def test_a_delete_that_times_out_is_sent_once():
+    server = socket.create_server(("127.0.0.1", 0))
+    accepted = []
+    threading.Thread(target=lambda: [accepted.append(server.accept()[0]) for _ in range(5)], daemon=True).start()
+    with patch("core.ibm_cloud.clients.get_iam_token_provider"):
+        api_client = get_ce_auth("dummy-key", "us-east").api_client
+    api_client.configuration.host = f"http://127.0.0.1:{server.getsockname()[1]}/v2"
+
+    with pytest.raises(ReadTimeoutError):
+        FleetsApi(api_client).delete_fleet(project_id="p", id=str(uuid.uuid4()), _request_timeout=(1, 0.2))
+
+    assert len(accepted) == 1
+    server.close()

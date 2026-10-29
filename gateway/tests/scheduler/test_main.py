@@ -12,10 +12,12 @@ from core.services.background_executor import (
     BackgroundPool,
     get_background_executor,
 )
+from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
 from scheduler.tasks.export_fleets_breakers import ExportFleetsBreakers
+from scheduler.tasks.free_fleets_resources import FreeFleetsResources
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
@@ -69,6 +71,11 @@ class TestMain:
         assert len(tasks) == len(sharing)
         assert len({id(task.transitions) for task in tasks} | {id(s.transitions) for s in submitters}) == 1
 
+    def test_the_shared_transition_service_mirrors_the_intermediate_statuses(self):
+        task = next(t for t in self.scheduler_main.tasks if isinstance(t, UpdateFleetsJobsStatuses))
+
+        assert isinstance(task.transitions.workload_mirror, WorkloadBestEffortMirror)
+
     def test_the_tasks_that_submit_fleets_jobs_share_one_submitter(self):
         sharing = (ScheduleFleetsJobs, BalanceFillerJobs)
         tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
@@ -76,17 +83,17 @@ class TestMain:
         assert len(tasks) == len(sharing)
         assert len({id(task.submitter) for task in tasks}) == 1
 
-    def test_the_submitter_and_the_canceller_share_one_breaker_per_region(self):
-        """A region that stopped answering is one fact, so a submit and a cancel count against one breaker."""
+    def test_the_tasks_that_call_code_engine_share_one_fleets_breakers(self):
         sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs, StopBlockedFleetsJobs)
-        submitters = [t.submitter for t in self.scheduler_main.tasks if isinstance(t, ScheduleFleetsJobs)]
-        cancellers = [t.canceller for t in self.scheduler_main.tasks if isinstance(t, sharing)]
+        submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
+        cancellers = [task.canceller for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+        deleters = [task.deleter for task in self.scheduler_main.tasks if isinstance(task, FreeFleetsResources)]
 
         exporter = self.scheduler_main.tasks[-1]
 
-        assert submitters and len(cancellers) == len(sharing)
+        assert submitters and len(cancellers) == len(sharing) and len(deleters) == 1
         assert isinstance(exporter, ExportFleetsBreakers)
-        assert len({id(holder.breakers) for holder in submitters + cancellers + [exporter]}) == 1
+        assert len({id(owner.breakers) for owner in submitters + cancellers + deleters + [exporter]}) == 1
 
     def test_run_executes_tasks(self):
         """run should execute tasks and stop when kill signal is received."""
@@ -105,6 +112,16 @@ class TestMain:
 
         assert called == True
         assert task.run.call_count == 1
+
+    def test_each_loop_runs_the_per_request_connection_check(self):
+        task = MagicMock()
+        task.run.side_effect = lambda: setattr(self.scheduler_main.kill_signal, "received", True)
+        self.scheduler_main.tasks = [task]
+
+        with patch("scheduler.main.close_old_connections") as close_old:
+            self.scheduler_main.run()
+
+        close_old.assert_called_once_with()
 
     def test_every_task_is_closed_once_the_loop_finishes(self):
         """So the Kafka consumers leave their groups instead of holding partitions after shutdown."""

@@ -35,9 +35,9 @@ class TestObserveOperation:
         assert _count(registry, FLEET_STATUS_READ, "429") == 1
         assert _count(registry, FLEET_STATUS_READ, "ok") == 0
 
-    def test_a_discarded_observation_records_nothing(self, registry):
-        with observe_operation(FLEET_STATUS_READ) as observation:
-            observation.discard = True
+    def test_a_disabled_observation_records_nothing(self, registry):
+        with observe_operation(FLEET_STATUS_READ, enabled=False):
+            pass
 
         assert _count(registry, FLEET_STATUS_READ, "ok") == 0
 
@@ -57,6 +57,14 @@ class TestObserveOperation:
 
         assert _count(registry, FLEET_STATUS_READ, "timeout") == 1
         assert _count(registry, FLEET_STATUS_READ, "error") == 1
+
+    def test_an_exception_listed_as_rejected_is_not_an_error_and_is_still_raised(self, registry):
+        with pytest.raises(ValueError):
+            with observe_operation(FLEET_STATUS_READ, rejected_by=(ValueError,)):
+                raise ValueError("refused")
+
+        assert _count(registry, FLEET_STATUS_READ, "rejected") == 1
+        assert _count(registry, FLEET_STATUS_READ, "error") == 0
 
     def test_nothing_is_recorded_until_the_scheduler_enables_it(self):
         external_call_metrics.disable()

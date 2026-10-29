@@ -17,6 +17,7 @@ from api.domain.arguments_schema import (
     exceeds_max_nodes,
     validate_arguments_in_isolation,
 )
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -135,8 +136,12 @@ class ValidateArgumentsUseCase:
                 legacy_permission_name=RUN_PROGRAM_PERMISSION,
             )
         else:
-            if JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
-                function = Function.objects.get_user_function(user, title)
+            # See run.py: separate the entitlement gate from the existence lookup so an
+            # unentitled user gets a 403 naming the custom-run entitlement rather than a
+            # misleading 404 "doesn't exist".
+            if not JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
+                raise CustomFunctionNotEntitledException(title=title, operation=CustomFunctionNotEntitledException.RUN)
+            function = Function.objects.get_user_function(user, title)
 
         if function is None:
             raise FunctionNotFoundException(function=title, provider=provider_name)

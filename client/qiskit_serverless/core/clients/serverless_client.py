@@ -32,6 +32,7 @@ import os.path
 import os
 import re
 import tarfile
+import time
 import warnings
 from pathlib import Path
 from urllib.parse import urlparse
@@ -90,6 +91,12 @@ from qiskit_serverless.serializers.program_serializers import (
 
 _trace_job = trace_decorator_factory("job")
 _trace_functions = trace_decorator_factory("function")
+
+
+_STATUS_TOKEN_HEADER = "X-Job-Status-Token"
+# The gateway signs the token for 5 minutes, so the client stops using it 30 s before
+_STATUS_TOKEN_REUSE_SECONDS = 270
+_TOKEN_REFUSED_CODES = (401, 403, 404)
 
 
 class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
@@ -155,6 +162,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         super().__init__(host, token, instance, channel)
         self.version = version
+        # job id -> (job status token, monotonic time it was received)
+        self._status_tokens: Dict[str, tuple[str, float]] = {}
         self._verify_credentials()
 
         self._files_client = GatewayFilesClient(self.host, self.token, self.version, self.instance, self.channel)
@@ -362,6 +371,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
+        if response_data.get("warning"):
+            warnings.warn(response_data["warning"], stacklevel=2)
+
         return Job(
             job_id,
             job_service=self,
@@ -369,17 +381,47 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
 
     def get_job_data(self, job_id: str) -> Optional[dict]:
-        return (
-            safe_json_request_as_dict(
-                request=lambda: requests.get(
+        """The job, read with its status token while the token is young, and with the API key otherwise."""
+        cached = self._status_tokens.get(job_id)
+        if cached is not None and time.monotonic() - cached[1] < _STATUS_TOKEN_REUSE_SECONDS:
+            try:
+                return safe_json_request_as_dict(
+                    request=lambda: requests.get(
+                        f"{self.host}/api/{self.version}/jobs/{job_id}/status/",
+                        headers={_STATUS_TOKEN_HEADER: cached[0]},
+                        timeout=REQUESTS_TIMEOUT,
+                    )
+                )
+            except QiskitServerlessException as error:
+                if getattr(error, "_code", None) not in _TOKEN_REFUSED_CODES:
+                    raise
+            self._status_tokens.pop(job_id, None)
+
+        responses = []
+
+        def request():
+            responses.append(
+                requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/",
                     params={"with_result": "false"},
                     headers=get_headers(token=self.token, instance=self.instance, channel=self.channel),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            or None
-        )
+            return responses[0]
+
+        data = safe_json_request_as_dict(request=request) or None
+        token = (getattr(responses[0], "headers", None) or {}).get(_STATUS_TOKEN_HEADER)
+        if token:
+            now = time.monotonic()
+            for old in [
+                key for key, (_, at) in list(self._status_tokens.items()) if now - at >= _STATUS_TOKEN_REUSE_SECONDS
+            ]:
+                self._status_tokens.pop(old, None)
+            self._status_tokens[job_id] = (token, now)
+        else:
+            self._status_tokens.pop(job_id, None)
+        return data
 
     @_trace_job
     def status(self, job_id: str):

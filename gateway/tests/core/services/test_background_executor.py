@@ -615,3 +615,78 @@ def test_a_keyed_submit_is_dropped_when_the_pool_limit_is_zero():
 
     assert executor.submit(RUNTIME, lambda: None, replace_key="k") is None
     assert executor.would_accept(RUNTIME, "k") is False
+
+
+def test_discard_cancels_the_waiting_task_and_frees_its_slot(release):
+    executor.init(max_workers=1, max_pending=_limit(2))
+    _occupy_the_only_thread(release)
+    canceled_before = _tasks("canceled")
+    ran = []
+    queued = executor.submit(RUNTIME, lambda: ran.append(1), replace_key="k")
+    assert executor.status(RUNTIME).free_slots == 0
+
+    assert executor.discard(RUNTIME, "k") is True
+
+    assert queued.cancelled()
+    assert executor.status(RUNTIME).free_slots == 1 and executor.status(RUNTIME).queued == 0
+    assert _tasks("canceled") == canceled_before + 1
+    assert _sample("background_executor_pending", {"pool": RUNTIME.value}) == 1  # only the one that is running
+    done, _ = wait([queued], timeout=WAIT)
+    assert done
+    release.set()
+    executor.shutdown()
+    assert not ran
+
+
+def test_discard_returns_false_when_nothing_is_waiting_under_the_key(release):
+    executor.init(max_workers=1, max_pending=_limit(2))
+    _occupy_the_only_thread(release)
+    executor.submit(RUNTIME, lambda: None, replace_key="other")
+
+    assert executor.discard(RUNTIME, "k") is False
+
+
+def test_discard_does_not_touch_a_task_that_already_started(release):
+    executor.init(max_workers=2, max_pending=_limit(5))
+    started = threading.Event()
+    running = executor.submit(RUNTIME, lambda: (started.set(), release.wait(WAIT), "done")[2], replace_key="k")
+    assert started.wait(WAIT)
+
+    assert executor.discard(RUNTIME, "k") is False
+
+    release.set()
+    assert running.result(WAIT) == "done"
+    assert not running.cancelled()
+
+
+def test_discard_does_not_touch_the_same_key_in_another_pool(two_pools, release):
+    executor.init(max_workers=1, max_pending=20)
+    executor.submit(two_pools.BIG, release.wait, WAIT)  # holds the only thread
+    big = executor.submit(two_pools.BIG, lambda: None, replace_key="k")
+    small = executor.submit(two_pools.SMALL, lambda: None, replace_key="k")
+
+    assert executor.discard(two_pools.BIG, "k") is True
+
+    assert big.cancelled() and not small.cancelled()
+
+
+def test_shutdown_after_a_discard_does_not_hang_or_count_twice(release):
+    executor.init(max_workers=1, max_pending=_limit(5))
+    _occupy_the_only_thread(release)
+    canceled_before = _tasks("canceled")
+    discarded = executor.submit(RUNTIME, lambda: None, replace_key="k")
+    waiting = executor.submit(RUNTIME, lambda: None, replace_key="j")
+    executor.discard(RUNTIME, "k")
+
+    threading.Timer(0.3, release.set).start()
+    executor.shutdown()
+    _, not_done = wait([discarded, waiting], timeout=WAIT)
+
+    assert not not_done
+    assert _tasks("canceled") == canceled_before + 2  # one discarded, one cancelled by the shutdown
+    assert _sample("background_executor_pending", {"pool": RUNTIME.value}) == 0
+
+
+def test_discard_before_init_fails_loudly():
+    with pytest.raises(BackgroundExecutorNotInitializedError):
+        executor.discard(RUNTIME, "k")

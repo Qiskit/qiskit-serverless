@@ -5,7 +5,9 @@ RUNNING), and it does the status change plus whatever that transition needs, so 
 
 - What must not be lost is stored in the Outbox table inside the same database transaction as the status
   change, and the scheduler sends it later (see specs/OUTBOX.md).
-- What is best effort is sent to Kafka right after that transaction, and dropped with a log if it fails.
+- What is best effort is sent to Kafka right after that transaction, and dropped with a log if it fails. The
+  intermediate status of a mirrored job (Pending, Running, Stopping) is also sent to the Runtime API after that
+  transaction. It is dropped with a log if it cannot be sent, except for a database outage, which is re-raised.
 """
 
 import logging
@@ -17,13 +19,25 @@ from core.domain.billing_events import BillingEvents
 from core.domain.crn import Crn
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.domain.workload_payload import build_workload_payload, is_mirrored
+from core.external_call_metrics import (
+    JOB_IN_PROGRESS_EVENT,
+    JOB_TRANSITION_PENDING_TO_RUNNING,
+    JOB_TRANSITION_QUEUED_TO_PENDING,
+    JOB_TRANSITION_TO_TERMINAL,
+    observe_operation,
+    observer_method,
+)
 from core.ibm_cloud.event_streams.kafka_sender import build_kafka_sender
 from core.ibm_cloud.sender import Sender
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import Job, JobEvent, Outbox, OutboxChannel, Program, WorkloadMirror
 from core.services.runners import get_runner, AbstractRunner, RunnerRetryableError
+from core.services.workload_best_effort_mirror import NoOpWorkloadMirror, WorkloadMirrorSender
 
 logger = logging.getLogger("core.JobTransitionService")
+
+# The job was already moved by someone else (a user stopped it): an expected race, recorded as rejected and not error.
+_REJECTED = (InvalidJobTransitionException,)
 
 
 def _is_usage_billable(job: Job) -> bool:
@@ -70,19 +84,26 @@ class JobTransitionService:
         Job.STOPPED: set(),
     }
 
-    def __init__(self, sender: Sender | None = None):
+    def __init__(self, sender: Sender | None = None, workload_mirror: WorkloadMirrorSender | None = None):
         """The sender of the best effort events.
         By default, it creates the sender based on EVENT_STREAMS_ENABLED (so the scheduler has KafkaSender, and
-        the Gateway (stop jobs only) has NoOpSender)"""
+        the Gateway (stop jobs only) has NoOpSender).
+        The workload mirror sends the intermediate statuses to the Runtime API. By default it sends nothing,
+        and only the scheduler passes a real one."""
         self.sender = sender if sender is not None else build_kafka_sender()
+        self.workload_mirror = workload_mirror if workload_mirror is not None else NoOpWorkloadMirror()
 
+    @observer_method(JOB_TRANSITION_QUEUED_TO_PENDING, rejected_by=_REJECTED)
     def queued_to_pending(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
         """The job was submitted to its runner. Nothing else is owed."""
         with transaction.atomic():
-            return self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
+            event = self._change_status(job, Job.PENDING, origin=origin, context=context, job_fields=job_fields)
+        self.workload_mirror.send(job)
+        return event
 
+    @observer_method(JOB_TRANSITION_PENDING_TO_RUNNING, rejected_by=_REJECTED)
     def pending_to_running(  # pylint: disable=too-many-positional-arguments
         self,
         job: Job,
@@ -100,13 +121,16 @@ class JobTransitionService:
             event = self._change_status(
                 job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, happened_at=running_at
             )
-        self._send_job_in_progress(job, job_started=True)
+        # A job reaches RUNNING only once, so this is its start time: the runner's, or when the event was written
+        self._send_job_in_progress(job, job_started=True, job_started_at=job.started_at())
+        self.workload_mirror.send(job)
         return event
 
-    def running_to_running(self, job: Job) -> None:
+    def running_to_running(self, job: Job, job_started_at: datetime | None) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
-        self._send_job_in_progress(job, job_started=False)
+        with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
+            self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
 
     def stop(
         self,
@@ -133,6 +157,7 @@ class JobTransitionService:
             FleetAppearedError: If a fleet appeared while this was deciding. Nothing is written,
                 so the caller asks again with the fresh row and cancels that fleet.
             InvalidJobTransitionException: If the row left a status the new one is reachable from.
+            OperationalError, InterfaceError: From the workload mirror, after the STOPPING status was written.
         """
         if job.runner != Program.FLEETS:
             raise ValueError(f"Job {job.id}: stop is for Fleets jobs, got runner={job.runner}")
@@ -140,6 +165,7 @@ class JobTransitionService:
         if job.fleet_id and (runner or get_runner(job)).stop():
             with transaction.atomic():
                 self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
+            self.workload_mirror.send(job)
             return Job.STOPPING
 
         # No fleet, or Code Engine says it is already gone. End the job only while that still
@@ -176,6 +202,7 @@ class JobTransitionService:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
         return transition(job, origin=origin, context=context, job_fields=job_fields, ended_at=ended_at)
 
+    @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
     def to_succeeded(  # pylint: disable=too-many-positional-arguments
         self,
         job: Job,
@@ -226,6 +253,7 @@ class JobTransitionService:
             job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields, ended_at=ended_at
         )
 
+    @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
     def to_stopped_or_failed(  # pylint: disable=too-many-positional-arguments
         self,
         job: Job,
@@ -345,7 +373,7 @@ class JobTransitionService:
             Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
 
-    def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
+    def _send_job_in_progress(self, job: Job, job_started: bool, job_started_at: datetime | None) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
 
         The sender is asked not to wait for the broker (timeout=0): it does not raise for a message it cannot
@@ -354,14 +382,13 @@ class JobTransitionService:
         A job transitioning to terminal in this same scheduler tick will produce both an in-progress and a
         completed event; consumers key on the job_started / job_completed flags.
         """
-        # send(timeout=0) never raises, but it is caught anyway in case a sender implementation changes in the future
+        if job.filler:
+            return
         try:
-            if job.filler:
-                return
-            job_started_at = job.started_at()
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
             payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
-            # timeout=0: send and return at once, without waiting for the ack or a flush
+            # timeout=0: send and return at once, without waiting for the ack or a flush. It never raises error,
+            # but it is caught anyway in case a sender implementation changes in the future
             self.sender.send(payload, timeout=0)
         except RuntimeError as ex:
             # never expected: the sender already drops and logs its own failures

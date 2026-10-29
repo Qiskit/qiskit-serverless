@@ -165,9 +165,9 @@ def test_a_job_that_is_not_terminal_has_no_ended_at_even_if_it_has_a_terminal_ev
 def test_every_job_status_maps_and_an_unknown_one_raises():
     expected = {
         "QUEUED": "Queued",
-        "PENDING": "Queued",
+        "PENDING": "Pending",
         "RUNNING": "Running",
-        "STOPPING": "Running",
+        "STOPPING": "Stopping",
         "SUCCEEDED": "Completed",
         "FAILED": "Failed",
         "STOPPED": "Cancelled",

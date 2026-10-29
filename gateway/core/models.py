@@ -5,6 +5,7 @@
 import logging
 import operator
 import uuid
+from datetime import datetime
 from enum import StrEnum
 from functools import reduce
 
@@ -29,7 +30,7 @@ from core.model_managers.compute_profiles import ComputeProfileQuerySet
 from core.model_managers.function_sizes import FunctionSizeQuerySet
 from core.model_managers.functions import FunctionsQuerySet
 from core.model_managers.job_events import JobEventQuerySet
-from core.model_managers.jobs import JobQuerySet
+from core.model_managers.jobs import UNASSIGNED_PROJECT, JobQuerySet
 from core.model_managers.providers import ProviderQuerySet
 
 logger = logging.getLogger("core.models")
@@ -512,7 +513,19 @@ class BlockedCloudResource(models.Model):
     row identity comes from id, never from a business column. The three columns
     are nullable so that narrower rule shapes (e.g., account-only) can be added
     later without a migration.
+
+    Each limit billing-service enforces blocks on its own, and the Event Streams region it was
+    reported from is kept with it: a resource can have one row per reason and region, an unblock
+    removes only its own row, and any row left still blocks the resource.
     """
+
+    # Reasons, one per billing-service topic
+    TOTAL = "total"
+    NON_QUANTUM = "non_quantum"
+    REASONS = [
+        (TOTAL, "Total"),
+        (NON_QUANTUM, "Non-quantum"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -521,6 +534,8 @@ class BlockedCloudResource(models.Model):
     account = models.CharField(max_length=255, null=True, blank=True, default=None)
     plan = models.CharField(max_length=255, null=True, blank=True, default=None)
     subscription = models.CharField(max_length=255, null=True, blank=True, default=None)
+    reason = models.CharField(max_length=20, choices=REASONS, help_text="Which limit blocked the resource")
+    region = models.CharField(max_length=50, help_text="Event Streams region that reported the block")
 
     class Meta:
         app_label = "api"
@@ -533,6 +548,8 @@ class BlockedCloudResource(models.Model):
                 Coalesce("account", Value("")),
                 Coalesce("plan", Value("")),
                 Coalesce("subscription", Value("")),
+                F("reason"),
+                F("region"),
                 name="unique_blocked_resource",
             ),
             models.CheckConstraint(
@@ -551,6 +568,8 @@ class BlockedCloudResource(models.Model):
             parts.append(f"plan={self.plan}")
         if self.subscription:
             parts.append(f"subscription={self.subscription}")
+        parts.append(f"reason={self.reason}")
+        parts.append(f"region={self.region}")
         return f"BlockedCloudResource({', '.join(parts)})"
 
     @classmethod
@@ -561,7 +580,8 @@ class BlockedCloudResource(models.Model):
     @classmethod
     def blocked_jobs_filter(cls) -> models.Q | None:
         """A Job filter matching the jobs blocks() would block, or None when nothing is blocked."""
-        rows = cls.objects.values_list("account", "plan", "subscription")
+        # distinct: a resource blocked for more than one reason or region has a row for each
+        rows = cls.objects.values_list("account", "plan", "subscription").distinct()
         jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
         return reduce(operator.or_, jobs) if jobs else None
 
@@ -659,6 +679,11 @@ class Job(models.Model):
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
+    fleet_deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the fleet delete was accepted",
+    )
     result = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10,
@@ -772,6 +797,12 @@ class Job(models.Model):
             models.Index(fields=["created"], condition=models.Q(filler=True), name="job_filler_true_idx"),
             # Backs the admin changelist search by fleet_id.
             models.Index(fields=["fleet_id"], name="job_fleet_id_idx"),
+            # Backs the retention scan in FreeFleetsResources. The condition is JobQuerySet.held_fleets.
+            models.Index(
+                fields=["updated"],
+                condition=models.Q(fleet_deleted_at__isnull=True, fleet_id__isnull=False, runner=Program.FLEETS),
+                name="job_fleet_undeleted_idx",
+            ),
         ]
 
     @classmethod
@@ -819,6 +850,22 @@ class Job(models.Model):
             label = self.function_size.function_size
         return label.upper() if label else None
 
+    @property
+    def last_event_at(self) -> datetime | None:
+        """When the job's latest event was written, or None if it has none. Needs ``with_event_times()``."""
+        return self._event_time("_last_event_at")
+
+    @property
+    def first_running_at(self) -> datetime | None:
+        """When the job first reached RUNNING, or None if it never did. Needs ``with_event_times()``."""
+        return self._event_time("_first_running_at")
+
+    def _event_time(self, annotation: str) -> datetime | None:
+        """Read an annotation from ``with_event_times()``, raising when the queryset did not load it."""
+        if annotation not in self.__dict__:
+            raise RuntimeError(f"Job {self.id}: load the job with JobQuerySet.with_event_times() to read {annotation}")
+        return self.__dict__[annotation]
+
     def save_direct(self, fields: list[str]) -> None:
         """Persist selected fields bypassing optimistic-locking validation.
 
@@ -844,6 +891,19 @@ class Job(models.Model):
         update_kwargs["version"] = F("version") + 1
         Job.objects.filter(pk=self.id).update(**update_kwargs)
         self.refresh_from_db(fields=["version"])
+
+    @property
+    def fleet_project(self) -> str:
+        """The project this job's fleet counts under in the fleet metrics."""
+        return self.ce_project_name or UNASSIGNED_PROJECT
+
+    @property
+    def fleet_region(self) -> str | None:
+        """The region this job's fleet lives in: its own snapshot, or its program's project."""
+        if self.ce_region:
+            return self.ce_region
+        project = self.program.code_engine_project if self.program_id else None
+        return project.region if project else None
 
     def update_fields(self, fields_map: dict) -> None:
         """Persist an explicit field map bypassing optimistic-locking validation.

@@ -15,6 +15,9 @@
 from collections import deque
 from unittest.mock import MagicMock, patch
 
+import pytest
+from django.db import OperationalError
+
 from core.models import Job, Program
 from core.services.runners.ray_runner import FilteredLogs
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
@@ -68,6 +71,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.latest_event_at"),
             patch(f"{_MOD}.save_logs_to_storage"),
             patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
@@ -89,6 +93,7 @@ class TestRayJobStatusUpdate:
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
             patch(f"{_MOD}.check_job_timeout", return_value=False),
+            patch(f"{_MOD}.latest_event_at"),
             patch(f"{_MOD}.Job.objects"),
             patch(f"{_MOD}.JobEvent"),
         ):
@@ -108,3 +113,38 @@ def test_filler_jobs_are_left_out_of_the_job_metrics():
 
     task.metrics.increment_jobs_terminal.assert_not_called()
     task.metrics.observe_job_execution_duration.assert_not_called()
+
+
+class TestRunSkipsBrokenJob:
+    """Tests for run() when one job raises."""
+
+    def test_broken_job_does_not_stop_the_others(self):
+        """A job that raises is skipped and the remaining jobs are still updated."""
+        task = _make_task()
+        broken, healthy = _make_ray_job(), _make_ray_job()
+
+        with (
+            patch(f"{_MOD}.Job.objects") as objects,
+            patch.object(task, "update_job_status", side_effect=[NotImplementedError, True]) as update,
+        ):
+            objects.filter.return_value.exclude.return_value.select_related.return_value = [broken, healthy]
+            task.run()
+
+        assert update.call_count == 2
+
+    def test_db_error_reaches_the_scheduler(self):
+        """A database error is not swallowed, so main.py can count it and restart the pod."""
+        task = _make_task()
+
+        with (
+            patch(f"{_MOD}.Job.objects") as objects,
+            patch.object(task, "update_job_status", side_effect=OperationalError) as update,
+        ):
+            objects.filter.return_value.exclude.return_value.select_related.return_value = [
+                _make_ray_job(),
+                _make_ray_job(),
+            ]
+            with pytest.raises(OperationalError):
+                task.run()
+
+        assert update.call_count == 1
