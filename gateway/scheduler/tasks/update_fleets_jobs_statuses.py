@@ -151,7 +151,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             new_status,
         )
         if runner:
-            self._set_code_engine_times(job, runner, new_status)
+            self._set_code_engine_times(job, runner)
         try:
             self.transitions.to_terminal(
                 job,
@@ -168,34 +168,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             self._record_execution_duration(job)
 
     @staticmethod
-    def _set_code_engine_times(job: Job, runner: FleetsRunner, status: str) -> None:
-        """Store in the job when Code Engine says its task started and, for a terminal status, finished. A time the
-        job already has is kept: a job reaches RUNNING once, so its start does not change. One that is not known is
-        left empty and the job starts or ends when its status event was written.
+    def _set_code_engine_times(job: Job, runner: FleetsRunner) -> None:
+        """Store in the job when Code Engine says its task started and finished. A start the job already has is kept: a
+        job reaches RUNNING once, so its start does not change. A time that is not known is left empty and the job
+        starts or ends when its status event was written.
 
-        Read before the transition opens its transaction: no network call with the job locked. The task store has
-        just reported status, so a time missing for it is Code Engine or COS failing."""
+        Read before the transition opens its transaction: no network call with the job locked."""
         times = runner.get_task_times()
         fields = {}
-        if job.running_started_at is None:
-            if times.started_at is None:
-                logger.warning(
-                    "job_id=%s fleet_id=%s no Code Engine start time, the job starts when the scheduler noticed it",
-                    job.id,
-                    job.fleet_id,
-                )
-            else:
-                fields["running_started_at"] = times.started_at
-        if status in Job.TERMINAL_STATUSES:
-            if times.finished_at is None:
-                logger.warning(
-                    "job_id=%s fleet_id=%s no Code Engine end time for %s, the job ends when the scheduler noticed it",
-                    job.id,
-                    job.fleet_id,
-                    status,
-                )
-            else:
-                fields["running_ended_at"] = times.finished_at
+        if job.running_started_at is None and times.started_at:
+            fields["running_started_at"] = times.started_at
+        if times.finished_at:
+            fields["running_ended_at"] = times.finished_at
         if fields:
             job.update_fields(fields)
 
@@ -210,7 +194,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.status,
                 Job.RUNNING,
             )
-            self._set_code_engine_times(job, runner, Job.RUNNING)
+            self._set_code_engine_times(job, runner)
             try:
                 self.transitions.pending_to_running(
                     job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
