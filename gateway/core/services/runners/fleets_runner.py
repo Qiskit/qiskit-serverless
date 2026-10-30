@@ -359,30 +359,20 @@ class FleetsRunner(AbstractRunner):
         the moment the scheduler noticed, so it never raises: no fleet, no file yet, an unreadable file and a failing
         COS all give ``TaskTimes()``."""
         try:
-            return self._read_task_times()
+            self._project = self._project or self._get_project()
+            bucket = self._project.cos_bucket_task_store_name
+            prefix = tasks_prefix(self._project.project_id, self.job.fleet_id)
+            keys = self._list_task_state_keys(bucket, prefix)
+            # A key ending in "/" is a directory marker, not a task file
+            key = next((key for key in keys or [] if not key.endswith("/")), None)
+            if key is None:
+                return TaskTimes()
+            content = self._get_cos().get_object_bytes(bucket_name=bucket, key=key)
+            return parse_task_times(content, key)
+
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
             return TaskTimes()
-
-    def _read_task_times(self) -> TaskTimes:
-        """The task file of the fleet. A job runs a single task, so the first file is the only one."""
-        fleet_id = self.job.fleet_id
-        if not fleet_id:
-            return TaskTimes()
-        if not self._project:
-            self._project = self._get_project()
-        bucket = self._project.cos_bucket_task_store_name
-        if not bucket:
-            return TaskTimes()
-
-        objects = self._list_task_state_objects(bucket, tasks_prefix(self._project.project_id, fleet_id))
-        # A key ending in "/" is a directory marker, not a task file
-        files = [obj for obj in objects or [] if not obj["key"].endswith("/")]
-        if not files:
-            return TaskTimes()
-
-        key = files[0]["key"]
-        return parse_task_times(self._get_cos().get_object_bytes(bucket_name=bucket, key=key), key)
 
     def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
         """Report a listing that held keys but no state this gateway recognises.
@@ -444,14 +434,6 @@ class FleetsRunner(AbstractRunner):
             tell apart from a failure.
         """
         return self._list_task_state(lambda cos: cos.list_keys(bucket_name=bucket, prefix=prefix))
-
-    def _list_task_state_objects(self, bucket: str, prefix: str) -> list[dict] | None:
-        """List task state objects from COS, each a dict with ``key``, ``size`` and ``last_modified``.
-
-        Returns:
-            The matching objects, or ``None`` when the COS call failed, like _list_task_state_keys.
-        """
-        return self._list_task_state(lambda cos: cos.list_with_metadata(bucket_name=bucket, prefix=prefix))
 
     def _list_task_state(self, listing: Callable[[JobCOS], list]) -> list | None:
         """Run a COS listing, giving ``None`` when the call failed so the next cycle retries it."""

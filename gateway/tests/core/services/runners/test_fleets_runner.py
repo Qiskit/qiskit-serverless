@@ -1403,10 +1403,6 @@ def _task_file(started_at="2026-01-02T03:04:05.123456789Z", finished_at="2026-01
     return ("\n".join(lines) + "\n").encode()
 
 
-def _listing(*keys):
-    return [{"key": key, "size": 100, "last_modified": None} for key in keys]
-
-
 class TestTaskTimes:
     """get_task_times() reads when Code Engine says the task started and finished, and never raises."""
 
@@ -1428,7 +1424,7 @@ class TestTaskTimes:
     def _runner(self, content=None, listing=None):
         runner, _ = _make_runner(fleet_id="fleet-123")
         cos = runner._cos  # pylint: disable=protected-access
-        cos.list_with_metadata.return_value = _listing(_TASK_FILE) if listing is None else listing
+        cos.list_keys.return_value = [_TASK_FILE] if listing is None else listing
         cos.get_object_bytes.return_value = self._file() if content is None else content
         return runner
 
@@ -1503,11 +1499,11 @@ class TestTaskTimes:
         runner.get_task_times()
 
         cos = runner._cos  # pylint: disable=protected-access
-        cos.list_with_metadata.assert_called_once_with(bucket_name="task-store-bucket", prefix=_TASKS)
+        cos.list_keys.assert_called_once_with(bucket_name="task-store-bucket", prefix=_TASKS)
         cos.get_object_bytes.assert_called_once_with(bucket_name="task-store-bucket", key=_TASK_FILE)
 
     def test_a_directory_marker_is_not_a_task_file(self):
-        runner = self._runner(listing=_listing(_TASKS, _TASK_FILE))
+        runner = self._runner(listing=[_TASKS, _TASK_FILE])
 
         assert runner.get_task_times().started_at == self._STARTED
         runner._cos.get_object_bytes.assert_called_once()  # pylint: disable=protected-access
@@ -1524,7 +1520,7 @@ class TestTaskTimes:
         runner.get_task_times()
 
         prefixes = [
-            call.kwargs["prefix"] for call in runner._cos.list_with_metadata.call_args_list
+            call.kwargs["prefix"] for call in runner._cos.list_keys.call_args_list
         ]  # pylint: disable=protected-access
         assert prefixes == [_TASKS]
 
@@ -1532,7 +1528,7 @@ class TestTaskTimes:
         runner, _ = _make_runner(fleet_id=None)
 
         assert runner.get_task_times() == (None, None)
-        runner._cos.list_with_metadata.assert_not_called()  # pylint: disable=protected-access
+        runner._cos.list_keys.assert_not_called()  # pylint: disable=protected-access
 
     def test_it_is_none_when_the_task_store_bucket_is_not_configured(self):
         runner = self._runner()
@@ -1542,7 +1538,7 @@ class TestTaskTimes:
 
     def test_a_listing_error_gives_no_times_instead_of_raising(self, caplog):
         runner = self._runner()
-        runner._cos.list_with_metadata.side_effect = ClientError(  # pylint: disable=protected-access
+        runner._cos.list_keys.side_effect = ClientError(  # pylint: disable=protected-access
             {"Error": {"Code": "AccessDenied"}}, "ListObjectsV2"
         )
 
