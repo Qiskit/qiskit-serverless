@@ -105,7 +105,13 @@ class TestProgramApiLegacyGroupsPermissions:
 
             response = client.post(
                 "/api/v1/programs/upload/",
-                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+                data={
+                    "title": "my-func",
+                    "provider": "my-provider",
+                    "dependencies": "[]",
+                    "entrypoint": "main.py",
+                    "runner": Program.RAY,
+                },
             )
 
             assert response.status_code == status.HTTP_200_OK
@@ -192,6 +198,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "arguments_schema": arguments_schema,
                     "artifact": fake_file,
+                    "runner": Program.RAY,
                 },
                 format="multipart",
             )
@@ -662,6 +669,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "env_vars": env_vars,
                     "artifact": fake_file,
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -742,6 +750,7 @@ class TestProgramApi(APITestCase):
                     "env_vars": env_vars,
                     "artifact": fake_file,
                     "provider": "default",
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -770,6 +779,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "env_vars": env_vars,
                     "artifact": fake_file,
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -842,6 +852,7 @@ class TestProgramApi(APITestCase):
                     "artifact": fake_file,
                     "provider": "default",
                     "description": description,
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -1080,6 +1091,7 @@ class TestProgramApi(APITestCase):
                     "entrypoint": "main.py",
                     "dependencies": "[]",
                     "artifact": fake_file_user,
+                    "runner": Program.RAY,
                 },
             )
             assert upload_response_user.status_code == status.HTTP_200_OK
@@ -1099,6 +1111,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "artifact": fake_file_provider,
                     "provider": "default",
+                    "runner": Program.RAY,
                 },
             )
             assert upload_response_provider.status_code == status.HTTP_200_OK
@@ -1227,14 +1240,18 @@ class TestProgramApi(APITestCase):
         program = Program.objects.get(title="Fleetsfunction")
         assert program.runner == Program.FLEETS
 
-    def test_upload_without_runner_defaults_to_ray(self):
-        """Upload without runner field defaults to Program.RAY."""
+    def test_upload_without_runner_defaults_to_fleets(self):
+        """Upload without runner field defaults to Program.FLEETS."""
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
         TestUtils.authorize_client(user="test_user_2", client=self.client)
+        TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
+        # A Fleets function needs a CE project and a seedable default size; neither is
+        # what this test is about, both just let the default-fleets upload succeed.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
             response = self.client.post(
                 "/api/v1/programs/upload/",
                 data={
@@ -1247,7 +1264,7 @@ class TestProgramApi(APITestCase):
             assert response.status_code == status.HTTP_200_OK
 
         program = Program.objects.get(title="Defaultrunnerfunction")
-        assert program.runner == Program.RAY
+        assert program.runner == Program.FLEETS
 
     def test_upload_with_arguments_schema_stores_it(self):
         """Upload with arguments_schema saves the schema on the Program."""
@@ -1664,7 +1681,13 @@ class TestProgramApiRuntimeInstances:
 
             response = client.post(
                 "/api/v1/programs/upload/",
-                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+                data={
+                    "title": "my-func",
+                    "provider": "my-provider",
+                    "dependencies": "[]",
+                    "entrypoint": "main.py",
+                    "runner": Program.RAY,
+                },
             )
 
             assert response.status_code == expected_status
@@ -1684,7 +1707,7 @@ class TestProgramApiRuntimeInstances:
 
             response = client.post(
                 "/api/v1/programs/upload/",
-                data={"title": "my-custom-func", "dependencies": "[]", "entrypoint": "main.py"},
+                data={"title": "my-custom-func", "dependencies": "[]", "entrypoint": "main.py", "runner": Program.RAY},
             )
 
             assert response.status_code == expected_status

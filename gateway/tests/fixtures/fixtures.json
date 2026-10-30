@@ -57,6 +57,7 @@
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Program",
       "description": "Program description test",
@@ -75,6 +76,7 @@
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec38",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "ProgramLocked",
       "disabled": true,
@@ -95,6 +97,7 @@
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec76",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "ProgramLocked2",
       "disabled": true,
@@ -113,6 +116,7 @@
     "model": "api.program",
     "pk": "6160a2ff-e482-443d-af23-15110b646ae2",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Docker-Image-Program",
       "image": "icr.io/awesome-namespace/awesome-title",
@@ -125,6 +129,7 @@
     "model": "api.program",
     "pk": "6160a2ff-e482-443d-af23-15110b646ae3",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Docker-Image-Program-2",
       "image": "icr.io/awesome-namespace/awesome-title",
@@ -141,6 +146,7 @@
     "model": "api.program",
     "pk": "74d300c1-f3f2-4c79-9b3e-2faab5f76d76",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Docker-Image-Program-3",
       "image": "icr.io/awesome-namespace/awesome-title",
@@ -158,6 +164,7 @@
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Program",
       "entrypoint": "program.py",
@@ -176,6 +183,7 @@
     "model": "api.job",
     "pk": "57fc2e4d-267f-40c6-91a3-38153272e764",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2023-02-02T15:30:43.281796Z",
@@ -189,6 +197,7 @@
     "model": "api.job",
     "pk": "8317718f-5c0d-4fb6-9947-72e480b8a348",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2023-02-02T15:30:43.281796Z",
@@ -201,6 +210,7 @@
     "model": "api.job",
     "pk": "8317718f-5c0d-4fb6-9947-72e480b85048",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2023-02-01T15:30:43.281796Z",
@@ -213,6 +223,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2023-02-01T15:30:43.281796Z",
@@ -225,6 +236,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec85",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "6160a2ff-e482-443d-af23-15110b646ae2",
       "created": "2023-02-01T15:30:43.281796Z",
@@ -238,6 +250,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec86",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "6160a2ff-e482-443d-af23-15110b646ae2",
       "created": "2023-02-02T15:30:43.281796Z",
@@ -250,6 +263,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec87",
     "fields": {
+      "runner": "ray",
       "sub_status": "",
       "program": "6160a2ff-e482-443d-af23-15110b646ae3",
       "created": "2023-02-01T15:30:43.281796Z",

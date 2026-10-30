@@ -48,6 +48,7 @@ def _create_test_job(
         author=author_user,
         program=program,
         status=status,
+        runner=Program.RAY,
         compute_resource=compute_resource,
         ray_job_id=ray_job_id,
         gpu=gpu,
