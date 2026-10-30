@@ -416,6 +416,15 @@ increasing memory, with aligned specs — so the user can see what to use instea
 never touched. The discarded task is counted as <code class="docutils literal notranslate"><span class="pre">canceled</span></code>.</p></li>
 </ul>
 <ul class="simple">
+<li><p>Before it submits a Fleets job, the scheduler now counts the fleets the
+job’s Code Engine project holds, from the Code Engine fleet list. When the
+project holds <code class="docutils literal notranslate"><span class="pre">scheduler.fleets.quota_per_project</span></code> fleets, the job stays
+<code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> until the cleanup frees one. Each project is counted at most
+once per scheduler tick. When the count fails, the job is submitted the
+same as before. The count time is recorded as the new <code class="docutils literal notranslate"><span class="pre">fleet_count</span></code>
+operation of <code class="docutils literal notranslate"><span class="pre">scheduler_operation_duration_seconds</span></code>.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler no longer submits a queued Fleets job whose account, plan and
 subscription are blocked. The job stays <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code> and does not take a free
 slot from other users, and it is submitted normally once the block is lifted.</p></li>
