@@ -1403,8 +1403,8 @@ def _task_file(started_at="2026-01-02T03:04:05.123456789Z", finished_at="2026-01
     return ("\n".join(lines) + "\n").encode()
 
 
-def _listing(*keys, size=100):
-    return [{"key": key, "size": size, "last_modified": None} for key in keys]
+def _listing(*keys):
+    return [{"key": key, "size": 100, "last_modified": None} for key in keys]
 
 
 class TestTaskTimes:
@@ -1517,13 +1517,6 @@ class TestTaskTimes:
 
         assert runner.get_task_times() == (None, None)
         runner._cos.get_object_bytes.assert_not_called()  # pylint: disable=protected-access
-
-    def test_a_file_too_big_is_not_read(self, caplog):
-        runner = self._runner(listing=_listing(_TASK_FILE, size=10 * 1024 * 1024))
-
-        assert runner.get_task_times() == (None, None)
-        runner._cos.get_object_bytes.assert_not_called()  # pylint: disable=protected-access
-        assert "too big" in caplog.text
 
     def test_only_the_current_layout_is_read(self):
         runner = self._runner()

@@ -24,13 +24,10 @@ from core.ibm_cloud.cos.cos_client import COSClient
 
 logger = logging.getLogger("FleetHandler")
 
-# The task file holds the environment of the task, tokens included, so it is never read past this size.
-# The real one is about 3 KiB.
-TASK_FILE_MAX_BYTES = 256 * 1024
-
 # Code Engine writes a zero time in ``finishedAt`` while the task runs (year 1, the zero of Go). This and anything
 # before it is a time that is not set.
 _UNSET_TIME = datetime.fromtimestamp(0, timezone.utc)
+
 # Task-store schema versions, newest first. Code Engine writes the task state under a
 # version segment and only these two exist: v3 is the layout it is moving to, v2 the
 # layout of fleets created before the switch. Readers try them in this order.

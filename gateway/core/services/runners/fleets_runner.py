@@ -44,7 +44,6 @@ from core.utils import decrypt_env_vars
 from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
-    TASK_FILE_MAX_BYTES,
     JobCOS,
     TaskTimes,
     parse_task_times,
@@ -382,12 +381,8 @@ class FleetsRunner(AbstractRunner):
         if not files:
             return TaskTimes()
 
-        key, size = files[0]["key"], files[0].get("size", 0)
-        if size > TASK_FILE_MAX_BYTES:
-            logger.warning("Task file %s is %s bytes, too big to read", key, size)
-            return TaskTimes()
-        content = self._get_cos().get_object_bytes(bucket_name=bucket, key=key)
-        return parse_task_times(content, key)
+        key = files[0]["key"]
+        return parse_task_times(self._get_cos().get_object_bytes(bucket_name=bucket, key=key), key)
 
     def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
         """Report a listing that held keys but no state this gateway recognises.
