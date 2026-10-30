@@ -1,0 +1,7 @@
+---
+other:
+  - |
+    Added ``AddIndexConcurrentlyRetryable`` in ``core/migration_operations.py``. It builds an
+    index with ``CREATE INDEX CONCURRENTLY`` and first drops an invalid leftover with the same
+    name, so a migration whose concurrent build was cancelled can be retried without a manual
+    ``DROP INDEX``.
