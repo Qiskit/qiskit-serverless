@@ -148,13 +148,20 @@ class GatewayFilesClient:
         )
 
     @_trace
-    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Uploads a file in the specific user's Qiskit Function folder."""
+    def upload(self, file: str, function: QiskitFunction, sub_path: Optional[str] = None) -> Optional[str]:
+        """Uploads a file in the specific user's Qiskit Function folder.
+
+        If ``sub_path`` is given, the file is stored in that sub-directory of the function's
+        folder (e.g. ``"wheels"``). The gateway sanitizes it to a safe relative path.
+        """
+        params = {"provider": function.provider, "function": function.title}
+        if sub_path:
+            params["sub_path"] = sub_path
         with open(file, "rb") as f:
             with requests.post(
                 url_path_join(self._files_url, "upload/"),
                 files={"file": f},
-                params={"provider": function.provider, "function": function.title},
+                params=params,
                 stream=True,
                 headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
                 timeout=REQUESTS_STREAMING_TIMEOUT,

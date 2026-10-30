@@ -26,8 +26,15 @@ import sys
 from typing import Optional
 
 # Where a function's uploaded user files are mounted inside the runtime container.
-# Uploads made with ``client.add_wheels()`` / ``file_upload()`` land here.
-DEFAULT_WHEELHOUSE = "/function_user_data"
+FUNCTION_USER_DATA = "/function_user_data"
+
+# Sub-directory of the function's file area that ``client.add_wheels()`` uploads into, and that
+# this helper installs from. Keeping wheels in their own directory keeps them separate from any
+# other files a function uploads. The client passes this name to the files API as the sub-path.
+WHEELS_SUBDIR = "wheels"
+
+# Default directory to install wheels from: the ``wheels`` sub-directory of the uploaded user data.
+DEFAULT_WHEELHOUSE = f"{FUNCTION_USER_DATA}/{WHEELS_SUBDIR}"
 
 # Optional environment override, in case the mount location is relocated by ops.
 ENV_WHEELHOUSE = "QISKIT_FUNCTIONS_WHEELHOUSE"
