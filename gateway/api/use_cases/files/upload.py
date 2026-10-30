@@ -28,10 +28,14 @@ class FilesUploadUseCase:
         function_title: str,
         uploaded_file: File,
         *,
+        sub_path: str = "",
         accessible_functions: FunctionAccessResult,
     ):
         """
         Upload a file into the provider storage.
+
+        ``sub_path`` is an optional, already-sanitized relative directory under the user's
+        public file folder (e.g. ``"wheels"``).
         """
         function = Function.objects.get_function_by_permission(
             user=user,
@@ -49,6 +53,6 @@ class FilesUploadUseCase:
             username=user.username,
             function=function,
         )
-        result = file_storage.upload_public_file(file=uploaded_file)
+        result = file_storage.upload_public_file(file=uploaded_file, sub_path=sub_path)
 
         return result

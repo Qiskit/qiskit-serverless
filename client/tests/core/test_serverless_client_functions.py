@@ -443,6 +443,86 @@ class TestDependenciesVersionsMethod:
         assert dependencies == []
 
 
+class TestAddWheelsMethod:
+    """Tests for ServerlessClient.add_wheels()."""
+
+    def test_add_wheels_uploads_each_matching_wheel(self, mock_client):
+        """add_wheels expands patterns and uploads each wheel via file_upload."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "file_upload") as mock_upload, patch(
+            "qiskit_serverless.core.clients.serverless_client.glob.glob"
+        ) as mock_glob:
+            mock_glob.side_effect = lambda p: {
+                "dist/a-*.whl": ["dist/a-1.0-py3-none-any.whl"],
+                "dist/b-*.whl": ["dist/b-2.0-py3-none-any.whl"],
+            }[p]
+
+            uploaded = mock_client.add_wheels(function, ["dist/a-*.whl", "dist/b-*.whl"])
+
+        assert uploaded == ["a-1.0-py3-none-any.whl", "b-2.0-py3-none-any.whl"]
+        assert mock_upload.call_count == 2
+        # wheels go into the dedicated "wheels" sub-directory
+        for call in mock_upload.call_args_list:
+            assert call.kwargs.get("sub_path") == "wheels"
+
+    def test_add_wheels_raises_when_pattern_matches_nothing(self, mock_client):
+        """add_wheels raises if a pattern matches no files."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch("qiskit_serverless.core.clients.serverless_client.glob.glob", return_value=[]):
+            with pytest.raises(QiskitServerlessException, match="No files match"):
+                mock_client.add_wheels(function, ["dist/missing-*.whl"])
+
+    def test_add_wheels_rejects_non_wheel_files(self, mock_client):
+        """add_wheels rejects a match that is not a .whl file."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch(
+            "qiskit_serverless.core.clients.serverless_client.glob.glob",
+            return_value=["dist/notawheel.tar.gz"],
+        ):
+            with pytest.raises(QiskitServerlessException, match="only accepts .whl"):
+                mock_client.add_wheels(function, ["dist/*"])
+
+
+class TestDependencyReportMethod:
+    """Tests for ServerlessClient.dependency_report()."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_dependency_report_classifies_each_requirement(self, mock_get, mock_client):
+        """dependency_report marks requirements as baked / bring / clash."""
+        baked = ["numpy==2.1.0", "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1", "mergedeep==1.3.4"]
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = json.dumps(baked)
+        mock_response.json.return_value = baked
+        mock_get.return_value = mock_response
+
+        report = mock_client.dependency_report(
+            ["numpy>=2", "mypkg", "mergedeep==2.0.0", "qiskit_addon_aqc_tensor==0.3.1"]
+        )
+
+        by_req = {e.requirement: e.status for e in report}
+        assert by_req["numpy>=2"] == "baked"
+        assert by_req["mypkg"] == "bring"
+        assert by_req["mergedeep==2.0.0"] == "clash"
+        # name normalization: underscores/extras still match the baked entry
+        assert by_req["qiskit_addon_aqc_tensor==0.3.1"] == "baked"
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_dependency_report_prints_as_table(self, mock_get, mock_client):
+        """The report renders as an aligned table with a header row."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = "[]"
+        mock_response.json.return_value = []
+        mock_get.return_value = mock_response
+
+        report = mock_client.dependency_report(["mypkg"])
+        text = str(report)
+
+        assert "requirement" in text and "status" in text and "note" in text
+        assert "mypkg" in text
+
+
 class TestUploadWithDockerImage:
     """Tests for _upload_with_docker_image helper function."""
 

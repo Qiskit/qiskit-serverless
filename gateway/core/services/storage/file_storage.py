@@ -108,7 +108,7 @@ class FileStorage(ABC):
         """
 
     @abstractmethod
-    def upload_public_file(self, file: File) -> str:
+    def upload_public_file(self, file: File, sub_path: str = "") -> str:
         """
         This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
@@ -116,6 +116,8 @@ class FileStorage(ABC):
 
         Args:
             file (django.File): the file to store in the specific path
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder to store the file in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             str: the path where the file was stored

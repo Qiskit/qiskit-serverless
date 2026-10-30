@@ -56,3 +56,4 @@ from .job import (
 from .function import QiskitPattern, QiskitFunction
 from .compute_profile import ComputeProfile
 from .serverless_error import ServerlessError
+from .wheels import install_uploaded_wheels

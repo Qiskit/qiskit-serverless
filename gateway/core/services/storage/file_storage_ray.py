@@ -15,7 +15,7 @@ from core.models import Program
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.file_storage import FileStorage
 from core.services.storage.path_builder import PathBuilder
-from core.utils import sanitize_file_path
+from core.utils import sanitize_file_path, sanitize_sub_path
 
 logger = logging.getLogger("core.FileStorage")
 
@@ -232,7 +232,7 @@ class FileStorageRay(FileStorage):
 
         return _stream_chunks(), file_type, file_size
 
-    def upload_public_file(self, file: File) -> str:
+    def upload_public_file(self, file: File, sub_path: str = "") -> str:
         """
         This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
@@ -240,11 +240,13 @@ class FileStorageRay(FileStorage):
 
         Args:
             file (django.File): the file to store in the specific path
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             str: the path where the file was stored
         """
-        return self._upload_file_to_folder(self.public_path, file)
+        return self._upload_file_to_folder(self.public_path, file, sub_path)
 
     def upload_private_file(self, file: File) -> str:
         """
@@ -260,7 +262,7 @@ class FileStorageRay(FileStorage):
         """
         return self._upload_file_to_folder(self.private_path, file)
 
-    def _upload_file_to_folder(self, folder_path: str, file: File) -> str:
+    def _upload_file_to_folder(self, folder_path: str, file: File, sub_path: str = "") -> str:
         """
         This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
@@ -268,6 +270,7 @@ class FileStorageRay(FileStorage):
 
         Args:
             file (django.File): the file to store in the specific path
+            sub_path (str): optional, already-sanitized relative directory under ``folder_path``.
 
         Returns:
             str: the path where the file was stored
@@ -275,7 +278,11 @@ class FileStorageRay(FileStorage):
 
         file_name = sanitize_file_path(file.name)
         basename = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(os.path.join(folder_path, basename))
+        # sub_path is sanitized at the API boundary; re-sanitize here for defense in depth.
+        safe_sub_path = sanitize_sub_path(sub_path)
+        destination_folder = os.path.join(folder_path, safe_sub_path) if safe_sub_path else folder_path
+        os.makedirs(destination_folder, exist_ok=True)
+        path_to_file = sanitize_file_path(os.path.join(destination_folder, basename))
 
         with open(path_to_file, "wb+") as destination:
             for chunk in file.chunks():

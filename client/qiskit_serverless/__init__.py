@@ -32,6 +32,7 @@ from .core import (
     get_runtime_service,
     send_error,
     ServerlessError,
+    install_uploaded_wheels,
 )
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
