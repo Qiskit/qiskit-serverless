@@ -499,6 +499,23 @@ setting can be a comma separated list of providers (<code class="docutils litera
 only the jobs of those are mirrored.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The scheduler now submits up to 5 queued Fleets jobs in one tick, for all
+users together, and one user can take more than one of them. Before, it
+submitted one job per user, so a user alone with 10 queued jobs needed 10
+ticks. The jobs are taken in rounds across users, so the first job of every
+user comes before the second job of any user. The new dynamic Config
+<code class="docutils literal notranslate"><span class="pre">scheduler.fleets.jobs_per_tick</span></code> sets the number, and <code class="docutils literal notranslate"><span class="pre">0</span></code> or less stops
+new Fleets submits. The user’s job limit still caps how many of their jobs
+run at once.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The per-user job limit can now be changed in the backoffice, without a
+deploy, with the new dynamic Config <code class="docutils literal notranslate"><span class="pre">gateway.limits.active_jobs_per_user</span></code>.
+It caps how many jobs one user can have queued or running, and how many
+Fleets jobs one user can have running. It defaults to 50, the same as
+before.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler exports three new metrics:
 <code class="docutils literal notranslate"><span class="pre">scheduler_code_engine_request_duration_seconds</span></code> by endpoint and status,
 <code class="docutils literal notranslate"><span class="pre">scheduler_cos_request_duration_seconds</span></code> by operation and status, and
@@ -608,6 +625,12 @@ whose row was already deleted stay without a size.</p></li>
 <li><p>While <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> is on, running a Fleets function with an
 instance CRN can fail with a <code class="docutils literal notranslate"><span class="pre">503</span></code> error, and no job is created, if the
 Runtime API does not accept the job. Retrying the request later is safe.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">LIMITS_ACTIVE_JOBS_PER_USER</span></code> and <code class="docutils literal notranslate"><span class="pre">LIMITS_JOBS_PER_USER_FLEETS</span></code> env
+settings and the chart value <code class="docutils literal notranslate"><span class="pre">application.limits.maxActiveJobsPerUser</span></code> are
+removed. Set the <code class="docutils literal notranslate"><span class="pre">gateway.limits.active_jobs_per_user</span></code> Config value in the
+backoffice instead.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The function list is now ordered by title, and the jobs of a function
