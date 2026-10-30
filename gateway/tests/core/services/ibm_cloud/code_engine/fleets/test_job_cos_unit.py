@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
@@ -28,8 +29,11 @@ from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
+    TaskTimes,
+    parse_task_times,
     queue_prefix,
     task_state_from_key,
+    tasks_prefix,
 )
 
 _IBM_CLOUD_MOD = "core.ibm_cloud"
@@ -456,3 +460,70 @@ class TestQueuePrefixAndState:
         prefix = queue_prefix("proj", "fleet")
         key = f"{prefix}pending/000-00000-0/succeeded/0/2026-08-26T19:09:39Z/uuid"
         assert task_state_from_key(prefix, key) == "pending"
+
+
+class TestTasksPrefix:
+    """The task file layout, which stays after the task ends."""
+
+    def test_it_sits_next_to_the_queue_under_the_newest_version(self):
+        assert tasks_prefix("proj", "fleet") == "ce/proj/fleet/v3/tasks/"
+        assert (
+            tasks_prefix("proj", "fleet").rsplit("tasks/", 1)[0] == queue_prefix("proj", "fleet").rsplit("queue/", 1)[0]
+        )
+
+
+class TestParseTaskTimes:
+    """parse_task_times() reads startedAt and finishedAt, and logs nothing of the content."""
+
+    def test_an_unquoted_timestamp_with_nanoseconds_is_read(self):
+        times = parse_task_times(b"startedAt: 2026-01-02T03:04:05.123456789Z\nfinishedAt: 2026-01-02T03:06:07Z\n", "k")
+
+        assert times == TaskTimes(
+            datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc),
+            datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc),
+        )
+
+    def test_a_quoted_timestamp_with_nanoseconds_is_read(self):
+        times = parse_task_times(b"startedAt: '2026-01-02T03:04:05.123456789Z'\n", "k")
+
+        assert times.started_at == datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc)
+
+    def test_an_offset_other_than_utc_is_kept_aware(self):
+        times = parse_task_times(b"startedAt: '2026-01-02T03:04:05+02:00'\n", "k")
+
+        assert times.started_at == datetime(2026, 1, 2, 1, 4, 5, tzinfo=timezone.utc)
+
+    def test_the_times_of_the_worker_are_ignored(self):
+        content = b"status:\n- startTime: '2026-01-02T03:04:05Z'\n  endTime: '2026-01-02T03:06:07Z'\n"
+
+        assert parse_task_times(content, "k") == TaskTimes()
+
+    @pytest.mark.parametrize("zero", ["0001-01-01T00:00:00Z", "'0001-01-01T00:00:00Z'", "1970-01-01T00:00:00Z"])
+    def test_the_zero_time_is_not_set(self, zero, caplog):
+        """Code Engine writes it in finishedAt while the task runs: year 1, the zero of Go, or the Unix epoch."""
+        content = f"startedAt: 2026-01-02T03:04:05Z\nfinishedAt: {zero}\n".encode()
+
+        times = parse_task_times(content, "k")
+
+        assert times == TaskTimes(datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), None)
+        assert "finishedAt" in caplog.text
+
+    def test_a_time_after_the_zero_is_set(self):
+        assert parse_task_times(b"startedAt: 1970-01-01T00:00:01Z\n", "k").started_at is not None
+
+    def test_an_unquoted_year_zero_makes_the_whole_file_unreadable(self, caplog):
+        """YAML cannot build it and raises ValueError, so the start of the same file is lost too. Quoted, it is a string
+        that is not a timestamp and the other time is kept. Code Engine has not been seen writing it."""
+        content = b"startedAt: 2026-01-02T03:04:05Z\nfinishedAt: 0000-00-00T00:00:00Z\n"
+
+        assert parse_task_times(content, "k") == TaskTimes()
+        assert "is not valid YAML" in caplog.text
+        assert parse_task_times(content.replace(b"0000-00-00T00:00:00Z", b"'0000-00-00T00:00:00Z'"), "k").started_at
+
+    def test_null_and_missing_are_none_without_a_warning(self, caplog):
+        assert parse_task_times(b"startedAt: null\n", "k") == TaskTimes()
+        assert "not a timestamp" not in caplog.text
+
+    def test_yaml_cannot_build_python_objects(self):
+        """safe_load: a tag that would run code is an error, not an object."""
+        assert parse_task_times(b"startedAt: !!python/object/apply:os.getcwd []\n", "k") == TaskTimes()

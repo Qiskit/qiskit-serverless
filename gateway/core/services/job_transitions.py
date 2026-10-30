@@ -116,19 +116,21 @@ class JobTransitionService:
     def pending_to_running(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
-        """The job started running: a job_started event is sent, best effort, once it is written."""
+        """The job started running: a job_started event is sent, best effort, once it is written.
+
+        The caller sets job.running_started_at, which billing and the Runtime API read, when it knows it. Without it
+        the job started when the event was written."""
         with transaction.atomic():
             event = self._change_status(job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields)
-        # A job reaches RUNNING only once, so this event is its start time
-        self._send_job_in_progress(job, job_started=True, job_started_at=event.created)
+        self._send_job_in_progress(job, job_started=True)
         self.workload_mirror.send(job)
         return event
 
-    def running_to_running(self, job: Job, job_started_at: datetime | None) -> None:
+    def running_to_running(self, job: Job) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
         best effort in-progress event is sent."""
         with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
-            self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
+            self._send_job_in_progress(job, job_started=False)
 
     def stop(
         self,
@@ -178,8 +180,14 @@ class JobTransitionService:
             self._enqueue_workload(job)
         return Job.STOPPED
 
-    def to_terminal(
-        self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_terminal(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        status: str,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
     ) -> JobEvent:
         """to_succeeded, to_failed or to_stopped, for the caller that only knows the final status."""
         transition = {
@@ -199,8 +207,8 @@ class JobTransitionService:
         with transaction.atomic():
             event = self._change_status(job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields)
             if _is_usage_billable(job):
-                job_started_at = JobEvent.objects.first_running_at(job.id)
-                self._enqueue_job_usage(job, job_started_at, event.created)
+                job_started_at = job.started_at()
+                self._enqueue_job_usage(job, job_started_at, job.ended_at())
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
@@ -226,8 +234,8 @@ class JobTransitionService:
         with transaction.atomic():
             event = self._change_status(job, status, origin=origin, context=context, job_fields=job_fields)
             if _is_usage_billable(job):
-                job_started_at = JobEvent.objects.first_running_at(job.id)
-                self._enqueue_job_usage(job, job_started_at, event.created)
+                job_started_at = job.started_at()
+                self._enqueue_job_usage(job, job_started_at, job.ended_at())
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
@@ -303,7 +311,7 @@ class JobTransitionService:
             Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
 
-    def _send_job_in_progress(self, job: Job, job_started: bool, job_started_at: datetime | None) -> None:
+    def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
 
         The sender is asked not to wait for the broker (timeout=0): it does not raise for a message it cannot
@@ -316,7 +324,7 @@ class JobTransitionService:
             return
         try:
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
-            payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
+            payload = BillingEvents.build_job_usage(job, job.started_at(), job_last_progress_time)
             # timeout=0: send and return at once, without waiting for the ack or a flush. It never raises error,
             # but it is caught anyway in case a sender implementation changes in the future
             self.billing_sender.send(payload, timeout=0)
