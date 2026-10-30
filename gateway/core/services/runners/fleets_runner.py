@@ -369,7 +369,6 @@ class FleetsRunner(AbstractRunner):
                 return TaskTimes()
             content = self._get_cos().get_object_bytes(bucket_name=bucket, key=key)
             return parse_task_times(content, key)
-
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
             return TaskTimes()

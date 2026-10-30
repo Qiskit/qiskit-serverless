@@ -94,7 +94,14 @@ def tasks_prefix(project_id: str, fleet_id: str, version: str = TASK_STORE_VERSI
 
     Returns:
         The tasks key prefix, ending in a trailing slash.
+
+    Raises:
+        ValueError: If project_id or fleet_id is missing.
     """
+    if not project_id:
+        raise ValueError("project_id is required.")
+    if not fleet_id:
+        raise ValueError("fleet_id is required.")
     return f"ce/{project_id}/{fleet_id}/{version}/tasks/"
 
 
@@ -279,7 +286,12 @@ class JobCOS:
 
         Returns:
             List of object keys.
+
+        Raises:
+            ValueError: If bucket_name is missing.
         """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
         return self._cos.list_keys(bucket=bucket_name, prefix=prefix)
 
     def list_with_metadata(

@@ -28,6 +28,7 @@ from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
+from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
@@ -1531,10 +1532,15 @@ class TestTaskTimes:
         runner._cos.list_keys.assert_not_called()  # pylint: disable=protected-access
 
     def test_it_is_none_when_the_task_store_bucket_is_not_configured(self):
+        """The mocked _cos answers any bucket, so a real JobCOS over a mocked client is what refuses it."""
         runner = self._runner()
+        cos_client = MagicMock()
+        runner._cos = JobCOS(cos_client)  # pylint: disable=protected-access
         runner._project.cos_bucket_task_store_name = None  # pylint: disable=protected-access
 
         assert runner.get_task_times() == (None, None)
+        cos_client.list_keys.assert_not_called()
+        cos_client.get_object_bytes.assert_not_called()
 
     def test_a_listing_error_gives_no_times_instead_of_raising(self, caplog):
         runner = self._runner()

@@ -137,6 +137,24 @@ def test_job_cos_head_object() -> None:
     mock_cos.head_object.assert_called_once_with(bucket="my-bucket", key="some/key")
 
 
+def test_job_cos_list_keys_lists_under_the_prefix() -> None:
+    """list_keys() hands the bucket and the prefix to the COS client."""
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.list_keys.return_value = ["a/b"]
+
+    assert job_cos.list_keys(bucket_name="my-bucket", prefix="a/") == ["a/b"]
+    mock_cos.list_keys.assert_called_once_with(bucket="my-bucket", prefix="a/")
+
+
+def test_job_cos_list_keys_raises_on_empty_bucket() -> None:
+    """list_keys() raises ValueError when bucket_name is empty, without calling COS."""
+    job_cos, mock_cos = _make_job_cos()
+    for bucket in ("", None):
+        with pytest.raises(ValueError, match="bucket_name"):
+            job_cos.list_keys(bucket_name=bucket, prefix="a/")
+    mock_cos.list_keys.assert_not_called()
+
+
 def test_job_cos_head_object_raises_on_empty_bucket() -> None:
     """head_object() raises ValueError when bucket_name is empty."""
     job_cos, _ = _make_job_cos()
@@ -470,6 +488,12 @@ class TestTasksPrefix:
         assert (
             tasks_prefix("proj", "fleet").rsplit("tasks/", 1)[0] == queue_prefix("proj", "fleet").rsplit("queue/", 1)[0]
         )
+
+    @pytest.mark.parametrize("project_id, fleet_id", [("", "fleet"), (None, "fleet"), ("proj", ""), ("proj", None)])
+    def test_it_needs_a_project_and_a_fleet(self, project_id, fleet_id):
+        """A missing id would build a prefix like ``ce/proj/None/v3/tasks/`` that lists nothing."""
+        with pytest.raises(ValueError, match="is required"):
+            tasks_prefix(project_id, fleet_id)
 
 
 class TestParseTaskTimes:
