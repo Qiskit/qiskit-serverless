@@ -39,12 +39,13 @@ class CEAuth:
     client_provider: IBMCloudClientProvider
 
 
-def get_ce_auth(api_key: str, region: str) -> CEAuth:
+def get_ce_auth(api_key: str, region: str, *, retry_reads: bool = True) -> CEAuth:
     """Create an authenticated CE ApiClient and IBMCloudClientProvider.
 
     Args:
         api_key: IBM Cloud API key.
         region: IBM Cloud region (e.g. ``"us-south"``).
+        retry_reads: ``False`` raises a timed-out read, and returns a 429, on the first try.
 
     Returns:
         :class:`CEAuth` holding the CE API client and the client provider.
@@ -66,7 +67,9 @@ def get_ce_auth(api_key: str, region: str) -> CEAuth:
     api_client = _MeteredApiClient(cfg)
     # urllib3 retries a timed-out read on a DELETE 3 times, which holds the single-threaded scheduler 4x its timeout
     api_client.rest_client.pool_manager.connection_pool_kw["retries"] = Retry.DEFAULT.new(
-        allowed_methods=Retry.DEFAULT_ALLOWED_METHODS - {"DELETE"}
+        allowed_methods=Retry.DEFAULT_ALLOWED_METHODS - {"DELETE"},
+        read=None if retry_reads else False,
+        respect_retry_after_header=retry_reads,
     )
     return CEAuth(api_client=api_client, client_provider=client_provider)
 

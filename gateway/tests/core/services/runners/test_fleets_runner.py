@@ -32,7 +32,7 @@ from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
-from core.services.runners.fleets_runner import FleetsRunner
+from core.services.runners.fleets_runner import FleetsRunner, count_fleets
 from tests.utils import TestUtils
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
@@ -524,6 +524,28 @@ def test_free_resources_raises_unavailable_when_the_request_failed(error):
 
     with pytest.raises(RunnerRetryableError):
         runner.free_resources()
+
+
+def test_count_fleets_raises_a_runner_error_on_any_failure():
+    project = MagicMock(region="us-east", project_id="p1", project_name="ce-test")
+    with (
+        _patch_settings(),
+        patch(f"{_RUNNER_MOD}.get_ce_auth") as mock_auth,
+        patch(f"{_RUNNER_MOD}.FleetHandler") as mock_handler_cls,
+    ):
+        mock_handler_cls.return_value.count_fleets.side_effect = TimeoutError("took too long")
+        with pytest.raises(RunnerError):
+            count_fleets(project, 15)
+
+    mock_auth.assert_called_once_with("test-api-key", "us-east", retry_reads=False)
+
+
+def test_count_fleets_needs_an_api_key():
+    with _patch_settings(IBM_CLOUD_API_KEY=""), patch(f"{_RUNNER_MOD}.get_ce_auth") as mock_auth:
+        with pytest.raises(RunnerError):
+            count_fleets(MagicMock(), 15)
+
+    mock_auth.assert_not_called()
 
 
 def test_free_resources_refuses_a_job_that_is_not_terminal():
