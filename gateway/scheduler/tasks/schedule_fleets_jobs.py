@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 from datetime import datetime, timezone
 
 from django.conf import settings
@@ -9,16 +10,21 @@ from django.conf import settings
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from core.config_key import ConfigKey
-from core.models import Job, Config, Program
+from core.external_call_metrics import FLEET_COUNT, observe_operation
+from core.models import CodeEngineProject, Job, Config, Program
 from core.services.job_transitions import JobTransitionService
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.runners import RunnerError, RunnerRetryableError
+from core.services.runners.fleets_runner import count_fleets
 from scheduler.schedule import FleetsJobSubmitter, get_jobs_to_schedule_fair_share
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
+from scheduler.tasks.free_fleets_resources import DEFAULT_QUOTA_PER_PROJECT
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.ScheduleFleetsJobs")
+
+COUNT_DEADLINE_SECONDS = 15
 
 
 class ScheduleFleetsJobs(SchedulerTask):
@@ -73,6 +79,7 @@ class ScheduleFleetsJobs(SchedulerTask):
         # failure (a 429, for one) with the breaker still closed, and those jobs are not counted as held by a breaker.
         paused_regions: set[str | None] = set()
         submitted = 0
+        free_fleets: dict[int, float] = {}
         for job in jobs:
             if self.kill_signal.received:
                 return
@@ -85,6 +92,11 @@ class ScheduleFleetsJobs(SchedulerTask):
                 skipped_regions.add(job.ce_region)
                 paused_regions.add(job.ce_region)
                 self.metrics.increment_fleets_jobs_skipped_by_breaker(job.ce_region)
+                continue
+
+            project = self._counted_project(job, free_fleets)
+            if project and free_fleets[project.id] <= 0:
+                logger.info("job_id=%s project=%s Job kept QUEUED: no free fleet", job.id, project.project_name)
                 continue
 
             env = json.loads(job.env_vars)
@@ -101,11 +113,35 @@ class ScheduleFleetsJobs(SchedulerTask):
                 continue
 
             submitted += 1
+            if project:
+                free_fleets[project.id] -= 1
             self.add_queue_wait_time_metric(job)
 
         self.metrics.increment_task_items(self.name, submitted)
         if submitted:
             logger.info("%s jobs are scheduled for execution.", submitted)
+
+    def _counted_project(self, job: Job, free_fleets: dict[int, float]) -> CodeEngineProject | None:
+        """The job's active Code Engine project, counted into ``free_fleets`` once per tick."""
+        project = job.program.code_engine_project if job.program else None
+        if project is None or not project.active:
+            return None
+        if project.id not in free_fleets:
+            free_fleets[project.id] = self._free_fleets(project)
+        return project
+
+    @staticmethod
+    def _free_fleets(project: CodeEngineProject) -> float:
+        """How many more fleets the project can hold, or infinity when Code Engine could not count them."""
+        try:
+            with observe_operation(FLEET_COUNT):
+                count = count_fleets(project, COUNT_DEADLINE_SECONDS)
+        except RunnerError as ex:
+            logger.warning("project=%s fleets not counted, submitting anyway: %s", project.project_name, ex)
+            return math.inf
+        quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
+        logger.info("project=%s holds %s of %s fleets", project.project_name, count, quota)
+        return max(0, quota - count)
 
     def add_queue_wait_time_metric(self, job: Job):
         """Add queue wait time metric."""

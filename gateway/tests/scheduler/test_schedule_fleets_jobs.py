@@ -1,12 +1,13 @@
 """Unit tests for ScheduleFleetsJobs."""
 
+import math
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from core.config_key import ConfigKey
-from core.models import Job, Program
+from core.models import Config, Job, Program
 from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
@@ -17,8 +18,17 @@ _MOD = "scheduler.tasks.schedule_fleets_jobs"
 @pytest.fixture(autouse=True, name="jobs_per_tick")
 def _fleets_limits():
     config = {ConfigKey.FLEETS_JOBS_PER_TICK: 3, ConfigKey.ACTIVE_JOBS_PER_USER: 40}
-    with patch(f"{_MOD}.Config.get_int", side_effect=lambda key: config[key]):
+    get_int = Config.get_int
+    with patch(
+        f"{_MOD}.Config.get_int", side_effect=lambda key, **kw: config[key] if key in config else get_int(key, **kw)
+    ):
         yield config
+
+
+@pytest.fixture(autouse=True)
+def fleet_count():
+    with patch(f"{_MOD}.count_fleets", side_effect=RunnerError("not counted in unit tests")) as count:
+        yield count
 
 
 def test_jobs_per_tick_zero_submits_nothing(jobs_per_tick):
@@ -33,6 +43,25 @@ def _make_task():
     kill_signal = MagicMock()
     kill_signal.received = False
     return ScheduleFleetsJobs(kill_signal=kill_signal, metrics=MagicMock())
+
+
+def _job(project_name="ce-test"):
+    job = MagicMock(env_vars="{}", ce_region="us-east")
+    job.program.code_engine_project.id = hash(project_name)
+    job.program.code_engine_project.project_name = project_name
+    job.program.code_engine_project.active = True
+    return job
+
+
+def _schedule(jobs, free_fleets, submits=None):
+    task = _make_task()
+    with (
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=jobs),
+        patch.object(ScheduleFleetsJobs, "_free_fleets", side_effect=free_fleets) as mock_free_fleets,
+        patch.object(task.submitter, "submit", return_value=True, side_effect=submits) as mock_submit,
+    ):
+        task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
+    return [call.args[0] for call in mock_submit.call_args_list], mock_free_fleets
 
 
 def test_fleets_execute_called_with_ctx():
@@ -136,3 +165,56 @@ def test_a_job_in_a_paused_region_is_not_submitted():
     assert [call.args[0] for call in mock_submit.call_args_list] == [other]
     # both jobs of the paused region are counted, the one that found the breaker open and the one skipped after it
     assert task.metrics.increment_fleets_jobs_skipped_by_breaker.call_count == 2
+
+
+def test_a_failed_submit_keeps_its_free_fleet():
+    jobs = [_job(), _job()]
+
+    submitted, _ = _schedule(jobs, lambda project: 1, submits=[RunnerError("refused"), True])
+
+    assert submitted == jobs
+
+
+def test_a_project_with_no_free_fleet_keeps_its_jobs_queued():
+    full, other = _job("full"), _job("other")
+
+    submitted, _ = _schedule([full, other], lambda project: 0 if project.project_name == "full" else math.inf)
+
+    assert submitted == [other]
+
+
+def test_each_submit_takes_one_free_fleet_of_its_project():
+    jobs = [_job(), _job(), _job()]
+
+    submitted, free_fleets = _schedule(jobs, lambda project: 2)
+
+    assert submitted == jobs[:2]
+    free_fleets.assert_called_once()
+
+
+def test_a_job_without_an_active_project_is_not_counted():
+    no_project = MagicMock(env_vars="{}", ce_region="us-east", program=None)
+    inactive = _job()
+    inactive.program.code_engine_project.active = False
+
+    submitted, free_fleets = _schedule([no_project, inactive], lambda project: 0)
+
+    assert submitted == [no_project, inactive]
+    free_fleets.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("count, expected", [(8, 2), (12, 0)])
+def test_free_fleets_is_the_quota_less_the_fleets_code_engine_counts(fleet_count, count, expected):
+    Config.add_defaults()
+    Config.set(ConfigKey.FLEETS_QUOTA_PER_PROJECT, "10")
+    fleet_count.side_effect = None
+    fleet_count.return_value = count
+
+    assert ScheduleFleetsJobs._free_fleets(MagicMock()) == expected
+
+
+def test_free_fleets_is_unlimited_when_code_engine_cannot_count(fleet_count):
+    fleet_count.side_effect = RunnerRetryableError("Too Many Requests")
+
+    assert ScheduleFleetsJobs._free_fleets(MagicMock()) == math.inf
