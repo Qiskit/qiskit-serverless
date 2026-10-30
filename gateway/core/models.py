@@ -819,13 +819,22 @@ class Job(models.Model):
 
     def started_at(self):
         """When the job started running: running_started_at, or the first RUNNING event for the jobs without it.
-        None if it never ran."""
-        return self.running_started_at or JobEvent.objects.first_running_at(self.id)
+        None if it never ran. The event time comes with the job when it was loaded with ``with_event_times()``, and
+        is queried when it was not."""
+        if self.running_started_at is not None:
+            return self.running_started_at
+        logger.debug("job_id=%s has no running_started_at, falling back to its first RUNNING event", self.id)
+        if "_first_running_at" in self.__dict__:
+            return self.first_running_at
+        return JobEvent.objects.first_running_at(self.id)
 
     def ended_at(self):
         """When the job ended: running_ended_at, or the first terminal event for the jobs without it. None if it did
         not."""
-        return self.running_ended_at or JobEvent.objects.first_terminal_at(self.id)
+        if self.running_ended_at is not None:
+            return self.running_ended_at
+        logger.debug("job_id=%s has no running_ended_at, falling back to its first terminal event", self.id)
+        return JobEvent.objects.first_terminal_at(self.id)
 
     @property
     def compute_profile_id(self) -> str | None:

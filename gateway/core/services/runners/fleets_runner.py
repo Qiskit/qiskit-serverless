@@ -48,6 +48,7 @@ from core.ibm_cloud.code_engine.fleets.cos import (
     JobCOS,
     TaskTimes,
     parse_task_times,
+    plausible_task_times,
     queue_prefix,
     task_state_from_key,
     tasks_prefix,
@@ -355,18 +356,19 @@ class FleetsRunner(AbstractRunner):
         return None
 
     def get_task_times(self) -> TaskTimes:
-        """When Code Engine says the task started and finished, read from its task file, which unlike the keys under
-        ``queue/`` stays after the task ends. A time that is not known is ``None``. It only improves on the moment
-        the scheduler noticed, so it never raises: no fleet, no file yet, a file that cannot be read and a failing
-        COS all give ``TaskTimes()``."""
+        """When Code Engine says the task started and finished, from its task file, which unlike the keys under
+        ``queue/`` stays after the task ends. A time that is not known or cannot be true is ``None``. It only improves
+        on the moment the scheduler noticed, so it never raises: no fleet, no file yet, an unreadable file and a
+        failing COS all give ``TaskTimes()``."""
         try:
-            return self._read_task_times()
+            times = self._read_task_times()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
             return TaskTimes()
+        return plausible_task_times(times, self.job.created, self.job.running_started_at, self.job.fleet_id)
 
     def _read_task_times(self) -> TaskTimes:
-        """Read the task file of the fleet. A job runs a single task, so the first file is the only one."""
+        """The task file of the fleet. A job runs a single task, so the first file is the only one."""
         fleet_id = self.job.fleet_id
         if not fleet_id:
             return TaskTimes()
@@ -376,16 +378,15 @@ class FleetsRunner(AbstractRunner):
         if not bucket:
             return TaskTimes()
 
-        prefix = tasks_prefix(self._project.project_id, fleet_id)
-        objects = self._list_task_state_objects(bucket, prefix)
+        objects = self._list_task_state_objects(bucket, tasks_prefix(self._project.project_id, fleet_id))
         # A key ending in "/" is a directory marker, not a task file
         files = [obj for obj in objects or [] if not obj["key"].endswith("/")]
         if not files:
             return TaskTimes()
 
-        key = files[0]["key"]
-        if files[0].get("size", 0) > TASK_FILE_MAX_BYTES:
-            logger.warning("Task file %s is %s bytes, too big to read", key, files[0]["size"])
+        key, size = files[0]["key"], files[0].get("size", 0)
+        if size > TASK_FILE_MAX_BYTES:
+            logger.warning("Task file %s is %s bytes, too big to read", key, size)
             return TaskTimes()
         content = self._get_cos().get_object_bytes(bucket_name=bucket, key=key)
         return parse_task_times(content, key)

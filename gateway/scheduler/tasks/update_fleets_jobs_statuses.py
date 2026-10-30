@@ -11,7 +11,6 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
-from core.ibm_cloud.code_engine.fleets.cos import TaskTimes
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
@@ -151,22 +150,8 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             job.status,
             new_status,
         )
-        # Read before the transition opens its transaction: no network call with the job locked
-        times = runner.get_task_times() if runner else TaskTimes()
-        ended_at = times.finished_at
-        # Only a job that has no start yet: one that went from PENDING to its end between two scans never showed as
-        # RUNNING, and the task file is the only place left that says when it started
-        started_at = times.started_at if job.running_started_at is None else None
-        if runner and ended_at is None:
-            # The task store has just reported this state, so a missing time is Code Engine or COS failing
-            logger.warning(
-                "job_id=%s fleet_id=%s no Code Engine time for %s, the job ends when the scheduler noticed it",
-                job.id,
-                job.fleet_id,
-                new_status,
-            )
-        if runner and job.running_started_at is None and started_at is None:
-            logger.warning("job_id=%s fleet_id=%s no Code Engine start time for the job", job.id, job.fleet_id)
+        if runner:
+            self._set_code_engine_times(job, runner, new_status)
         try:
             self.transitions.to_terminal(
                 job,
@@ -174,8 +159,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 origin=JobEventOrigin.SCHEDULER,
                 context=JobEventContext.UPDATE_JOB_STATUS,
                 job_fields={"sub_status": None, "env_vars": "{}"},
-                ended_at=ended_at,
-                started_at=started_at,
             )
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
@@ -183,6 +166,38 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         self._increment_terminal_counter(job, stop_landed=stop_landed)
         if new_status == Job.SUCCEEDED:
             self._record_execution_duration(job)
+
+    @staticmethod
+    def _set_code_engine_times(job: Job, runner: FleetsRunner, status: str) -> None:
+        """Store in the job when Code Engine says its task started and, for a terminal status, finished. A time the
+        job already has is kept: a job reaches RUNNING once, so its start does not change. One that is not known is
+        left empty and the job starts or ends when its status event was written.
+
+        Read before the transition opens its transaction: no network call with the job locked. The task store has
+        just reported status, so a time missing for it is Code Engine or COS failing."""
+        times = runner.get_task_times()
+        fields = {}
+        if job.running_started_at is None:
+            if times.started_at is None:
+                logger.warning(
+                    "job_id=%s fleet_id=%s no Code Engine start time, the job starts when the scheduler noticed it",
+                    job.id,
+                    job.fleet_id,
+                )
+            else:
+                fields["running_started_at"] = times.started_at
+        if status in Job.TERMINAL_STATUSES:
+            if times.finished_at is None:
+                logger.warning(
+                    "job_id=%s fleet_id=%s no Code Engine end time for %s, the job ends when the scheduler noticed it",
+                    job.id,
+                    job.fleet_id,
+                    status,
+                )
+            else:
+                fields["running_ended_at"] = times.finished_at
+        if fields:
+            job.update_fields(fields)
 
     def to_running(self, job: Job, runner: FleetsRunner) -> None:
         """Transition job from PENDING to RUNNING, or emit an in-progress event if it already is."""
@@ -195,29 +210,16 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 job.status,
                 Job.RUNNING,
             )
-            # Read before the transition opens its transaction: no network call with the job locked
-            running_at = runner.get_task_times().started_at
-            if running_at is None:
-                logger.warning(
-                    "job_id=%s fleet_id=%s no Code Engine time for %s, the job starts when the scheduler noticed it",
-                    job.id,
-                    job.fleet_id,
-                    Job.RUNNING,
-                )
+            self._set_code_engine_times(job, runner, Job.RUNNING)
             try:
                 self.transitions.pending_to_running(
-                    job,
-                    origin=JobEventOrigin.SCHEDULER,
-                    context=JobEventContext.UPDATE_JOB_STATUS,
-                    running_at=running_at,
+                    job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
                 )
             except InvalidJobTransitionException as ex:
                 # Lost the race: the job reached a terminal status concurrently (like user stopped the job)
                 logger.info("job_id=%s transition rejected from %s, skipping RUNNING: %s", job.id, job.status, str(ex))
         else:
-            # running_started_at is when Code Engine started it; the first RUNNING event (loaded with the job, no query)
-            # is for the jobs that have none
-            self.transitions.running_to_running(job, job_started_at=job.running_started_at or job.first_running_at)
+            self.transitions.running_to_running(job)
 
     def stop_job_if_timeout(self, job: Job) -> bool:
         """Stop a job that has outlived PROGRAM_TIMEOUT. Returns True if it ended the job."""

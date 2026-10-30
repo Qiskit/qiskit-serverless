@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, NamedTuple
 
 import yaml
@@ -27,6 +27,10 @@ logger = logging.getLogger("FleetHandler")
 # The task file holds the environment of the task, tokens included, so it is never read past this size.
 # The real one is about 3 KiB.
 TASK_FILE_MAX_BYTES = 256 * 1024
+
+# How far ahead of the gateway clock a time from Code Engine may read before it is discarded. The two clocks are not
+# synchronized, so a time that has just happened can read as a moment that has not happened here yet.
+TASK_TIME_CLOCK_SKEW = timedelta(minutes=1)
 
 
 # Task-store schema versions, newest first. Code Engine writes the task state under a
@@ -134,8 +138,9 @@ def parse_task_times(content: bytes, source: str) -> TaskTimes:
     """
     try:
         document = yaml.safe_load(content)
-    except yaml.YAMLError as exc:
-        # Not the message: a YAML error quotes the line it failed on
+    except (yaml.YAMLError, ValueError) as exc:
+        # Not the message: a YAML error quotes the line it failed on. A ValueError is a timestamp YAML cannot build,
+        # like year 0000
         logger.warning("Task file %s is not valid YAML (%s)", source, type(exc).__name__)
         return TaskTimes()
     if not isinstance(document, dict):
@@ -150,6 +155,41 @@ def parse_task_times(content: bytes, source: str) -> TaskTimes:
             logger.warning("Task file %s has a %s that is not a timestamp with a timezone", source, key)
         times[field] = parsed
     return TaskTimes(**times)
+
+
+def plausible_task_times(
+    times: TaskTimes, created: datetime, running_started_at: datetime | None, source: str
+) -> TaskTimes:
+    """The times that can be true, each ``None`` otherwise, so callers get a time or nothing, never a made up one.
+
+    A start cannot be before the job was created, and an end cannot be before the start (the one of the file, or else
+    the one the job already has, or else the creation of the job). Neither can be ahead of now by more than
+    ``TASK_TIME_CLOCK_SKEW``. Code Engine writes a zero time (year 1) in ``finishedAt`` while the task runs, which
+    this discards. A time that is discarded does not discard the other.
+
+    Args:
+        times: What the task file says.
+        created: When the job was created.
+        running_started_at: The start the job already has, if any.
+        source: Where the times come from, only used to log.
+    """
+    latest = datetime.now(timezone.utc) + TASK_TIME_CLOCK_SKEW
+
+    def _within(name: str, value: datetime | None, earliest: datetime) -> datetime | None:
+        if value is None or earliest <= value <= latest:
+            return value
+        logger.warning(
+            "Task file %s has a %s of %s, out of the %s to %s it can be, ignoring it",
+            source,
+            name,
+            value.isoformat(),
+            earliest.isoformat(),
+            latest.isoformat(),
+        )
+        return None
+
+    started_at = _within("startedAt", times.started_at, created)
+    return TaskTimes(started_at, _within("finishedAt", times.finished_at, started_at or running_started_at or created))
 
 
 class JobCOS:
