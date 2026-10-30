@@ -115,7 +115,7 @@ Every user signs in with the same `GATEWAY_TOKEN`, so for the gateway they are o
 |---|---|---|---|
 | Jobs per user, queued or running (default 50) | above the number of users | the Config `gateway.limits.active_jobs_per_user` | the backoffice |
 | Fleets jobs started per scheduler tick (default 5) | the number of users, so one tick starts a whole step | the Config `scheduler.fleets.jobs_per_tick` | the backoffice |
-| Gateway and scheduler CPU and memory | like production. The staging scheduler has only 270 MiB. | `gateway.resources` and `gateway.scheduler.resources` in the internal `values-non-prod.yaml` | an internal values PR, then a staging release |
+| Gateway and scheduler CPU and memory | like production, so the results carry over. | `gateway.resources` and `gateway.scheduler.resources` in the internal `values-non-prod.yaml` | an internal values PR, then a staging release |
 | Compute size | the smallest the function needs, for example `S`, `8x32` | `sizes` and `function_size` in `scenarios.yaml`. The profile must be registered in the gateway. | nothing, the driver sends it |
 | Code Engine room | room for every fleet of the run. A project holds at most 1000 fleets, and a fleet that is being deleted still counts | the Code Engine project | the driver waits for room before each scenario, and deletes each fleet when its job ends |
 
