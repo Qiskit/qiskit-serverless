@@ -43,6 +43,7 @@
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
+      "runner": "ray",
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Program",
       "entrypoint": "program.py",
@@ -54,6 +55,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:31:43.281796Z",
       "result": "{\"somekey\":1}",
@@ -65,6 +67,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec89",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:33:43.281796Z",
       "result": "{\"somekey\":1}",
@@ -76,6 +79,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:32:43.281796Z",
       "result": "{\"somekey\":1}",
@@ -87,6 +91,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
@@ -109,6 +114,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec85",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:32:43.281796Z",
       "result": "{\"somekey\":1}",
@@ -120,6 +126,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:34:43.281796Z",
       "result": "{\"somekey\":1}",
@@ -131,6 +138,7 @@
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec91",
     "fields": {
+      "runner": "ray",
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:35:43.281796Z",
       "result": "{\"somekey\":1}",

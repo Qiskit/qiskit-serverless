@@ -574,7 +574,7 @@ class TestServiceCrnIsRequired:
             )
         _, auth = CustomTokenBackend().authenticate(_create_request(crn=CRN))
         runner = User.objects.create_user(username="runner")
-        Program.objects.create(title="my-fn", author=runner, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=runner, entrypoint="main.py", runner=Program.RAY)
         client = APIClient()
         client.force_authenticate(user=runner, token=auth)
 

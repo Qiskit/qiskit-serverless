@@ -79,6 +79,7 @@
         "model": "api.program",
         "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
         "fields": {
+          "runner": "ray",
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "Private program",
             "entrypoint": "program.py",
@@ -95,6 +96,7 @@
         "model": "api.program",
         "pk": "00538918-668b-4fef-a064-ec33d2060241",
         "fields": {
+          "runner": "ray",
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "Public program",
             "entrypoint": "program.py",
@@ -112,6 +114,7 @@
         "model": "api.program",
         "pk": "8c714ddb-8b53-4ecd-9812-4c123cf33acc",
         "fields": {
+          "runner": "ray",
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "My program",
             "entrypoint": "program.py",

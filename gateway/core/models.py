@@ -171,7 +171,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     arguments_schema = models.TextField(null=True, blank=True, default="{}")
 
     runner = models.CharField(
-        max_length=20, choices=RUNNER_CHOICES, default=RAY, help_text="Execution backend for this program"
+        max_length=20, choices=RUNNER_CHOICES, default=FLEETS, help_text="Execution backend for this program"
     )
 
     gpu = models.BooleanField(
@@ -685,7 +685,10 @@ class Job(models.Model):
     )
     logs = models.TextField(default="No logs yet.")
     runner = models.CharField(
-        max_length=20, choices=Program.RUNNER_CHOICES, default=Program.RAY, help_text="Execution backend: ray or fleets"
+        max_length=20,
+        choices=Program.RUNNER_CHOICES,
+        default=Program.FLEETS,
+        help_text="Execution backend: ray or fleets",
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     fleet_id = models.CharField(max_length=255, null=True, blank=True, help_text="Code Engine fleet ID")
