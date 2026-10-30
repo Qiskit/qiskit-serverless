@@ -14,6 +14,7 @@ from django.core.files import File
 
 from core.ibm_cloud import get_cos_client
 from core.models import Program
+from core.utils import sanitize_file_path, sanitize_sub_path
 
 logger = logging.getLogger("core.FileStorage")
 
@@ -369,7 +370,7 @@ class FileStorageFleets:
             )
             return None
 
-    def upload_public_file(self, file: File) -> str:
+    def upload_public_file(self, file: File, sub_path: str = "") -> str:
         """
         This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
@@ -377,11 +378,18 @@ class FileStorageFleets:
 
         Args:
             file (django.File): the file to store in the specific path
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
-            str: the path where the file was stored
+            str: the path where the file (relative to the public folder) was stored
         """
-        key = f"{self._public_folder_key}/{file.name}"
+        # The file name and sub_path are sanitized at the API boundary; re-sanitize here for
+        # defense in depth, and never let either escape the function's public folder key.
+        basename = os.path.basename(sanitize_file_path(file.name))
+        safe_sub_path = sanitize_sub_path(sub_path)
+        relative_path = f"{safe_sub_path}/{basename}" if safe_sub_path else basename
+        key = f"{self._public_folder_key}/{relative_path}"
         try:
             get_cos_client(self._project).upload_fileobj(fileobj=file, bucket_name=self._user_bucket, key=key)
             logger.info(
@@ -391,7 +399,7 @@ class FileStorageFleets:
                 self._user_bucket,
                 key,
             )
-            return file.name
+            return relative_path
         except ClientError as e:
             logger.error(
                 "[upload-public-file] user_id=%s function_id=%s | COS error %s: %s",

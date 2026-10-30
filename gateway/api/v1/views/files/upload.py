@@ -19,6 +19,7 @@ from api.use_cases.files.upload import FilesUploadUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+from core.utils import sanitize_sub_path
 from api.v1.views.utils import validate_uploaded_file
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
@@ -34,6 +35,7 @@ class InputSerializer(serializers.Serializer):
 
     function = serializers.CharField(required=True)
     provider = serializers.CharField(required=False, default=None)
+    sub_path = serializers.CharField(required=False, default="")
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -51,6 +53,12 @@ class InputSerializer(serializers.Serializer):
         Validates the proivider name
         """
         return sanitize_name(value)
+
+    def validate_sub_path(self, value: str):
+        """
+        Sanitize the optional upload sub-directory into a safe relative path.
+        """
+        return sanitize_sub_path(value)
 
 
 @swagger_auto_schema(
@@ -73,6 +81,13 @@ class InputSerializer(serializers.Serializer):
             "provider",
             openapi.IN_QUERY,
             description="Provider name",
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+        openapi.Parameter(
+            "sub_path",
+            openapi.IN_QUERY,
+            description="Optional sub-directory to upload the file into",
             type=openapi.TYPE_STRING,
             required=False,
         ),
@@ -102,6 +117,7 @@ def files_upload(request: Request) -> Response:
 
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
+    sub_path = serializer.validated_data.get("sub_path", "")
 
     uploaded_file = request.FILES.get("file")
     validate_uploaded_file(uploaded_file)
@@ -117,7 +133,7 @@ def files_upload(request: Request) -> Response:
     )
 
     result = FilesUploadUseCase().execute(
-        user, provider, function, uploaded_file, accessible_functions=accessible_functions
+        user, provider, function, uploaded_file, sub_path=sub_path, accessible_functions=accessible_functions
     )
     logger.info("[files-upload] user_id=%s function=%s provider=%s | File uploaded ok", user.id, function, provider)
     return Response({"message": result})

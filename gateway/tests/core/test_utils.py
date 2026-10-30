@@ -19,7 +19,7 @@ import pytest
 from django.conf import settings
 
 from core.models import Job
-from core.utils import check_logs, retry_function
+from core.utils import check_logs, retry_function, sanitize_sub_path
 
 
 def _make_job(status=Job.RUNNING, job_id="test-job-id"):
@@ -138,3 +138,28 @@ class TestRetryBudget:
                 retry_function(callback, num_retries=3, exceptions=[KeyError], retry_budget_seconds=5.0)
 
         assert calls["n"] == 1
+
+
+class TestSanitizeSubPath:
+    """Unit tests for core.utils.sanitize_sub_path."""
+
+    def test_empty_and_none(self):
+        assert sanitize_sub_path(None) == ""
+        assert sanitize_sub_path("") == ""
+
+    def test_plain_subdir(self):
+        assert sanitize_sub_path("wheels") == "wheels"
+        assert sanitize_sub_path("a/b/c") == "a/b/c"
+
+    def test_strips_leading_trailing_and_repeated_slashes(self):
+        assert sanitize_sub_path("/wheels/") == "wheels"
+        assert sanitize_sub_path("a//b") == "a/b"
+
+    def test_neutralizes_parent_traversal(self):
+        # ".." must never survive: the result stays a relative path under the folder.
+        assert ".." not in sanitize_sub_path("../../etc")
+        assert not sanitize_sub_path("../../etc").startswith("/")
+
+    def test_replaces_unsafe_characters(self):
+        assert sanitize_sub_path("whe els$") == "whe_els_"
+        assert sanitize_sub_path("good-_.name") == "good-_.name"

@@ -81,5 +81,5 @@ class TestInstallUploadedWheels:
         mock_run.assert_not_called()
 
     def test_default_wheelhouse_constant(self):
-        """The default wheelhouse is the Fleets function-user-data mount."""
-        assert DEFAULT_WHEELHOUSE == "/function_user_data"
+        """The default wheelhouse is the wheels sub-directory of the uploaded user data."""
+        assert DEFAULT_WHEELHOUSE == "/function_user_data/wheels"

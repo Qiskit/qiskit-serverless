@@ -63,6 +63,7 @@ from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.files import GatewayFilesClient
+from qiskit_serverless.core.wheels import WHEELS_SUBDIR
 from qiskit_serverless.core.job import (
     Job,
     Configuration,
@@ -921,9 +922,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """Deletes a file available to the provider for the specific Qiskit Function."""
         return self._files_client.provider_delete(file, function)
 
-    def file_upload(self, file: str, function: QiskitFunction):
-        """Uploads a file in the specific user's Qiskit Function folder."""
-        return self._files_client.upload(file, function)
+    def file_upload(self, file: str, function: QiskitFunction, sub_path: Optional[str] = None):
+        """Uploads a file in the specific user's Qiskit Function folder.
+
+        ``sub_path`` optionally stores the file in a sub-directory of the function's folder
+        (e.g. ``"wheels"``).
+        """
+        return self._files_client.upload(file, function, sub_path)
 
     def provider_file_upload(self, file: str, function: QiskitFunction):
         """Uploads a file in the specific provider's Qiskit Function folder."""
@@ -934,8 +939,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         Each pattern is a local path or glob (e.g. ``"dist/mypkg-1.0-*.whl"``); every match
         must be a ``.whl`` file. This is a thin wrapper over :meth:`file_upload` that expands
-        the patterns and uploads each wheel, so they are available to the function at runtime.
-        Install them from your entrypoint with ``install_uploaded_wheels()``.
+        the patterns and uploads each wheel into the function's ``wheels`` sub-directory, so
+        they are available to the function at runtime. Install them from your entrypoint with
+        ``install_uploaded_wheels()``, which reads that same directory.
 
         Args:
             function: the function whose file area the wheels are uploaded to.
@@ -961,7 +967,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         uploaded: List[str] = []
         for path in paths:
-            self.file_upload(path, function)
+            self.file_upload(path, function, sub_path=WHEELS_SUBDIR)
             uploaded.append(os.path.basename(path))
         return uploaded
 

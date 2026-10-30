@@ -461,6 +461,9 @@ class TestAddWheelsMethod:
 
         assert uploaded == ["a-1.0-py3-none-any.whl", "b-2.0-py3-none-any.whl"]
         assert mock_upload.call_count == 2
+        # wheels go into the dedicated "wheels" sub-directory
+        for call in mock_upload.call_args_list:
+            assert call.kwargs.get("sub_path") == "wheels"
 
     def test_add_wheels_raises_when_pattern_matches_nothing(self, mock_client):
         """add_wheels raises if a pattern matches no files."""
