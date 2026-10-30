@@ -58,7 +58,7 @@ Each scenario sends its users through one rate limiter, like the `qps` and `burs
 
 No one waits for the jobs of the others, so with long jobs the jobs pile up and overlap, like QDC users who arrive a few seconds apart. `--dry-run` prints when the last user submits.
 
-Between two scenarios the driver waits `cooldown_seconds` (default 300), then until the Code Engine project has room for the next scenario's fleets. A fleet that is being deleted still counts against the 1000 cap. Each run picks its size with `function_size`, from the `sizes` of the function, for example `S` is `8x32`. Code Engine performance is not what we test, so use the smallest size the function needs.
+Between two scenarios the driver waits `cooldown_seconds` (default 300), then until the Code Engine project has room for the next scenario's fleets. A fleet that is being deleted still counts against the 1000 cap. A scenario with `wait_for_room: false` starts at once instead, for a test that fills the project on purpose with `--keep`. Each run picks its size with `function_size`, from the `sizes` of the function, for example `S` is `8x32`. Code Engine performance is not what we test, so use the smallest size the function needs.
 
 **The function's arguments** are in `sqd_arguments`, the input of the template's own unit test: a small water molecule, 2 SQD iterations, and 2 batches. The chemistry takes about 10 s. Most of a job's time is Code Engine starting its fleet.
 
@@ -77,7 +77,7 @@ For a real QPU the function needs no other setting. The gateway passes the user'
 4. It waits until every user has uploaded, so the upload time does not slow the submits.
 5. It takes a token from the rate limiter, then calls `run(function_size=...)`.
 6. It writes its job id to `job_ids.jsonl` as soon as `run()` returns, so `cleanup` can find the job even if the driver is killed.
-7. It checks its job status every `poll_seconds` until the job is `DONE`, `ERROR` or `CANCELED`.
+7. It checks its job status every `poll_seconds` until the job is `DONE`, `ERROR` or `CANCELED`. With `poll: backoff` in a scenario, it waits like `Job.wait_for_final_state()` instead: 1, 2, 4, 8, 16 and 32 s, then every 60 s, starting again from 1 s when the status changes. That is how a real SDK user polls.
 8. It gets the result with `job.result(wait=False)`. It does not wait, because the job already ended.
 9. When every job has ended, the driver reads the status events and the log of each job, the Sysdig metrics from the start of the run to one scrape after its end, and the scheduler submit lines from Cloud Logs.
 10. It writes `report.txt`, then cleans up the jobs and their fleets. With `--results`, it then exports the run into the results repo.
