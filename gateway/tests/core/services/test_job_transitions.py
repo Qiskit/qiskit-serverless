@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import connection
+from django.db.utils import OperationalError
 from prometheus_client import CollectorRegistry
 
 from core import external_call_metrics
@@ -62,7 +64,7 @@ def sender():
 
 @pytest.fixture
 def service(sender):
-    return JobTransitionService(sender=sender)
+    return JobTransitionService(billing_sender=sender)
 
 
 class TestTransition:
@@ -404,10 +406,10 @@ class TestSender:
     def test_builds_the_default_sender_only_when_none_is_given(self):
         with patch("core.services.job_transitions.build_kafka_sender") as build_sender:
             given = MagicMock()
-            assert JobTransitionService(sender=given).sender is given
+            assert JobTransitionService(billing_sender=given).billing_sender is given
             build_sender.assert_not_called()
 
-            assert JobTransitionService().sender is build_sender.return_value
+            assert JobTransitionService().billing_sender is build_sender.return_value
             build_sender.assert_called_once_with()
 
 
@@ -508,7 +510,7 @@ class TestBestEffortEvents:
         )
         events_before = JobEvent.objects.filter(job=fleets_job).count()
 
-        service.running_to_running(fleets_job)
+        service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
 
         sender.send.assert_called_once()
         assert sender.send.call_args.kwargs == {"timeout": 0}
@@ -529,7 +531,7 @@ class TestBestEffortEvents:
         )
 
         with caplog.at_level(logging.ERROR):
-            service.running_to_running(fleets_job)  # must not raise
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))  # must not raise
 
         assert "event dropped" in caplog.text
         assert "kafka down" in caplog.text
@@ -547,12 +549,12 @@ class TestBestEffortEvents:
         external_call_metrics.enable(registry)
         labels = {"operation": "job_in_progress_event", "status": "ok"}
         try:
-            service.running_to_running(fleets_job)
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
             assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
 
             Job.objects.filter(pk=fleets_job.pk).update(filler=True)
             fleets_job.refresh_from_db()
-            service.running_to_running(fleets_job)
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
             assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
         finally:
             external_call_metrics.disable()
@@ -561,7 +563,7 @@ class TestBestEffortEvents:
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
         fleets_job.refresh_from_db()
 
-        service.running_to_running(fleets_job)
+        service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
 
         sender.send.assert_not_called()
 
@@ -697,6 +699,81 @@ class TestStop:
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+
+def _outside_tx(job):
+    assert connection.in_atomic_block is False
+
+
+@pytest.mark.django_db(transaction=True)
+class TestStatusMirror:
+    """The status of a mirrored job is sent once the transaction of the transition is over, never inside it."""
+
+    @pytest.fixture
+    def mirror(self):
+        mirror = MagicMock()
+        mirror.send.side_effect = _outside_tx
+        return mirror
+
+    @pytest.fixture
+    def mirrored_service(self, sender, mirror):
+        return JobTransitionService(billing_sender=sender, workload_mirror=mirror)
+
+    def test_queued_to_pending_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.QUEUED)
+
+        mirrored_service.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS)
+
+        mirror.send.assert_called_once_with(job)
+
+    def test_pending_to_running_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+
+        mirrored_service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        mirror.send.assert_called_once_with(job)
+
+    def test_stopping_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.RUNNING)
+
+        result = mirrored_service.stop(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.STOP_JOB,
+            runner=MagicMock(**{"stop.return_value": True}),
+        )
+
+        assert result == Job.STOPPING
+        mirror.send.assert_called_once_with(job)
+
+    def test_a_database_error_of_the_mirror_leaves_the_status_written(self, mirrored_service, mirror, user):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        mirror.send.side_effect = OperationalError("down")
+
+        with pytest.raises(OperationalError):
+            mirrored_service.pending_to_running(
+                job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            )
+
+        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
+
+    def test_nothing_is_sent_by_the_other_paths(self, mirrored_service, mirror, user):
+        running = _licensed_fleets_job(user, Job.RUNNING)
+        JobEvent.objects.add_status_event(
+            job_id=running.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+        mirrored_service.running_to_running(running, JobEvent.objects.first_running_at(running.id))
+        no_fleet = _licensed_fleets_job(user, Job.RUNNING, fleet_id=None)
+        assert (
+            mirrored_service.stop(no_fleet, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPED
+        )
+
+        mirror.send.assert_not_called()
 
 
 class TestTransitionMetrics:

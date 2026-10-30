@@ -157,6 +157,23 @@ content for both messages: `JobEvent.objects.first_running_at(job.id)`. This sin
 query answers two questions at once, so there is no separate flag to track "did this
 job run" and no second query to find out.
 
+### Intermediate status mirror
+
+The intermediate statuses of a mirrored job (`Pending`, `Running` and `Stopping`) are also best effort, but they
+go to the Runtime API and not to Kafka, and they are not part of the outbox. `WorkloadBackgroundMirror` sends the
+status after the transition has committed, never inside its transaction. Only the scheduler passes it
+(`JobTransitionService(workload_mirror=...)`); the gateway uses a no-op mirror and sends nothing, except for a stop it
+requests (the stop endpoint and the backoffice button), which uses `WorkloadInlineMirror`: it sends `Stopping` on the
+thread of the request with a `PUT` of 2 seconds, counts nothing (the gateway has no Prometheus multiprocess mode) and
+only logs an error. It only sends for a
+job that has a `WorkloadMirror` row. The payload is built on the scheduler thread and the `PUT` runs on the
+`RUNTIME_API` background pool with the `replace_key` `job:<id>`, so a newer status replaces an older one that is
+still waiting. Any error is logged, counted in `workload_best_effort_mirror_total` and swallowed, except
+`OperationalError` and `InterfaceError`, which are re-raised so the scheduler still counts a database outage, and
+`BackgroundExecutorNotInitializedError`, which is a programming error (the scheduler initializes the executor at boot
+and exits if that fails). A lost
+status is repaired by the terminal status, which goes through the `workload` channel.
+
 ### Did the job run: the rule that decides the license fee message
 
 The final usage event (`BillingEvents.build_job_completed_event`) is always built on an

@@ -8,11 +8,19 @@ from rest_framework.test import APIClient
 
 from api.domain.authentication.channel import Channel
 from api.v1.views.programs.run import BLOCKED_RESOURCE_WARNING
+from core.config_key import ConfigKey
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import BlockedCloudResource, Job
+from core.models import BlockedCloudResource, Config, Job
 from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def blocked_jobs_stop_enabled():
+    """Blocked resources are not enforced by default, and these tests are about enforcing them."""
+    Config.add_defaults()
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
 
 
 def _run(**identity):
@@ -51,3 +59,13 @@ def test_a_resource_that_is_not_blocked_gets_no_warning(identity):
     assert response.status_code == status.HTTP_200_OK
     assert "warning" not in response.data
     assert Job.objects.filter(id=response.data["id"]).exists()
+
+
+def test_a_blocked_resource_gets_no_warning_while_blocked_resources_are_not_enforced():
+    BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
+
+    response = _run()
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "warning" not in response.data

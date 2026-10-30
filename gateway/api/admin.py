@@ -48,6 +48,7 @@ from core.models import (
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.services.job_transitions import JobTransitionService
+from core.services.workload_best_effort_mirror import WorkloadInlineMirror
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage.job_file_explorer import JobFileExplorer
 
@@ -129,6 +130,7 @@ class ProviderAdmin(admin.ModelAdmin):
 
     search_fields = ["name", "code_engine_project__project_name"]
     list_display = ["name", "code_engine_project"]
+    list_select_related = ["code_engine_project"]
     filter_horizontal = ["admin_groups"]
 
 
@@ -186,8 +188,8 @@ class FunctionSizeAdmin(admin.ModelAdmin):
 class BlockedCloudResourceAdmin(admin.ModelAdmin):
     """BlockedCloudResourceAdmin."""
 
-    list_display = ["account", "plan", "subscription", "created", "updated"]
-    list_filter = ["created", "updated"]
+    list_display = ["account", "plan", "subscription", "reason", "region", "created", "updated"]
+    list_filter = ["reason", "region", "created", "updated"]
     search_fields = ["account", "plan", "subscription"]
     readonly_fields = ["created", "updated", "id"]
 
@@ -399,15 +401,12 @@ class ProgramAdmin(admin.ModelAdmin):
         "disabled",
     ]
 
+    # Columns shown in the list, plus default_size for `sizes_summary`.
+    list_select_related = ["default_size", "provider", "author"]
+
     def get_queryset(self, request):
-        # Count the size rows once per changelist for `sizes_summary`, and pull default_size along
-        # so rendering the default's label does not fire a query per row.
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("default_size")
-            .annotate(declared_sizes_count=Count("function_sizes"))
-        )
+        # Count the size rows once per changelist for `sizes_summary`.
+        return super().get_queryset(request).annotate(declared_sizes_count=Count("function_sizes"))
 
     @admin.display(description="Sizes", ordering="declared_sizes_count")
     def sizes_summary(self, obj):
@@ -761,7 +760,8 @@ class JobAdmin(admin.ModelAdmin):
             messages.error(request, "This job can't be stopped from here.")
             return redirect(reverse("admin:api_job_change", args=[job.pk]))
 
-        transitions = JobTransitionService()
+        # Mirror the job (STOPPING) is inline (same thread) and best effort: a sending error is ignored
+        transitions = JobTransitionService(workload_mirror=WorkloadInlineMirror())
         try:
             # The fork is what each engine owes: Ray has no cancel to confirm, Fleets does. A
             # stop strategy per runner is tracked separately.
@@ -1013,6 +1013,7 @@ class JobEventAdmin(admin.ModelAdmin):
     """JobEventAdmin."""
 
     list_display = ("created", "job", "event_type", "origin", "context")
+    list_select_related = ["job"]
     date_hierarchy = "created"
 
 

@@ -3,6 +3,7 @@
 import uuid
 from datetime import timedelta
 from collections import deque
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from core.services.runners.ray_runner import FilteredLogs
@@ -11,13 +12,15 @@ from prometheus_client import CollectorRegistry
 import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
 from core import external_call_metrics
 from core.external_call_metrics import FLEET_SUBMIT_UPLOAD, observe_operation
-from core.model_managers.job_events import JobEventContext, JobEventType
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.config_key import ConfigKey
 from core.models import BlockedCloudResource, Config, Job, ComputeResource, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
@@ -30,6 +33,7 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import (
     _REFUSED_CANCEL_WARNED,
+    check_job_timeout,
     first_cancel_refusal,
     FleetsJobCanceller,
     FleetsBreakers,
@@ -37,6 +41,7 @@ from scheduler.schedule import (
     FleetsJobSubmitter,
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
+    latest_event_at,
 )
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
@@ -54,6 +59,8 @@ class TestScheduleApi(APITestCase):
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path, settings, db):
         settings.MEDIA_ROOT = str(tmp_path)
+        Config.add_defaults()
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""
@@ -204,6 +211,13 @@ class TestScheduleApi(APITestCase):
         assert not get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)
 
         rule.delete()
+
+        assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)) == [job]
+
+    def test_fair_share_does_not_hold_back_a_blocked_job_while_blocked_resources_are_not_enforced(self):
+        BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
+        job = self._queued(TestUtils.get_user_and_username("unenforced_user")[0])
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "false")
 
         assert list(get_jobs_to_schedule_fair_share(slots=5, gpu=False, runner=Program.FLEETS)) == [job]
 
@@ -522,6 +536,31 @@ class TestScheduleApi(APITestCase):
             assert len(job_events) == 3
 
 
+@pytest.mark.django_db
+def test_a_ray_job_without_events_times_out_from_its_creation():
+    user = User.objects.create_user(username="ray-timeout-no-events")
+    resource = ComputeResource.objects.create(title="ray-timeout-no-events", active=True)
+    job = Job.objects.create(author=user, status=Job.RUNNING, compute_resource=resource)
+    Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
+    job.refresh_from_db()
+
+    assert latest_event_at(job) == job.created
+    with override_settings(PROGRAM_TIMEOUT=1):
+        assert check_job_timeout(job, latest_event_at(job)) is True
+
+
+@pytest.mark.django_db
+def test_the_timeout_check_only_compares_the_time_it_is_given():
+    user = User.objects.create_user(username="timeout-no-query")
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+    now = datetime.now(timezone.utc)
+
+    with override_settings(PROGRAM_TIMEOUT=1), CaptureQueriesContext(connection) as ctx:
+        assert check_job_timeout(job, now) is False
+        assert check_job_timeout(job, now - timedelta(hours=2)) is True
+    assert len(ctx) == 0
+
+
 @pytest.mark.django_db(transaction=True)
 def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
     """The staging race of 2026-10-12, against the real transition service and the database.
@@ -544,7 +583,7 @@ def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
 
     with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
         with pytest.raises(InvalidJobTransitionException):
-            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(job, None)
+            FleetsJobSubmitter(JobTransitionService(billing_sender=MagicMock())).submit(job, None)
 
     job.refresh_from_db()
     assert job.status == Job.STOPPED
@@ -565,7 +604,7 @@ def test_a_failed_submit_records_its_reason_in_the_database():
 
     with patch("scheduler.schedule.get_runner", return_value=runner), patch("scheduler.schedule.trace"):
         with pytest.raises(RunnerError):
-            FleetsJobSubmitter(JobTransitionService(sender=MagicMock())).submit(
+            FleetsJobSubmitter(JobTransitionService(billing_sender=MagicMock())).submit(
                 job, None, context=JobEventContext.FILLER_SUBMIT
             )
 

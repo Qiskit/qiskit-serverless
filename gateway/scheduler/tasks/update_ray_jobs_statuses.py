@@ -15,6 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     check_job_timeout,
     fail_job_insufficient_resources,
+    latest_event_at,
 )
 
 from scheduler.health import DB_EXCEPTIONS
@@ -72,7 +73,13 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         status_has_changed = False
         lines: FilteredLogs | None = None
-        if check_job_timeout(job):
+        if check_job_timeout(job, latest_event_at(job)):
+            logger.warning(
+                "job_id=%s cluster=%s timeout=%s hours: job stopped.",
+                job.id,
+                job.compute_resource.title,
+                settings.PROGRAM_TIMEOUT,
+            )
             job_new_status = Job.STOPPED
 
         if job_new_status != job.status:
@@ -175,7 +182,11 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         ray_counter = 0
         gpu_counter = 0
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES).exclude(runner=Program.FLEETS)
+        jobs = (
+            Job.objects.filter(status__in=Job.RUNNING_STATUSES)
+            .exclude(runner=Program.FLEETS)
+            .select_related("author", "program__provider", "compute_resource", "config")
+        )
         for job in jobs:
             if self.kill_signal.received:
                 return

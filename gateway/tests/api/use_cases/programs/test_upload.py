@@ -297,6 +297,32 @@ class TestUploadFunctionUseCase:
 
         assert not Program.objects.filter(title="my-fn").exists()
 
+    def test_unknown_compute_profile_error_lists_available_profiles(self, user):
+        """An unregistered profile is rejected with an aligned, ordered list of what IS registered."""
+        # Created out of order; the error must sort them: CPU-only first, then GPU by memory.
+        ComputeProfile.objects.create(compute_profile_id="20x320x2a100", cpu="20", memory="320", gpu="2a100")
+        ComputeProfile.objects.create(compute_profile_id="24x120", cpu="24", memory="120")
+        ComputeProfile.objects.create(compute_profile_id="24x120x1l40s", cpu="24", memory="120", gpu="1l40s")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(DRFValidationError) as exc_info:
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="main.py", sizes={"m": "typo-profile"}, default_size="m"),
+            )
+
+        message = exc_info.value.detail[0]
+        assert "typo-profile" in message
+        # One aligned line per profile, CPU-only first then GPU by memory; id column padded to align.
+        assert message.endswith(
+            "Available profiles:\n"
+            "24x120        (24 vCPU / 120 GB)\n"
+            "24x120x1l40s  (24 vCPU / 120 GB / 1l40s)\n"
+            "20x320x2a100  (20 vCPU / 320 GB / 2a100)"
+        )
+        assert not Program.objects.filter(title="my-fn").exists()
+
     def test_update_ray_function_with_valid_sizes_validates_but_does_not_persist(self, user):
         """Same as create: a valid 'sizes'/'default_size' pair sent to an existing Ray function is not persisted."""
         Program.objects.create(title="my-fn", author=user, entrypoint="old.py")

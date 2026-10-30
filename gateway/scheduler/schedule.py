@@ -398,7 +398,7 @@ def get_jobs_to_schedule_fair_share(
     for entry in author_date_list:
         job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
 
-    return Job.objects.filter(job_filter)
+    return Job.objects.filter(job_filter).with_scheduler_context()
 
 
 def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
@@ -414,28 +414,20 @@ def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
     return [job for job in ranked if job.rank <= budgets[job.author_id]][:slots]
 
 
-def check_job_timeout(job: Job):
-    """Check job timeout and update job status."""
 
-    if job.status in Job.RUNNING_STATUSES:
-        timeout = settings.PROGRAM_TIMEOUT
-        latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-        if not latest_job_event:
-            # This should never happen since every job should have at least 1 JobEvent (on creation).
-            latest_job_event = job.created
-        endtime = latest_job_event.created + timedelta(hours=timeout)
-        now = datetime.now(tz=endtime.tzinfo)
-        if endtime < now:
-            logger.warning(
-                "job_id=%s cluster=%s timeout=%s hours: job stopped.",
-                job.id,
-                job.compute_resource.title,
-                timeout,
-            )
-            # The job has exceeded the maximum duration allowed.
-            return True
+def latest_event_at(job: Job) -> datetime:
+    """The job's latest event time read now, or its creation time if it has no events."""
+    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
+    return latest_job_event.created if latest_job_event else job.created
 
-    return False
+
+def check_job_timeout(job: Job, last_event_at: datetime) -> bool:
+    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours since ``last_event_at``."""
+    if job.status not in Job.RUNNING_STATUSES:
+        return False
+
+    endtime = last_event_at + timedelta(hours=settings.PROGRAM_TIMEOUT)
+    return endtime < datetime.now(tz=endtime.tzinfo)
 
 
 def fail_job_insufficient_resources(job: Job):
