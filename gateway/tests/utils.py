@@ -340,6 +340,11 @@ class TestUtils:
 
         author_obj, _ = TestUtils.get_user_and_username(author)
 
+        # Tests that predate the fleets default were written against Ray programs and
+        # assert Ray behavior. Keep that the default here so only tests that exercise
+        # the fleets default have to ask for it; production defaults to FLEETS.
+        kwargs.setdefault("runner", Program.RAY)
+
         if not instances:
             instances = []
         if not trial_instances:
