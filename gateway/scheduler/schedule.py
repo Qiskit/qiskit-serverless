@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Model
-from django.db.models import F, Q, QuerySet, Window
-from django.db.models.aggregates import Count, Min
+from django.db.models import F, Window
+from django.db.models.aggregates import Count
 from django.db.models.functions import RowNumber
 
 from opentelemetry import trace
@@ -342,77 +342,38 @@ def first_cancel_refusal(job: Job) -> bool:
 def get_jobs_to_schedule_fair_share(
     slots: int, gpu: bool, runner: str = Program.RAY, jobs_per_user: int | None = None
 ) -> List[Job]:
-    """Returns jobs for execution based on fair share distribution of resources.
+    """At most slots queued jobs, taken in rounds: the oldest job of every user before the second of any.
 
-    Args:
-        slots: max number of jobs to return
-        gpu: filter jobs by GPU requirement
-        runner: filter jobs by runner type
-        jobs_per_user: max running jobs of one user, by default LIMITS_JOBS_PER_USER. Ray takes one job per user,
-            and Fleets takes several, in rounds across users
-
-    Returns:
-        list of jobs for execution
+    The users who waited longest go first. A user takes at most jobs_per_user minus their running jobs, which
+    defaults to LIMITS_JOBS_PER_USER, and a Ray user at most one job per call.
     """
-
-    # maybe refactor this using big SQL query :thinking:
-
     if jobs_per_user is None:
         jobs_per_user = settings.LIMITS_JOBS_PER_USER
 
-    # Filler jobs are not user demand, and they belong to the author of the filler
-    # function, so counting them would stop that person's own jobs being promoted.
-    running_jobs_per_user = {
-        entry["author"]: entry["running_jobs_count"]
-        for entry in Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
+    # filler jobs are not user demand, so they do not use up their author's limit
+    running = dict(
+        Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
         .exclude(filler=True)
         .values("author")
-        .annotate(running_jobs_count=Count("id"))
-    }
+        .annotate(count=Count("id"))
+        .values_list("author", "count")
+    )
 
-    users_at_max_capacity = [author for author, count in running_jobs_per_user.items() if count >= jobs_per_user]
-
-    queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
+    # the budget below drops them too, but excluding them here keeps their queued jobs out of the query
+    users_at_max_capacity = [author for author, count in running.items() if count >= jobs_per_user]
+    queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner).exclude(author__in=users_at_max_capacity)
     blocked = BlockedCloudResource.blocked_jobs_filter() if runner == Program.FLEETS else None
     if blocked is not None:
-        # Held in QUEUED, and never picked: a picked job would take a slot it cannot use
+        # held in QUEUED, and never picked: a picked job would take a slot it cannot use
         queued = queued.exclude(blocked)
 
-    author_date_list = list(
-        queued.exclude(author__in=users_at_max_capacity)
-        .values("author")
-        .annotate(job_date=Min("created"))
-        .order_by("job_date")[:slots]
-    )
-
-    if len(author_date_list) == 0:
-        return []
-
-    if runner == Program.FLEETS:
-        budgets = {
-            entry["author"]: jobs_per_user - running_jobs_per_user.get(entry["author"], 0) for entry in author_date_list
-        }
-        return _jobs_in_rounds(queued, budgets, slots)
-
-    job_filter = Q()
-    for entry in author_date_list:
-        job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
-
-    return Job.objects.filter(job_filter).with_scheduler_context()
-
-
-def _jobs_in_rounds(queued: QuerySet, budgets: dict, slots: int) -> List[Job]:
-    """Each user's oldest queued jobs within their budget, the first job of every user before any second one."""
     ranked = (
-        queued.filter(author__in=budgets)
-        .with_program()
-        .select_related("program__code_engine_project")
+        queued.with_scheduler_context()
         .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
-        .filter(rank__lte=slots)
+        .filter(rank__lte=1 if runner == Program.RAY else slots)
         .order_by("rank", "created")
     )
-    return [job for job in ranked if job.rank <= budgets[job.author_id]][:slots]
-
+    return [job for job in ranked if job.rank <= jobs_per_user - running.get(job.author_id, 0)][:slots]
 
 
 def latest_event_at(job: Job) -> datetime:
