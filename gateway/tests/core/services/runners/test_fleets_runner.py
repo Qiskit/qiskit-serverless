@@ -28,7 +28,6 @@ from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
-from core.ibm_cloud.code_engine.fleets.cos import TASK_TIME_CLOCK_SKEW
 from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
@@ -1428,8 +1427,6 @@ class TestTaskTimes:
 
     def _runner(self, content=None, listing=None):
         runner, _ = _make_runner(fleet_id="fleet-123")
-        runner.job.created = self._CREATED
-        runner.job.running_started_at = None
         cos = runner._cos  # pylint: disable=protected-access
         cos.list_with_metadata.return_value = _listing(_TASK_FILE) if listing is None else listing
         cos.get_object_bytes.return_value = self._file() if content is None else content
@@ -1474,61 +1471,6 @@ class TestTaskTimes:
 
         assert times == (self._STARTED, None)
         assert "finishedAt" in caplog.text
-
-    def test_a_year_zero_does_not_lose_the_other_time(self):
-        """YAML cannot build it and raises ValueError: the start is not lost with it."""
-        content = b"startedAt: 0000-00-00T00:00:00Z\nfinishedAt: 0000-00-00T00:00:00Z\n"
-
-        assert self._runner(content).get_task_times() == (None, None)
-
-    def test_a_start_before_the_job_was_created_is_none(self, caplog):
-        content = self._file(started_at=self._iso(self._CREATED - timedelta(seconds=1)))
-
-        times = self._runner(content).get_task_times()
-
-        assert times.started_at is None
-        assert "startedAt" in caplog.text
-
-    def test_a_start_in_the_future_is_none(self):
-        content = self._file(started_at=self._iso(datetime.now(timezone.utc) + timedelta(hours=1)))
-
-        assert self._runner(content).get_task_times().started_at is None
-
-    def test_an_end_before_the_start_is_none(self):
-        content = self._file(finished_at=self._iso(self._STARTED - timedelta(seconds=1)))
-
-        times = self._runner(content).get_task_times()
-
-        assert times == (self._STARTED, None)
-
-    def test_an_end_is_checked_against_the_start_the_job_already_has_when_the_file_has_none(self):
-        runner = self._runner(
-            self._file(started_at="null", finished_at=self._iso(self._STARTED - timedelta(minutes=1)))
-        )
-        runner.job.running_started_at = self._STARTED
-
-        assert runner.get_task_times().finished_at is None
-
-    def test_an_end_in_the_future_is_none(self):
-        content = self._file(finished_at=self._iso(datetime.now(timezone.utc) + timedelta(hours=1)))
-
-        assert self._runner(content).get_task_times().finished_at is None
-
-    def test_a_bad_start_does_not_discard_the_end(self):
-        """The end is checked against the job creation then, not against a start that was thrown away."""
-        content = self._file(started_at="0001-01-01T00:00:00Z")
-
-        assert self._runner(content).get_task_times() == (None, self._FINISHED)
-
-    def test_the_clock_skew_is_a_constant(self):
-        """A time a little ahead of the gateway clock is not discarded, and how little is TASK_TIME_CLOCK_SKEW."""
-        skew = TASK_TIME_CLOCK_SKEW
-        assert skew > timedelta(0)
-        within = datetime.now(timezone.utc) + skew / 2
-        beyond = datetime.now(timezone.utc) + skew * 2
-
-        assert self._runner(self._file(finished_at=within.isoformat())).get_task_times().finished_at == within
-        assert self._runner(self._file(finished_at=beyond.isoformat())).get_task_times().finished_at is None
 
     def test_a_missing_key_is_none(self):
         content = b"taskState: pending\n"

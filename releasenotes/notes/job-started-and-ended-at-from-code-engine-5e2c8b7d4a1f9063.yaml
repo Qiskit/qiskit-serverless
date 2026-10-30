@@ -1,16 +1,22 @@
 ---
 fixes:
   - |
-    The moment a job running on IBM Cloud Code Engine starts running, and the moment it ends, are now the
-    time Code Engine wrote the ``running`` and the terminal state of its task, read from the task store,
-    instead of the time the scheduler noticed them. They are stored in ``Job.running_started_at`` and in
-    the new ``Job.running_ended_at``, and the start and the end sent to billing and to the Runtime API are read from
-    them, so both ends of a billed duration come from the same clock. They fall back to the time the
-    scheduler noticed when the task store cannot be read, and a job ended by the scheduler itself (a timeout,
-    a stop that was not confirmed) has no Code Engine time.
-    The job events keep the time the scheduler wrote them: the job timeline does not change.
+    The moment a job running on IBM Cloud Code Engine starts and the moment it ends are now the ``startedAt`` and
+    ``finishedAt`` that Code Engine writes in the task file under ``tasks/`` of the task store, instead of the time the
+    scheduler noticed them. They are stored in ``Job.running_started_at`` and in the new ``Job.running_ended_at``, and
+    the start and the end sent to billing and to the Runtime API are read from them, so both ends of a billed duration
+    come from the same clock.
+    A job that went from pending to finished between two scans of the scheduler is now billed for the time it ran.
+    Its start used to be read from the ``running`` keys of the task store, which are gone once the job ends, so such a
+    job had no start and no license fee. The task file is kept after the task ends.
+    A job can have ``running_started_at`` without a ``RUNNING`` status event: the field is what Code Engine says, not
+    what the scheduler saw. The job events keep the time the scheduler wrote them, so the job timeline does not
+    change.
+    A time that Code Engine has not set yet (it writes a zero time in ``finishedAt`` while the task runs), a task file
+    that cannot be read and a job ended by the scheduler itself (a timeout, a stop that was not confirmed) leave the
+    field empty. The job then starts and ends at the time of its status events, as it did before.
 upgrade:
   - |
     This adds a database migration that only adds the nullable column ``running_ended_at`` to ``Job`` and needs no
-    downtime. ``running_started_at`` already exists. Jobs that have neither field keep using their status
-    events.
+    downtime. ``running_started_at`` already exists. Jobs that have neither field keep using their status events.
+    The gateway now declares ``PyYAML`` as a requirement, which it uses to read the task file.

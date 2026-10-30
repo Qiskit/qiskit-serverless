@@ -498,6 +498,28 @@ class TestParseTaskTimes:
 
         assert parse_task_times(content, "k") == TaskTimes()
 
+    @pytest.mark.parametrize("zero", ["0001-01-01T00:00:00Z", "'0001-01-01T00:00:00Z'", "1970-01-01T00:00:00Z"])
+    def test_the_zero_time_is_not_set(self, zero, caplog):
+        """Code Engine writes it in finishedAt while the task runs: year 1, the zero of Go, or the Unix epoch."""
+        content = f"startedAt: 2026-01-02T03:04:05Z\nfinishedAt: {zero}\n".encode()
+
+        times = parse_task_times(content, "k")
+
+        assert times == TaskTimes(datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), None)
+        assert "finishedAt" in caplog.text
+
+    def test_a_time_after_the_zero_is_set(self):
+        assert parse_task_times(b"startedAt: 1970-01-01T00:00:01Z\n", "k").started_at is not None
+
+    def test_an_unquoted_year_zero_makes_the_whole_file_unreadable(self, caplog):
+        """YAML cannot build it and raises ValueError, so the start of the same file is lost too. Quoted, it is a string
+        that is not a timestamp and the other time is kept. Code Engine has not been seen writing it."""
+        content = b"startedAt: 2026-01-02T03:04:05Z\nfinishedAt: 0000-00-00T00:00:00Z\n"
+
+        assert parse_task_times(content, "k") == TaskTimes()
+        assert "is not valid YAML" in caplog.text
+        assert parse_task_times(content.replace(b"0000-00-00T00:00:00Z", b"'0000-00-00T00:00:00Z'"), "k").started_at
+
     def test_null_and_missing_are_none_without_a_warning(self, caplog):
         assert parse_task_times(b"startedAt: null\n", "k") == TaskTimes()
         assert "not a timestamp" not in caplog.text

@@ -48,7 +48,6 @@ from core.ibm_cloud.code_engine.fleets.cos import (
     JobCOS,
     TaskTimes,
     parse_task_times,
-    plausible_task_times,
     queue_prefix,
     task_state_from_key,
     tasks_prefix,
@@ -357,15 +356,14 @@ class FleetsRunner(AbstractRunner):
 
     def get_task_times(self) -> TaskTimes:
         """When Code Engine says the task started and finished, from its task file, which unlike the keys under
-        ``queue/`` stays after the task ends. A time that is not known or cannot be true is ``None``. It only improves
-        on the moment the scheduler noticed, so it never raises: no fleet, no file yet, an unreadable file and a
-        failing COS all give ``TaskTimes()``."""
+        ``queue/`` stays after the task ends. A time that is not known or not set is ``None``. It only improves on
+        the moment the scheduler noticed, so it never raises: no fleet, no file yet, an unreadable file and a failing
+        COS all give ``TaskTimes()``."""
         try:
-            times = self._read_task_times()
+            return self._read_task_times()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
             return TaskTimes()
-        return plausible_task_times(times, self.job.created, self.job.running_started_at, self.job.fleet_id)
 
     def _read_task_times(self) -> TaskTimes:
         """The task file of the fleet. A job runs a single task, so the first file is the only one."""
