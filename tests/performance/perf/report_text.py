@@ -6,7 +6,7 @@ from functools import cached_property
 from .logs import SUBMIT_PARTS, has_parts
 from .run_dir import RunDir
 from .stats import (
-    STATUS_PATH,
+    STATUS_PATHS,
     calls_by_endpoint,
     create_fleet,
     database,
@@ -44,7 +44,7 @@ class Run:  # pylint: disable=too-many-instance-attributes
         self.health = run_dir.read("health.jsonl")
         self.sysdig = run_dir.read("sysdig.json")
         self.submits = run_dir.read("submits.jsonl")
-        self.status_calls = [c for c in self.calls if c["path"] == STATUS_PATH]
+        self.status_calls = [c for c in self.calls if c["method"] == "GET" and c["path"] in STATUS_PATHS]
 
     @cached_property
     def job(self) -> dict:
@@ -68,9 +68,8 @@ class Run:  # pylint: disable=too-many-instance-attributes
 
     def driver(self) -> dict:
         """The driver health numbers of the run."""
-        return driver_health(
-            self.calls, self.health, self.meta.get("poll_seconds", 5), self.meta.get("planned_submit_seconds", 0)
-        )
+        poll_seconds = None if self.meta.get("poll") == "backoff" else self.meta.get("poll_seconds", 5)
+        return driver_health(self.calls, self.health, poll_seconds, self.meta.get("planned_submit_seconds", 0))
 
 
 def build(run_dir: RunDir) -> str:
@@ -117,6 +116,12 @@ def _jobs(run: Run) -> list[str]:
         )
     lines += _not_done(run.users)
     lines += [f"  status check error x{n}: {message}" for message, n in _poll_errors(run.users)]
+    retried = sum(1 for user in run.users if user.get("sign_in_retries"))
+    if retried:
+        lines.append(
+            f"  sign-in retried {job['sign_in_retries']} times for {retried} users   (a 429 or 5xx at sign-in, "
+            "from one IBM Cloud account for every user, which real users do not share)"
+        )
     counts: dict = {}
     for error in job["errors"]:
         counts[error] = counts.get(error, 0) + 1
@@ -288,7 +293,12 @@ def distributions(run: Run) -> dict:
         "sign-in server s": server("GET /api/v1/programs/"),
         "upload server s": server("POST /api/v1/programs/upload/"),
         "run server s": server("POST /api/v1/programs/run/"),
-        "status server s": server(f"GET {STATUS_PATH}"),
+        # the token check of #2614, or the job itself in a run from before it
+        "status server s": (
+            server("GET /api/v1/jobs/{id}/status/")
+            if "GET /api/v1/jobs/{id}/status/" in run.endpoints
+            else server("GET /api/v1/jobs/{id}/")
+        ),
     }
 
 
@@ -306,6 +316,12 @@ def row(run: Run) -> dict:
             return None
         values = [v for label, v in series.items() if f"container_name={container}," in label]
         return max(values, default=None)
+
+    def peak(metric: str, label: str | None = None) -> float | None:
+        series = machine.get(metric)
+        if not isinstance(series, dict):
+            return None
+        return max((v for k, v in series.items() if label in (None, k)), default=None)
 
     found = outliers(run.status_calls, "seconds")
     return {
@@ -327,6 +343,8 @@ def row(run: Run) -> dict:
         "slowest status check client s": found["worst"][0]["seconds"] if found["worst"] else None,
         "gateway cpu max % of quota": worst("cpu_quota_used_percent", "gateway"),
         "scheduler memory max % of limit": worst("memory_limit_used_percent", "gateway-scheduler"),
+        "scheduler loop max s": peak("loop_duration_max"),
+        "submit pass max s": peak("task_duration_max", "task_name=ScheduleFleetsJobs"),
         "scheduler db query mean ms": _ms(db.get("scheduler", {}).get("query_mean_seconds")),
         "scheduler db new connections": db.get("scheduler", {}).get("new_connections"),
         "driver cpu max % of 1 core": driver["cpu_max_percent"],
