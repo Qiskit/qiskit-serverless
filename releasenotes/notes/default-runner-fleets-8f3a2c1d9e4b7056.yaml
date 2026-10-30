@@ -1,0 +1,17 @@
+---
+upgrade:
+  - |
+    The default execution backend for a function is now Fleets instead of Ray.
+    A function uploaded without an explicit ``runner``, and a job created from
+    one, now default to the Fleets runner. Uploads that name ``runner`` keep
+    running on whatever they ask for, and functions already stored keep the
+    runner they were created with.
+
+    Because a Fleets function needs a Code Engine project to run, a deployment
+    that lets users upload functions without specifying a runner must have a
+    default Code Engine project configured (``CE_DEFAULT_PROJECT_NAME``) before
+    this change goes live, or those uploads will fail.
+features:
+  - |
+    New functions default to the Fleets runner, so a plain
+    ``upload`` with no ``runner`` field now produces a Fleets function.
