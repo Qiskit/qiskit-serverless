@@ -288,8 +288,6 @@ spec:
               value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
             - name: SECURE_HSTS_PRELOAD
               value: {{ .Values.application.security.hstsPreload | quote }}
-            - name: LIMITS_ACTIVE_JOBS_PER_USER
-              value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
             - name: ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB
               value: {{ .Values.application.limits.argumentsSchemaMemoryLimitMb | quote }}
             - name: ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS

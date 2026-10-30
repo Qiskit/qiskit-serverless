@@ -109,18 +109,15 @@ The report gives these times for each job:
 
 ## Prepare the system
 
-Every user signs in with the same `GATEWAY_TOKEN`, so for the gateway they are one user. And no user waits for the jobs of the others, so with long jobs every job of the run can exist at the same time. So a run with more than 50 users needs the per-user limits raised first. `--dry-run` warns about it.
+Every user signs in with the same `GATEWAY_TOKEN`, so for the gateway they are one user. And no user waits for the jobs of the others, so with long jobs every job of the run can exist at the same time. So a run with more than 50 users needs the per-user limit raised first. `--dry-run` warns about it.
 
 | What | For the test | Where | How it reaches staging |
 |---|---|---|---|
-| Active jobs per user, `LIMITS_ACTIVE_JOBS_PER_USER` (default 50) | above the number of users | the chart value `gateway.application.limits.maxActiveJobsPerUser` | an internal values PR, then a staging release |
-| Running Fleets jobs per user, `LIMITS_JOBS_PER_USER_FLEETS` (default 50) | above the number of users | not in the chart today, so a public chart PR to add it, then the internal values | a chart PR, a values PR, and a staging release |
-| Jobs started per user per scheduler tick | more than 1 | the Config `scheduler.fleets.jobs_per_user_per_tick`, from PR #2583 | the backoffice, once #2583 is deployed. Today it is always 1, so 200 jobs take 200 ticks. |
-| Gateway and scheduler CPU and memory | like production. The staging scheduler has only 270 MiB. | `gateway.resources` and `gateway.scheduler.resources` in the internal `values-non-prod.yaml` | an internal values PR, then a staging release |
+| Jobs per user, queued or running (default 50) | above the number of users | the Config `gateway.limits.active_jobs_per_user` | the backoffice |
+| Fleets jobs started per scheduler tick (default 5) | the number of users, so one tick starts a whole step | the Config `scheduler.fleets.jobs_per_tick` | the backoffice |
+| Gateway and scheduler CPU and memory | like production, so the results carry over. | `gateway.resources` and `gateway.scheduler.resources` in the internal `values-non-prod.yaml` | an internal values PR, then a staging release |
 | Compute size | the smallest the function needs, for example `S`, `8x32` | `sizes` and `function_size` in `scenarios.yaml`. The profile must be registered in the gateway. | nothing, the driver sends it |
 | Code Engine room | room for every fleet of the run. A project holds at most 1000 fleets, and a fleet that is being deleted still counts | the Code Engine project | the driver waits for room before each scenario, and deletes each fleet when its job ends |
-
-Once #2583 is deployed, the two per-user limits also move to the backoffice, as `gateway.limits.active_jobs_per_user`. Then a run needs no values PR and no release.
 
 **Before each run:**
 - Check that the profiles in `sizes` are registered in the gateway. The upload fails otherwise.

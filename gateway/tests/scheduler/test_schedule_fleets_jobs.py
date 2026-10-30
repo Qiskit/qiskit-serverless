@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.config_key import ConfigKey
-from core.models import Config, Job
+from core.models import Config, Job, Program
 from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
@@ -15,10 +15,28 @@ from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
 
 
+@pytest.fixture(autouse=True, name="jobs_per_tick")
+def _fleets_limits():
+    config = {ConfigKey.FLEETS_JOBS_PER_TICK: 3, ConfigKey.ACTIVE_JOBS_PER_USER: 40}
+    get_int = Config.get_int
+    with patch(
+        f"{_MOD}.Config.get_int", side_effect=lambda key, **kw: config[key] if key in config else get_int(key, **kw)
+    ):
+        yield config
+
+
 @pytest.fixture(autouse=True)
 def fleet_count():
     with patch(f"{_MOD}.count_fleets", side_effect=RunnerError("not counted in unit tests")) as count:
         yield count
+
+
+def test_jobs_per_tick_zero_submits_nothing(jobs_per_tick):
+    jobs_per_tick[ConfigKey.FLEETS_JOBS_PER_TICK] = 0
+    with patch(f"{_MOD}.get_jobs_to_schedule_fair_share") as mock_fair_share:
+        _make_task()._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
+
+    mock_fair_share.assert_not_called()
 
 
 def _make_task():
@@ -60,7 +78,7 @@ def test_fleets_execute_called_with_ctx():
     mock_ctx = MagicMock()
 
     with (
-        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]),
+        patch(f"{_MOD}.get_jobs_to_schedule_fair_share", return_value=[mock_job]) as mock_fair_share,
         patch.object(task.submitter, "submit", return_value=True) as mock_execute,
         patch(f"{_MOD}.TraceContextTextMapPropagator") as mock_propagator,
     ):
@@ -68,6 +86,7 @@ def test_fleets_execute_called_with_ctx():
         task._schedule_jobs_if_slots_available(max_slots_possible=5, number_of_slots_running=0)
 
     mock_execute.assert_called_once_with(mock_job, mock_ctx)
+    mock_fair_share.assert_called_once_with(slots=3, gpu=False, runner=Program.FLEETS, jobs_per_user=40)
 
 
 def test_a_submit_that_did_not_reach_pending_records_no_queue_wait():

@@ -342,11 +342,6 @@ FLEETS_GATEWAY_HOST = os.environ.get("FLEETS_GATEWAY_HOST", SITE_HOST)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-# Per-user concurrent running-job limit for the Fleets (Code Engine) runner.
-# Fleets scales differently from Ray (no per-cluster capacity), so it gets its
-# own, higher default independent of the Ray-oriented LIMITS_JOBS_PER_USER.
-LIMITS_JOBS_PER_USER_FLEETS = int(os.environ.get("LIMITS_JOBS_PER_USER_FLEETS", "50"))
-LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
@@ -698,6 +693,18 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",
         "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "
         "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
+    },
+    "scheduler.fleets.jobs_per_tick": {
+        "default": "5",
+        "type": "integer",
+        "description": "Most queued Fleets jobs the scheduler submits in one tick, for all users together, taken in "
+        "rounds across users. 0 or less stops new Fleets submits.",
+    },
+    "gateway.limits.active_jobs_per_user": {
+        "default": "50",
+        "type": "integer",
+        "description": "Most jobs one user can have queued or running. The gateway checks it at submit, and the "
+        "scheduler uses it as the most Fleets jobs one user can have running. 0 blocks every submit.",
     },
 }
 
