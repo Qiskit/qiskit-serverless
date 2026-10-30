@@ -1,4 +1,4 @@
-"""Tests for the 0081 deletion of the scheduler.fleets.jobs_per_user_per_tick Config row."""
+"""Tests for the 0082 deletion of the scheduler.fleets.jobs_per_user_per_tick Config row."""
 
 import importlib
 
@@ -7,7 +7,7 @@ from django.apps import apps
 
 from core.models import Config
 
-delete_config = importlib.import_module("api.migrations.0081_delete_fleets_jobs_per_user_per_tick_config").delete_config
+delete_config = importlib.import_module("api.migrations.0082_delete_fleets_jobs_per_user_per_tick_config").delete_config
 
 
 @pytest.mark.django_db

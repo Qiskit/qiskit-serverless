@@ -9,7 +9,7 @@ def delete_config(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0080_job_fleet_deleted_at_job_fleet_undeleted_idx"),
+        ("api", "0081_blockedcloudresource_reason_region"),
     ]
 
     operations = [
