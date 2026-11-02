@@ -407,12 +407,26 @@ def latest_event_at(job: Job) -> datetime:
     return latest_job_event.created if latest_job_event else job.created
 
 
-def check_job_timeout(job: Job, last_event_at: datetime) -> bool:
-    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours since ``last_event_at``."""
+def running_reference_at(job: Job, first_running_at: datetime | None) -> datetime:
+    """The time the timeout is measured from: when the job started running, else its creation.
+
+    The timeout is a cap on execution time, so it counts from the first RUNNING event. Falling back
+    to creation (not the latest event) keeps a job that never reached RUNNING, stuck PENDING, from
+    living for ever, while a RUNNING job's clock no longer resets every time it reports a sub status.
+    """
+    return first_running_at or job.created
+
+
+def check_job_timeout(job: Job, reference_time: datetime) -> bool:
+    """Whether a running job has been running for more than PROGRAM_TIMEOUT hours since ``reference_time``.
+
+    ``reference_time`` is the job's execution start (see ``running_reference_at``), not the time of its
+    latest event: a job that keeps emitting events, such as sub status changes, must still time out.
+    """
     if job.status not in Job.RUNNING_STATUSES:
         return False
 
-    endtime = last_event_at + timedelta(hours=settings.PROGRAM_TIMEOUT)
+    endtime = reference_time + timedelta(hours=settings.PROGRAM_TIMEOUT)
     return endtime < datetime.now(tz=endtime.tzinfo)
 
 

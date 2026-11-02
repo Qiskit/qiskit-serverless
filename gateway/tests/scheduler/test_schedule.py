@@ -41,6 +41,7 @@ from scheduler.schedule import (
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
     latest_event_at,
+    running_reference_at,
 )
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
@@ -515,16 +516,61 @@ class TestScheduleApi(APITestCase):
 
 
 @pytest.mark.django_db
-def test_a_ray_job_without_events_times_out_from_its_creation():
-    user = User.objects.create_user(username="ray-timeout-no-events")
-    resource = ComputeResource.objects.create(title="ray-timeout-no-events", active=True)
-    job = Job.objects.create(author=user, status=Job.RUNNING, compute_resource=resource)
+def test_a_job_that_never_ran_times_out_from_its_creation():
+    """A job with no RUNNING event (stuck PENDING) still has a bound: it times out from creation."""
+    user = User.objects.create_user(username="timeout-no-running-event")
+    job = Job.objects.create(author=user, status=Job.PENDING)
     Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
     job.refresh_from_db()
 
-    assert latest_event_at(job) == job.created
+    assert JobEvent.objects.first_running_at(job.id) is None
+    assert running_reference_at(job, JobEvent.objects.first_running_at(job.id)) == job.created
     with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job, latest_event_at(job)) is True
+        assert check_job_timeout(job, running_reference_at(job, JobEvent.objects.first_running_at(job.id))) is True
+
+
+@pytest.mark.django_db
+def test_the_timeout_counts_from_execution_start_not_the_latest_event():
+    """Regression for the Q-CTRL timeout bug: a running job that keeps emitting events (sub status
+    changes) must still time out. The clock runs from the RUNNING event, not from the latest event."""
+    user = User.objects.create_user(username="timeout-substatus-churn")
+    job = TestUtils.create_job(author=user, program="churn-program", status=Job.RUNNING)
+
+    running_event = JobEvent.objects.running_status_events().filter(job=job).first()
+    old_start = datetime.now(timezone.utc) - timedelta(hours=26)
+    JobEvent.objects.filter(id=running_event.id).update(created=old_start)
+    # A fresh sub status event, long after the job started, is what used to reset the clock.
+    JobEvent.objects.add_sub_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.API,
+        context=JobEventContext.SET_SUB_STATUS,
+        sub_status=Job.OPTIMIZING_HARDWARE,
+    )
+
+    with override_settings(PROGRAM_TIMEOUT=24):
+        # The old, buggy behaviour: measured from the latest event, the job looks fresh.
+        assert check_job_timeout(job, latest_event_at(job)) is False
+        # The fixed behaviour: measured from execution start, the job has timed out.
+        reference = running_reference_at(job, JobEvent.objects.first_running_at(job.id))
+        assert check_job_timeout(job, reference) is True
+
+
+@pytest.mark.django_db
+def test_a_long_queued_job_is_not_timed_out_by_its_queue_wait():
+    """The #1540 fairness case: a job that queued for a long time then ran briefly is not timed out
+    for the queue wait. The clock runs from execution start, so its creation time does not count."""
+    user = User.objects.create_user(username="timeout-long-queue")
+    job = TestUtils.create_job(author=user, program="queue-wait-program", status=Job.RUNNING)
+
+    # Created a day ago (long queue), started running a minute ago.
+    Job.objects.filter(id=job.id).update(created=datetime.now(timezone.utc) - timedelta(hours=23))
+    running_event = JobEvent.objects.running_status_events().filter(job=job).first()
+    JobEvent.objects.filter(id=running_event.id).update(created=datetime.now(timezone.utc) - timedelta(minutes=1))
+    job.refresh_from_db()
+
+    with override_settings(PROGRAM_TIMEOUT=1):
+        reference = running_reference_at(job, JobEvent.objects.first_running_at(job.id))
+        assert check_job_timeout(job, reference) is False
 
 
 @pytest.mark.django_db

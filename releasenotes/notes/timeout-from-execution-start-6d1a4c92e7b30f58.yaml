@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    A running job is now stopped once it has been executing for longer than
+    ``PROGRAM_TIMEOUT`` hours, measured from when it started running. Before, the
+    timeout counted from the job's latest event of any kind, so a job that kept
+    reporting a sub status (``MAPPING``, ``OPTIMIZING_HARDWARE``, ``WAITING_QPU``,
+    ``EXECUTING_QPU``) reset the clock on every change and could run indefinitely.
+    A job that never reached ``RUNNING`` is still bounded from its creation time.
