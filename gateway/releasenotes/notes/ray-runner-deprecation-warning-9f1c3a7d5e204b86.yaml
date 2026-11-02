@@ -1,0 +1,8 @@
+---
+deprecations:
+  - |
+    Running a function on the Ray runner now returns a deprecation warning in the run response.
+    Ray is a deprecated execution platform; a custom function is asked to migrate to the Fleets
+    runner (``runner="fleets"``), and a provider function is asked to have its maintainer migrate
+    it. The warning rides on the existing ``warning`` field of the run response, alongside the
+    blocked-resource warning when both apply.
