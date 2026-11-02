@@ -104,7 +104,7 @@ class TestReasonsAndRegions:
         _handle(_event(deleted=True), topic=lifted)
 
         assert _reasons_and_regions() == [(still_blocking, "us-east")]
-        assert BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1")
+        assert BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1", None)
 
     def test_lifting_both_limits_unblocks_the_resource(self):
         _handle(_event(), topic=_TOTAL_TOPIC)
@@ -113,7 +113,7 @@ class TestReasonsAndRegions:
         _handle(_event(deleted=True), topic=_NON_QUANTUM_TOPIC)
         _handle(_event(deleted=True), topic=_TOTAL_TOPIC)
 
-        assert not BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1")
+        assert not BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1", None)
 
     def test_an_unblock_in_one_region_keeps_another_regions_block(self):
         _handle(_event(), region="us-east")

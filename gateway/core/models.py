@@ -4,6 +4,7 @@
 
 import logging
 import operator
+import re
 import uuid
 from datetime import datetime
 from enum import StrEnum
@@ -573,14 +574,18 @@ class BlockedCloudResource(models.Model):
         return f"BlockedCloudResource({', '.join(parts)})"
 
     @classmethod
-    def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
+    def blocks(cls, account: str | None, plan: str | None, subscription: str | None, region: str | None) -> bool:
         """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL.
 
-        Always False while blocked resources are not enforced.
+        With regional matching on, the row's region must also be this one. Always False while blocked resources
+        are not enforced.
         """
         if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
             return False
-        return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
+        rows = cls.objects.filter(account=account, plan=plan, subscription=subscription)
+        if Config.get_bool(ConfigKey.BLOCKED_RESOURCES_REGIONAL):
+            rows = rows.filter(region=region)
+        return rows.exists()
 
     @classmethod
     def blocked_jobs_filter(cls) -> models.Q | None:
@@ -590,9 +595,23 @@ class BlockedCloudResource(models.Model):
         """
         if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
             return None
-        # distinct: a resource blocked for more than one reason or region has a row for each
-        rows = cls.objects.values_list("account", "plan", "subscription").distinct()
-        jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
+        # distinct: a resource blocked for more than one reason (or region, when regions are not compared) has a
+        # row for each
+        if Config.get_bool(ConfigKey.BLOCKED_RESOURCES_REGIONAL):
+            rows = cls.objects.values_list("account", "plan", "subscription", "region").distinct()
+            # A job has no region column: it is the instance CRN's region segment, as core.domain.crn.Crn reads it
+            jobs = [
+                models.Q(
+                    account_id=account,
+                    plan_id=plan,
+                    subscription_id=sub,
+                    instance_crn__regex=rf"^([^:]*:){{5}}{re.escape(region)}:",
+                )
+                for account, plan, sub, region in rows
+            ]
+        else:
+            rows = cls.objects.values_list("account", "plan", "subscription").distinct()
+            jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
         return reduce(operator.or_, jobs) if jobs else None
 
 

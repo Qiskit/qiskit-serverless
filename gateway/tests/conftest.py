@@ -62,6 +62,10 @@ def blocked_jobs_stop_disabled(request):
         Config.objects.get_or_create(
             name=ConfigKey.BLOCKED_JOBS_STOP_ENABLED.value, defaults={"value": "false", "description": "test"}
         )
+        # Read whenever a job is checked against blocked_cloud_resources
+        Config.objects.get_or_create(
+            name=ConfigKey.BLOCKED_RESOURCES_REGIONAL.value, defaults={"value": "false", "description": "test"}
+        )
 
 
 @pytest.fixture(autouse=True)

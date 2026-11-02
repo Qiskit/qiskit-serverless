@@ -694,6 +694,12 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "
         "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
     },
+    "gateway.blocked_resources.regional.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Match a job against blocked_cloud_resources by its region too, the one in its instance CRN, "
+        "rather than by account, plan and subscription alone. A job whose CRN has no region is then never blocked.",
+    },
     "scheduler.fleets.jobs_per_tick": {
         "default": "5",
         "type": "integer",
