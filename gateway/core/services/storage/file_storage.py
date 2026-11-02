@@ -18,11 +18,15 @@ class FileStorage(ABC):
     """
 
     @abstractmethod
-    def get_public_files(self) -> list[str]:
+    def get_public_files(self, sub_path: str = "") -> list[str]:
         """
         This method returns a list of file names following the next rules:
             - It returns only files from a user or a provider file storage
             - Directories are excluded
+
+        Args:
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder to list (e.g. ``"wheels"``). Empty lists the folder root.
 
         Returns:
             list[str]: list of file names
@@ -138,12 +142,14 @@ class FileStorage(ABC):
         """
 
     @abstractmethod
-    def remove_public_file(self, file_name: str) -> bool:
+    def remove_public_file(self, file_name: str, sub_path: str = "") -> bool:
         """
         This method removes a file in the path of file_name
 
         Args:
             file_name (str): the name of the file to remove
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder the file lives in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             - True if it was deleted

@@ -74,17 +74,21 @@ class FileStorageRay(FileStorage):
             self.private_path = None
             self.private_sub_path = None
 
-    def get_public_files(self) -> list[str]:
+    def get_public_files(self, sub_path: str = "") -> list[str]:
         """
         This method returns a list of file names following the next rules:
             - It returns only files from a user or a provider file storage
             - Directories are excluded
 
+        Args:
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder to list (e.g. ``"wheels"``). Empty lists the folder root.
+
         Returns:
             list[str]: list of file names
         """
 
-        return self._get_files_in_path(self.public_path)
+        return self._get_files_in_path(self.public_path, sub_path)
 
     def get_private_files(self) -> list[str]:
         """
@@ -98,9 +102,11 @@ class FileStorageRay(FileStorage):
 
         return self._get_files_in_path(self.private_path)
 
-    def _get_files_in_path(self, folder_path: str) -> list[str]:
-        """Auxiliary method for getting files"""
-        return [os.path.basename(path) for path in glob.glob(f"{folder_path}/*") if os.path.isfile(path)]
+    def _get_files_in_path(self, folder_path: str, sub_path: str = "") -> list[str]:
+        """Auxiliary method for getting files, optionally within a sanitized sub-directory."""
+        safe_sub_path = sanitize_sub_path(sub_path)
+        target = os.path.join(folder_path, safe_sub_path) if safe_sub_path else folder_path
+        return [os.path.basename(path) for path in glob.glob(f"{target}/*") if os.path.isfile(path)]
 
     def get_public_file(self, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:
         """
@@ -291,18 +297,20 @@ class FileStorageRay(FileStorage):
         logger.info("[upload_file] File written: %s", path_to_file)
         return path_to_file
 
-    def remove_public_file(self, file_name: str) -> bool:
+    def remove_public_file(self, file_name: str, sub_path: str = "") -> bool:
         """
         This method removes a file in the path of file_name
 
         Args:
             file_name (str): the name of the file to remove
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder the file lives in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             - True if it was deleted
             - False otherwise
         """
-        return self._remove_file_from_folder(self.public_path, file_name)
+        return self._remove_file_from_folder(self.public_path, file_name, sub_path)
 
     def remove_private_file(self, file_name: str) -> bool:
         """
@@ -317,12 +325,13 @@ class FileStorageRay(FileStorage):
         """
         return self._remove_file_from_folder(self.private_path, file_name)
 
-    def _remove_file_from_folder(self, folder_path: str, file_name: str) -> bool:
+    def _remove_file_from_folder(self, folder_path: str, file_name: str, sub_path: str = "") -> bool:
         """
         This method removes a file in the path of file_name
 
         Args:
             file_name (str): the name of the file to remove
+            sub_path (str): optional, already-sanitized relative directory under ``folder_path``.
 
         Returns:
             - True if it was deleted
@@ -330,7 +339,9 @@ class FileStorageRay(FileStorage):
         """
 
         file_name_path = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(os.path.join(folder_path, file_name_path))
+        safe_sub_path = sanitize_sub_path(sub_path)
+        folder = os.path.join(folder_path, safe_sub_path) if safe_sub_path else folder_path
+        path_to_file = sanitize_file_path(os.path.join(folder, file_name_path))
 
         try:
             os.remove(path_to_file)

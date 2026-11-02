@@ -886,9 +886,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     ####### FILES #######
     #####################
 
-    def files(self, function: QiskitFunction) -> List[str]:
-        """Returns the list of files available for the user in the Qiskit Function folder."""
-        return self._files_client.list(function)
+    def files(self, function: QiskitFunction, sub_path: Optional[str] = None) -> List[str]:
+        """Returns the list of files available for the user in the Qiskit Function folder.
+
+        ``sub_path`` optionally lists a sub-directory of the function's folder (e.g. ``"wheels"``).
+        """
+        return self._files_client.list(function, sub_path)
 
     def provider_files(self, function: QiskitFunction) -> List[str]:
         """Returns the list of files available for the provider in the Qiskit Function folder."""
@@ -914,9 +917,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """Download a file available to the provider for the specific Qiskit Function."""
         return self._files_client.provider_download(file, download_location, function, target_name)
 
-    def file_delete(self, file: str, function: QiskitFunction):
-        """Deletes a file available to the user for the specific Qiskit Function."""
-        return self._files_client.delete(file, function)
+    def file_delete(self, file: str, function: QiskitFunction, sub_path: Optional[str] = None):
+        """Deletes a file available to the user for the specific Qiskit Function.
+
+        ``sub_path`` optionally targets a sub-directory of the function's folder (e.g. ``"wheels"``).
+        """
+        return self._files_client.delete(file, function, sub_path)
 
     def provider_file_delete(self, file: str, function: QiskitFunction):
         """Deletes a file available to the provider for the specific Qiskit Function."""
@@ -941,7 +947,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         must be a ``.whl`` file. This is a thin wrapper over :meth:`file_upload` that expands
         the patterns and uploads each wheel into the function's ``wheels`` sub-directory, so
         they are available to the function at runtime. Install them from your entrypoint with
-        ``install_uploaded_wheels()``, which reads that same directory.
+        ``install_uploaded_wheels()``, which reads that same directory. Use :meth:`list_wheels`
+        and :meth:`remove_wheels` to see and remove what has been uploaded.
 
         Args:
             function: the function whose file area the wheels are uploaded to.
@@ -970,6 +977,27 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             self.file_upload(path, function, sub_path=WHEELS_SUBDIR)
             uploaded.append(os.path.basename(path))
         return uploaded
+
+    def list_wheels(self, function: QiskitFunction) -> List[str]:
+        """List the wheels currently uploaded to a function (via :meth:`add_wheels`).
+
+        Returns the wheel file names in the function's ``wheels`` sub-directory.
+        """
+        return self.files(function, sub_path=WHEELS_SUBDIR)
+
+    def remove_wheels(self, function: QiskitFunction, names: List[str]) -> None:
+        """Remove previously uploaded wheels from a function.
+
+        To *update* a wheel, remove the old one and :meth:`add_wheels` the new build (a rebuild
+        with a different version has a different file name, so it would otherwise accumulate
+        alongside the old one and both would be installed).
+
+        Args:
+            function: the function to remove wheels from.
+            names: wheel file names to remove, as returned by :meth:`list_wheels`.
+        """
+        for name in names:
+            self.file_delete(name, function, sub_path=WHEELS_SUBDIR)
 
     def dependency_report(self, requirements: List[str]) -> "DependencyReport":
         """Diff your requirements against what the runtime image already ships.

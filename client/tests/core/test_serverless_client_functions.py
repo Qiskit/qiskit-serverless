@@ -482,6 +482,25 @@ class TestAddWheelsMethod:
             with pytest.raises(QiskitServerlessException, match="only accepts .whl"):
                 mock_client.add_wheels(function, ["dist/*"])
 
+    def test_list_wheels_lists_the_wheels_subdir(self, mock_client):
+        """list_wheels lists the function's wheels sub-directory."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "files", return_value=["mypkg-1.0-py3-none-any.whl"]) as mock_files:
+            result = mock_client.list_wheels(function)
+
+        mock_files.assert_called_once_with(function, sub_path="wheels")
+        assert result == ["mypkg-1.0-py3-none-any.whl"]
+
+    def test_remove_wheels_deletes_each_from_the_wheels_subdir(self, mock_client):
+        """remove_wheels deletes each named wheel from the wheels sub-directory."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "file_delete") as mock_delete:
+            mock_client.remove_wheels(function, ["a.whl", "b.whl"])
+
+        assert mock_delete.call_count == 2
+        for call in mock_delete.call_args_list:
+            assert call.kwargs.get("sub_path") == "wheels"
+
 
 class TestDependencyReportMethod:
     """Tests for ServerlessClient.dependency_report()."""

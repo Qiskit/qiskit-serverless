@@ -192,12 +192,19 @@ class GatewayFilesClient:
         raise QiskitServerlessException("Can not open file")
 
     @_trace
-    def list(self, function: QiskitFunction) -> List[str]:
-        """Returns the list of files available for the user in the Qiskit Function folder."""
+    def list(self, function: QiskitFunction, sub_path: Optional[str] = None) -> List[str]:
+        """Returns the list of files available for the user in the Qiskit Function folder.
+
+        If ``sub_path`` is given, lists files in that sub-directory of the function's folder
+        (e.g. ``"wheels"``) instead of the root.
+        """
+        params = {"function": function.title, "provider": function.provider}
+        if sub_path:
+            params["sub_path"] = sub_path
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 self._files_url,
-                params={"function": function.title, "provider": function.provider},
+                params=params,
                 headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -221,18 +228,25 @@ class GatewayFilesClient:
         return response_data.get("results", [])
 
     @_trace
-    def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Deletes a file available to the user for the specific Qiskit Function."""
+    def delete(self, file: str, function: QiskitFunction, sub_path: Optional[str] = None) -> Optional[str]:
+        """Deletes a file available to the user for the specific Qiskit Function.
+
+        If ``sub_path`` is given, deletes the file from that sub-directory of the function's
+        folder (e.g. ``"wheels"``).
+        """
         headers = get_headers(token=self._token, instance=self._instance, channel=self._channel)
         headers["format"] = "json"
+        params = {
+            "file": file,
+            "function": function.title,
+            "provider": function.provider,
+        }
+        if sub_path:
+            params["sub_path"] = sub_path
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 url_path_join(self._files_url, "delete"),
-                params={
-                    "file": file,
-                    "function": function.title,
-                    "provider": function.provider,
-                },
+                params=params,
                 headers=headers,
                 timeout=REQUESTS_TIMEOUT,
             )

@@ -19,9 +19,9 @@ from api.use_cases.files.upload import FilesUploadUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
-from core.utils import sanitize_sub_path
 from api.v1.views.utils import validate_uploaded_file
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.utils import sanitize_sub_path
 
 logger = logging.getLogger("api.api.v1.views.files.upload")
 
