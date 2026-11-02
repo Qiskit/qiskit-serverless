@@ -2,6 +2,7 @@
 
 from typing import Union, Literal, Iterable, Tuple
 
+from django.conf import settings
 from django.contrib.auth.models import (
     User,
     Group,
@@ -340,10 +341,8 @@ class TestUtils:
 
         author_obj, _ = TestUtils.get_user_and_username(author)
 
-        # Tests that predate the fleets default were written against Ray programs and
-        # assert Ray behavior. Keep that the default here so only tests that exercise
-        # the fleets default have to ask for it; production defaults to FLEETS.
-        kwargs.setdefault("runner", Program.RAY)
+        # No runner default here: the Program model defaults to FLEETS, like production.
+        # Tests that assert Ray behaviour pass runner=Program.RAY explicitly.
 
         if not instances:
             instances = []
@@ -365,7 +364,45 @@ class TestUtils:
         if instances or trial_instances:
             TestUtils.add_instance_to_program(program, instances=instances, trial_instances=trial_instances)
 
+        # Only tests that opted into the Fleets deployment (the `default_ce_project` fixture, which
+        # sets the flag below) get a runnable Fleets function. Everything else keeps a bare program
+        # row, so tests that create their own sizes, or assert the unassigned path, are untouched.
+        if program.runner == Program.FLEETS and TestUtils._provision_fleets_programs:
+            TestUtils.make_fleets_program_runnable(program)
+
         return program
+
+    # Set by the `default_ce_project` fixture for the span of a test that needs a runnable Fleets
+    # function; create_program then assigns a CE project and a default size, like the upload use case.
+    _provision_fleets_programs = False
+
+    @staticmethod
+    def make_fleets_program_runnable(program: Program) -> None:
+        """Assign a Code Engine project and a default size to a Fleets program, like the upload use case.
+
+        Skips either step whose infra is absent: no CE project is assigned without an active default
+        project, and no size is seeded without a registered default profile. A program that already
+        has a size keeps it, so a caller that declares its own sizes is never collided with.
+        """
+        from core.models import ComputeProfile, FunctionSize  # pylint: disable=import-outside-toplevel
+
+        if not program.code_engine_project:
+            # select_default() raises when CE_DEFAULT_PROJECT_NAME is unset (no infra), so swallow that.
+            try:
+                CodeEngineProject.objects.assign_to_program(program)
+            except ValueError:
+                pass
+            if program.code_engine_project:
+                program.save(update_fields=["code_engine_project"])
+
+        if not program.default_size_id and not FunctionSize.objects.filter(function=program).exists():
+            profile = ComputeProfile.objects.get_by_id(settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+            if profile is not None:
+                row = FunctionSize.objects.create(
+                    function=program, function_size=settings.DEFAULT_FUNCTION_SIZE, compute_profile=profile
+                )
+                program.default_size = row
+                program.save(update_fields=["default_size"])
 
     @staticmethod
     def create_job_config(

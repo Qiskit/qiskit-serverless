@@ -34,7 +34,7 @@ class TestRequestBodySize:
             format="json",
         )
 
-    def test_run_accepts_a_batch_of_circuits(self, client):
+    def test_run_accepts_a_batch_of_circuits(self, client, default_ce_project):
         """A body over Django's 2.5 MB default is accepted, which is what a batch of circuits needs."""
         # One 100 qubit, depth 100 circuit is about 39 KB of base64, so this stands for a batch of
         # about seventy five of them, and is over the 2.5 MB Django would have allowed on its own.
@@ -44,7 +44,7 @@ class TestRequestBodySize:
 
         assert response.status_code == status.HTTP_200_OK
 
-    def test_run_accepts_a_batch_of_circuits_against_a_schema(self, client):
+    def test_run_accepts_a_batch_of_circuits_against_a_schema(self, client, default_ce_project):
         """The same batch is accepted when the function declares a schema, so it is under both limits."""
         arguments = json.dumps({"circuits": "x" * 3 * 1024 * 1024})
 

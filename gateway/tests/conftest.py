@@ -12,6 +12,8 @@
 
 """Global pytest fixtures for gateway tests."""
 
+from unittest.mock import patch
+
 import pytest
 from django.core.cache import cache
 
@@ -19,6 +21,40 @@ from core.clients.iam_token_provider import get_iam_token_provider
 from core.config_key import ConfigKey
 from core.models import Config
 from core.ibm_cloud import clear_cos_clients
+
+from tests.utils import TestUtils
+
+
+@pytest.fixture
+def default_ce_project(settings, db):
+    """Wire up the deployment infra so a Fleets-default function is runnable.
+
+    Request this in run-path tests that are not about a specific runner: they create a function
+    with ``TestUtils.create_program`` (now Fleets by default, like production) and then run it, so
+    the function needs an active default CE project, a default size, and the Fleets argument
+    storage stubbed out (enqueueing a Fleets job writes its arguments to COS, which a unit test
+    must not reach). ``create_program`` (via ``make_fleets_program_runnable``) assigns the project
+    and size once this fixture has registered the default project and the default compute profile.
+    Returns the project for tests that need the handle.
+    """
+    from core.models import ComputeProfile  # pylint: disable=import-outside-toplevel
+
+    settings.CE_DEFAULT_PROJECT_NAME = "default-ce-project"
+    ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+    project = TestUtils.get_or_create_ce_project(
+        project_name="default-ce-project",
+        project_id="ce-proj-id",
+        cos_bucket_user_data_name="user-bucket",
+        cos_bucket_provider_data_name="provider-bucket",
+        cos_instance_name="cos-instance",
+        cos_key_name="cos-key",
+    )
+    TestUtils._provision_fleets_programs = True
+    try:
+        with patch("core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"):
+            yield project
+    finally:
+        TestUtils._provision_fleets_programs = False
 
 
 @pytest.fixture(autouse=True)

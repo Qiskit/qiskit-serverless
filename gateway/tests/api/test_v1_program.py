@@ -3,11 +3,13 @@
 import json
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -17,6 +19,7 @@ from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
+    CodeEngineProject,
     ComputeProfile,
     Config,
     Job,
@@ -53,7 +56,7 @@ class TestProgramApiLegacyGroupsPermissions:
         return _do
 
     class TestRunProgram:
-        def test_run_own_function(self, client, authorize_legacy):
+        def test_run_own_function(self, client, authorize_legacy, default_ce_project):
             """run() grants access to the function author via Django groups fallback."""
             user = authorize_legacy("test-user")
             TestUtils.create_program(program_title="my-func", author=user)
@@ -66,11 +69,13 @@ class TestProgramApiLegacyGroupsPermissions:
 
             assert response.status_code == status.HTTP_200_OK
 
-        def test_grant_run_provider_function_via_group(self, client, authorize_legacy):
+        def test_grant_run_provider_function_via_group(self, client, authorize_legacy, default_ce_project):
             """run() grants access to provider function when user is in the run_program group."""
             user = authorize_legacy("test-user")
             TestUtils.get_or_create_group(group="runner", permissions=[["run_program", "api", "program"]])
             TestUtils.add_user_to_group(user, "runner")
+            # The Fleets provider function runs in its provider's CE project.
+            TestUtils.get_or_create_provider(provider="my-provider", code_engine_project=default_ce_project)
             TestUtils.create_program(
                 program_title="provider-func", author="other-author", provider="my-provider", instances=["runner"]
             )
@@ -180,7 +185,29 @@ class TestProgramApi(APITestCase):
         self.runner_permission = ["run_program", "api", "program"]
         self.viewer_permission = ["view_program", "api", "program"]
 
+        # The functions these tests create default to Fleets, like production, so upload and run
+        # need a default CE project, a registered default profile, and the Fleets argument storage
+        # stubbed out (enqueueing a Fleets job writes arguments to COS, which a unit test must not
+        # reach). This mirrors the `default_ce_project` conftest fixture for this unittest-style class.
+        self._ce_default_override = override_settings(CE_DEFAULT_PROJECT_NAME="default-ce-project")
+        self._ce_default_override.enable()
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+        TestUtils.get_or_create_ce_project(
+            project_name="default-ce-project",
+            project_id="ce-proj-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        self._args_storage_patcher = patch("core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save")
+        self._args_storage_patcher.start()
+        TestUtils._provision_fleets_programs = True
+
     def tearDown(self):
+        TestUtils._provision_fleets_programs = False
+        self._args_storage_patcher.stop()
+        self._ce_default_override.disable()
         self._temp_directory.cleanup()
         super().tearDown()
 
@@ -375,7 +402,11 @@ class TestProgramApi(APITestCase):
         assert programs_response.data[0].get("provider") == "q-ctrl"
 
     def test_run(self):
-        """Tests run existing authorized."""
+        """Tests run existing authorized.
+
+        Reads arguments back from the Ray local file storage and checks their MEDIA_ROOT path, so
+        this is a Ray program; the Fleets path stores arguments in COS, not on a local path.
+        """
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = TestUtils.authorize_client(user="test_user_3", client=self.client)
@@ -390,6 +421,7 @@ class TestProgramApi(APITestCase):
                 entrypoint="program.py",
                 artifact="path",
                 trial_instances=["runner"],
+                runner=Program.RAY,
             )
 
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
@@ -437,7 +469,11 @@ class TestProgramApi(APITestCase):
             assert job_events[0].context == JobEventContext.RUN_PROGRAM
 
     def test_provider_run(self):
-        """Tests run existing authorized."""
+        """Tests run existing authorized.
+
+        Reads arguments back from the Ray local file storage and checks their MEDIA_ROOT path, so
+        this is a Ray program; the Fleets path stores arguments in COS, not on a local path.
+        """
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = TestUtils.authorize_client(user="test_user_2", client=self.client)
@@ -449,6 +485,7 @@ class TestProgramApi(APITestCase):
                 author=user,
                 provider="default",
                 env_vars=json.dumps({"PROGRAM_ENV1": "VALUE1", "PROGRAM_ENV2": "VALUE2"}),
+                runner=Program.RAY,
             )
 
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
@@ -531,6 +568,10 @@ class TestProgramApi(APITestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir):
                 user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
+                # A Fleets provider function runs in its provider's CE project, so wire the default
+                # provider to the project set up in setUp. The runner is not what this test is about.
+                default_project = CodeEngineProject.objects.get(project_name="default-ce-project")
+                TestUtils.get_or_create_provider(provider="default", code_engine_project=default_project)
                 program = TestUtils.create_program(
                     program_title="Docker-Image-Program-Test",
                     author="test_limit_user",
@@ -1563,7 +1604,7 @@ class TestProgramApiRuntimeInstances:
                 (set(), status.HTTP_403_FORBIDDEN),
             ],
         )
-        def test_run_custom_function(self, client, authorize, permissions, expected_status):
+        def test_run_custom_function(self, client, authorize, permissions, expected_status, default_ce_project):
             """run() checks PLATFORM_PERMISSION_CUSTOM_RUN when running a custom function."""
             user, _ = User.objects.get_or_create(username="runtime-user")
             TestUtils.create_program(program_title="my-custom-func", author=user)
@@ -1584,8 +1625,9 @@ class TestProgramApiRuntimeInstances:
                 (set(), status.HTTP_404_NOT_FOUND),
             ],
         )
-        def test_run_provider_function(self, client, authorize, permissions, expected_status):
+        def test_run_provider_function(self, client, authorize, permissions, expected_status, default_ce_project):
             """run() checks PLATFORM_PERMISSION_RUN in accessible_functions."""
+            TestUtils.get_or_create_provider(provider="my-provider", code_engine_project=default_ce_project)
             TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
             authorize("runtime-user", create_function_access_result("my-provider", "my-func", permissions))
 
@@ -1606,9 +1648,10 @@ class TestProgramApiRuntimeInstances:
             ],
         )
         def test_run_uses_business_model_from_serverless_client(
-            self, client, authorize, business_model, expected_trial
+            self, client, authorize, business_model, expected_trial, default_ce_project
         ):
             """run() propagates business_model from the access entry to the created job."""
+            TestUtils.get_or_create_provider(provider="my-provider", code_engine_project=default_ce_project)
             TestUtils.create_program(program_title="my-func", author="func-author", provider="my-provider")
             authorize(
                 "runtime-user",

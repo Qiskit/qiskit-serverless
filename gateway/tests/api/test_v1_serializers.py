@@ -282,9 +282,15 @@ class TestSerializers:
         assert job.account_id == "1234-5678-9012"
 
     def test_run_job_serializer_sets_gpu_flag_for_gpu_provider(self):
-        """Tests that gpu flag is True when the program has gpu enabled and a provider."""
+        """Tests that gpu flag is True when the program has gpu enabled and a provider.
+
+        The gpu flag only applies to the Ray runner (run.py sets it in the non-Fleets branch), so
+        this is a Ray program.
+        """
         user = models.User.objects.get(username="test_user")
-        TestUtils.create_program(program_title="gpu-func", author=user, provider="gpu_provider", gpu=True)
+        TestUtils.create_program(
+            program_title="gpu-func", author=user, provider="gpu_provider", gpu=True, runner=Program.RAY
+        )
         accessible = create_function_access_result("gpu_provider", "gpu-func", {PLATFORM_PERMISSION_RUN})
 
         job = RunFunctionUseCase().execute(
