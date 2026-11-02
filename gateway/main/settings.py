@@ -695,7 +695,7 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
     },
     "gateway.blocked_resources.regional.enabled": {
-        "default": "false",
+        "default": "true",
         "type": "boolean",
         "description": "Match a job against blocked_cloud_resources by its region too, the one in its instance CRN, "
         "rather than by account, plan and subscription alone. A job whose CRN has no region is then never blocked.",

@@ -98,6 +98,8 @@ class TestReasonsAndRegions:
     @pytest.mark.parametrize("lifted, still_blocking", [(_TOTAL_TOPIC, "non_quantum"), (_NON_QUANTUM_TOPIC, "total")])
     def test_lifting_one_limit_keeps_the_other_blocking(self, lifted, still_blocking):
         Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+        # Global matching: the regions are what this test varies
+        Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
         _handle(_event(), topic=_TOTAL_TOPIC)
         _handle(_event(), topic=_NON_QUANTUM_TOPIC)
 

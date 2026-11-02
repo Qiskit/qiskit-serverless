@@ -218,6 +218,7 @@ def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
 
     Config.add_defaults()
     Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+    Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")  # global matching: the jobs here have no instance CRN
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
     seen = []
 

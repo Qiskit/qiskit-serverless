@@ -21,6 +21,8 @@ def blocked_jobs_stop_enabled():
     """Blocked resources are not enforced by default, and these tests are about enforcing them."""
     Config.add_defaults()
     Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+    # Global matching; test_with_regional_matching_only_the_instance_crns_region_gets_a_warning covers the regional one
+    Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
 
 
 def _run(**identity):

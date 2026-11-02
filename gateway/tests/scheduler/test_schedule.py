@@ -61,6 +61,8 @@ class TestScheduleApi(APITestCase):
         settings.MEDIA_ROOT = str(tmp_path)
         Config.add_defaults()
         Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+        # Global matching; tests/core/test_blocked_cloud_resource.py covers the regional one
+        Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""

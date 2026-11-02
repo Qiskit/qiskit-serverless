@@ -31,6 +31,8 @@ class TestBlockedCloudResource(TestCase):
     def setUp(self):
         Config.add_defaults()
         Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+        # Global matching; TestBlockedCloudResourceRegional covers the regional one
+        Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
 
     def test_inserting_same_rule_twice_raises_integrity_error(self):
         """The unique constraint over the scope prevents duplicate rows."""
