@@ -69,6 +69,17 @@ def blocked_jobs_stop_disabled(request):
 
 
 @pytest.fixture(autouse=True)
+def program_timeout_hours_default(request):
+    """check_job_timeout reads the program timeout from Config, so every test that uses the database starts
+    with its Config row there, at the 24h default. A test that needs another value sets it with Config.set."""
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        Config.objects.get_or_create(
+            name=ConfigKey.PROGRAM_TIMEOUT_HOURS.value, defaults={"value": "24", "description": "test"}
+        )
+
+
+@pytest.fixture(autouse=True)
 def clear_iam_token_providers():
     """Clear the shared IAM token provider cache before every test.
 

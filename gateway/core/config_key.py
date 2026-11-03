@@ -36,3 +36,4 @@ class ConfigKey(Enum):
     BLOCKED_RESOURCES_REGIONAL = "gateway.blocked_resources.regional.enabled"
     FLEETS_JOBS_PER_TICK = "scheduler.fleets.jobs_per_tick"
     ACTIVE_JOBS_PER_USER = "gateway.limits.active_jobs_per_user"
+    PROGRAM_TIMEOUT_HOURS = "scheduler.program_timeout_hours"

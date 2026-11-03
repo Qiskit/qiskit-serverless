@@ -78,7 +78,6 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     # what JobQuerySet.with_event_times() loads with each job
     job.created = datetime.now(timezone.utc)
     job.first_running_at = None
-    job.last_event_at = None
 
     def _apply_update_fields(fields_map):
         for field, value in fields_map.items():
@@ -376,16 +375,15 @@ class TestStopJobIfTimeout:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        past_event = MagicMock()
-        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        job.last_event_at = past_event.created
+        running_started = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
         # The cancel was accepted, so the poller confirms it from the task store on a later cycle.
@@ -396,16 +394,15 @@ class TestStopJobIfTimeout:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        past_event = MagicMock()
-        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        job.last_event_at = past_event.created
+        running_started = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
         task.transitions.try_stop.assert_called_once()
@@ -421,19 +418,18 @@ class TestStopJobIfTimeout:
             job.update_fields({"status": Job.STOPPED})
             return False
 
-        past_event = MagicMock()
-        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        job.last_event_at = past_event.created
+        running_started = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.first_running_at = running_started
         task.transitions.try_stop.side_effect = _wrote_stopped
         # what the real service answers for STOPPED -> STOPPED
         task.transitions.to_terminal.side_effect = InvalidJobTransitionException("STOPPED -> STOPPED")
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPED
@@ -454,17 +450,16 @@ class TestStopJobIfTimeout:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        past_event = MagicMock()
-        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        job.last_event_at = past_event.created
+        running_started = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.first_running_at = running_started
         task.transitions.try_stop.side_effect = error
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            mock_event.objects.first_running_at.return_value = running_started
             changed = task.stop_job_if_timeout(job)
 
         assert changed is False
@@ -477,16 +472,15 @@ class TestStopJobIfTimeout:
         task.canceller.paused.return_value = True
         job = _make_fleets_job(status=Job.RUNNING)
 
-        past_event = MagicMock()
-        past_event.created = datetime.now(timezone.utc) - timedelta(hours=100)
-        job.last_event_at = past_event.created
+        running_started = datetime.now(timezone.utc) - timedelta(hours=100)
+        job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            mock_event.objects.first_running_at.return_value = running_started
             changed = task.stop_job_if_timeout(job)
 
         assert changed is False
@@ -497,65 +491,81 @@ class TestStopJobIfTimeout:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        recent_event = MagicMock()
-        recent_event.created = datetime.now(timezone.utc) - timedelta(minutes=5)
-        job.last_event_at = recent_event.created
+        running_started = datetime.now(timezone.utc) - timedelta(minutes=5)
+        job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
+            patch(f"{_MOD}.program_timeout_hours", return_value=24),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 24
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = recent_event
+            mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.RUNNING
         job.update_fields.assert_not_called()
 
-    def test_a_recent_event_read_again_keeps_the_job_running(self):
-        """The loaded time is from before the pass; an event written since then keeps the job."""
+    def test_a_substatus_churning_job_still_times_out(self):
+        """Regression for the Q-CTRL bug: the clock runs from the RUNNING event, so a job that keeps
+        changing sub status (fresh events, stale execution start) is not kept alive by that churn."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-        job.last_event_at = datetime.now(timezone.utc) - timedelta(hours=100)
-
-        recent_event = MagicMock()
-        recent_event.created = datetime.now(timezone.utc)
+        # The execution start is 26h ago; sub status churn writes fresher events but must not reset the clock.
+        job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=26)
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
+            patch(f"{_MOD}.program_timeout_hours", return_value=24),
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = recent_event
+            task.stop_job_if_timeout(job)
+
+        assert job.status == Job.STOPPING
+
+    def test_a_job_with_no_loaded_running_start_is_not_timed_out(self):
+        """A RUNNING event ``to_running`` wrote in this same pass is not in the loaded running-start, so
+        the job reads as not-yet-running. That event is stamped ~now, so it cannot have timed out yet and
+        keeping the job is correct. The check uses the loaded value only, it never re-queries."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.first_running_at = None
+        job.created = datetime.now(timezone.utc) - timedelta(hours=100)
+
+        with (
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
             changed = task.stop_job_if_timeout(job)
 
         assert changed is False
         task.canceller.cancel.assert_not_called()
+        mock_event.objects.first_running_at.assert_not_called()
 
-    def test_a_recent_loaded_time_reads_no_events(self):
+    def test_the_timeout_check_reads_no_events(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-        job.last_event_at = datetime.now(timezone.utc)
+        job.first_running_at = datetime.now(timezone.utc)
 
-        with patch(f"{_SCHEDULE}.JobEvent") as mock_event:
+        with (
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
+        ):
             task.stop_job_if_timeout(job)
 
-        mock_event.objects.filter.assert_not_called()
+        mock_event.objects.first_running_at.assert_not_called()
 
     def test_filler_job_never_stopped_regardless_of_age(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.filler = True
-
-        past_event = MagicMock()
-        past_event.created = datetime.now(timezone.utc) - timedelta(hours=1000)
+        job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=1000)
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_SCHEDULE}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.filter.return_value.order_by.return_value.first.return_value = past_event
+            mock_event.objects.first_running_at.return_value = job.first_running_at
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.RUNNING
@@ -1128,15 +1138,21 @@ class TestEventTimesLoadedWithTheJobs:
         job.refresh_from_db()
         assert job.status == Job.STOPPING
 
-    def test_an_event_written_after_the_jobs_were_loaded_keeps_the_job_running(self):
-        job = _real_fleets_job("fresh-event", event_age=timedelta(hours=100))
+    def test_the_running_event_written_in_this_pass_keeps_the_job_running(self):
+        """A job promoted to RUNNING in this same pass has no RUNNING event when the job list is loaded,
+        so its loaded execution start is None and the job reads as not-yet-running. The event ``to_running``
+        just wrote is stamped ~now, so the job cannot have timed out yet and keeping it is correct."""
+        job = _real_fleets_job(
+            "fresh-running", status=Job.PENDING, event_status=Job.PENDING, event_age=timedelta(hours=100)
+        )
+        Job.objects.filter(pk=job.pk).update(created=datetime.now(timezone.utc) - timedelta(hours=100))
 
-        def write_an_event():
+        def write_the_running_event():
             JobEvent.objects.add_status_event(
                 job_id=job.id, origin=JobEventOrigin.API, context=JobEventContext.UPDATE_JOB_STATUS, status=Job.RUNNING
             )
 
-        _run_real_pass(Job.RUNNING, on_status=write_an_event)
+        _run_real_pass(Job.RUNNING, on_status=write_the_running_event)
 
         job.refresh_from_db()
         assert job.status == Job.RUNNING
@@ -1151,7 +1167,9 @@ class TestEventTimesLoadedWithTheJobs:
         job.refresh_from_db()
         assert job.status == Job.RUNNING
 
-    def test_a_job_with_no_events_counts_from_its_creation(self):
+    def test_a_job_that_never_ran_is_not_stopped(self):
+        """A job with no RUNNING event has no execution time to cap, so it is never stopped on timeout,
+        however old it is. PROGRAM_TIMEOUT is a cap on execution, not on queue or PENDING wait."""
         job = _real_fleets_job("no-events")
         JobEvent.objects.filter(job=job).delete()
         Job.objects.filter(pk=job.pk).update(created=datetime.now(timezone.utc) - timedelta(hours=100))
@@ -1159,4 +1177,4 @@ class TestEventTimesLoadedWithTheJobs:
         _run_real_pass(None)
 
         job.refresh_from_db()
-        assert job.status == Job.STOPPING
+        assert job.status == Job.RUNNING

@@ -17,7 +17,7 @@ from opentelemetry import trace
 from core.config_key import ConfigKey
 from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import BlockedCloudResource, Job, JobEvent, Program
+from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import (
@@ -376,18 +376,24 @@ def get_jobs_to_schedule_fair_share(
     return [job for job in ranked if job.rank <= jobs_per_user - running.get(job.author_id, 0)][:slots]
 
 
-def latest_event_at(job: Job) -> datetime:
-    """The job's latest event time read now, or its creation time if it has no events."""
-    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-    return latest_job_event.created if latest_job_event else job.created
+def program_timeout_hours() -> int:
+    """The job execution timeout in hours. Operators can override it live in the backoffice (the Config
+    value), otherwise it is the PROGRAM_TIMEOUT env var set at boot."""
+    return Config.get_int(ConfigKey.PROGRAM_TIMEOUT_HOURS, default=settings.PROGRAM_TIMEOUT)
 
 
-def check_job_timeout(job: Job, last_event_at: datetime) -> bool:
-    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours since ``last_event_at``."""
-    if job.status not in Job.RUNNING_STATUSES:
+def check_job_timeout(job: Job, first_running_at: datetime | None) -> bool:
+    """Whether the job has been running for more than the program timeout since ``first_running_at``.
+
+    The timeout is a pure cap on execution time, so it is measured from the first RUNNING event, not from
+    the latest event: a job that keeps emitting events, such as sub status changes, must still time out.
+    A job that has not started running yet (no RUNNING event) has nothing to time out, so queue and PENDING
+    wait never count against it.
+    """
+    if job.status not in Job.RUNNING_STATUSES or first_running_at is None:
         return False
 
-    endtime = last_event_at + timedelta(hours=settings.PROGRAM_TIMEOUT)
+    endtime = first_running_at + timedelta(hours=program_timeout_hours())
     return endtime < datetime.now(tz=endtime.tzinfo)
 
 

@@ -712,6 +712,13 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Most jobs one user can have queued or running. The gateway checks it at submit, and the "
         "scheduler uses it as the most Fleets jobs one user can have running. 0 blocks every submit.",
     },
+    "scheduler.program_timeout_hours": {
+        "default": str(PROGRAM_TIMEOUT),
+        "type": "integer",
+        "description": "How many hours a job may run before the scheduler stops it, measured from when it "
+        "started running. The default comes from the PROGRAM_TIMEOUT env var; set it here to override that "
+        "without a redeploy.",
+    },
 }
 
 # Fleets / Code Engine credentials
