@@ -2,9 +2,11 @@
 
 The result is the envelope ``{"function_id", "body"}``: ``function_id`` goes in the URL path and ``body`` is
 exactly what the Runtime API receives. The builder reads the job's events (``running_at`` and ``ended_at`` come from
-them), so it needs the database. Build it right after the status change, inside the same transaction:
+them), so it needs the database, and the status event and the job row must already be written. The creation and
+terminal uses build it right after the status change, inside the same transaction:
 ``JobTransitionService._change_status`` (``core/services/job_transitions.py``) adds the status event before it
-updates the job row, both in one transaction, so both are visible there. The result can then be stored as-is (for
+updates the job row, both in one transaction, so both are visible there. The best effort mirror builds it after the
+transaction has committed, when the event and the row are already committed. The result can then be stored as-is (for
 example in ``Outbox.payload``) and sent later with ``FunctionsOperatorClient.put_function``
 (``core/clients/functions_operator_client.py``). A terminal job with no terminal event gets ``ended_at=None``.
 
@@ -17,13 +19,13 @@ from core.models import Config, Job, JobEvent, Program, WorkloadMirror
 
 CUSTOM_FUNCTIONS = "custom"  # entry of the mirror setting that stands for the functions without a provider
 
-# Seven job states here, five on the Runtime API side. QUEUED and PENDING both mean "not running yet"; STOPPING is still
-# running until it is STOPPED.
-_STATUS = {
+# Seven job states here, seven labels on the Runtime API side. The order the Runtime API enforces is
+# Queued < Pending < Running < Stopping < the terminal ones.
+WORKLOAD_STATUS_MAPPING = {
     Job.QUEUED: "Queued",
-    Job.PENDING: "Queued",
+    Job.PENDING: "Pending",
     Job.RUNNING: "Running",
-    Job.STOPPING: "Running",
+    Job.STOPPING: "Stopping",
     Job.SUCCEEDED: "Completed",
     Job.FAILED: "Failed",
     Job.STOPPED: "Cancelled",
@@ -81,7 +83,7 @@ def build_workload_payload(job: Job) -> dict:
             "provider": provider.name if provider else None,
             "crn": job.instance_crn,
             "user_id": job.author.username,
-            "status": _STATUS[job.status],
+            "status": WORKLOAD_STATUS_MAPPING[job.status],
             "compute_profile": job.compute_profile_id,
             "size": job.size_label,
             "created_at": created_at.isoformat() if created_at else None,

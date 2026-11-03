@@ -50,6 +50,20 @@ class CodeEngineProjectQuerySet(QuerySet):
             )
         return project
 
+    def select_by_name(self, project_name: str, region: str | None = None) -> "CodeEngineProject | None":
+        """Select a project by name, and by region when one is given, active rows first.
+
+        Unlike :meth:`select_default` this returns an inactive project: an offboarded project
+        still holds fleets that have to be deleted.
+
+        Returns:
+            The matching CodeEngineProject, or None if none matches.
+        """
+        queryset = self.filter(project_name=project_name)
+        if region:
+            queryset = queryset.filter(region=region)
+        return queryset.order_by("-active", "created").first()
+
     def assign_to_program(self, program: "Program") -> None:
         """Assign a CodeEngineProject to a Fleets program that lacks one.
 

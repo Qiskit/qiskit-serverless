@@ -1,0 +1,9 @@
+---
+other:
+  - |
+    The scheduler now exposes ``scheduler_fleet_deletes_total``, the fleet
+    deletes of the cleanup by Code Engine project and outcome: ``deleted``,
+    ``failed`` or ``gave_up``. Its ``project`` label matches
+    ``scheduler_held_fleets``. A delete that Code Engine did not answer, for
+    example a 429, is not counted here, it shows on
+    ``scheduler_fleets_breaker_open``.

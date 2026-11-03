@@ -41,7 +41,7 @@ def _queued_job(filler=False, entered_seconds_ago=0, gpu=False):
 
 
 def _schedule(job):
-    JobTransitionService(sender=MagicMock()).queued_to_pending(
+    JobTransitionService(billing_sender=MagicMock()).queued_to_pending(
         job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS
     )
 
@@ -75,7 +75,7 @@ def test_the_gateway_does_not_query_for_a_duration_it_would_throw_away():
     job = _queued_job()
 
     with patch.object(JobEvent.objects, "first_status_at") as first_status_at:
-        JobTransitionService(sender=MagicMock()).queued_to_pending(
+        JobTransitionService(billing_sender=MagicMock()).queued_to_pending(
             job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS
         )
 

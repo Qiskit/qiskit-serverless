@@ -8,6 +8,7 @@ from django.db import transaction
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
@@ -17,6 +18,7 @@ from api.use_cases.programs.runner_config import RunnerConfig
 from api.use_cases.programs.validate_arguments import validate_arguments
 from api.utils import active_jobs_limit_reached, build_env_variables
 from core.clients.functions_operator_client import get_functions_operator_client
+from core.config_key import ConfigKey
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -24,6 +26,7 @@ from core.domain.business_models import BusinessModel
 from core.domain.workload_payload import build_workload_payload, mirror_enabled_for, should_be_mirrored
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.models import (
+    Config,
     FunctionSize,
     Job,
     JobConfig,
@@ -150,8 +153,15 @@ class RunFunctionUseCase:
                 legacy_permission_name=RUN_PROGRAM_PERMISSION,
             )
         else:
-            if JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
-                function = Function.objects.get_user_function(user, data.title)
+            # Split the entitlement gate from the existence lookup so the two causes do
+            # not collapse into one misleading "doesn't exist": a user in their own
+            # namespace has nothing to hide, so being unentitled to run custom functions
+            # is named outright (403) rather than masked as a missing function (404).
+            if not JobAccessPolicies.can_create(user=user, accessible_functions=accessible_functions):
+                raise CustomFunctionNotEntitledException(
+                    title=data.title, operation=CustomFunctionNotEntitledException.RUN
+                )
+            function = Function.objects.get_user_function(user, data.title)
 
         if function is None:
             raise FunctionNotFoundException(function=data.title, provider=data.provider_name)
@@ -160,8 +170,9 @@ class RunFunctionUseCase:
             message = function.disabled_message if function.disabled_message else Function.DEFAULT_DISABLED_MESSAGE
             raise FunctionDisabledException(message=message)
 
-        if active_jobs_limit_reached(user):
-            raise ActiveJobLimitExceeded()
+        active_jobs_limit = Config.get_int(ConfigKey.ACTIVE_JOBS_PER_USER)
+        if active_jobs_limit_reached(user, active_jobs_limit):
+            raise ActiveJobLimitExceeded(active_jobs_limit)
 
         if function.runner == Function.FLEETS:
             message = None

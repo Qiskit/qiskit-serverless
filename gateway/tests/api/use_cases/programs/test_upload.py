@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
@@ -52,11 +53,15 @@ class TestUploadFunctionUseCase:
         assert result.pk == existing.pk
         assert result.title == "my-fn"
 
-    def test_raises_not_found_when_no_permission_for_custom_function(self, user):
+    def test_raises_not_entitled_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
 
-        with pytest.raises(FunctionNotFoundException):
+        with pytest.raises(CustomFunctionNotEntitledException) as exc_info:
             UploadFunctionUseCase().execute(user, accessible, UploadFunctionInput(title="my-fn", entrypoint="main.py"))
+
+        # The message names the real cause (the missing entitlement), not a misleading
+        # "doesn't exist" -- this is the user's own namespace, so there is nothing to hide.
+        assert "function-custom.write" in str(exc_info.value)
 
     def test_creates_provider_function(self, user):
         group = TestUtils.get_or_create_group("my-provider")
@@ -290,6 +295,32 @@ class TestUploadFunctionUseCase:
                 UploadFunctionInput(title="my-fn", entrypoint="main.py", sizes={"m": "16x128"}, default_size="l"),
             )
 
+        assert not Program.objects.filter(title="my-fn").exists()
+
+    def test_unknown_compute_profile_error_lists_available_profiles(self, user):
+        """An unregistered profile is rejected with an aligned, ordered list of what IS registered."""
+        # Created out of order; the error must sort them: CPU-only first, then GPU by memory.
+        ComputeProfile.objects.create(compute_profile_id="20x320x2a100", cpu="20", memory="320", gpu="2a100")
+        ComputeProfile.objects.create(compute_profile_id="24x120", cpu="24", memory="120")
+        ComputeProfile.objects.create(compute_profile_id="24x120x1l40s", cpu="24", memory="120", gpu="1l40s")
+        accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(DRFValidationError) as exc_info:
+            UploadFunctionUseCase().execute(
+                user,
+                accessible,
+                UploadFunctionInput(title="my-fn", entrypoint="main.py", sizes={"m": "typo-profile"}, default_size="m"),
+            )
+
+        message = exc_info.value.detail[0]
+        assert "typo-profile" in message
+        # One aligned line per profile, CPU-only first then GPU by memory; id column padded to align.
+        assert message.endswith(
+            "Available profiles:\n"
+            "24x120        (24 vCPU / 120 GB)\n"
+            "24x120x1l40s  (24 vCPU / 120 GB / 1l40s)\n"
+            "20x320x2a100  (20 vCPU / 320 GB / 2a100)"
+        )
         assert not Program.objects.filter(title="my-fn").exists()
 
     def test_update_ray_function_with_valid_sizes_validates_but_does_not_persist(self, user):
