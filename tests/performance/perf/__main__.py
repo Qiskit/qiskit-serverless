@@ -102,6 +102,10 @@ def _cool_down(config, scenario, first: bool) -> bool:
             log(f"cooldown {config.defaults.cooldown_seconds:.0f} s before {scenario.name}")
             time.sleep(config.defaults.cooldown_seconds)
         fleets = FleetDeleter(config.defaults.code_engine, log)
+        if not scenario.wait_for_room:
+            if (count := fleets.count()) is not None:
+                log(f"the project holds {count} of {FLEET_CAP} fleets, and {scenario.name} does not wait for room")
+            return True
         deadline = time.monotonic() + ROOM_WAIT_SECONDS
         while (count := fleets.count()) is not None and count + scenario.users + FLEET_MARGIN > FLEET_CAP:
             if time.monotonic() > deadline:
