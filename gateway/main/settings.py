@@ -699,6 +699,13 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "
         "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
     },
+    "scheduler.program_timeout_hours": {
+        "default": str(PROGRAM_TIMEOUT),
+        "type": "integer",
+        "description": "How many hours a job may run before the scheduler stops it, measured from when it "
+        "started running. The default comes from the PROGRAM_TIMEOUT env var; set it here to override that "
+        "without a redeploy.",
+    },
 }
 
 # Fleets / Code Engine credentials

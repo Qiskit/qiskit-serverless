@@ -471,46 +471,45 @@ class TestScheduleApi(APITestCase):
         )
         get_runner.return_value = runner
 
-        # Override PROGRAM_TIMEOUT to 0 hours so job immediately exceeds limit
-        with self.settings(PROGRAM_TIMEOUT=0):
-            # Create test user and authenticate
-            user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
+        # Set the program timeout to 0 hours so the job immediately exceeds the limit
+        Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "0")
 
-            # Create a private program for the job. If provider is given, the public logs will be empty.
-            program = TestUtils.create_program(
-                program_title="Timeout-Test-Program",
-                author=user,
-            )
+        # Create test user and authenticate
+        user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
 
-            compute_resource = ComputeResource.objects.create(title="test-cluster-test-job-id", active=True)
-            # Create a job with RUNNING status
-            # TestUtils.create_job automatically creates a JobEvent with current timestamp for creation and add a
-            # JobEvent with change STATUS_CHANGE because the status is not Job.QUEUED.
-            job = TestUtils.create_job(
-                author=user, status=Job.RUNNING, program=program, compute_resource=compute_resource
-            )
-            job_event = JobEvent.objects.filter(job=job).first()
+        # Create a private program for the job. If provider is given, the public logs will be empty.
+        program = TestUtils.create_program(
+            program_title="Timeout-Test-Program",
+            author=user,
+        )
 
-            # Job status is RUNNING.
-            assert job_event.data["status"] == Job.RUNNING
+        compute_resource = ComputeResource.objects.create(title="test-cluster-test-job-id", active=True)
+        # Create a job with RUNNING status
+        # TestUtils.create_job automatically creates a JobEvent with current timestamp for creation and add a
+        # JobEvent with change STATUS_CHANGE because the status is not Job.QUEUED.
+        job = TestUtils.create_job(author=user, status=Job.RUNNING, program=program, compute_resource=compute_resource)
+        job_event = JobEvent.objects.filter(job=job).first()
 
-            # Running job status update which verify that will change the job status (timeout exceeded)
-            # Since PROGRAM_TIMEOUT=0, any job with a JobEvent will have exceeded the limit
-            UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
-            job.refresh_from_db()
-            job_event = JobEvent.objects.filter(job=job).first()
+        # Job status is RUNNING.
+        assert job_event.data["status"] == Job.RUNNING
 
-            assert job_event.data["status"] == Job.STOPPED
-            # Since the job is in terminal state, its `logs` attribute instance is empty.
-            # We need to check the logs in storage
-            assert (
-                "Maximum job runtime reached" in get_logs_storage(job).get_public_logs()
-            ), "Job logs should contain timeout message"
+        # Running job status update which verify that will change the job status (timeout exceeded)
+        # Since the timeout is 0, any job with a JobEvent will have exceeded the limit
+        UpdateRayJobsStatuses(kill_signal=KillSignal(), metrics=SchedulerMetrics(CollectorRegistry())).run()
+        job.refresh_from_db()
+        job_event = JobEvent.objects.filter(job=job).first()
 
-            job_events = JobEvent.objects.filter(job=job).order_by("created")
-            # The table was filled as following: Job creation, Job status change to running, job stopping
-            # due exceeding time limit.
-            assert len(job_events) == 3
+        assert job_event.data["status"] == Job.STOPPED
+        # Since the job is in terminal state, its `logs` attribute instance is empty.
+        # We need to check the logs in storage
+        assert (
+            "Maximum job runtime reached" in get_logs_storage(job).get_public_logs()
+        ), "Job logs should contain timeout message"
+
+        job_events = JobEvent.objects.filter(job=job).order_by("created")
+        # The table was filled as following: Job creation, Job status change to running, job stopping
+        # due exceeding time limit.
+        assert len(job_events) == 3
 
 
 @pytest.mark.django_db
@@ -523,8 +522,7 @@ def test_a_job_that_never_ran_does_not_time_out():
     job.refresh_from_db()
 
     assert JobEvent.objects.first_running_at(job.id) is None
-    with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job, JobEvent.objects.first_running_at(job.id)) is False
+    assert check_job_timeout(job, JobEvent.objects.first_running_at(job.id)) is False
 
 
 @pytest.mark.django_db
@@ -545,12 +543,12 @@ def test_the_timeout_counts_from_execution_start_not_the_latest_event():
         sub_status=Job.OPTIMIZING_HARDWARE,
     )
 
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "24")
     latest_event_at = JobEvent.objects.filter(job=job).order_by("-created").first().created
-    with override_settings(PROGRAM_TIMEOUT=24):
-        # The old, buggy behaviour: measured from the latest event (the fresh sub status), it looks fresh.
-        assert check_job_timeout(job, latest_event_at) is False
-        # The fixed behaviour: measured from execution start, the job has timed out.
-        assert check_job_timeout(job, JobEvent.objects.first_running_at(job.id)) is True
+    # The old, buggy behaviour: measured from the latest event (the fresh sub status), it looks fresh.
+    assert check_job_timeout(job, latest_event_at) is False
+    # The fixed behaviour: measured from execution start, the job has timed out.
+    assert check_job_timeout(job, JobEvent.objects.first_running_at(job.id)) is True
 
 
 @pytest.mark.django_db
@@ -566,17 +564,35 @@ def test_a_long_queued_job_is_not_timed_out_by_its_queue_wait():
     JobEvent.objects.filter(id=running_event.id).update(created=datetime.now(timezone.utc) - timedelta(minutes=1))
     job.refresh_from_db()
 
-    with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job, JobEvent.objects.first_running_at(job.id)) is False
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "1")
+    assert check_job_timeout(job, JobEvent.objects.first_running_at(job.id)) is False
 
 
 @pytest.mark.django_db
-def test_the_timeout_check_only_compares_the_time_it_is_given():
+def test_the_program_timeout_is_configurable_in_the_backoffice():
+    """An operator can change the timeout live via the Config value, without a redeploy."""
+    user = User.objects.create_user(username="timeout-configurable")
+    job = Job.objects.create(author=user, status=Job.RUNNING)
+    started = datetime.now(timezone.utc) - timedelta(hours=2)
+
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "24")
+    assert check_job_timeout(job, started) is False
+    # Lowering it in the backoffice stops the job that was fine a moment ago.
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "1")
+    assert check_job_timeout(job, started) is True
+
+
+@pytest.mark.django_db
+def test_the_timeout_check_reads_the_timeout_from_cache_not_the_db():
+    """The only read behind check_job_timeout is the program timeout, which is cached: once it is warm,
+    the check does no database query, it just compares the time it is given against the deadline."""
     user = User.objects.create_user(username="timeout-no-query")
     job = Job.objects.create(author=user, status=Job.RUNNING)
     now = datetime.now(timezone.utc)
 
-    with override_settings(PROGRAM_TIMEOUT=1), CaptureQueriesContext(connection) as ctx:
+    # Config.set writes through to the cache, so the reads below are served from it.
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "1")
+    with CaptureQueriesContext(connection) as ctx:
         assert check_job_timeout(job, now) is False
         assert check_job_timeout(job, now - timedelta(hours=2)) is True
     assert len(ctx) == 0

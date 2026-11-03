@@ -379,10 +379,10 @@ class TestStopJobIfTimeout:
         job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
@@ -398,10 +398,10 @@ class TestStopJobIfTimeout:
         job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
@@ -425,10 +425,10 @@ class TestStopJobIfTimeout:
         task.transitions.to_terminal.side_effect = InvalidJobTransitionException("STOPPED -> STOPPED")
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
@@ -455,10 +455,10 @@ class TestStopJobIfTimeout:
         task.transitions.try_stop.side_effect = error
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.first_running_at.return_value = running_started
             changed = task.stop_job_if_timeout(job)
 
@@ -476,10 +476,10 @@ class TestStopJobIfTimeout:
         job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.first_running_at.return_value = running_started
             changed = task.stop_job_if_timeout(job)
 
@@ -495,10 +495,10 @@ class TestStopJobIfTimeout:
         job.first_running_at = running_started
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
+            patch(f"{_MOD}.program_timeout_hours", return_value=24),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 24
             mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
@@ -513,8 +513,10 @@ class TestStopJobIfTimeout:
         # The execution start is 26h ago; sub status churn writes fresher events but must not reset the clock.
         job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=26)
 
-        with patch(f"{_SCHEDULE}.settings") as mock_settings:
-            mock_settings.PROGRAM_TIMEOUT = 24
+        with (
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
+            patch(f"{_MOD}.program_timeout_hours", return_value=24),
+        ):
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPING
@@ -529,10 +531,10 @@ class TestStopJobIfTimeout:
         job.created = datetime.now(timezone.utc) - timedelta(hours=100)
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             changed = task.stop_job_if_timeout(job)
 
         assert changed is False
@@ -544,7 +546,10 @@ class TestStopJobIfTimeout:
         job = _make_fleets_job(status=Job.RUNNING)
         job.first_running_at = datetime.now(timezone.utc)
 
-        with patch(f"{_MOD}.JobEvent") as mock_event:
+        with (
+            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
+        ):
             task.stop_job_if_timeout(job)
 
         mock_event.objects.first_running_at.assert_not_called()
@@ -556,10 +561,10 @@ class TestStopJobIfTimeout:
         job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=1000)
 
         with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
-            mock_settings.PROGRAM_TIMEOUT = 1
             mock_event.objects.first_running_at.return_value = job.first_running_at
             task.stop_job_if_timeout(job)
 

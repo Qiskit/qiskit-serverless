@@ -2,9 +2,15 @@
 fixes:
   - |
     A running job is now stopped once it has been executing for longer than
-    ``PROGRAM_TIMEOUT`` hours, measured from when it started running. Before, the
+    the program timeout, measured from when it started running. Before, the
     timeout counted from the job's latest event of any kind, so a job that kept
     reporting a sub status (``MAPPING``, ``OPTIMIZING_HARDWARE``, ``WAITING_QPU``,
     ``EXECUTING_QPU``) reset the clock on every change and could run indefinitely.
     The timeout is now a cap on execution time only, so time spent queued or
     pending no longer counts against it.
+features:
+  - |
+    The job execution timeout is now adjustable from the backoffice through the
+    ``scheduler.program_timeout_hours`` dynamic config, so an operator can change
+    it without a redeploy. Its default still comes from the ``PROGRAM_TIMEOUT``
+    environment variable.

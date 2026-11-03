@@ -15,7 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, program_timeout_hours
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -185,13 +185,17 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         if job.filler:
             return False
 
-        timeout = settings.PROGRAM_TIMEOUT
         # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
         # breaker from logging one line per timed-out job per tick.
         if not self._timed_out(job) or self.canceller.paused(job.ce_region):
             return False
 
-        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author_id, timeout)
+        logger.warning(
+            "job_id=%s user_id=%s timeout=%s hours: stopping the job.",
+            job.id,
+            job.author_id,
+            program_timeout_hours(),
+        )
         try:
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerRetryableError as ex:

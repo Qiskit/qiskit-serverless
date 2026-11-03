@@ -174,11 +174,16 @@ def test_a_real_status_pass_reads_no_events_per_job(world):
     """A full pass over jobs that stay RUNNING is one query, however many jobs there are."""
     from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
 
-    from core.models import JobEvent  # pylint: disable=import-outside-toplevel
+    from core.config_key import ConfigKey  # pylint: disable=import-outside-toplevel
+    from core.models import Config, JobEvent  # pylint: disable=import-outside-toplevel
     from core.services.job_transitions import JobTransitionService  # pylint: disable=import-outside-toplevel
     from scheduler.tasks.update_fleets_jobs_statuses import (  # pylint: disable=import-outside-toplevel
         UpdateFleetsJobsStatuses,
     )
+
+    # The timeout is read from Config once per pass and then served from cache. Warm it here (Config.set
+    # writes through to the cache) so the measured passes show only the per-job query floor, which is 1.
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "24")
 
     def add_running(count):
         _add_jobs(world, count, status=Job.RUNNING)

@@ -33,3 +33,4 @@ class ConfigKey(Enum):
     FLEETS_BREAKER_FAILURES = "scheduler.fleets.breaker_failures"
     FLEETS_BREAKER_PAUSE_SECONDS = "scheduler.fleets.breaker_pause_seconds"
     BLOCKED_JOBS_STOP_ENABLED = "scheduler.blocked_jobs_stop.enabled"
+    PROGRAM_TIMEOUT_HOURS = "scheduler.program_timeout_hours"
