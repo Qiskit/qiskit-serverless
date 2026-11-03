@@ -41,7 +41,7 @@ from scheduler.schedule import (
     get_jobs_to_schedule_fair_share,
     execute_ray_job,
     latest_event_at,
-    running_reference_at,
+    get_running_start_time,
 )
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
 
@@ -524,9 +524,9 @@ def test_a_job_that_never_ran_times_out_from_its_creation():
     job.refresh_from_db()
 
     assert JobEvent.objects.first_running_at(job.id) is None
-    assert running_reference_at(job, JobEvent.objects.first_running_at(job.id)) == job.created
+    assert get_running_start_time(job, JobEvent.objects.first_running_at(job.id)) == job.created
     with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job, running_reference_at(job, JobEvent.objects.first_running_at(job.id))) is True
+        assert check_job_timeout(job, get_running_start_time(job, JobEvent.objects.first_running_at(job.id))) is True
 
 
 @pytest.mark.django_db
@@ -551,7 +551,7 @@ def test_the_timeout_counts_from_execution_start_not_the_latest_event():
         # The old, buggy behaviour: measured from the latest event, the job looks fresh.
         assert check_job_timeout(job, latest_event_at(job)) is False
         # The fixed behaviour: measured from execution start, the job has timed out.
-        reference = running_reference_at(job, JobEvent.objects.first_running_at(job.id))
+        reference = get_running_start_time(job, JobEvent.objects.first_running_at(job.id))
         assert check_job_timeout(job, reference) is True
 
 
@@ -569,7 +569,7 @@ def test_a_long_queued_job_is_not_timed_out_by_its_queue_wait():
     job.refresh_from_db()
 
     with override_settings(PROGRAM_TIMEOUT=1):
-        reference = running_reference_at(job, JobEvent.objects.first_running_at(job.id))
+        reference = get_running_start_time(job, JobEvent.objects.first_running_at(job.id))
         assert check_job_timeout(job, reference) is False
 
 

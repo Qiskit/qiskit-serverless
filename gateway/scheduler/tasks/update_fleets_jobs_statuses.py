@@ -15,7 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, running_reference_at
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, get_running_start_time
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -223,9 +223,9 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         The RUNNING time loaded with the job is checked first, it rules out almost every job without a query.
         The RUNNING event is read again before a stop, because the loaded value misses the RUNNING event
         ``to_running`` just wrote in this same pass, which is the one that starts the clock."""
-        if not check_job_timeout(job, running_reference_at(job, job.first_running_at)):
+        if not check_job_timeout(job, get_running_start_time(job, job.first_running_at)):
             return False
-        return check_job_timeout(job, running_reference_at(job, JobEvent.objects.first_running_at(job.id)))
+        return check_job_timeout(job, get_running_start_time(job, JobEvent.objects.first_running_at(job.id)))
 
     def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
         """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
