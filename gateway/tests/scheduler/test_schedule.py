@@ -516,17 +516,48 @@ class TestScheduleApi(APITestCase):
 
 
 @pytest.mark.django_db
-def test_a_job_that_never_ran_times_out_from_its_creation():
-    """A job with no RUNNING event (stuck PENDING) still has a bound: it times out from creation."""
-    user = User.objects.create_user(username="timeout-no-running-event")
+def test_a_job_with_no_events_times_out_from_its_creation():
+    """A job with no RUNNING and no PENDING event still has a bound: it times out from creation."""
+    user = User.objects.create_user(username="timeout-no-events")
     job = Job.objects.create(author=user, status=Job.PENDING)
     Job.objects.filter(id=job.id).update(created=job.created - timedelta(hours=2))
     job.refresh_from_db()
 
     assert JobEvent.objects.first_running_at(job.id) is None
-    assert get_running_start_time(job, JobEvent.objects.first_running_at(job.id)) == job.created
+    assert JobEvent.objects.first_pending_at(job.id) is None
+    reference = get_running_start_time(job, None, None)
+    assert reference == job.created
     with override_settings(PROGRAM_TIMEOUT=1):
-        assert check_job_timeout(job, get_running_start_time(job, JobEvent.objects.first_running_at(job.id))) is True
+        assert check_job_timeout(job, reference) is True
+
+
+@pytest.mark.django_db
+def test_a_long_queued_pending_job_times_out_from_submission_not_creation():
+    """Marcelo's #2025 case: a job that queued a long time, then reached PENDING but not yet RUNNING,
+    is measured from when it left the queue (its first PENDING event), not from creation. Otherwise the
+    queue wait would count against the timeout and the job would be stopped the moment it is submitted."""
+    user = User.objects.create_user(username="timeout-long-queue-pending")
+    job = Job.objects.create(author=user, status=Job.PENDING)
+
+    # Created a day ago (long queue), submitted (PENDING) a minute ago, never reached RUNNING.
+    Job.objects.filter(id=job.id).update(created=datetime.now(timezone.utc) - timedelta(hours=23))
+    JobEvent.objects.add_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=JobEventContext.SCHEDULE_JOBS,
+        status=Job.PENDING,
+    )
+    pending_event = JobEvent.objects.pending_status_events().filter(job=job).first()
+    JobEvent.objects.filter(id=pending_event.id).update(created=datetime.now(timezone.utc) - timedelta(minutes=1))
+    job.refresh_from_db()
+
+    assert JobEvent.objects.first_running_at(job.id) is None
+    with override_settings(PROGRAM_TIMEOUT=1):
+        running_at = JobEvent.objects.first_running_at(job.id)
+        pending_at = JobEvent.objects.first_pending_at(job.id)
+        # From creation it would be timed out; from the PENDING event it is not.
+        assert check_job_timeout(job, get_running_start_time(job, None, None)) is True
+        assert check_job_timeout(job, get_running_start_time(job, running_at, pending_at)) is False
 
 
 @pytest.mark.django_db

@@ -221,11 +221,20 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         """Whether the job has been running longer than PROGRAM_TIMEOUT, measured from its execution start.
 
         The RUNNING time loaded with the job is checked first, it rules out almost every job without a query.
-        The RUNNING event is read again before a stop, because the loaded value misses the RUNNING event
-        ``to_running`` just wrote in this same pass, which is the one that starts the clock."""
+        That pre-check falls back to creation (it only carries the RUNNING time), which can only time out
+        earlier than the authoritative check below, so it never hides a real timeout. The event times are
+        read again before a stop: the loaded value misses the RUNNING event ``to_running`` just wrote in this
+        same pass, and the PENDING time is not loaded with the job at all."""
         if not check_job_timeout(job, get_running_start_time(job, job.first_running_at)):
             return False
-        return check_job_timeout(job, get_running_start_time(job, JobEvent.objects.first_running_at(job.id)))
+        return check_job_timeout(
+            job,
+            get_running_start_time(
+                job,
+                JobEvent.objects.first_running_at(job.id),
+                JobEvent.objects.first_pending_at(job.id),
+            ),
+        )
 
     def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
         """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""

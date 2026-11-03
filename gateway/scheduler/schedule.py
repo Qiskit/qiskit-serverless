@@ -407,9 +407,16 @@ def latest_event_at(job: Job) -> datetime:
     return latest_job_event.created if latest_job_event else job.created
 
 
-def get_running_start_time(job: Job, first_running_at: datetime | None) -> datetime:
-    """The job's execution start, falling back to creation so a stuck PENDING job still times out."""
-    return first_running_at or job.created
+def get_running_start_time(
+    job: Job, first_running_at: datetime | None, first_pending_at: datetime | None = None
+) -> datetime:
+    """The time the timeout is measured from: when the job started running, else when it was submitted.
+
+    Falls back from the first RUNNING event to the first PENDING event (when the job left the queue) so
+    that a long queue wait does not count against the timeout, and a job stuck in PENDING is still bounded.
+    Falls back to creation only when the job has no events at all.
+    """
+    return first_running_at or first_pending_at or job.created
 
 
 def check_job_timeout(job: Job, reference_time: datetime) -> bool:

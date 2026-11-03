@@ -62,6 +62,19 @@ class TestFirstRunningAt:
         assert JobEvent.objects.first_running_at(job.id) is None
 
 
+class TestFirstPendingAt:
+    """Unit tests for JobEventQuerySet.first_pending_at()."""
+
+    def test_returns_none_when_the_job_never_reached_pending(self, job):
+        assert JobEvent.objects.first_pending_at(job.id) is None
+
+    def test_returns_the_created_timestamp_of_the_first_pending_event(self, job):
+        first = _add_status_event(job, Job.PENDING)
+        _add_status_event(job, Job.RUNNING)
+
+        assert JobEvent.objects.first_pending_at(job.id) == first.created
+
+
 class TestFirstTerminalAt:
     """Unit tests for JobEventQuerySet.first_terminal_at()."""
 
