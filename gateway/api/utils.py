@@ -223,9 +223,9 @@ def sanitize_file_name(name: Optional[str]):
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
 
 
-def get_baked_dependencies() -> Dict[str, Requirement]:
+def get_image_dependencies() -> Dict[str, Requirement]:
     """
-    Return the dependencies baked into the runtime (selector) images.
+    Return the dependencies shipped in the runtime (selector) images.
 
     This is the "packing list" for the runtime images: it is read-only discovery of
     what the image already ships, surfaced to users through the ``dependencies-versions``

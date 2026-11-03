@@ -4,19 +4,19 @@ import logging
 from typing import Dict
 from packaging.requirements import Requirement
 
-from api.utils import get_baked_dependencies
+from api.utils import get_image_dependencies
 
 logger = logging.getLogger("api.AvailableDependenciesVersionsUseCase")
 
 
 class AvailableDependenciesVersionsUseCase:
     """
-    Return the dependencies baked into the runtime images (read-only discovery).
+    Return the dependencies shipped in the runtime images (read-only discovery).
     """
 
     def execute(self) -> Dict[str, Requirement]:
         """
-        Get the dependencies baked into the runtime images, so users can see what
+        Get the dependencies shipped in the runtime images, so users can see what
         the image already ships and does not need to be brought themselves.
         """
-        return get_baked_dependencies()
+        return get_image_dependencies()
