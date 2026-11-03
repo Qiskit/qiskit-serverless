@@ -8,7 +8,8 @@ from datetime import datetime
 from .sysdig import SCRAPE_SECONDS
 
 # the status check of a job, the call every user repeats
-STATUS_PATH = "/api/v1/jobs/{id}/"
+# the first check and a token renewal go to the job, the others to /status/ with the token of #2614
+STATUS_PATHS = ("/api/v1/jobs/{id}/", "/api/v1/jobs/{id}/status/")
 TERMINAL_EVENTS = ("SUCCEEDED", "FAILED", "STOPPED")
 CREATE_FLEET = "POST /projects/{project_id}/fleets"
 
@@ -135,6 +136,7 @@ def job_numbers(users: list[dict], jobs: list[dict]) -> dict:
             if any("poll_errors" in u for u in users)
             else None
         ),
+        "sign_in_retries": sum(len(u.get("sign_in_retries") or []) for u in users),
         "errors": [u["error"] for u in users if u.get("error")]
         + [job_errors[u["job_id"]] for u in users if job_errors.get(u.get("job_id"))],
     }
@@ -250,13 +252,18 @@ def _poll_lags(polls: list[dict], poll_seconds: float) -> list[float]:
 
 
 # pylint: disable-next=too-many-locals
-def driver_health(calls: list[dict], health: list[dict], poll_seconds: float, planned_submit_seconds: float) -> dict:
-    """The driver's own numbers and a verdict: CPU, pauses, poll lag, submit spread, and client minus server time."""
+def driver_health(
+    calls: list[dict], health: list[dict], poll_seconds: float | None, planned_submit_seconds: float
+) -> dict:
+    """The driver's own numbers and a verdict: CPU, pauses, poll lag, submit spread, and client minus server time.
+
+    poll_seconds is None for a backoff run, which has no poll lag.
+    """
     polls: dict = defaultdict(list)
     for call in calls:
-        if call["method"] == "GET" and call["path"] == STATUS_PATH:
+        if call["method"] == "GET" and call["path"] in STATUS_PATHS:
             polls[call["user"]].append(call)
-    lags = [lag for user_polls in polls.values() for lag in _poll_lags(user_polls, poll_seconds)]
+    lags = [] if poll_seconds is None else [lag for p in polls.values() for lag in _poll_lags(p, poll_seconds)]
     runs = sorted(c["start"] for c in calls if c["path"] == "/api/v1/programs/run/")
     overhead: dict = defaultdict(list)
     for call in calls:

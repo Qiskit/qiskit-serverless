@@ -138,7 +138,7 @@ def test_running_jobs_loop_loads_relations_in_the_query(world):
 
         def read_what_a_pass_reads(job):
             seen.append((job.program.provider.name, job.program.code_engine_project.project_name, job.size_label))
-            _ = (job.last_event_at, job.first_running_at)
+            _ = job.first_running_at
             return False
 
         task = UpdateFleetsJobsStatuses.__new__(UpdateFleetsJobsStatuses)
@@ -174,11 +174,16 @@ def test_a_real_status_pass_reads_no_events_per_job(world):
     """A full pass over jobs that stay RUNNING is one query, however many jobs there are."""
     from unittest.mock import MagicMock, patch  # pylint: disable=import-outside-toplevel
 
-    from core.models import JobEvent  # pylint: disable=import-outside-toplevel
+    from core.config_key import ConfigKey  # pylint: disable=import-outside-toplevel
+    from core.models import Config, JobEvent  # pylint: disable=import-outside-toplevel
     from core.services.job_transitions import JobTransitionService  # pylint: disable=import-outside-toplevel
     from scheduler.tasks.update_fleets_jobs_statuses import (  # pylint: disable=import-outside-toplevel
         UpdateFleetsJobsStatuses,
     )
+
+    # The timeout is read from Config once per pass and then served from cache. Warm it here (Config.set
+    # writes through to the cache) so the measured passes show only the per-job query floor, which is 1.
+    Config.set(ConfigKey.PROGRAM_TIMEOUT_HOURS, "24")
 
     def add_running(count):
         _add_jobs(world, count, status=Job.RUNNING)
@@ -190,7 +195,7 @@ def test_a_real_status_pass_reads_no_events_per_job(world):
         task = UpdateFleetsJobsStatuses(
             kill_signal=MagicMock(received=False),
             metrics=MagicMock(),
-            transitions=JobTransitionService(sender=MagicMock()),
+            transitions=JobTransitionService(billing_sender=MagicMock()),
         )
         runner = MagicMock()
         runner.status.return_value = Job.RUNNING
@@ -217,6 +222,8 @@ def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
     )
 
     Config.add_defaults()
+    Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+    Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")  # global matching: the jobs here have no instance CRN
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
     seen = []
 
@@ -235,7 +242,9 @@ def test_a_blocked_jobs_pass_is_flat_and_loads_what_a_stop_reads(world):
             return True
 
         task.canceller.cancel.side_effect = read_what_a_stop_reads
-        Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED)  # warm the config cache, as on a running scheduler
+        # warm the config cache, as on a running scheduler
+        Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED)
+        Config.get_bool(ConfigKey.BLOCKED_RESOURCES_REGIONAL)
         with CaptureQueriesContext(connection) as ctx:
             task.run()
         return len(ctx)

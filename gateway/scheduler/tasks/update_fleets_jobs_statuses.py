@@ -15,7 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, latest_event_at
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, program_timeout_hours
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -210,13 +210,17 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         if job.filler:
             return False
 
-        timeout = settings.PROGRAM_TIMEOUT
         # The paused check is not needed for correctness, cancel() raises anyway. It keeps an open
         # breaker from logging one line per timed-out job per tick.
         if not self._timed_out(job) or self.canceller.paused(job.ce_region):
             return False
 
-        logger.warning("job_id=%s user_id=%s timeout=%s hours: stopping the job.", job.id, job.author_id, timeout)
+        logger.warning(
+            "job_id=%s user_id=%s timeout=%s hours: stopping the job.",
+            job.id,
+            job.author_id,
+            program_timeout_hours(),
+        )
         try:
             cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
         except RunnerRetryableError as ex:
@@ -243,12 +247,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     @staticmethod
     def _timed_out(job: Job) -> bool:
-        """Check the time loaded with the job first, it rules out almost every job without a query. The events are
-        read again before a stop, because the loaded time misses an event written after the job list was read: the
-        RUNNING one ``to_running`` just wrote, or a sub status sent from inside the job."""
-        if not check_job_timeout(job, job.last_event_at or job.created):
-            return False
-        return check_job_timeout(job, latest_event_at(job))
+        """Whether the job has been running longer than PROGRAM_TIMEOUT, measured from its execution start.
+
+        The RUNNING time loaded with the job (``with_event_times()``) is enough, no extra query is needed.
+        It misses a RUNNING event written earlier in this same pass, but that event is stamped ~now, so the
+        job cannot have been running long enough to time out on it yet. A job still PENDING has no RUNNING
+        time, so it never times out here: PROGRAM_TIMEOUT is a cap on execution, not on queue or PENDING wait."""
+        return check_job_timeout(job, job.first_running_at)
 
     def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
         """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""

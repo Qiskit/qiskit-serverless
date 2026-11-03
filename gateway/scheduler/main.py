@@ -9,7 +9,7 @@ from django.db import close_old_connections, connection
 from core.models import Config
 from core.services.background_executor import get_background_executor
 from core.services.job_transitions import JobTransitionService
-from core.services.workload_best_effort_mirror import WorkloadBestEffortMirror
+from core.services.workload_best_effort_mirror import WorkloadBackgroundMirror
 from scheduler.schedule import FleetsBreakers, FleetsJobCanceller, FleetsJobSubmitter
 from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
@@ -48,7 +48,7 @@ class Main:
 
         # One service for every task that changes a job status, so the Kafka producers are created once, and only the
         # scheduler sends the intermediate workload statuses.
-        transitions = JobTransitionService(workload_mirror=WorkloadBestEffortMirror())
+        transitions = JobTransitionService(workload_mirror=WorkloadBackgroundMirror())
         # one breaker per dependency per region
         breakers = FleetsBreakers()
         submitter = FleetsJobSubmitter(transitions, breakers)

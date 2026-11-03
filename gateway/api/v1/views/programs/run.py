@@ -21,6 +21,7 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.domain.function_sizes import normalize_function_size
 from core.domain.authorization.function_access_result import FunctionAccessResult
+from core.domain.crn import Crn
 from core.models import BlockedCloudResource, Job, JobConfig
 
 logger = logging.getLogger("api.api.v1.views.programs.run")
@@ -127,6 +128,12 @@ class OutputSerializer(serializers.ModelSerializer):
         ref_name = "ProgramsRunOutput"
 
 
+def _region(instance: str | None) -> str | None:
+    """The region of the instance CRN, or None when it has none."""
+    crn = Crn.parse(instance)
+    return crn.region if crn else None
+
+
 @swagger_auto_schema(
     method="post",
     operation_description="Run an existing Qiskit Function",
@@ -200,6 +207,6 @@ def run_program(request: Request) -> Response:
     )
     logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
     data = OutputSerializer(job).data
-    if BlockedCloudResource.blocks(account_id, plan_id, subscription_id):
+    if BlockedCloudResource.blocks(account_id, plan_id, subscription_id, _region(instance)):
         data["warning"] = BLOCKED_RESOURCE_WARNING
     return Response(data)
