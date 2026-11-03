@@ -36,8 +36,7 @@ def _check(
     """
     # Legacy Django auth has provider granularity: user needs to be a provider admin
     if accessible_functions is None or accessible_functions.use_legacy_authorization:
-        user_groups = set(user.groups.all())
-        if user_groups.intersection(set(provider.admin_groups.all())):
+        if provider.admin_groups.filter(user=user).exists():
             return True
 
     # Runtime instances API has function granularity: user needs to have permission per function
@@ -154,8 +153,7 @@ class ProviderAccessPolicy:
         """True if the user belongs to any of the provider's admin groups (Django groups fallback only)."""
         if provider is None:
             raise ValueError("provider cannot be None")
-        user_groups = set(user.groups.all())
-        has_access = bool(user_groups.intersection(set(provider.admin_groups.all())))
+        has_access = provider.admin_groups.filter(user=user).exists()
         if not has_access:
             logger.warning("[is_provider_admin] provider=%s user_id=%s | no access", provider.name, user.id)
         return has_access

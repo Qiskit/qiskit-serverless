@@ -17,6 +17,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 
+from api.access_policies.jobs import JobAccessPolicies
+from api.services.authentication.job_status_token import JOB_STATUS_TOKEN_HEADER, issue_job_status_token
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
@@ -189,4 +191,8 @@ def retrieve(request: Request, job_id: UUID) -> Response:
         job_id,
         job.program.title if job.program else "",
     )
-    return Response(serialize_output(job, with_result))
+    response = Response(serialize_output(job, with_result))
+    if JobAccessPolicies.can_get_status_token(user, job):
+        response[JOB_STATUS_TOKEN_HEADER] = issue_job_status_token(user.id, job.id)
+        response["Cache-Control"] = "no-store"
+    return response

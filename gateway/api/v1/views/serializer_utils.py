@@ -19,14 +19,16 @@ class SanitizedCharField(serializers.CharField):
 
 class ComputeProfileSerializer(serializers.ModelSerializer):
     """
-    Compute profile fields exposed for a job's `compute_profile_fk`.
+    Compute profile fields exposed to users.
+
+    ``name`` is deliberately omitted: the compute-profile name is internal and must not
+    surface (here, or nested in a job/run response).
     """
 
     class Meta:
         model = ComputeProfile
         fields = [
             "compute_profile_id",
-            "name",
             "cpu",
             "gpu",
             "memory",

@@ -281,7 +281,7 @@ def test_result_timeout_raises_and_reads_no_results(clock):
 
 def test_result_maxwait_is_deprecated_and_waits_maxwait_times_cadence(clock):
     """maxwait warns, waits maxwait times cadence seconds, and still reads the results."""
-    job, service = _job(*([("RUNNING", None)] * 5))
+    job, service = _job(*([("RUNNING", None)] * 6))
     service.result.return_value = "{}"
 
     with pytest.warns(DeprecationWarning, match="maxwait"):

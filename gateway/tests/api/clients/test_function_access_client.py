@@ -1,6 +1,9 @@
 """Tests for FunctionAccessClient — real HTTP server."""
 
+from unittest.mock import patch
+
 import pytest
+from django.core.cache import cache
 
 from api.clients.function_access_client import FunctionAccessClient
 from api.domain.exceptions.runtime_api_exception import (
@@ -136,6 +139,15 @@ def test_caches_successful_response(instances_server):
     assert instances_server.request_count == 1
     assert result.use_legacy_authorization is False
     assert result.get_function("ibm", "sampler") is not None
+
+
+def test_cache_ttl_is_jittered(instances_server, settings):
+    settings.RUNTIME_API_CACHE_TTL = 60
+
+    with patch("api.utils.random.random", return_value=1.0), patch.object(cache, "set") as cache_set:
+        FunctionAccessClient().get_accessible_functions("crn:cache:jitter", "test-api-key")
+
+    assert cache_set.call_args.kwargs["timeout"] == 48
 
 
 def test_caches_204_response(instances_server):

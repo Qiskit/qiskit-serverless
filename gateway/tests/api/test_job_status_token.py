@@ -1,0 +1,113 @@
+"""Tests for the job status token and GET /jobs/{id}/status/."""
+
+import time
+from unittest.mock import patch
+
+import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
+
+from api.services.authentication.job_status_token import JOB_STATUS_TOKEN_HEADER, issue_job_status_token
+from core.models import Job
+from tests.utils import TestUtils
+
+
+def _retrieve(user, job):
+    client = APIClient()
+    TestUtils.authorize_client(user, client)
+    return client.get(reverse("v1:retrieve", args=[job.id]) + "?with_result=false")
+
+
+def _status(job, token=None, **headers):
+    if token is not None:
+        headers["HTTP_X_JOB_STATUS_TOKEN"] = token
+    return APIClient().get(reverse("v1:jobs-status", args=[job.id]), **headers)
+
+
+@pytest.fixture(name="author")
+def fixture_author(db):
+    return TestUtils.get_user_and_username("token_author")[0]
+
+
+@pytest.fixture(name="program")
+def fixture_program(author):
+    return TestUtils.create_program(program_title="token-function", author=author)
+
+
+@pytest.fixture(name="job")
+def fixture_job(author, program):
+    return TestUtils.create_job(author=author, program=program, status=Job.RUNNING, sub_status=Job.MAPPING)
+
+
+def test_retrieve_gives_the_author_a_token_for_a_job_that_has_not_ended(author, job):
+    response = _retrieve(author, job)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response[JOB_STATUS_TOKEN_HEADER]
+    assert response["Cache-Control"] == "no-store"
+
+
+def test_retrieve_gives_no_token_for_an_ended_job(author, job):
+    job.status = Job.SUCCEEDED
+    job.save()
+
+    assert JOB_STATUS_TOKEN_HEADER not in _retrieve(author, job)
+
+
+def test_retrieve_gives_no_token_to_someone_who_is_not_the_author(job):
+    admin = TestUtils.get_user_and_username("token_admin", is_staff=True)[0]
+    with patch("api.use_cases.jobs.retrieve.JobAccessPolicies.can_access", return_value=True):
+        response = _retrieve(admin, job)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert JOB_STATUS_TOKEN_HEADER not in response
+
+
+def test_status_returns_the_status_fields_with_at_most_two_queries(author, job):
+    token = _retrieve(author, job)[JOB_STATUS_TOKEN_HEADER]
+
+    with CaptureQueriesContext(connection) as captured:
+        response = _status(job, token)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {"status": Job.RUNNING, "sub_status": Job.MAPPING, "fleet_id": None}
+    assert response["Cache-Control"] == "no-store"
+    assert len(captured) <= 2
+
+
+def test_status_refuses_a_missing_tampered_or_expired_token_and_an_api_key(author, job):
+    token = issue_job_status_token(author.id, job.id)
+
+    assert _status(job).status_code == status.HTTP_401_UNAUTHORIZED
+    assert _status(job, token + "x").status_code == status.HTTP_401_UNAUTHORIZED
+    assert _status(job, HTTP_AUTHORIZATION="Bearer an-api-key").status_code == status.HTTP_401_UNAUTHORIZED
+    with patch("django.core.signing.time.time", return_value=time.time() - 301):
+        old_token = issue_job_status_token(author.id, job.id)
+    assert _status(job, old_token).status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_status_refuses_a_token_for_another_job(author, program, job):
+    other = TestUtils.create_job(author=author, program=program, status=Job.RUNNING)
+
+    with CaptureQueriesContext(connection) as captured:
+        response = _status(other, issue_job_status_token(author.id, job.id))
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert not any("api_job" in query["sql"] for query in captured)
+
+
+def test_status_refuses_a_token_of_an_inactive_user(author, job):
+    token = issue_job_status_token(author.id, job.id)
+    author.is_active = False
+    author.save()
+
+    assert _status(job, token).status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_status_refuses_a_token_of_someone_who_is_not_the_author(job):
+    other = TestUtils.get_user_and_username("token_other")[0]
+
+    assert _status(job, issue_job_status_token(other.id, job.id)).status_code == status.HTTP_404_NOT_FOUND

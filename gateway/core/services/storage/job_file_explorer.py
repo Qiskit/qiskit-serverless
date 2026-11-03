@@ -64,7 +64,7 @@ class JobFileExplorer:
         if artifact_group:
             groups.append(artifact_group)
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             groups.extend(self._explore_fleets(job))
         else:
             groups.extend(self._explore_ray(job))

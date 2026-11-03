@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from api.access_policies.programs import ProgramAccessPolicies
 from api.access_policies.providers import ProviderAccessPolicy
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.function_sizes import normalize_function_size, parse_function_sizes
@@ -64,20 +65,48 @@ def no_ce_project_message(function: Function) -> str:
     return "No active Code Engine project available. Contact administrator."
 
 
+def _as_number(value: str) -> float:
+    """Parse a dimension field for sorting; non-numeric values sort last."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("inf")
+
+
+def _available_profiles_message() -> str:
+    """List the registered profiles, one per line, for an unknown-profile error.
+
+    CPU-only profiles first, then GPU profiles by increasing memory (model ignored); each line
+    is ``id  (N vCPU / M GB[ / gpu])`` with the id column padded so the specs align.
+    """
+    profiles = list(ComputeProfile.objects.all())
+    if not profiles:
+        return "No compute profiles are registered on this deployment."
+
+    profiles.sort(key=lambda p: (bool(p.gpu), _as_number(p.memory), _as_number(p.cpu), p.compute_profile_id))
+    id_width = max(len(p.compute_profile_id) for p in profiles)
+    lines = []
+    for profile in profiles:
+        specs = f"{profile.cpu} vCPU / {profile.memory} GB"
+        if profile.gpu:
+            specs += f" / {profile.gpu}"
+        lines.append(f"{profile.compute_profile_id.ljust(id_width)}  ({specs})")
+    return "Available profiles:\n" + "\n".join(lines)
+
+
 def _validate_compute_profiles(sizes: dict[str, str]) -> dict[str, ComputeProfile]:
     """Map each declared size name to its ComputeProfile row.
 
-    Raises DRFValidationError (400) naming the first identifier with no row, so
-    a typo is refused at upload time rather than failing every later run of the
-    function inside the runner. Read-only: no rows are written here.
+    Raises DRFValidationError (400) naming the first unregistered identifier and listing
+    the registered profiles (see :func:`_available_profiles_message`), so a typo is refused at
+    upload time rather than failing every later run of the function. Read-only: no rows written.
     """
     profiles = {}
     for name, compute_profile_id in sizes.items():
         profile = ComputeProfile.objects.get_by_id(compute_profile_id)
         if profile is None:
             raise DRFValidationError(
-                f"Unknown compute profile '{compute_profile_id}' for size '{name}'. "
-                "Contact an administrator to have it registered."
+                f"Unknown compute profile '{compute_profile_id}' for size '{name}'. " + _available_profiles_message()
             )
         profiles[name] = profile
     return profiles
@@ -184,7 +213,12 @@ class UploadFunctionUseCase:
                 raise FunctionNotFoundException(function=data.title, provider=data.provider)
         else:
             if not ProgramAccessPolicies.can_create(user, accessible_functions):
-                raise FunctionNotFoundException(function=data.title, provider=None)
+                # No provider namespace to hide here (the user owns this title), so name
+                # the real cause -- a missing custom-functions entitlement -- rather than
+                # the misleading "doesn't exist" a 404 would give.
+                raise CustomFunctionNotEntitledException(
+                    title=data.title, operation=CustomFunctionNotEntitledException.UPLOAD
+                )
             existing = Function.objects.filter(title=data.title, author=user).first()
 
         if existing is None:

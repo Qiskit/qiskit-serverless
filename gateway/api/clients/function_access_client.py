@@ -11,6 +11,7 @@ from api.domain.exceptions.runtime_api_exception import (
     RuntimeFunctionsException,
     RuntimeFunctionsUnavailable,
 )
+from api.utils import jittered_cache_ttl
 from core.config_key import ConfigKey
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -131,5 +132,5 @@ class FunctionAccessClient:
                 functions=functions,
                 custom_function_permissions=custom_function_permissions,
             )
-        cache.set(cache_key, result, timeout=settings.RUNTIME_API_CACHE_TTL)
+        cache.set(cache_key, result, timeout=jittered_cache_ttl(settings.RUNTIME_API_CACHE_TTL))
         return result

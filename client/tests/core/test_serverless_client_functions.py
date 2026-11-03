@@ -25,6 +25,7 @@ from qiskit_serverless.core.clients.serverless_client import (
     _upload_with_docker_image,
     _upload_with_artifact,
 )
+from qiskit_serverless.core.compute_profile import ComputeProfile
 from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 
@@ -818,6 +819,18 @@ class TestSizesPayload:
         program = QiskitFunction(title="t", entrypoint="e.py", runner="fleets", sizes_map={})
 
         assert _sizes_payload(program) == {"sizes": json.dumps({})}
+
+    def test_compute_profile_objects_serialize_to_their_id(self):
+        """A ComputeProfile value is sent as its compute_profile_id, same wire shape as a string."""
+        profile = ComputeProfile.from_json(
+            {"compute_profile_id": "24x120x1l40s", "cpu": "24", "memory": "120", "gpu": "1l40s"}
+        )
+        program = QiskitFunction(title="t", entrypoint="e.py", runner="fleets", sizes_map={"s": "24x120", "m": profile})
+
+        payload = _sizes_payload(program)
+
+        # Identical to the all-strings form: the object is interchangeable with its id.
+        assert payload == {"sizes": json.dumps({"s": "24x120", "m": "24x120x1l40s"})}
 
 
 def _ok_response(response_json):

@@ -12,11 +12,9 @@ from core.services.storage import get_logs_storage
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from scheduler.schedule import (
-    check_job_timeout,
-    fail_job_insufficient_resources,
-)
+from scheduler.schedule import check_job_timeout, fail_job_insufficient_resources, program_timeout_hours
 
+from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -71,7 +69,13 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         status_has_changed = False
         lines: FilteredLogs | None = None
-        if check_job_timeout(job):
+        if check_job_timeout(job, JobEvent.objects.first_running_at(job.id)):
+            logger.warning(
+                "job_id=%s cluster=%s timeout=%s hours: job stopped.",
+                job.id,
+                job.compute_resource.title,
+                program_timeout_hours(),
+            )
             job_new_status = Job.STOPPED
 
         if job_new_status != job.status:
@@ -174,15 +178,29 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         ray_counter = 0
         gpu_counter = 0
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES).exclude(runner=Program.FLEETS)
+        jobs = (
+            Job.objects.filter(status__in=Job.RUNNING_STATUSES)
+            .exclude(runner=Program.FLEETS)
+            .select_related("author", "program__provider", "compute_resource", "config")
+        )
         for job in jobs:
             if self.kill_signal.received:
                 return
-            if job.gpu and update_gpu_jobs:
-                if self.update_job_status(job):
+            if not (update_gpu_jobs if job.gpu else update_ray_jobs):
+                continue
+            try:
+                changed = self.update_job_status(job)
+            except DB_EXCEPTIONS:
+                # Never swallowed: main.py counts consecutive database failures to restart the pod
+                raise
+            except Exception:  # pylint: disable=broad-exception-caught
+                # One broken job must not stop the others from being updated
+                logger.exception("job_id=%s Error updating the job status, skipping it", job.id)
+                continue
+            if changed:
+                if job.gpu:
                     gpu_counter += 1
-            elif not job.gpu and update_ray_jobs:
-                if self.update_job_status(job):
+                else:
                     ray_counter += 1
 
         if ray_counter:

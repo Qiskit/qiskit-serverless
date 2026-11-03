@@ -36,7 +36,7 @@ application:
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
-    kubectlImage: alpine/k8s:1.37.1
+    kubectlImage: alpine/k8s:1.37.2
     scrapeWithPrometheus: true
     useTLS: true
 
@@ -53,7 +53,6 @@ application:
 
   limits:
     maxJobsPerUser: 2
-    maxActiveJobsPerUser: 50
     maxComputeResources: 4
     maxGpuResources: 1
     keepClusterOnComplete: False
@@ -90,6 +89,9 @@ application:
   corsOrigins: "http://localhost"
   logsMaximumSize: "52428800" # 50Mb in bytes
   logFormat: json
+  database:
+    # Max age in seconds of a reused Postgres connection, in the gateway and the scheduler. 0 closes it after each use.
+    connMaxAge: 60
   security:
     hstsSeconds: 0  # 0 means disabled
     hstsIncludeSubdomains: false

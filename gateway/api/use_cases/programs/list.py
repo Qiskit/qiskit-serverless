@@ -48,4 +48,7 @@ class ListFunctionsUseCase:
         if provider:
             queryset = queryset.filter(provider__name=provider)
 
-        return list(queryset)
+        # The serializer reads provider, default_size and function_sizes on each row.
+        queryset = queryset.select_related("provider", "default_size").prefetch_related("function_sizes")
+        # Fixed order: title, then id (titles repeat across providers).
+        return list(queryset.order_by("title", "id"))
