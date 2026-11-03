@@ -69,6 +69,11 @@ from qiskit_serverless.core.job import (
 )
 from qiskit_serverless.core.job_event import JobEvent
 
+from qiskit_serverless.core.compute_profile import (
+    ComputeProfile,
+    ComputeProfileList,
+    format_profiles,
+)
 from qiskit_serverless.core.function import (
     QiskitFunction,
     RunService,
@@ -196,6 +201,72 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 timeout=REQUESTS_TIMEOUT,
             )
         )
+
+    def compute_profiles(self) -> ComputeProfileList:
+        """Get the compute profiles registered on this deployment.
+
+        These are the profiles a Fleets function's ``sizes_map`` can name. The catalog is
+        deployment-specific, so discover it here rather than hard-coding identifiers. The
+        returned list prints as an aligned table, so ``print(client.compute_profiles())`` shows
+        the catalog without iterating, while still behaving as an ordinary list of
+        :class:`ComputeProfile`.
+        """
+        profiles = safe_json_request_as_list(
+            request=lambda: requests.get(
+                url=f"{self.host}/api/{self.version}/compute-profiles/",
+                headers=get_headers(token=self.token, instance=self.instance),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return ComputeProfileList(ComputeProfile.from_json(profile) for profile in profiles)
+
+    def compute_profile(
+        self,
+        compute_profile_id: Optional[str] = None,
+        *,
+        cpu: Optional[Union[int, str]] = None,
+        memory: Optional[Union[int, str]] = None,
+        gpu: Optional[str] = None,
+    ) -> ComputeProfile:
+        """Get a single registered compute profile, by id or by exact resources.
+
+        Validates against the deployment's catalog and returns the matching
+        :class:`ComputeProfile`, so the result is always a profile the deployment has
+        registered. Call it one of two ways:
+
+        - by id: ``client.compute_profile("24x120")``
+        - by resources: ``client.compute_profile(cpu=24, memory=120[, gpu="1l40s"])`` — ``cpu``
+          and ``memory`` are required (``int`` or ``str``), ``gpu`` optional (omitted means
+          CPU-only). Every value given must match a single registered profile exactly.
+
+        Raises:
+            QiskitServerlessException: if no profile matches (the message lists the available
+                profiles), or if the arguments mix the two forms / omit required resources.
+        """
+        by_id = compute_profile_id is not None
+        by_resources = cpu is not None or memory is not None or gpu is not None
+        if by_id and by_resources:
+            raise QiskitServerlessException("Pass either a compute_profile_id or cpu/memory/gpu, not both.")
+        if not by_id and not by_resources:
+            raise QiskitServerlessException("Provide a compute_profile_id, or cpu and memory.")
+
+        profiles = self.compute_profiles()
+        if by_id:
+            match = next((p for p in profiles if p.compute_profile_id == compute_profile_id), None)
+            criteria = f"compute_profile_id={compute_profile_id!r}"
+        else:
+            if cpu is None or memory is None:
+                raise QiskitServerlessException("Both cpu and memory are required to match by resources.")
+            match = next(
+                (p for p in profiles if p.cpu == str(cpu) and p.memory == str(memory) and p.gpu == gpu),
+                None,
+            )
+            criteria = f"cpu={cpu}, memory={memory}" + (f", gpu={gpu!r}" if gpu is not None else "")
+
+        if match is None:
+            available = format_profiles(profiles) or "none are registered on this deployment"
+            raise QiskitServerlessException(f"No compute profile matches {criteria}. Available profiles:\n{available}")
+        return match
 
     ####################
     ####### JOBS #######
@@ -1171,10 +1242,13 @@ def _sizes_payload(program: QiskitFunction) -> Dict[str, Any]:
     unset so an upload that does not touch sizes leaves any stored catalog
     untouched (the gateway treats an absent field as "not sent") rather than
     clearing it.
+
+    A ``sizes_map`` value may be a ``compute_profile_id`` string or a ``ComputeProfile``
+    object; ``str()`` serializes either to the same id, so the wire format is identical.
     """
     payload: Dict[str, Any] = {}
     if program.sizes_map is not None:
-        payload["sizes"] = json.dumps(program.sizes_map)
+        payload["sizes"] = json.dumps({label: str(profile) for label, profile in program.sizes_map.items()})
     if program.default_size is not None:
         payload["default_size"] = program.default_size
     return payload

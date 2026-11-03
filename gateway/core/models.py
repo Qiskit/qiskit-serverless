@@ -23,6 +23,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.crn import region_crn_regex
 from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
@@ -573,16 +574,44 @@ class BlockedCloudResource(models.Model):
         return f"BlockedCloudResource({', '.join(parts)})"
 
     @classmethod
-    def blocks(cls, account: str | None, plan: str | None, subscription: str | None) -> bool:
-        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL."""
-        return cls.objects.filter(account=account, plan=plan, subscription=subscription).exists()
+    def blocks(cls, account: str | None, plan: str | None, subscription: str | None, region: str | None) -> bool:
+        """Whether a row matches exactly this account, plan and subscription. NULL only matches NULL.
+
+        With regional matching on, the row's region must also be this one. Always False while blocked resources
+        are not enforced.
+        """
+        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
+            return False
+        rows = cls.objects.filter(account=account, plan=plan, subscription=subscription)
+        if Config.get_bool(ConfigKey.BLOCKED_RESOURCES_REGIONAL):
+            rows = rows.filter(region=region)
+        return rows.exists()
 
     @classmethod
     def blocked_jobs_filter(cls) -> models.Q | None:
-        """A Job filter matching the jobs blocks() would block, or None when nothing is blocked."""
-        # distinct: a resource blocked for more than one reason or region has a row for each
-        rows = cls.objects.values_list("account", "plan", "subscription").distinct()
-        jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
+        """A Job filter matching the jobs blocks() would block, or None when nothing is blocked.
+
+        Always None while blocked resources are not enforced.
+        """
+        if not Config.get_bool(ConfigKey.BLOCKED_JOBS_STOP_ENABLED):
+            return None
+        # distinct: a resource blocked for more than one reason (or region, when regions are not compared) has a
+        # row for each
+        if Config.get_bool(ConfigKey.BLOCKED_RESOURCES_REGIONAL):
+            rows = cls.objects.values_list("account", "plan", "subscription", "region").distinct()
+            # A job has no region column: it is the instance CRN's region
+            jobs = [
+                models.Q(
+                    account_id=account,
+                    plan_id=plan,
+                    subscription_id=sub,
+                    instance_crn__regex=region_crn_regex(region),
+                )
+                for account, plan, sub, region in rows
+            ]
+        else:
+            rows = cls.objects.values_list("account", "plan", "subscription").distinct()
+            jobs = [models.Q(account_id=account, plan_id=plan, subscription_id=sub) for account, plan, sub in rows]
         return reduce(operator.or_, jobs) if jobs else None
 
 
@@ -858,11 +887,6 @@ class Job(models.Model):
         if not label and self.function_size is not None:
             label = self.function_size.function_size
         return label.upper() if label else None
-
-    @property
-    def last_event_at(self) -> datetime | None:
-        """When the job's latest event was written, or None if it has none. Needs ``with_event_times()``."""
-        return self._event_time("_last_event_at")
 
     @property
     def first_running_at(self) -> datetime | None:

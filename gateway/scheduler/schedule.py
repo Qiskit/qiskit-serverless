@@ -1,7 +1,6 @@
 """Scheduling related functions."""
 
 import logging
-import random
 import time
 from typing import List
 from datetime import datetime, timedelta
@@ -9,15 +8,16 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Model
-from django.db.models import Q
-from django.db.models.aggregates import Count, Min
+from django.db.models import F, Window
+from django.db.models.aggregates import Count
+from django.db.models.functions import RowNumber
 
 from opentelemetry import trace
 
 from core.config_key import ConfigKey
 from core.external_call_metrics import FLEET_SUBMIT, observe_operation
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import BlockedCloudResource, Job, JobEvent, Program
+from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.services.job_transitions import FleetAppearedError, JobTransitionService
 from core.services.runners import (
@@ -339,80 +339,61 @@ def first_cancel_refusal(job: Job) -> bool:
     return True
 
 
-def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program.RAY) -> List[Job]:
-    """Returns jobs for execution based on fair share distribution of resources.
+def get_jobs_to_schedule_fair_share(
+    slots: int, gpu: bool, runner: str = Program.RAY, jobs_per_user: int | None = None
+) -> List[Job]:
+    """At most slots queued jobs, taken in rounds: the oldest job of every user before the second of any.
 
-    Args:
-        slots: max number of users to query
-        gpu: filter jobs by GPU requirement
-        runner: filter jobs by runner type
-
-    Returns:
-        list of jobs for execution
+    The users who waited longest go first. A user takes at most jobs_per_user minus their running jobs, which
+    defaults to LIMITS_JOBS_PER_USER, and a Ray user at most one job per call.
     """
-
-    # maybe refactor this using big SQL query :thinking:
-
-    max_limit = min(slots, settings.LIMITS_MAX_FLEETS)
-
-    # Per-user concurrency is tracked independently per runner: Fleets and Ray
-    # have separate limits and separate running-job tallies, so a user's Fleets
-    # jobs don't count against their Ray budget and vice versa.
-    if runner == Program.FLEETS:
-        jobs_per_user = settings.LIMITS_JOBS_PER_USER_FLEETS
-    else:
+    if jobs_per_user is None:
         jobs_per_user = settings.LIMITS_JOBS_PER_USER
 
-    # Filler jobs are not user demand, and they belong to the author of the filler
-    # function, so counting them would stop that person's own jobs being promoted.
-    # This one query serves both LIMITS_JOBS_PER_USER and its Fleets variant.
-    running_jobs_per_user = (
+    # filler jobs are not user demand, so they do not use up their author's limit
+    running = dict(
         Job.objects.filter(status__in=Job.RUNNING_STATUSES, runner=runner)
         .exclude(filler=True)
         .values("author")
-        .annotate(running_jobs_count=Count("id"))
+        .annotate(count=Count("id"))
+        .values_list("author", "count")
     )
 
-    users_at_max_capacity = [
-        entry["author"] for entry in running_jobs_per_user if entry["running_jobs_count"] >= jobs_per_user
-    ]
-
-    queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner)
+    # the budget below drops them too, but excluding them here keeps their queued jobs out of the query
+    users_at_max_capacity = [author for author, count in running.items() if count >= jobs_per_user]
+    queued = Job.objects.filter(status=Job.QUEUED, gpu=gpu, runner=runner).exclude(author__in=users_at_max_capacity)
     blocked = BlockedCloudResource.blocked_jobs_filter() if runner == Program.FLEETS else None
     if blocked is not None:
-        # Held in QUEUED, and never picked: a picked job would take a slot it cannot use
+        # held in QUEUED, and never picked: a picked job would take a slot it cannot use
         queued = queued.exclude(blocked)
 
-    author_date_pull = (
-        queued.exclude(author__in=users_at_max_capacity).values("author").annotate(job_date=Min("created"))[:max_limit]
+    ranked = (
+        queued.with_scheduler_context()
+        .annotate(rank=Window(RowNumber(), partition_by=F("author"), order_by=F("created").asc()))
+        .filter(rank__lte=1 if runner == Program.RAY else slots)
+        .order_by("rank", "created")
     )
-
-    if len(author_date_pull) == 0:
-        return []
-
-    author_date_list = list(author_date_pull)
-    if len(author_date_pull) >= slots:
-        author_date_list = random.sample(author_date_list, k=slots)
-
-    job_filter = Q()
-    for entry in author_date_list:
-        job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
-
-    return Job.objects.filter(job_filter).with_scheduler_context()
+    return [job for job in ranked if job.rank <= jobs_per_user - running.get(job.author_id, 0)][:slots]
 
 
-def latest_event_at(job: Job) -> datetime:
-    """The job's latest event time read now, or its creation time if it has no events."""
-    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-    return latest_job_event.created if latest_job_event else job.created
+def program_timeout_hours() -> int:
+    """The job execution timeout in hours. Operators can override it live in the backoffice (the Config
+    value), otherwise it is the PROGRAM_TIMEOUT env var set at boot."""
+    return Config.get_int(ConfigKey.PROGRAM_TIMEOUT_HOURS, default=settings.PROGRAM_TIMEOUT)
 
 
-def check_job_timeout(job: Job, last_event_at: datetime) -> bool:
-    """Whether a running job has had no event for more than PROGRAM_TIMEOUT hours since ``last_event_at``."""
-    if job.status not in Job.RUNNING_STATUSES:
+def check_job_timeout(job: Job, first_running_at: datetime | None) -> bool:
+    """Whether the job has been running for more than the program timeout since ``first_running_at``.
+
+    The timeout is a pure cap on execution time, so it is measured from the first RUNNING event, not from
+    the latest event: a job that keeps emitting events, such as sub status changes, must still time out.
+    A job that has not started running yet (no RUNNING event) has nothing to time out, so queue and PENDING
+    wait never count against it.
+    """
+    if job.status not in Job.RUNNING_STATUSES or first_running_at is None:
         return False
 
-    endtime = last_event_at + timedelta(hours=settings.PROGRAM_TIMEOUT)
+    endtime = first_running_at + timedelta(hours=program_timeout_hours())
     return endtime < datetime.now(tz=endtime.tzinfo)
 
 

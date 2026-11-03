@@ -83,6 +83,10 @@ class Scenario(Strict):
     users: int = Field(gt=0)
     qps: float = Field(gt=0)
     burst: int = Field(gt=0)
+    # fixed: every poll_seconds. backoff: the waits of Job.wait_for_final_state(), like a real SDK user
+    poll: Literal["fixed", "backoff"] = "fixed"
+    # false: print the project's fleet count but start at once, for a test that fills the project on purpose
+    wait_for_room: bool = True
     function_size: str | None = None
     arguments: dict[str, Any] = Field(default_factory=dict)
 

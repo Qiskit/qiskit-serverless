@@ -342,11 +342,6 @@ FLEETS_GATEWAY_HOST = os.environ.get("FLEETS_GATEWAY_HOST", SITE_HOST)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-# Per-user concurrent running-job limit for the Fleets (Code Engine) runner.
-# Fleets scales differently from Ray (no per-cluster capacity), so it gets its
-# own, higher default independent of the Ray-oriented LIMITS_JOBS_PER_USER.
-LIMITS_JOBS_PER_USER_FLEETS = int(os.environ.get("LIMITS_JOBS_PER_USER_FLEETS", "50"))
-LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
@@ -677,8 +672,8 @@ DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.fleets.quota_per_project": {
         "default": "1000",
         "type": "integer",
-        "description": "How many fleets one Code Engine project can hold. Only the cleanup reads it, so it is "
-        "not the LIMITS_MAX_FLEETS concurrency cap.",
+        "description": "How many fleets one Code Engine project can hold. The submit keeps a job QUEUED when its "
+        "project has no free fleet, and the cleanup reads it too. It is not the LIMITS_MAX_FLEETS concurrency cap.",
     },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
@@ -694,10 +689,35 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "How long the scheduler stops calling a dependency in a region once its breaker trips.",
     },
     "scheduler.blocked_jobs_stop.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "
+        "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
+    },
+    "gateway.blocked_resources.regional.enabled": {
         "default": "true",
         "type": "boolean",
-        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
-        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
+        "description": "Match a job against blocked_cloud_resources by its region too, the one in its instance CRN, "
+        "rather than by account, plan and subscription alone. A job whose CRN has no region is then never blocked.",
+    },
+    "scheduler.fleets.jobs_per_tick": {
+        "default": "5",
+        "type": "integer",
+        "description": "Most queued Fleets jobs the scheduler submits in one tick, for all users together, taken in "
+        "rounds across users. 0 or less stops new Fleets submits.",
+    },
+    "gateway.limits.active_jobs_per_user": {
+        "default": "50",
+        "type": "integer",
+        "description": "Most jobs one user can have queued or running. The gateway checks it at submit, and the "
+        "scheduler uses it as the most Fleets jobs one user can have running. 0 blocks every submit.",
+    },
+    "scheduler.program_timeout_hours": {
+        "default": str(PROGRAM_TIMEOUT),
+        "type": "integer",
+        "description": "How many hours a job may run before the scheduler stops it, measured from when it "
+        "started running. The default comes from the PROGRAM_TIMEOUT env var; set it here to override that "
+        "without a redeploy.",
     },
 }
 

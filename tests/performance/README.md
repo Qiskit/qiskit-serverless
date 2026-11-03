@@ -58,7 +58,7 @@ Each scenario sends its users through one rate limiter, like the `qps` and `burs
 
 No one waits for the jobs of the others, so with long jobs the jobs pile up and overlap, like QDC users who arrive a few seconds apart. `--dry-run` prints when the last user submits.
 
-Between two scenarios the driver waits `cooldown_seconds` (default 300), then until the Code Engine project has room for the next scenario's fleets. A fleet that is being deleted still counts against the 1000 cap. Each run picks its size with `function_size`, from the `sizes` of the function, for example `S` is `8x32`. Code Engine performance is not what we test, so use the smallest size the function needs.
+Between two scenarios the driver waits `cooldown_seconds` (default 300), then until the Code Engine project has room for the next scenario's fleets. A fleet that is being deleted still counts against the 1000 cap. A scenario with `wait_for_room: false` starts at once instead, for a test that fills the project on purpose with `--keep`. Each run picks its size with `function_size`, from the `sizes` of the function, for example `S` is `8x32`. Code Engine performance is not what we test, so use the smallest size the function needs.
 
 **The function's arguments** are in `sqd_arguments`, the input of the template's own unit test: a small water molecule, 2 SQD iterations, and 2 batches. The chemistry takes about 10 s. Most of a job's time is Code Engine starting its fleet.
 
@@ -77,7 +77,7 @@ For a real QPU the function needs no other setting. The gateway passes the user'
 4. It waits until every user has uploaded, so the upload time does not slow the submits.
 5. It takes a token from the rate limiter, then calls `run(function_size=...)`.
 6. It writes its job id to `job_ids.jsonl` as soon as `run()` returns, so `cleanup` can find the job even if the driver is killed.
-7. It checks its job status every `poll_seconds` until the job is `DONE`, `ERROR` or `CANCELED`.
+7. It checks its job status every `poll_seconds` until the job is `DONE`, `ERROR` or `CANCELED`. With `poll: backoff` in a scenario, it waits like `Job.wait_for_final_state()` instead: 1, 2, 4, 8, 16 and 32 s, then every 60 s, starting again from 1 s when the status changes. That is how a real SDK user polls.
 8. It gets the result with `job.result(wait=False)`. It does not wait, because the job already ended.
 9. When every job has ended, the driver reads the status events and the log of each job, the Sysdig metrics from the start of the run to one scrape after its end, and the scheduler submit lines from Cloud Logs.
 10. It writes `report.txt`, then cleans up the jobs and their fleets. With `--results`, it then exports the run into the results repo.
@@ -109,18 +109,15 @@ The report gives these times for each job:
 
 ## Prepare the system
 
-Every user signs in with the same `GATEWAY_TOKEN`, so for the gateway they are one user. And no user waits for the jobs of the others, so with long jobs every job of the run can exist at the same time. So a run with more than 50 users needs the per-user limits raised first. `--dry-run` warns about it.
+Every user signs in with the same `GATEWAY_TOKEN`, so for the gateway they are one user. And no user waits for the jobs of the others, so with long jobs every job of the run can exist at the same time. So a run with more than 50 users needs the per-user limit raised first. `--dry-run` warns about it.
 
 | What | For the test | Where | How it reaches staging |
 |---|---|---|---|
-| Active jobs per user, `LIMITS_ACTIVE_JOBS_PER_USER` (default 50) | above the number of users | the chart value `gateway.application.limits.maxActiveJobsPerUser` | an internal values PR, then a staging release |
-| Running Fleets jobs per user, `LIMITS_JOBS_PER_USER_FLEETS` (default 50) | above the number of users | not in the chart today, so a public chart PR to add it, then the internal values | a chart PR, a values PR, and a staging release |
-| Jobs started per user per scheduler tick | more than 1 | the Config `scheduler.fleets.jobs_per_user_per_tick`, from PR #2583 | the backoffice, once #2583 is deployed. Today it is always 1, so 200 jobs take 200 ticks. |
-| Gateway and scheduler CPU and memory | like production. The staging scheduler has only 270 MiB. | `gateway.resources` and `gateway.scheduler.resources` in the internal `values-non-prod.yaml` | an internal values PR, then a staging release |
+| Jobs per user, queued or running (default 50) | above the number of users | the Config `gateway.limits.active_jobs_per_user` | the backoffice |
+| Fleets jobs started per scheduler tick (default 5) | the number of users, so one tick starts a whole step | the Config `scheduler.fleets.jobs_per_tick` | the backoffice |
+| Gateway and scheduler CPU and memory | like production, so the results carry over. | `gateway.resources` and `gateway.scheduler.resources` in the internal `values-non-prod.yaml` | an internal values PR, then a staging release |
 | Compute size | the smallest the function needs, for example `S`, `8x32` | `sizes` and `function_size` in `scenarios.yaml`. The profile must be registered in the gateway. | nothing, the driver sends it |
 | Code Engine room | room for every fleet of the run. A project holds at most 1000 fleets, and a fleet that is being deleted still counts | the Code Engine project | the driver waits for room before each scenario, and deletes each fleet when its job ends |
-
-Once #2583 is deployed, the two per-user limits also move to the backoffice, as `gateway.limits.active_jobs_per_user`. Then a run needs no values PR and no release.
 
 **Before each run:**
 - Check that the profiles in `sizes` are registered in the gateway. The upload fails otherwise.
