@@ -4,7 +4,6 @@
 
 import logging
 import operator
-import re
 import uuid
 from datetime import datetime
 from enum import StrEnum
@@ -24,6 +23,7 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
+from core.domain.crn import region_crn_regex
 from core.domain.function_sizes import VALID_SIZES as FUNCTION_SIZE_VALID_SIZES
 from core.domain.subsidized_license_mapping import licensed_job_from_db
 from core.model_managers.code_engine_projects import CodeEngineProjectQuerySet
@@ -599,13 +599,13 @@ class BlockedCloudResource(models.Model):
         # row for each
         if Config.get_bool(ConfigKey.BLOCKED_RESOURCES_REGIONAL):
             rows = cls.objects.values_list("account", "plan", "subscription", "region").distinct()
-            # A job has no region column: it is the instance CRN's region segment, as core.domain.crn.Crn reads it
+            # A job has no region column: it is the instance CRN's region
             jobs = [
                 models.Q(
                     account_id=account,
                     plan_id=plan,
                     subscription_id=sub,
-                    instance_crn__regex=rf"^([^:]*:){{5}}{re.escape(region)}:",
+                    instance_crn__regex=region_crn_regex(region),
                 )
                 for account, plan, sub, region in rows
             ]
