@@ -565,6 +565,12 @@ configuration is true, which it is not by default, and it can be turned
 on or off at runtime without a deploy.</p></li>
 </ul>
 <ul class="simple">
+<li><p>The job execution timeout is now adjustable from the backoffice through the
+<code class="docutils literal notranslate"><span class="pre">scheduler.program_timeout_hours</span></code> dynamic config, so an operator can change
+it without a redeploy. Its default still comes from the <code class="docutils literal notranslate"><span class="pre">PROGRAM_TIMEOUT</span></code>
+environment variable.</p></li>
+</ul>
+<ul class="simple">
 <li><p>The scheduler now sends the Pending, Running and Stopping statuses of the
 jobs that were registered in the Runtime API (those created while
 <code class="docutils literal notranslate"><span class="pre">workloads.mirror.enabled</span></code> covered them) to the Runtime API, best effort.</p></li>
@@ -732,6 +738,15 @@ internal waits with a monotonic clock instead of the wall clock, so a clock
 adjustment (NTP correction, VM pause) can no longer show up as a very long
 loop or task in the scheduler metrics. The <code class="docutils literal notranslate"><span class="pre">scheduler_start_timestamp_seconds</span></code>
 and <code class="docutils literal notranslate"><span class="pre">scheduler_last_tick_timestamp_seconds</span></code> metrics stay on the wall clock.</p></li>
+</ul>
+<ul class="simple">
+<li><p>A running job is now stopped once it has been executing for longer than
+the program timeout, measured from when it started running. Before, the
+timeout counted from the job’s latest event of any kind, so a job that kept
+reporting a sub status (<code class="docutils literal notranslate"><span class="pre">MAPPING</span></code>, <code class="docutils literal notranslate"><span class="pre">OPTIMIZING_HARDWARE</span></code>, <code class="docutils literal notranslate"><span class="pre">WAITING_QPU</span></code>,
+<code class="docutils literal notranslate"><span class="pre">EXECUTING_QPU</span></code>) reset the clock on every change and could run indefinitely.
+The timeout is now a cap on execution time only, so time spent queued or
+pending no longer counts against it.</p></li>
 </ul>
 <ul class="simple">
 <li><p>Authentication now writes only the user’s groups that changed, so a
