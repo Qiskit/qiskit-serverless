@@ -21,6 +21,8 @@ _BLOCKED = {"account_id": "acct", "plan_id": "plan", "subscription_id": "sub"}
 def blocked_resource():
     Config.add_defaults()
     Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+    # Global matching; tests/core/test_blocked_cloud_resource.py covers the regional one
+    Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
     BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub")
 
 

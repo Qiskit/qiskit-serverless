@@ -21,6 +21,8 @@ def blocked_jobs_stop_enabled():
     """Blocked resources are not enforced by default, and these tests are about enforcing them."""
     Config.add_defaults()
     Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+    # Global matching; test_with_regional_matching_only_the_instance_crns_region_gets_a_warning covers the regional one
+    Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
 
 
 def _run(**identity):
@@ -28,7 +30,7 @@ def _run(**identity):
     token.accessible_functions = FunctionAccessResult(use_legacy_authorization=True)
     token.channel = Channel.LOCAL
     token.token = b"test-token"
-    token.instance = "instance"
+    token.instance = identity.get("instance", "instance")
     token.account_id = identity.get("account_id", "acct")
     token.plan_id = identity.get("plan_id", "plan")
     token.subscription_id = identity.get("subscription_id", "sub")
@@ -69,3 +71,14 @@ def test_a_blocked_resource_gets_no_warning_while_blocked_resources_are_not_enfo
 
     assert response.status_code == status.HTTP_200_OK
     assert "warning" not in response.data
+
+
+@pytest.mark.parametrize("region, warned", [("us-east", True), ("eu-de", False)])
+def test_with_regional_matching_only_the_instance_crns_region_gets_a_warning(region, warned):
+    Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "true")
+    BlockedCloudResource.objects.create(account="acct", plan="plan", subscription="sub", region=region)
+
+    response = _run(instance="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:instance-1::")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert ("warning" in response.data) == warned
