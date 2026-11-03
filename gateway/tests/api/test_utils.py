@@ -2,7 +2,7 @@
 
 import pytest
 from typing import Union, Literal
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from core.models import Job, Program
 from api.domain.authentication.channel import Channel
@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.utils import (
     build_env_variables,
+    jittered_cache_ttl,
     parse_title_and_provider,
     remove_duplicates_from_list,
 )
@@ -399,3 +400,15 @@ class TestParseTitleAndProvider:
     def test_rejects_more_than_one_slash(self):
         with pytest.raises(ValidationError):
             parse_title_and_provider("acme/team/my-function", None)
+
+
+class TestJitteredCacheTtl:
+    def test_shortens_by_up_to_20_percent_and_never_lengthens(self):
+        with patch("api.utils.random.random", return_value=1.0):
+            assert jittered_cache_ttl(60) == 48
+        with patch("api.utils.random.random", return_value=0.0):
+            assert jittered_cache_ttl(60) == 60
+
+    def test_never_returns_0_for_a_positive_ttl(self):
+        with patch("api.utils.random.random", return_value=1.0):
+            assert jittered_cache_ttl(1) == 1

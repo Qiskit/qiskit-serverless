@@ -3,6 +3,7 @@
 from collections import OrderedDict
 import json
 import logging
+import random
 import re
 from typing import Any, Optional, Tuple, Callable, Dict, List
 from django.conf import settings
@@ -148,6 +149,13 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
     return result
 
 
+def jittered_cache_ttl(ttl: int) -> int:
+    """The TTL shortened by a random 0 to 20 %, at least 1 s. A TTL of 0 or less is returned as is."""
+    if ttl <= 0:
+        return ttl
+    return max(1, int(ttl * (1 - 0.2 * random.random())))
+
+
 def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
     """Remove duplicates from a list maintaining the order.
     Args:
@@ -246,12 +254,11 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
-def active_jobs_limit_reached(author: str) -> bool:
+def active_jobs_limit_reached(author: str, active_jobs_limit: int) -> bool:
     """
     Returns True if the user reached his active jobs limit,
     False otherwise.
     """
-    active_jobs_limit = settings.LIMITS_ACTIVE_JOBS_PER_USER
     user_active_jobs_count = Job.objects.filter(author=author, status__in=Job.ACTIVE_STATUSES).count()
 
     return user_active_jobs_count >= active_jobs_limit

@@ -34,6 +34,10 @@ class RunnerRetryableError(RunnerError):
     """A later try can work, for example after a 429, so the caller should not fail the row."""
 
 
+class CosRetryableError(RunnerRetryableError):
+    """A COS call a later try can fix, so the COS breaker is counted and not the Code Engine one."""
+
+
 class AbstractRunner(ABC):
     """Abstract runner for executing jobs on different engines."""
 
@@ -151,6 +155,9 @@ class AbstractRunner(ABC):
 
         Returns:
             True if cleaned up correctly
+
+        Raises:
+            RunnerRetryableError: If a later try can work, so the caller can try again later
         """
         raise NotImplementedError
 

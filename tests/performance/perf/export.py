@@ -14,6 +14,8 @@ SERIES = [
     "cpu_quota_used_percent",
     "memory_limit_used_percent",
     "loop_duration_seconds_mean",
+    "loop_duration_max",
+    "task_duration_max",
     "scheduler_threads",
     # the page picks p50, p95 or p99 of these
     *(

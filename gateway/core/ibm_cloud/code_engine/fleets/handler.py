@@ -42,7 +42,7 @@ import json
 import logging
 import re
 import time
-from typing import Any
+from typing import Any, Iterator
 
 from core.ibm_cloud.code_engine.ce_client import ApiClient
 from core.ibm_cloud.code_engine.ce_client.api.fleets_api import FleetsApi
@@ -61,6 +61,12 @@ _CANCEL_PROCESSING_TASKS_KEY = "cancel_processing_tasks"
 # 3 times and does not retry a read on a POST, so one call can cost 9s: three failed connects, then
 # a connect plus a read that times out.
 _CANCEL_TIMEOUT_SECONDS = (1, 5)
+
+# (connect, read) for the delete. get_ce_auth turns off urllib3's read retry for a DELETE, so this is the whole wait.
+_DELETE_TIMEOUT_SECONDS = (1, 5)
+
+# (connect, read) for each page of the fleet count. The name lookup keeps no timeout.
+_LIST_TIMEOUT_SECONDS = (1, 5)
 
 # Code Engine's error code for a cancel on a fleet it is already cancelling. Matched on the code
 # rather than on the bare 409, so an unrelated conflict still surfaces instead of being read as
@@ -192,23 +198,38 @@ class FleetHandler:
             raise
 
     def find_fleet_id(self, name: str) -> str | None:
-        """The id of the fleet with this name in the project, or None.
-
-        Reads every page, because the list puts the oldest fleets first, and reads the raw JSON, because the
-        generated model rejects a ``standby`` fleet.
-        """
-        start = None
-        while True:
-            kwargs: dict[str, Any] = {"limit": 100, "_preload_content": False}
-            if start:
-                kwargs["start"] = start
-            page = json.loads(self._fleets_api.list_fleets(project_id=self.project_id, **kwargs).data)
-            for fleet in page.get("fleets") or []:
+        """The id of the fleet with this name in the project, or None."""
+        for fleets in self._fleet_pages():
+            for fleet in fleets:
                 if fleet.get("name") == name:
                     return fleet.get("id")
+        return None
+
+    def count_fleets(self, deadline: float) -> int:
+        """How many fleets the project holds, in any status. TimeoutError when the pages take past ``deadline``, a
+        monotonic time."""
+        return sum(len(fleets) for fleets in self._fleet_pages(deadline))
+
+    def _fleet_pages(self, deadline: float | None = None) -> Iterator[list[dict[str, Any]]]:
+        """The fleets of each page of the project's list, oldest first, read as raw JSON because the generated
+        model rejects a ``standby`` fleet. With a ``deadline``, each page has a timeout and TimeoutError is raised
+        when the pages take past it. RuntimeError when the list goes back to a page it already gave."""
+        kwargs: dict[str, Any] = {"limit": 100, "_preload_content": False}
+        if deadline is not None:
+            kwargs["_request_timeout"] = _LIST_TIMEOUT_SECONDS
+        seen: set[str] = set()
+        while True:
+            if deadline is not None and time.monotonic() > deadline:
+                raise TimeoutError(f"Listing the fleets of project {self.project_id} took too long")
+            page = json.loads(self._fleets_api.list_fleets(project_id=self.project_id, **kwargs).data)
+            yield page.get("fleets") or []
             start = (page.get("next") or {}).get("start")
             if not start:
-                return None
+                return
+            if start in seen:
+                raise RuntimeError(f"The fleet list of project {self.project_id} went back to start {start}")
+            seen.add(start)
+            kwargs["start"] = start
 
     def resolve_subnet_pool_id(self, name: str) -> str:
         """Resolve a subnet pool name to its id within this project.
@@ -339,15 +360,10 @@ class FleetHandler:
         if _UUID_RE.match(identifier):
             return identifier
 
-        resp = self._fleets_api.list_fleets(project_id=self.project_id, limit=100)
-        items = getattr(resp, "fleets", None) or []
-        for fleet in items:
-            if getattr(fleet, "name", None) == identifier:
-                fid = getattr(fleet, "id", None)
-                if fid:
-                    return fid
-
-        raise ValueError(f"Fleet named '{identifier}' was not found in project {self.project_id}.")
+        fleet_id = self.find_fleet_id(identifier)
+        if not fleet_id:
+            raise ValueError(f"Fleet named '{identifier}' was not found in project {self.project_id}.")
+        return fleet_id
 
     def cancel_job(
         self,
@@ -454,30 +470,28 @@ class FleetHandler:
 
         return cancel_sent
 
-    def delete_job(self, identifier: str) -> None:
+    def delete_job(self, identifier: str) -> bool:
         """
         Delete a fleet ("job") by name or UUID without attempting a cancel.
 
-        Args:
-            identifier: Fleet UUID or fleet name.
+        ``False`` means a 404: the fleet is gone, or it never lived in this project, and the two are
+        not distinguishable here.
 
         Raises:
             ValueError: If identifier is a name that cannot be resolved.
-            ApiException: If delete_fleet fails with an error other than 404 or 429.
+            ApiException: Anything other than a 404, a 429 included, so the caller owns the backoff.
+            ReadTimeoutError: If Code Engine did not answer within ``_DELETE_TIMEOUT_SECONDS``.
         """
         fleet_id = self._resolve_fleet_id(identifier)
-        while True:
-            try:
-                self._fleets_api.delete_fleet(project_id=self.project_id, id=fleet_id)
-                return
-            except ApiException as exc:
-                if exc.status == 404:
-                    return
-                if exc.status == 429:
-                    logger.warning("Rate limited deleting fleet %s — backing off 60s", fleet_id)
-                    time.sleep(60.0)
-                    continue
+        try:
+            self._fleets_api.delete_fleet(
+                project_id=self.project_id, id=fleet_id, _request_timeout=_DELETE_TIMEOUT_SECONDS
+            )
+            return True
+        except ApiException as exc:
+            if exc.status != 404:
                 raise
+            return False
 
     def _wait_until_state(
         self,

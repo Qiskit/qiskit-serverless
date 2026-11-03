@@ -43,13 +43,39 @@ def clear_django_cache():
 
 
 @pytest.fixture(autouse=True)
-def workloads_mirror_off(request):
-    """The use case that creates a job reads the workload mirror flag, so every test that uses the database starts with
-    its Config row there, off. A test that needs it on sets it with Config.set."""
+def job_creation_config(request):
+    """The use case that creates a job reads the workload mirror flag and the active job limit, so every test that uses
+    the database starts with their Config rows there, the mirror off and the limit at 50. A test that needs another
+    value sets it with Config.set."""
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        for key, value in ((ConfigKey.WORKLOADS_MIRROR_ENABLED, "false"), (ConfigKey.ACTIVE_JOBS_PER_USER, "50")):
+            Config.objects.get_or_create(name=key.value, defaults={"value": value, "description": "test"})
+
+
+@pytest.fixture(autouse=True)
+def blocked_jobs_stop_disabled(request):
+    """A run request reads the blocked resources flag, so every test that uses the database starts with its Config
+    row there, off. A test that needs it on sets it with Config.set."""
     if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
         request.getfixturevalue("db")
         Config.objects.get_or_create(
-            name=ConfigKey.WORKLOADS_MIRROR_ENABLED.value, defaults={"value": "false", "description": "test"}
+            name=ConfigKey.BLOCKED_JOBS_STOP_ENABLED.value, defaults={"value": "false", "description": "test"}
+        )
+        # Read whenever a job is checked against blocked_cloud_resources
+        Config.objects.get_or_create(
+            name=ConfigKey.BLOCKED_RESOURCES_REGIONAL.value, defaults={"value": "true", "description": "test"}
+        )
+
+
+@pytest.fixture(autouse=True)
+def program_timeout_hours_default(request):
+    """check_job_timeout reads the program timeout from Config, so every test that uses the database starts
+    with its Config row there, at the 24h default. A test that needs another value sets it with Config.set."""
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        Config.objects.get_or_create(
+            name=ConfigKey.PROGRAM_TIMEOUT_HOURS.value, defaults={"value": "24", "description": "test"}
         )
 
 

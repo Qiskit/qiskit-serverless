@@ -5,7 +5,11 @@ import os
 import pytest
 from unittest.mock import Mock
 
+from core.models import Program
+from core.services.storage import get_logs_storage
+from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
+from tests.utils import TestUtils
 
 
 class TestLogsStorage:
@@ -111,3 +115,32 @@ class TestLogsStorage:
         job = self._create_job("auth1", provider="provider1")
         with pytest.raises(NotImplementedError):
             RayLogsStorage(job).get_private_logs_url()
+
+
+@pytest.mark.django_db
+class TestLogsStorageFactoryUsesJobRunner:
+    """The storage follows the runner the job ran with, not the one its function has now."""
+
+    @pytest.mark.parametrize(
+        "job_runner, function_runner, expected",
+        [
+            (Program.RAY, Program.FLEETS, RayLogsStorage),
+            (Program.FLEETS, Program.RAY, FleetsLogsStorage),
+        ],
+    )
+    def test_storage_follows_job_runner(self, job_runner, function_runner, expected):
+        """A function switched to another runner does not change the storage of its older jobs."""
+        ce_project = TestUtils.get_or_create_ce_project(
+            project_name="test-project",
+            project_id="test-ce-project-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        program = TestUtils.create_program(
+            program_title="my-program", author="alice", runner=function_runner, code_engine_project=ce_project
+        )
+        job = TestUtils.create_job(author="alice", program=program, runner=job_runner)
+
+        assert isinstance(get_logs_storage(job), expected)
