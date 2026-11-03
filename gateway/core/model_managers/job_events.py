@@ -103,19 +103,6 @@ class JobEventQuerySet(QuerySet):
         event = self.filter(job_id=job_id).running_status_events().first()
         return event.created if event else None
 
-    def pending_status_events(self) -> Self:
-        """The status changes to PENDING, oldest first. The first one is when the job left the queue."""
-        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
-
-        return self.filter(event_type=JobEventType.STATUS_CHANGE, data__status=Job.PENDING).order_by("created")
-
-    def first_pending_at(self, job_id: uuid.UUID):
-        """When this job first reached PENDING, from its own event history.
-        Returns None if it never did (still queued, or never scheduled).
-        """
-        event = self.filter(job_id=job_id).pending_status_events().first()
-        return event.created if event else None
-
     def first_terminal_at(self, job_id: uuid.UUID):
         """When this job first reached a terminal status, from its own event history.
         Returns None if it never did.

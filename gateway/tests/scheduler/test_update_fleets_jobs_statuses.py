@@ -78,7 +78,6 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     # what JobQuerySet.with_event_times() loads with each job
     job.created = datetime.now(timezone.utc)
     job.first_running_at = None
-    job.last_event_at = None
 
     def _apply_update_fields(fields_map):
         for field, value in fields_map.items():
@@ -511,28 +510,21 @@ class TestStopJobIfTimeout:
         changing sub status (fresh events, stale execution start) is not kept alive by that churn."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-        running_started = datetime.now(timezone.utc) - timedelta(hours=26)
-        job.first_running_at = running_started
-        # The latest event is a recent sub status change; it used to reset the timeout.
-        job.last_event_at = datetime.now(timezone.utc)
+        # The execution start is 26h ago; sub status churn writes fresher events but must not reset the clock.
+        job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=26)
 
-        with (
-            patch(f"{_SCHEDULE}.settings") as mock_settings,
-            patch(f"{_MOD}.JobEvent") as mock_event,
-        ):
+        with patch(f"{_SCHEDULE}.settings") as mock_settings:
             mock_settings.PROGRAM_TIMEOUT = 24
-            mock_event.objects.first_running_at.return_value = running_started
             task.stop_job_if_timeout(job)
 
         assert job.status == Job.STOPPING
 
-    def test_an_execution_start_read_again_keeps_the_job_running(self):
-        """The loaded running-start is from before the pass; the RUNNING event ``to_running`` wrote
-        in this pass is read again and keeps the job when the execution is still young."""
+    def test_a_job_with_no_loaded_running_start_is_not_timed_out(self):
+        """A RUNNING event ``to_running`` wrote in this same pass is not in the loaded running-start, so
+        the job reads as not-yet-running. That event is stamped ~now, so it cannot have timed out yet and
+        keeping the job is correct. The check uses the loaded value only, it never re-queries."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-        # Loaded as None (RUNNING event not yet visible), so the first cheap check falls back to a
-        # stale creation time and passes; the re-query finds the real, recent execution start.
         job.first_running_at = None
         job.created = datetime.now(timezone.utc) - timedelta(hours=100)
 
@@ -541,13 +533,13 @@ class TestStopJobIfTimeout:
             patch(f"{_MOD}.JobEvent") as mock_event,
         ):
             mock_settings.PROGRAM_TIMEOUT = 1
-            mock_event.objects.first_running_at.return_value = datetime.now(timezone.utc)
             changed = task.stop_job_if_timeout(job)
 
         assert changed is False
         task.canceller.cancel.assert_not_called()
+        mock_event.objects.first_running_at.assert_not_called()
 
-    def test_a_recent_execution_start_reads_no_events(self):
+    def test_the_timeout_check_reads_no_events(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.first_running_at = datetime.now(timezone.utc)
@@ -1142,9 +1134,9 @@ class TestEventTimesLoadedWithTheJobs:
         assert job.status == Job.STOPPING
 
     def test_the_running_event_written_in_this_pass_keeps_the_job_running(self):
-        """A job promoted to RUNNING in this same pass has no RUNNING event when the job list is
-        loaded, so its loaded execution start falls back to a stale creation time and the cheap
-        check flags it. The re-query finds the RUNNING event ``to_running`` just wrote and keeps it."""
+        """A job promoted to RUNNING in this same pass has no RUNNING event when the job list is loaded,
+        so its loaded execution start is None and the job reads as not-yet-running. The event ``to_running``
+        just wrote is stamped ~now, so the job cannot have timed out yet and keeping it is correct."""
         job = _real_fleets_job(
             "fresh-running", status=Job.PENDING, event_status=Job.PENDING, event_age=timedelta(hours=100)
         )
@@ -1170,7 +1162,9 @@ class TestEventTimesLoadedWithTheJobs:
         job.refresh_from_db()
         assert job.status == Job.RUNNING
 
-    def test_a_job_with_no_events_counts_from_its_creation(self):
+    def test_a_job_that_never_ran_is_not_stopped(self):
+        """A job with no RUNNING event has no execution time to cap, so it is never stopped on timeout,
+        however old it is. PROGRAM_TIMEOUT is a cap on execution, not on queue or PENDING wait."""
         job = _real_fleets_job("no-events")
         JobEvent.objects.filter(job=job).delete()
         Job.objects.filter(pk=job.pk).update(created=datetime.now(timezone.utc) - timedelta(hours=100))
@@ -1178,4 +1172,4 @@ class TestEventTimesLoadedWithTheJobs:
         _run_real_pass(None)
 
         job.refresh_from_db()
-        assert job.status == Job.STOPPING
+        assert job.status == Job.RUNNING

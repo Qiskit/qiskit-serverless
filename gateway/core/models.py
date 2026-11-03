@@ -848,11 +848,6 @@ class Job(models.Model):
         return label.upper() if label else None
 
     @property
-    def last_event_at(self) -> datetime | None:
-        """When the job's latest event was written, or None if it has none. Needs ``with_event_times()``."""
-        return self._event_time("_last_event_at")
-
-    @property
     def first_running_at(self) -> datetime | None:
         """When the job first reached RUNNING, or None if it never did. Needs ``with_event_times()``."""
         return self._event_time("_first_running_at")

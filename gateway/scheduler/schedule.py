@@ -401,34 +401,18 @@ def get_jobs_to_schedule_fair_share(slots: int, gpu: bool, runner: str = Program
     return Job.objects.filter(job_filter).with_scheduler_context()
 
 
-def latest_event_at(job: Job) -> datetime:
-    """The job's latest event time read now, or its creation time if it has no events."""
-    latest_job_event = JobEvent.objects.filter(job=job).order_by("-created").first()
-    return latest_job_event.created if latest_job_event else job.created
+def check_job_timeout(job: Job, first_running_at: datetime | None) -> bool:
+    """Whether the job has been running for more than PROGRAM_TIMEOUT hours since ``first_running_at``.
 
-
-def get_running_start_time(
-    job: Job, first_running_at: datetime | None, first_pending_at: datetime | None = None
-) -> datetime:
-    """The time the timeout is measured from: when the job started running, else when it was submitted.
-
-    Falls back from the first RUNNING event to the first PENDING event (when the job left the queue) so
-    that a long queue wait does not count against the timeout, and a job stuck in PENDING is still bounded.
-    Falls back to creation only when the job has no events at all.
+    The timeout is a pure cap on execution time, so it is measured from the first RUNNING event, not from
+    the latest event: a job that keeps emitting events, such as sub status changes, must still time out.
+    A job that has not started running yet (no RUNNING event) has nothing to time out, so queue and PENDING
+    wait never count against it.
     """
-    return first_running_at or first_pending_at or job.created
-
-
-def check_job_timeout(job: Job, reference_time: datetime) -> bool:
-    """Whether a running job has been running for more than PROGRAM_TIMEOUT hours since ``reference_time``.
-
-    ``reference_time`` is the job's execution start (see ``get_running_start_time``), not the time of its
-    latest event: a job that keeps emitting events, such as sub status changes, must still time out.
-    """
-    if job.status not in Job.RUNNING_STATUSES:
+    if job.status not in Job.RUNNING_STATUSES or first_running_at is None:
         return False
 
-    endtime = reference_time + timedelta(hours=settings.PROGRAM_TIMEOUT)
+    endtime = first_running_at + timedelta(hours=settings.PROGRAM_TIMEOUT)
     return endtime < datetime.now(tz=endtime.tzinfo)
 
 

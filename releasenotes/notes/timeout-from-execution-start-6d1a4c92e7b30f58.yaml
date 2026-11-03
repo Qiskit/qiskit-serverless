@@ -6,4 +6,5 @@ fixes:
     timeout counted from the job's latest event of any kind, so a job that kept
     reporting a sub status (``MAPPING``, ``OPTIMIZING_HARDWARE``, ``WAITING_QPU``,
     ``EXECUTING_QPU``) reset the clock on every change and could run indefinitely.
-    A job that never reached ``RUNNING`` is still bounded from its creation time.
+    The timeout is now a cap on execution time only, so time spent queued or
+    pending no longer counts against it.
