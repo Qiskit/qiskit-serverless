@@ -187,7 +187,10 @@ def _reassemble_one(wheelhouse: str, workdir: str, entry: dict) -> str:
     with open(out_path, "wb") as out:
         for part in parts:
             with open(os.path.join(wheelhouse, part), "rb") as src:
-                for block in iter(lambda src=src: src.read(_CHUNK_IO_BLOCK), b""):
+                while True:
+                    block = src.read(_CHUNK_IO_BLOCK)
+                    if not block:
+                        break
                     out.write(block)
                     digest.update(block)
 

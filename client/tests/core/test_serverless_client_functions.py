@@ -643,6 +643,37 @@ class TestAddWheelsMethod:
         # manifest now has no chunked wheels -> the manifest file itself is deleted
         assert ".wheel-chunks-manifest.json" in deleted
 
+    def test_download_chunk_manifest_reads_from_the_wheels_subdir(self, mock_client):
+        """_download_chunk_manifest downloads and parses the manifest from the wheels sub-dir.
+
+        Exercises the real file_download call (argument order + sub_path), which the other tests
+        stub out.
+        """
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        payload = {"schema": 1, "chunked_wheels": [{"wheel": "big-1.0-py3-none-any.whl", "parts": ["p"]}]}
+
+        def _fake_download(file, _function, target_name=None, download_location="./", sub_path=None):
+            assert file == ".wheel-chunks-manifest.json"
+            assert sub_path == "wheels"
+            with open(os.path.join(download_location, target_name), "w", encoding="utf-8") as handle:
+                json.dump(payload, handle)
+
+        with patch.object(mock_client, "files", return_value=[".wheel-chunks-manifest.json"]), patch.object(
+            mock_client, "file_download", side_effect=_fake_download
+        ):
+            result = mock_client._download_chunk_manifest(function)
+
+        assert result == payload
+
+    def test_download_chunk_manifest_returns_none_when_absent(self, mock_client):
+        """_download_chunk_manifest returns None (no download) when no manifest is present."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "files", return_value=["some.whl"]), patch.object(
+            mock_client, "file_download"
+        ) as mock_download:
+            assert mock_client._download_chunk_manifest(function) is None
+            mock_download.assert_not_called()
+
 
 class TestDependencyReportMethod:
     """Tests for ServerlessClient.dependency_report()."""

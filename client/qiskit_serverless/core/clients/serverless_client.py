@@ -1137,7 +1137,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if CHUNK_MANIFEST_NAME not in self._list_wheels_dir(function):
             return None
         with tempfile.TemporaryDirectory() as tmp:
-            self.file_download(CHUNK_MANIFEST_NAME, tmp, function, sub_path=WHEELS_SUBDIR)
+            self.file_download(
+                CHUNK_MANIFEST_NAME,
+                function,
+                target_name=CHUNK_MANIFEST_NAME,
+                download_location=tmp,
+                sub_path=WHEELS_SUBDIR,
+            )
             with open(os.path.join(tmp, CHUNK_MANIFEST_NAME), "r", encoding="utf-8") as handle:
                 manifest = json.load(handle)
         manifest.setdefault("schema", CHUNK_MANIFEST_SCHEMA)
