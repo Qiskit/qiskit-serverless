@@ -35,7 +35,7 @@ RAY_DEPRECATION_WARNING_CUSTOM = (
     'This function runs on Ray, a deprecated platform. Please migrate to the Fleets runner (runner="fleets").'
 )
 RAY_DEPRECATION_WARNING_PROVIDER = (
-    "This function runs on Ray, a deprecated platform. Please contact the function vendor to migrate it."
+    "This function runs on Ray, a deprecated platform. Please contact the function vendor to migrate it "
     "to the Fleets runner."
 )
 

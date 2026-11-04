@@ -60,12 +60,14 @@ def test_a_ray_custom_function_warns_to_migrate():
     assert 'runner="fleets"' in response.data["warning"]
 
 
-def test_a_ray_provider_function_warns_to_contact_the_maintainer():
+def test_a_ray_provider_function_warns_to_contact_the_vendor():
     response = _run(program_kwargs={"runner": Program.RAY}, provider="my-provider")
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data["warning"] == RAY_DEPRECATION_WARNING_PROVIDER
     assert "vendor" in response.data["warning"]
+    # The sentence is one clean clause, not a broken concatenation ("migrate it.to the Fleets runner.").
+    assert "migrate it to the Fleets runner." in response.data["warning"]
 
 
 def test_a_fleets_function_gets_no_deprecation_warning(default_ce_project):
