@@ -216,11 +216,21 @@ def sanitize_boolean(value: Optional[str]) -> Optional[bool]:
 
 
 def sanitize_file_name(name: Optional[str]):
-    """Sanitize the name of a file"""
+    """Sanitize the name of a file.
+
+    Disallowed characters are *replaced* with ``_`` rather than removed, so that this matches
+    ``core.utils.sanitize_file_path`` (which the storage layer applies on upload). Upload stores
+    a file under the ``sanitize_file_path`` form of its name (e.g. ``torch-2.1+cu121.whl`` becomes
+    ``torch-2.1_cu121.whl``); delete and download look the file up by name through this function.
+    If the two disagreed, a name with a disallowed character would upload under one key but be
+    deleted/downloaded under another, so the file could be stored but never removed or fetched.
+    """
     if not name:
         return name
-    # Remove all characters except alphanumeric, _, ., -
-    return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
+    # Replace every character except alphanumeric, _, ., - with "_" (same transform as
+    # sanitize_file_path). Note "/" is intentionally not allowed here: a by-name argument is a
+    # single file name, not a path.
+    return re.sub("[^a-zA-Z0-9_\\.\\-]", "_", name)
 
 
 def get_image_dependencies() -> Dict[str, Requirement]:

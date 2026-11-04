@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from django.contrib.auth import models
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.conf import settings as dj_settings
 
 from core.config_key import ConfigKey
@@ -339,6 +340,41 @@ class TestFilesApi:
 
             assert response.status_code == status.HTTP_200_OK
             assert os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, "test_user_2", "README.md"))
+
+    def test_upload_then_delete_file_with_plus_in_name(self, settings):
+        """A name with a "+" (e.g. a CUDA wheel) uploads and then deletes by the same name.
+
+        Regression: upload stored the file under the sanitize_file_path form ("+" -> "_"), but
+        delete sanitized the name differently (stripping "+" entirely), so the two keys never
+        matched and the file could be uploaded but never removed. Both paths now agree.
+        """
+        settings.UPLOAD_FILE_VALID_MIME_TYPES = ["text/plain"]
+        function = "personal-program"
+        username = "test_user_2"
+        user = models.User.objects.get(username=username)
+        self._authenticate(user)
+
+        # Content sniffs as text/plain; the "+" lives only in the name.
+        upload = SimpleUploadedFile("torch-2.1+cu121.whl", b"not a real wheel, just text\n")
+        upload_url = reverse("v1:files-upload")
+        response = self.client.post(
+            f"{upload_url}?{urlencode({'function': function})}",
+            {"file": upload},
+            format="multipart",
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Stored under the sanitized ("+"-as-"_") name, not the raw name.
+        stored = os.path.join(dj_settings.MEDIA_ROOT, username, "torch-2.1_cu121.whl")
+        assert os.path.exists(stored)
+        assert not os.path.exists(os.path.join(dj_settings.MEDIA_ROOT, username, "torch-2.1+cu121.whl"))
+
+        # Deleting by the original "+" name must remove the stored file, not silently no-op.
+        delete_url = reverse("v1:files-delete")
+        query_params = {"function": function, "file": "torch-2.1+cu121.whl"}
+        response = self.client.delete(f"{delete_url}?{urlencode(query_params)}")
+        assert response.status_code == status.HTTP_200_OK
+        assert not os.path.exists(stored)
 
     def test_provider_file_upload(self, settings):
         """Tests uploading existing file."""
