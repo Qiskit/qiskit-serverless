@@ -496,7 +496,11 @@
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Credentials couldn't be verified: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">reason</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">dependencies_versions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Get the list of available dependencies and its versions for creating functions"""</span>
+<span class="w">        </span><span class="sd">"""Discover the dependencies (and versions) baked into the runtime image.</span>
+
+<span class="sd">        Read-only discovery: this reports what the runtime image already ships, so you know</span>
+<span class="sd">        what you do *not* need to bring yourself.</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="n">safe_json_request_as_list</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/dependencies-versions/"</span><span class="p">,</span>
@@ -983,6 +987,15 @@
     <span class="c1">#########################</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">"`dependencies=` is deprecated and no longer installs anything; it is accepted but "</span>
+                <span class="s2">"ignored and will be removed in a future release. Use "</span>
+                <span class="s2">"`client.dependencies_versions()` to see what the runtime image already ships."</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">"client.tracer"</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">"function.upload"</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
             <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">"function"</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
