@@ -11,7 +11,3 @@ upgrade:
     that lets users upload functions without specifying a runner must have a
     default Code Engine project configured (``CE_DEFAULT_PROJECT_NAME``) before
     this change goes live, or those uploads will fail.
-features:
-  - |
-    New functions default to the Fleets runner, so a plain
-    ``upload`` with no ``runner`` field now produces a Fleets function.
