@@ -582,7 +582,7 @@ class TestUploadWithDockerImage:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["image"] == "my-image:1.0"
-        assert data["runner"] == "ray"
+        assert data["runner"] == "fleets"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -668,7 +668,7 @@ class TestUploadWithArtifact:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["entrypoint"] == entrypoint
-        assert data["runner"] == "ray"
+        assert data["runner"] == "fleets"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -775,15 +775,15 @@ class TestUploadWithArtifact:
 class TestQiskitFunctionDefaults:
     """Tests for QiskitFunction default field values."""
 
-    def test_default_runner_is_ray(self):
-        """QiskitFunction.runner defaults to 'ray' when not specified."""
+    def test_default_runner_is_fleets(self):
+        """QiskitFunction.runner defaults to 'fleets' when not specified."""
         program = QiskitFunction(title="my-function", image="img:latest")
-        assert program.runner == "ray"
+        assert program.runner == "fleets"
 
     def test_runner_can_be_overridden(self):
         """QiskitFunction.runner accepts a custom value."""
-        program = QiskitFunction(title="my-function", image="img:latest", runner="fleets")
-        assert program.runner == "fleets"
+        program = QiskitFunction(title="my-function", image="img:latest", runner="ray")
+        assert program.runner == "ray"
 
 
 class TestValidateArgumentsMethod:

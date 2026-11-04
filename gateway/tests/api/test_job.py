@@ -74,9 +74,10 @@ class TestJobApi:
             title=f"{author}-{provider_admin or 'custom'}",
             author=author,
             provider=provider,
+            runner=Program.RAY,
         )
 
-        job = Job.objects.create(author=author, program=program)
+        job = Job.objects.create(author=author, program=program, runner=Program.RAY)
         return job
 
     def test_job_non_auth_user(self):
