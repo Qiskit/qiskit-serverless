@@ -1450,8 +1450,8 @@ class TestTaskTimes:
 
         assert runner.get_task_times() == TaskTimes()
 
-    def test_a_missing_fleet_or_bucket_gives_no_times(self):
-        """JobCOS refuses to look without them, and that is not an error for the caller."""
+    def test_a_missing_fleet_gives_no_times(self):
+        """JobCOS refuses to look without it, and that is not an error for the caller."""
         runner = self._runner()
         runner._cos.get_task_times.side_effect = ValueError("fleet_id is required.")  # pylint: disable=protected-access
 

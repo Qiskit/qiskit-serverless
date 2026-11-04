@@ -146,15 +146,6 @@ def test_job_cos_list_keys_lists_under_the_prefix() -> None:
     mock_cos.list_keys.assert_called_once_with(bucket="my-bucket", prefix="a/")
 
 
-def test_job_cos_list_keys_raises_on_empty_bucket() -> None:
-    """list_keys() raises ValueError when bucket_name is empty, without calling COS."""
-    job_cos, mock_cos = _make_job_cos()
-    for bucket in ("", None):
-        with pytest.raises(ValueError, match="bucket_name"):
-            job_cos.list_keys(bucket_name=bucket, prefix="a/")
-    mock_cos.list_keys.assert_not_called()
-
-
 def test_job_cos_head_object_raises_on_empty_bucket() -> None:
     """head_object() raises ValueError when bucket_name is empty."""
     job_cos, _ = _make_job_cos()
@@ -640,10 +631,8 @@ class TestGetTaskTimes:
         assert "secret-token-value" not in caplog.text
         assert "is not valid YAML" in caplog.text
 
-    @pytest.mark.parametrize(
-        "kwargs", [{"bucket_name": ""}, {"bucket_name": None}, {"project_id": ""}, {"fleet_id": ""}, {"fleet_id": None}]
-    )
-    def test_it_needs_a_bucket_a_project_and_a_fleet(self, kwargs):
+    @pytest.mark.parametrize("kwargs", [{"project_id": ""}, {"fleet_id": ""}, {"fleet_id": None}])
+    def test_it_needs_a_project_and_a_fleet(self, kwargs):
         job_cos, mock_cos = _job_cos_with_task_file()
         args = {"bucket_name": "bucket", "project_id": "proj", "fleet_id": "fleet", **kwargs}
 

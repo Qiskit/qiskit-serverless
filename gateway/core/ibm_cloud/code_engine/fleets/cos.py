@@ -261,7 +261,7 @@ class JobCOS:
             The times found, each ``None`` while unknown. ``TaskTimes()`` when there is no task file yet.
 
         Raises:
-            ValueError: If bucket_name, project_id or fleet_id is missing.
+            ValueError: If project_id or fleet_id is missing.
         """
         keys = self.list_keys(bucket_name=bucket_name, prefix=tasks_prefix(project_id, fleet_id))
         # A key ending in "/" is a directory marker, not a task file
@@ -301,12 +301,7 @@ class JobCOS:
 
         Returns:
             List of object keys.
-
-        Raises:
-            ValueError: If bucket_name is missing.
         """
-        if not bucket_name:
-            raise ValueError("bucket_name is required.")
         return self._cos.list_keys(bucket=bucket_name, prefix=prefix)
 
     def list_with_metadata(
