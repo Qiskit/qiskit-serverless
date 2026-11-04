@@ -19,7 +19,6 @@ import re
 import tarfile
 import time
 from io import BytesIO
-from typing import Callable
 
 from django.conf import settings
 from django.template.loader import get_template
@@ -439,22 +438,18 @@ class FleetsRunner(AbstractRunner):
             means the prefix genuinely holds nothing, which callers must be able to
             tell apart from a failure.
         """
-        return self._list_task_state(lambda cos: cos.list_keys(bucket_name=bucket, prefix=prefix))
-
-    def _list_task_state(self, listing: Callable[[JobCOS], list]) -> list | None:
-        """Run a COS listing, giving ``None`` when the call failed so the next cycle retries it."""
         try:
-            return listing(self._get_cos())
+            return self._get_cos().list_keys(bucket_name=bucket, prefix=prefix)
         except ClientError as exc:
             code = exc.response.get("Error", {}).get("Code", "unknown")
             logger.warning(
-                "COS listing failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
+                "COS list_keys failed for fleet [%s] (code=%s); will retry on next cycle", self.job.fleet_id, code
             )
             return None
         except ValueError:
             raise
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            logger.warning("COS listing failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
+            logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
             return None
 
     def get_result_from_cos(self) -> str | None:
