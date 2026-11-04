@@ -122,7 +122,7 @@ def _parse_utc_datetime(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo and parsed > _UNSET_TIME else None
 
 
-def parse_task_times(content: bytes, source: str) -> TaskTimes:
+def _parse_task_times(content: bytes, source: str) -> TaskTimes:
     """Read ``startedAt`` and ``finishedAt`` from the content of a task file.
 
     The ``startTime`` and ``endTime`` of the worker under ``status`` are not read. The file holds the environment
@@ -146,14 +146,10 @@ def parse_task_times(content: bytes, source: str) -> TaskTimes:
         logger.warning("Task file %s is not a YAML mapping", source)
         return TaskTimes()
 
-    times = {}
-    for field, key in (("started_at", "startedAt"), ("finished_at", "finishedAt")):
-        raw = document.get(key)
-        parsed = _parse_utc_datetime(raw)
-        if raw is not None and parsed is None:
-            logger.warning("Task file %s has a %s that is not a timestamp with a timezone, or is not set", source, key)
-        times[field] = parsed
-    return TaskTimes(**times)
+    return TaskTimes(
+        started_at=_parse_utc_datetime(document.get("startedAt")),
+        finished_at=_parse_utc_datetime(document.get("finishedAt")),
+    )
 
 
 class JobCOS:
@@ -272,7 +268,7 @@ class JobCOS:
         key = next((key for key in keys if not key.endswith("/")), None)
         if key is None:
             return TaskTimes()
-        return parse_task_times(self.get_object_bytes(bucket_name=bucket_name, key=key), key)
+        return _parse_task_times(self.get_object_bytes(bucket_name=bucket_name, key=key), key)
 
     def get_object_bytes(self, *, bucket_name: str, key: str) -> bytes:
         """Retrieve an object fully into memory.
