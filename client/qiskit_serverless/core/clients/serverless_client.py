@@ -193,7 +193,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             raise QiskitServerlessException(f"Credentials couldn't be verified: {reason}") from reason
 
     def dependencies_versions(self):
-        """Get the list of available dependencies and its versions for creating functions"""
+        """Discover the dependencies (and versions) baked into the runtime image.
+
+        Read-only discovery: this reports what the runtime image already ships, so you know
+        what you do *not* need to bring yourself.
+        """
         return safe_json_request_as_list(
             request=lambda: requests.get(
                 url=f"{self.host}/api/{self.version}/dependencies-versions/",
@@ -680,6 +684,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     #########################
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
+        if program.dependencies:
+            warnings.warn(
+                "`dependencies=` is deprecated and no longer installs anything; it is accepted but "
+                "ignored and will be removed in a future release. Use "
+                "`client.dependencies_versions()` to see what the runtime image already ships.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("function.upload") as span:
             span.set_attribute("function", program.title)

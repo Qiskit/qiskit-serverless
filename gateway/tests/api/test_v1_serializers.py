@@ -339,9 +339,9 @@ class TestSerializers:
         assert data["sizes"] == {}
         assert data["default_size"] is None
 
-    # Dependency validation tests use 'mergedeep' and 'ffsim' as representative examples
-    # from requirements-dynamic-dependencies.txt. These tests validate the dependency
-    # checking mechanism itself, not every individual production dependency.
+    # `dependencies=` is deprecated and no longer installs anything; the field is
+    # accepted-but-ignored, so these tests now validate only the field's *shape*,
+    # no longer whether each dependency is baked into the runtime image.
 
     def test_upload_program_serializer_allowed_dependencies_basic(self):
         data = {}
@@ -388,32 +388,34 @@ class TestSerializers:
         serializer = UploadProgramSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
 
-    def test_upload_program_serializer_blocked_dependency(self):
+    def test_upload_program_serializer_unlisted_dependency_is_accepted(self):
+        # Previously rejected because it was not baked into the image; now accepted-but-ignored.
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
         data["dependencies"] = '["notavailableone"]'
 
         serializer = UploadProgramSerializer(data=data)
-        assert not serializer.is_valid(), serializer.errors
+        assert serializer.is_valid(), serializer.errors
 
-    def test_upload_program_serializer_blocked_dependency_version(self):
+    def test_upload_program_serializer_unbaked_dependency_version_is_accepted(self):
+        # A version not baked into the image used to be rejected; now accepted-but-ignored.
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
         data["dependencies"] = '["mergedeep==2.0.0"]'
 
         serializer = UploadProgramSerializer(data=data)
-        assert not serializer.is_valid(), serializer.errors
+        assert serializer.is_valid(), serializer.errors
 
-    def test_upload_program_serializer_blocked_dependency_object_version(self):
+    def test_upload_program_serializer_unbaked_dependency_object_version_is_accepted(self):
         data = {}
         data["title"] = "Hello world"
         data["entrypoint"] = "pattern.py"
         data["dependencies"] = '[{"ffsim":"0.1.0"},{"mergedeep":"==1.0.0"}]'
 
         serializer = UploadProgramSerializer(data=data)
-        assert not serializer.is_valid(), serializer.errors
+        assert serializer.is_valid(), serializer.errors
 
     def test_upload_program_serializer_blocked_dependency_operator(self):
         data = {}
