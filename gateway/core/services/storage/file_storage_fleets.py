@@ -13,6 +13,7 @@ from ibm_botocore.exceptions import ClientError
 from django.core.files import File
 
 from core.ibm_cloud import get_cos_client
+from core.ibm_cloud.code_engine.fleets.utils import INTERNAL_FUNCTION_FILES
 from core.models import Program
 from core.utils import sanitize_file_path, sanitize_sub_path
 
@@ -89,7 +90,12 @@ class FileStorageFleets:
             list[str]: list of file names
         """
         safe_sub_path = sanitize_sub_path(sub_path)
-        prefix = f"{self._public_folder_key}/{safe_sub_path}" if safe_sub_path else self._public_folder_key
+        folder = f"{self._public_folder_key}/{safe_sub_path}" if safe_sub_path else self._public_folder_key
+        # List against a directory prefix: a single trailing slash makes the COS string-prefix
+        # match stop at the directory boundary. Without it, listing "wheels" also matches a
+        # sibling root file whose name starts with "wheels" (e.g. "wheels_notes.txt"), which
+        # would then be returned with its leading "wheels" sliced off ("_notes.txt").
+        prefix = f"{folder.rstrip('/')}/"
         try:
             keys = get_cos_client(self._project).list_keys(bucket_name=self._user_bucket, prefix=prefix)
             logger.info(
@@ -100,9 +106,11 @@ class FileStorageFleets:
                 prefix,
             )
             # Only return files directly under `prefix` (exclude keys in deeper sub-directories),
-            # mirroring the non-recursive listing of the Ray backend.
-            relative = [k[len(prefix) :].lstrip("/") for k in keys]
-            return [os.path.basename(r) for r in relative if r and "/" not in r]
+            # mirroring the non-recursive listing of the Ray backend. Also hide the wrapper
+            # script(s) the gateway injects into the function-data folder at submit time: the
+            # user never uploaded them and should not see them listed.
+            relative = [k[len(prefix) :] for k in keys]
+            return [r for r in relative if r and "/" not in r and r not in INTERNAL_FUNCTION_FILES]
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
