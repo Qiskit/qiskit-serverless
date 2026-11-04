@@ -157,7 +157,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     tags: Optional[List[str]] = None
     raw_data: Optional[Dict[str, Any]] = None
     image: Optional[str] = None
-    runner: str = "ray"
+    runner: str = "fleets"
     arguments_schema: Optional[Union[Dict[str, Any], bool]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
     # Raw size data carried in the function representation. Stored under names that do not
