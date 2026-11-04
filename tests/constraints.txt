@@ -9,4 +9,4 @@
 # dateutil's upper bound. Without a constraint, the `pip install -e ../client`
 # step upgrades dateutil to 3.0.0 and the subsequent `pip check` fails. A plain
 # requirement line cannot prevent that upgrade; a constraint can.
-python-dateutil<3
+python-dateutil<4
