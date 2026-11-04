@@ -28,11 +28,14 @@ Qiskit Serverless provider
 
 # pylint: disable=duplicate-code,too-many-lines
 import glob
+import hashlib
 import json
+import math
 import os.path
 import os
 import re
 import tarfile
+import tempfile
 import time
 import warnings
 from pathlib import Path
@@ -56,6 +59,7 @@ from qiskit_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     IBM_SERVERLESS_HOST_URL,
     MAX_ARTIFACT_FILE_SIZE_MB,
+    WHEEL_CHUNK_THRESHOLD_MB,
     USAGE_LOW_THRESHOLD_SECONDS,
     USAGE_ZERO_EPSILON_SECONDS,
 )
@@ -63,7 +67,12 @@ from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.files import GatewayFilesClient
-from qiskit_serverless.core.wheels import WHEELS_SUBDIR
+from qiskit_serverless.core.wheels import (
+    WHEELS_SUBDIR,
+    CHUNK_PART_INFIX,
+    CHUNK_MANIFEST_NAME,
+    CHUNK_MANIFEST_SCHEMA,
+)
 from qiskit_serverless.core.job import (
     Job,
     Configuration,
@@ -182,6 +191,23 @@ def _format_dependency_report(entries: List[DependencyReportEntry]) -> str:
     rows = [header] + [(e.requirement, e.status, e.note) for e in entries]
     widths = [max(len(row[col]) for row in rows) for col in range(3)]
     return "\n".join("  ".join(cell.ljust(widths[col]) for col, cell in enumerate(row)) for row in rows)
+
+
+def _write_wheel_part(src, part_path: str, part_size: int, digest) -> None:
+    """Write up to ``part_size`` bytes from the open file ``src`` to ``part_path``.
+
+    Streams in blocks (so a large wheel is never fully held in memory) and feeds every byte into
+    ``digest`` so the caller can record the whole wheel's sha256 across all parts.
+    """
+    with open(part_path, "wb") as out:
+        remaining = part_size
+        while remaining > 0:
+            block = src.read(min(1024 * 1024, remaining))
+            if not block:
+                break
+            out.write(block)
+            digest.update(block)
+            remaining -= len(block)
 
 
 class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
@@ -897,15 +923,19 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """Returns the list of files available for the provider in the Qiskit Function folder."""
         return self._files_client.provider_list(function)
 
-    def file_download(
+    def file_download(  # pylint: disable=too-many-positional-arguments
         self,
         file: str,
         function: QiskitFunction,
         target_name: Optional[str] = None,
         download_location: str = "./",
+        sub_path: Optional[str] = None,
     ):
-        """Download a file available to the user for the specific Qiskit Function."""
-        return self._files_client.download(file, download_location, function, target_name)
+        """Download a file available to the user for the specific Qiskit Function.
+
+        ``sub_path`` optionally targets a sub-directory of the function's folder (e.g. ``"wheels"``).
+        """
+        return self._files_client.download(file, download_location, function, target_name, sub_path)
 
     def provider_file_download(
         self,
@@ -944,11 +974,16 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """Upload locally-built wheels to a function's file area.
 
         Each pattern is a local path or glob (e.g. ``"dist/mypkg-1.0-*.whl"``); every match
-        must be a ``.whl`` file. This is a thin wrapper over :meth:`file_upload` that expands
-        the patterns and uploads each wheel into the function's ``wheels`` sub-directory, so
-        they are available to the function at runtime. Install them from your entrypoint with
-        ``install_uploaded_wheels()``, which reads that same directory. Use :meth:`list_wheels`
-        and :meth:`remove_wheels` to see and remove what has been uploaded.
+        must be a ``.whl`` file. Each wheel is uploaded into the function's ``wheels``
+        sub-directory, so it is available to the function at runtime. Install them from your
+        entrypoint with ``install_uploaded_wheels()``, which reads that same directory. Use
+        :meth:`list_wheels` and :meth:`remove_wheels` to see and remove what has been uploaded.
+
+        A wheel larger than the upload size limit (``WHEEL_CHUNK_THRESHOLD_MB``, default 40MB) is
+        transparently split into ordered parts, each uploaded as its own request, with a sha256
+        manifest recorded alongside them. ``install_uploaded_wheels()`` reassembles and verifies
+        such a wheel before installing it. This is invisible to the caller: the returned names and
+        :meth:`list_wheels` are always the logical wheel names, never the parts.
 
         Args:
             function: the function whose file area the wheels are uploaded to.
@@ -972,32 +1007,153 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if non_wheels:
             raise QiskitServerlessException(f"add_wheels only accepts .whl files; got: {', '.join(non_wheels)}")
 
+        part_size = WHEEL_CHUNK_THRESHOLD_MB * 1024 * 1024
+        existing = self._list_wheels_dir(function)
+        manifest = self._download_chunk_manifest(function) or {
+            "schema": CHUNK_MANIFEST_SCHEMA,
+            "chunked_wheels": [],
+        }
+        # Keep only entries for wheels we are not re-handling in this call; new entries replace them.
+        touched = {os.path.basename(p) for p in paths}
+        manifest["chunked_wheels"] = [e for e in manifest["chunked_wheels"] if e["wheel"] not in touched]
+
         uploaded: List[str] = []
         for path in paths:
-            self.file_upload(path, function, sub_path=WHEELS_SUBDIR)
-            uploaded.append(os.path.basename(path))
+            basename = os.path.basename(path)
+            # Remove any previous copy of this wheel (whole or chunked) before re-uploading, so a
+            # smaller rebuild cannot leave stale high-numbered parts behind to corrupt reassembly.
+            self._remove_wheel_files(function, basename, existing)
+
+            if os.path.getsize(path) <= part_size:
+                self.file_upload(path, function, sub_path=WHEELS_SUBDIR)
+            else:
+                entry = self._split_and_upload_wheel(function, path, part_size)
+                manifest["chunked_wheels"].append(entry)
+            uploaded.append(basename)
+
+        self._write_chunk_manifest(function, manifest)
         return uploaded
+
+    def _split_and_upload_wheel(self, function: QiskitFunction, path: str, part_size: int) -> Dict[str, Any]:
+        """Split a wheel into ``part_size`` parts, upload each, and return its manifest entry.
+
+        Uploads parts named ``<wheel>.whl.part-0001-of-000N`` into the ``wheels`` sub-directory. On
+        any upload failure, the parts already uploaded for this wheel are deleted best-effort before
+        the error propagates, so a failed call does not leave a partial set a later run must guess at.
+        """
+        basename = os.path.basename(path)
+        size = os.path.getsize(path)
+        part_count = max(1, math.ceil(size / part_size))
+        part_names = [f"{basename}{CHUNK_PART_INFIX}{i:04d}-of-{part_count:04d}" for i in range(1, part_count + 1)]
+
+        digest = hashlib.sha256()
+        uploaded_parts: List[str] = []
+        try:
+            with open(path, "rb") as src, tempfile.TemporaryDirectory() as tmp:
+                for part_name in part_names:
+                    part_path = os.path.join(tmp, part_name)
+                    _write_wheel_part(src, part_path, part_size, digest)
+                    self.file_upload(part_path, function, sub_path=WHEELS_SUBDIR)
+                    uploaded_parts.append(part_name)
+        except Exception:
+            for part_name in uploaded_parts:
+                try:
+                    self.file_delete(part_name, function, sub_path=WHEELS_SUBDIR)
+                except QiskitServerlessException:
+                    pass
+            raise
+
+        return {
+            "wheel": basename,
+            "sha256": digest.hexdigest(),
+            "size": size,
+            "part_size": part_size,
+            "part_count": part_count,
+            "parts": part_names,
+        }
 
     def list_wheels(self, function: QiskitFunction) -> List[str]:
         """List the wheels currently uploaded to a function (via :meth:`add_wheels`).
 
-        Returns the wheel file names in the function's ``wheels`` sub-directory.
+        Returns the logical wheel names, whether a wheel was uploaded whole or split into parts.
+        Chunk parts and the internal chunk manifest are never shown.
         """
-        return self.files(function, sub_path=WHEELS_SUBDIR)
+        names = [n for n in self._list_wheels_dir(function) if CHUNK_PART_INFIX not in n and n != CHUNK_MANIFEST_NAME]
+        manifest = self._download_chunk_manifest(function)
+        if manifest:
+            names.extend(entry["wheel"] for entry in manifest["chunked_wheels"])
+        return sorted(set(names))
 
     def remove_wheels(self, function: QiskitFunction, names: List[str]) -> None:
         """Remove previously uploaded wheels from a function.
 
-        To *update* a wheel, remove the old one and :meth:`add_wheels` the new build (a rebuild
-        with a different version has a different file name, so it would otherwise accumulate
-        alongside the old one and both would be installed).
+        Accepts logical wheel names (as returned by :meth:`list_wheels`). A chunked wheel's parts
+        and its manifest entry are removed together. To *update* a wheel, remove the old one and
+        :meth:`add_wheels` the new build (a rebuild with a different version has a different file
+        name, so it would otherwise accumulate alongside the old one and both would be installed).
 
         Args:
             function: the function to remove wheels from.
             names: wheel file names to remove, as returned by :meth:`list_wheels`.
         """
+        existing = self._list_wheels_dir(function)
+        manifest = self._download_chunk_manifest(function)
         for name in names:
+            self._remove_wheel_files(function, name, existing, manifest=manifest)
+        if manifest is not None:
+            self._write_chunk_manifest(function, manifest)
+
+    def _remove_wheel_files(
+        self,
+        function: QiskitFunction,
+        basename: str,
+        existing: List[str],
+        manifest: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Delete a wheel's uploaded files: a whole copy and/or any of its chunk parts.
+
+        ``existing`` is the current ``wheels`` listing (so parts are found even without a manifest).
+        When ``manifest`` is given, the wheel's entry is also pruned from it in place.
+        """
+        to_delete = [name for name in existing if name == basename or name.startswith(f"{basename}{CHUNK_PART_INFIX}")]
+        if manifest is not None:
+            for entry in manifest["chunked_wheels"]:
+                if entry["wheel"] == basename:
+                    to_delete.extend(entry["parts"])
+            manifest["chunked_wheels"] = [e for e in manifest["chunked_wheels"] if e["wheel"] != basename]
+
+        for name in dict.fromkeys(to_delete):  # de-dupe, preserve order
             self.file_delete(name, function, sub_path=WHEELS_SUBDIR)
+
+    def _list_wheels_dir(self, function: QiskitFunction) -> List[str]:
+        """Raw listing of the ``wheels`` sub-directory; empty if it does not exist yet."""
+        try:
+            return self.files(function, sub_path=WHEELS_SUBDIR)
+        except QiskitServerlessException:
+            return []
+
+    def _download_chunk_manifest(self, function: QiskitFunction) -> Optional[Dict[str, Any]]:
+        """Download and parse the chunk manifest from the ``wheels`` dir, or None if absent."""
+        if CHUNK_MANIFEST_NAME not in self._list_wheels_dir(function):
+            return None
+        with tempfile.TemporaryDirectory() as tmp:
+            self.file_download(CHUNK_MANIFEST_NAME, tmp, function, sub_path=WHEELS_SUBDIR)
+            with open(os.path.join(tmp, CHUNK_MANIFEST_NAME), "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+        manifest.setdefault("schema", CHUNK_MANIFEST_SCHEMA)
+        manifest.setdefault("chunked_wheels", [])
+        return manifest
+
+    def _write_chunk_manifest(self, function: QiskitFunction, manifest: Dict[str, Any]) -> None:
+        """Upload the manifest, or delete it if no chunked wheels remain."""
+        if manifest["chunked_wheels"]:
+            with tempfile.TemporaryDirectory() as tmp:
+                manifest_path = os.path.join(tmp, CHUNK_MANIFEST_NAME)
+                with open(manifest_path, "w", encoding="utf-8") as handle:
+                    json.dump(manifest, handle)
+                self.file_upload(manifest_path, function, sub_path=WHEELS_SUBDIR)
+        elif CHUNK_MANIFEST_NAME in self._list_wheels_dir(function):
+            self.file_delete(CHUNK_MANIFEST_NAME, function, sub_path=WHEELS_SUBDIR)
 
     def dependency_report(self, requirements: List[str]) -> "DependencyReport":
         """Diff your requirements against what the runtime image already ships.

@@ -263,7 +263,7 @@ class FileStorageFleets:
             return None
 
     def get_public_file_stream(
-        self, file_name: str, chunk_size: int = 65536
+        self, file_name: str, chunk_size: int = 65536, sub_path: str = ""
     ) -> Optional[Tuple[Iterator[bytes], str, int]]:
         """
         This method returns a streaming generator for a file that we can use for large files
@@ -271,13 +271,19 @@ class FileStorageFleets:
         Args:
             file_name (str): the name of the file to download
             chunk_size (int): bytes per chunk (default 64 KB)
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder the file lives in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             Iterator[bytes]: generator that yields file chunks
             str: with the type of the file
             int: with the size of the file
         """
-        key = f"{self._public_folder_key}/{file_name}"
+        # Sanitize both name and sub_path so a key can never escape the function's folder.
+        basename = os.path.basename(sanitize_file_path(file_name))
+        safe_sub_path = sanitize_sub_path(sub_path)
+        relative_path = f"{safe_sub_path}/{basename}" if safe_sub_path else basename
+        key = f"{self._public_folder_key}/{relative_path}"
         try:
             content_bytes = get_cos_client(self._project).get_object_bytes(bucket_name=self._user_bucket, key=key)
             file_size = len(content_bytes)

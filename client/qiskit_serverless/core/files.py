@@ -80,15 +80,19 @@ class GatewayFilesClient:
         function: QiskitFunction,
         url: str,
         target_name: Optional[str] = None,
+        sub_path: Optional[str] = None,
     ) -> Optional[str]:
         """Auxiliary function to download a file using an url."""
+        params = {
+            "file": file,
+            "provider": function.provider,
+            "function": function.title,
+        }
+        if sub_path:
+            params["sub_path"] = sub_path
         with requests.get(
             url,
-            params={
-                "file": file,
-                "provider": function.provider,
-                "function": function.title,
-            },
+            params=params,
             stream=True,
             headers=get_headers(token=self._token, instance=self._instance, channel=self._channel),
             timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -111,20 +115,26 @@ class GatewayFilesClient:
             return file_name
 
     @_trace
-    def download(
+    def download(  # pylint: disable=too-many-positional-arguments
         self,
         file: str,
         download_location: str,
         function: QiskitFunction,
         target_name: Optional[str] = None,
+        sub_path: Optional[str] = None,
     ) -> Optional[str]:
-        """Download a file available to the user for the specific Qiskit Function."""
+        """Download a file available to the user for the specific Qiskit Function.
+
+        If ``sub_path`` is given, downloads the file from that sub-directory of the function's
+        folder (e.g. ``"wheels"``).
+        """
         return self._download_with_url(
             file,
             download_location,
             function,
             url_path_join(self._files_url, "download"),
             target_name,
+            sub_path,
         )
 
     @_trace
