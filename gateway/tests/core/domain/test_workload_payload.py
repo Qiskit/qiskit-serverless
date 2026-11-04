@@ -220,13 +220,24 @@ def test_a_job_without_program_is_not_mirrored_by_a_list():
     assert mirror_enabled_for(Job()) is False
 
 
-def test_running_at_and_ended_at_are_the_job_fields_when_it_has_them():
+def test_running_at_and_ended_at_are_the_event_times_when_the_events_have_them():
     job = _simple_job(Job.SUCCEEDED)
-    _add_status_event(job, Job.RUNNING)
-    _add_status_event(job, Job.SUCCEEDED)
     started = datetime.now(timezone.utc) - timedelta(minutes=5)
     ended = started + timedelta(minutes=1)
-    job.update_fields({"running_started_at": started, "running_ended_at": ended})
+    JobEvent.objects.add_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=JobEventContext.UPDATE_JOB_STATUS,
+        status=Job.RUNNING,
+        event_time=started,
+    )
+    JobEvent.objects.add_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=JobEventContext.UPDATE_JOB_STATUS,
+        status=Job.SUCCEEDED,
+        event_time=ended,
+    )
 
     body = build_workload_payload(job)["body"]
 

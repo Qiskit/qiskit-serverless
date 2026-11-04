@@ -551,3 +551,104 @@ class TestParseTaskTimes:
     def test_yaml_cannot_build_python_objects(self):
         """safe_load: a tag that would run code is an error, not an object."""
         assert parse_task_times(b"startedAt: !!python/object/apply:os.getcwd []\n", "k") == TaskTimes()
+
+
+_TASKS = "ce/proj/fleet/v3/tasks/"
+_TASK_FILE = f"{_TASKS}00000000-0000-0000-0000-000000000001"
+
+
+def _task_file(started_at="2026-01-02T03:04:05Z", finished_at="2026-01-02T03:06:07Z") -> bytes:
+    """The task file Code Engine keeps, with invented values and the worker times the gateway must ignore."""
+    return (
+        "taskState: successful\n"
+        "status:\n"
+        "- worker: fleet-test-0\n"
+        "  startTime: '2000-01-01T00:00:00Z'\n"
+        "  endTime: '2000-01-01T00:00:09Z'\n"
+        f"startedAt: {started_at}\n"
+        f"finishedAt: {finished_at}\n"
+    ).encode()
+
+
+def _job_cos_with_task_file(content: bytes | None = None, keys: list[str] | None = None) -> tuple[JobCOS, MagicMock]:
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.list_keys.return_value = [_TASK_FILE] if keys is None else keys
+    mock_cos.get_object_bytes.return_value = _task_file() if content is None else content
+    return job_cos, mock_cos
+
+
+class TestGetTaskTimes:
+    """JobCOS.get_task_times() reads the task file of a fleet."""
+
+    @staticmethod
+    def _times(job_cos: JobCOS) -> TaskTimes:
+        return job_cos.get_task_times(bucket_name="bucket", project_id="proj", fleet_id="fleet")
+
+    def test_they_are_startedat_and_finishedat(self):
+        job_cos, _ = _job_cos_with_task_file()
+
+        assert self._times(job_cos) == TaskTimes(
+            datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc)
+        )
+
+    def test_it_reads_the_only_file_under_the_tasks_prefix(self):
+        job_cos, mock_cos = _job_cos_with_task_file()
+
+        self._times(job_cos)
+
+        mock_cos.list_keys.assert_called_once_with(bucket="bucket", prefix=_TASKS)
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE)
+
+    def test_a_directory_marker_is_not_a_task_file(self):
+        job_cos, mock_cos = _job_cos_with_task_file(keys=[_TASKS, _TASK_FILE])
+
+        assert self._times(job_cos).started_at is not None
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE)
+
+    @pytest.mark.parametrize("keys", [[], [_TASKS]])
+    def test_no_task_file_yet_gives_no_times_and_reads_nothing(self, keys):
+        job_cos, mock_cos = _job_cos_with_task_file(keys=keys)
+
+        assert self._times(job_cos) == TaskTimes()
+        mock_cos.get_object_bytes.assert_not_called()
+
+    def test_the_times_of_the_worker_are_not_read(self):
+        job_cos, _ = _job_cos_with_task_file(_task_file(started_at="null", finished_at="null"))
+
+        assert self._times(job_cos) == TaskTimes()
+
+    def test_a_task_that_has_not_finished_has_only_the_start(self):
+        """Code Engine writes the zero time in finishedAt while the task runs."""
+        job_cos, _ = _job_cos_with_task_file(_task_file(finished_at="0001-01-01T00:00:00Z"))
+
+        times = self._times(job_cos)
+
+        assert times.started_at is not None
+        assert times.finished_at is None
+
+    @pytest.mark.parametrize("content", [b"", b"- a\n- b\n", b"just text", b"{unclosed: ["])
+    def test_a_file_that_is_not_a_yaml_mapping_gives_no_times(self, content):
+        job_cos, _ = _job_cos_with_task_file(content)
+
+        assert self._times(job_cos) == TaskTimes()
+
+    def test_the_content_is_never_logged(self, caplog):
+        """The file holds tokens, and a YAML error quotes the line it failed on."""
+        job_cos, _ = _job_cos_with_task_file(b"env: {ENV_JOB_GATEWAY_TOKEN: secret-token-value, : [}\n")
+
+        self._times(job_cos)
+
+        assert "secret-token-value" not in caplog.text
+        assert "is not valid YAML" in caplog.text
+
+    @pytest.mark.parametrize(
+        "kwargs", [{"bucket_name": ""}, {"bucket_name": None}, {"project_id": ""}, {"fleet_id": ""}, {"fleet_id": None}]
+    )
+    def test_it_needs_a_bucket_a_project_and_a_fleet(self, kwargs):
+        job_cos, mock_cos = _job_cos_with_task_file()
+        args = {"bucket_name": "bucket", "project_id": "proj", "fleet_id": "fleet", **kwargs}
+
+        with pytest.raises(ValueError, match="is required"):
+            job_cos.get_task_times(**args)
+
+        mock_cos.list_keys.assert_not_called()

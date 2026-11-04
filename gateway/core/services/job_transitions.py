@@ -113,24 +113,33 @@ class JobTransitionService:
         return event
 
     @observer_method(JOB_TRANSITION_PENDING_TO_RUNNING, rejected_by=_REJECTED)
-    def pending_to_running(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def pending_to_running(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """The job started running: a job_started event is sent, best effort, once it is written.
 
-        The caller sets job.running_started_at, which billing and the Runtime API read, when it knows it. Without it
-        the job started when the event was written."""
+        event_time is when it really started, if the runner knows it. Billing and the Runtime API read it from the
+        event. Without it the job started when the event was written."""
         with transaction.atomic():
-            event = self._change_status(job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields)
-        self._send_job_in_progress(job, job_started=True)
+            event = self._change_status(
+                job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, event_time=event_time
+            )
+        self._send_job_in_progress(job, job_started=True, job_started_at=event.event_time or event.created)
         self.workload_mirror.send(job)
         return event
 
-    def running_to_running(self, job: Job) -> None:
+    def running_to_running(self, job: Job, job_started_at: datetime | None) -> None:
         """The job is still running. It is not a transition: no status or JobEvent is written, only a
-        best effort in-progress event is sent."""
+        best effort in-progress event is sent. job_started_at comes from the caller, which has it loaded with the job:
+        this runs every tick for every running job, and reading it here would query it each time."""
         with observe_operation(JOB_IN_PROGRESS_EVENT, enabled=not job.filler):
-            self._send_job_in_progress(job, job_started=False)
+            self._send_job_in_progress(job, job_started=False, job_started_at=job_started_at)
 
     def stop(
         self,
@@ -188,6 +197,7 @@ class JobTransitionService:
         origin: JobEventOrigin,
         context: JobEventContext,
         job_fields: dict | None = None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """to_succeeded, to_failed or to_stopped, for the caller that only knows the final status."""
         transition = {
@@ -197,45 +207,78 @@ class JobTransitionService:
         }.get(status)
         if transition is None:
             raise ValueError(f"Job {job.id}: {status} is not a terminal status")
-        return transition(job, origin=origin, context=context, job_fields=job_fields)
+        return transition(job, origin=origin, context=context, job_fields=job_fields, event_time=event_time)
 
     @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
-    def to_succeeded(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_succeeded(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """The job finished. A job cannot succeed without having run, so its license fee is always owed."""
         with transaction.atomic():
-            event = self._change_status(job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields)
+            event = self._change_status(
+                job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields, event_time=event_time
+            )
             if _is_usage_billable(job):
-                job_started_at = job.started_at()
-                self._enqueue_job_usage(job, job_started_at, job.ended_at())
+                job_started_at = JobEvent.objects.first_running_at(job.id)
+                self._enqueue_job_usage(job, job_started_at, event.event_time or event.created)
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
         return event
 
-    def to_failed(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_failed(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """The job failed."""
-        return self.to_stopped_or_failed(job, Job.FAILED, origin=origin, context=context, job_fields=job_fields)
+        return self.to_stopped_or_failed(
+            job, Job.FAILED, origin=origin, context=context, job_fields=job_fields, event_time=event_time
+        )
 
-    def to_stopped(
-        self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
+    def to_stopped(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None = None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """The job was stopped, by a user or by the scheduler."""
-        return self.to_stopped_or_failed(job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields)
+        return self.to_stopped_or_failed(
+            job, Job.STOPPED, origin=origin, context=context, job_fields=job_fields, event_time=event_time
+        )
 
     @observer_method(JOB_TRANSITION_TO_TERMINAL, rejected_by=_REJECTED)
-    def to_stopped_or_failed(
-        self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None
+    def to_stopped_or_failed(  # pylint: disable=too-many-positional-arguments
+        self,
+        job: Job,
+        status: str,
+        *,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        job_fields: dict | None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """Called only when failed or stopped"""
         with transaction.atomic():
-            event = self._change_status(job, status, origin=origin, context=context, job_fields=job_fields)
+            event = self._change_status(
+                job, status, origin=origin, context=context, job_fields=job_fields, event_time=event_time
+            )
             if _is_usage_billable(job):
-                job_started_at = job.started_at()
-                self._enqueue_job_usage(job, job_started_at, job.ended_at())
+                job_started_at = JobEvent.objects.first_running_at(job.id)
+                self._enqueue_job_usage(job, job_started_at, event.event_time or event.created)
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
@@ -250,10 +293,14 @@ class JobTransitionService:
         origin: JobEventOrigin,
         context: JobEventContext,
         job_fields: dict | None,
+        event_time: datetime | None = None,
     ) -> JobEvent:
         """
         Transition the job's status, validating the state change is valid. It must run inside a transaction,
         so whatever the caller stores next commits or rolls back together with the status change.
+
+        event_time is when the runner says the status was really reached. It goes into the event only: the job keeps
+        no copy of it.
 
         Steps:
             - LOCK: Lock the job by id (Django raises if there is no transaction open)
@@ -266,7 +313,9 @@ class JobTransitionService:
         if status not in self.VALID_TRANSITIONS.get(current_status, set()):
             raise InvalidJobTransitionException(f"Job {job.id}: invalid transition {current_status} -> {status}")
 
-        event = JobEvent.objects.add_status_event(job_id=job.id, origin=origin, context=context, status=status)
+        event = JobEvent.objects.add_status_event(
+            job_id=job.id, origin=origin, context=context, status=status, event_time=event_time
+        )
         job.update_fields({"status": status, **(job_fields or {})})
         return event
 
@@ -311,7 +360,7 @@ class JobTransitionService:
             Outbox.objects.create(job=job, channel=OutboxChannel.WORKLOAD, region=self._region(job), payload=payload)
             WorkloadMirror.objects.filter(job_id=job.id).delete()
 
-    def _send_job_in_progress(self, job: Job, job_started: bool) -> None:
+    def _send_job_in_progress(self, job: Job, job_started: bool, job_started_at: datetime | None) -> None:
         """Best effort: a failure is logged and the event is dropped, it never reaches the caller.
 
         The sender is asked not to wait for the broker (timeout=0): it does not raise for a message it cannot
@@ -324,7 +373,7 @@ class JobTransitionService:
             return
         try:
             job_last_progress_time = None if job_started else datetime.now(timezone.utc)
-            payload = BillingEvents.build_job_usage(job, job.started_at(), job_last_progress_time)
+            payload = BillingEvents.build_job_usage(job, job_started_at, job_last_progress_time)
             # timeout=0: send and return at once, without waiting for the ack or a flush. It never raises error,
             # but it is caught anyway in case a sender implementation changes in the future
             self.billing_sender.send(payload, timeout=0)

@@ -74,86 +74,106 @@ def _created_a_minute_ago(job: Job) -> Job:
     return job
 
 
-class TestRunnerTimestamps:
-    """running_started_at and running_ended_at are set by the caller, which knows what Code Engine says. The transitions
-    only write the status, so a job without them reads its start and end from its events."""
+class TestEventTime:
+    """The time the runner says a status was reached goes into the event as event_time, and the event keeps being of
+    the moment it was written (created). Billing and the Runtime API read event_time, or else created."""
 
-    def test_a_transition_does_not_write_either_field(self, service):
-        author = User.objects.create_user(username="no-timestamp-author-2")
+    def test_pending_to_running_records_the_time_it_really_started(self, service):
+        author = User.objects.create_user(username="event-time-author-1")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
+        )
+
+        assert event.event_time == started
+        assert event.created != started
+        assert JobEvent.objects.first_running_at(job.id) == started
+
+    @pytest.mark.parametrize("status", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
+    def test_every_terminal_status_records_the_time_it_really_ended(self, service, status):
+        author = User.objects.create_user(username=f"event-time-author-{status}")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.RUNNING))
+        ended = datetime.now(timezone.utc) - timedelta(seconds=3)
+
+        event = service.to_terminal(
+            job, status, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=ended
+        )
+
+        assert event.event_time == ended
+        assert JobEvent.objects.first_terminal_at(job.id) == ended
+
+    def test_without_the_time_the_event_is_of_when_it_was_written(self, service):
+        author = User.objects.create_user(username="event-time-author-2")
         job = Job.objects.create(author=author, status=Job.PENDING)
 
-        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        assert event.event_time is None
+        assert JobEvent.objects.first_running_at(job.id) == event.created
+
+    def test_the_job_keeps_no_copy_of_the_time(self, service):
+        author = User.objects.create_user(username="event-time-author-3")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
+        )
 
         job.refresh_from_db()
         assert job.running_started_at is None
-        assert job.running_ended_at is None
 
-    def test_the_fields_the_caller_set_survive_the_transitions(self, service):
-        author = User.objects.create_user(username="set-by-caller-author")
-        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
-        started = datetime.now(timezone.utc) - timedelta(seconds=30)
-        ended = started + timedelta(seconds=20)
-
-        job.update_fields({"running_started_at": started})
-        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-        job.update_fields({"running_ended_at": ended})
-        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-
-        job.refresh_from_db()
-        assert (job.running_started_at, job.running_ended_at) == (started, ended)
-
-    def test_other_statuses_do_not_write_either_field(self, service):
-        author = User.objects.create_user(username="no-timestamp-author")
+    def test_other_statuses_do_not_record_a_time(self, service):
+        author = User.objects.create_user(username="event-time-author-4")
         job = Job.objects.create(author=author, status=Job.QUEUED)
 
         service.queued_to_pending(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.SCHEDULE_JOBS)
 
-        job.refresh_from_db()
-        assert job.running_started_at is None
-        assert job.running_ended_at is None
-
-    def test_a_job_without_running_started_at_reads_it_from_its_events(self):
-        author = User.objects.create_user(username="fallback-author-1")
-        job = Job.objects.create(author=author, status=Job.SUCCEEDED)
-        running = JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-        )
-        ended = JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.SUCCEEDED,
-        )
-
-        assert job.started_at() == running.created
-        assert job.ended_at() == ended.created
-
-    def test_the_job_fields_win_over_the_events(self):
-        author = User.objects.create_user(username="fallback-author-2")
-        job = Job.objects.create(author=author, status=Job.SUCCEEDED)
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=Job.RUNNING,
-        )
-        started = datetime.now(timezone.utc) - timedelta(minutes=5)
-        ended = started + timedelta(minutes=1)
-        job.update_fields({"running_started_at": started, "running_ended_at": ended})
-
-        assert job.started_at() == started
-        assert job.ended_at() == ended
+        assert JobEvent.objects.get(job=job).event_time is None
 
     def test_a_job_that_never_ran_has_neither(self):
-        author = User.objects.create_user(username="fallback-author-3")
+        author = User.objects.create_user(username="event-time-author-5")
         job = Job.objects.create(author=author, status=Job.QUEUED)
 
-        assert job.started_at() is None
-        assert job.ended_at() is None
+        assert JobEvent.objects.first_running_at(job.id) is None
+        assert JobEvent.objects.first_terminal_at(job.id) is None
+
+    def test_a_job_that_went_from_pending_to_its_end_has_an_end_and_no_start(self, service):
+        """The scheduler never saw it RUNNING, and no RUNNING event is made up for it."""
+        author = User.objects.create_user(username="event-time-author-6")
+        job = _created_a_minute_ago(Job.objects.create(author=author, status=Job.PENDING))
+        ended = datetime.now(timezone.utc) - timedelta(seconds=3)
+
+        service.to_succeeded(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=ended
+        )
+
+        assert JobEvent.objects.first_running_at(job.id) is None
+        assert JobEvent.objects.first_terminal_at(job.id) == ended
+
+    def test_the_time_of_the_loaded_job_is_the_same_one_the_events_give(self, service):
+        """with_event_times() loads it with the job so the per-tick path does not query it."""
+        author = User.objects.create_user(username="event-time-author-7")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
+        )
+
+        assert Job.objects.with_event_times().get(pk=job.pk).first_running_at == started
+
+    def test_the_loaded_time_falls_back_to_when_the_event_was_written(self, service):
+        author = User.objects.create_user(username="event-time-author-8")
+        job = Job.objects.create(author=author, status=Job.PENDING)
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        assert Job.objects.with_event_times().get(pk=job.pk).first_running_at == event.created
 
 
 class TestTransition:
@@ -251,8 +271,9 @@ class TestBillingOutbox:
     def test_both_messages_carry_the_time_the_job_really_started(self, service, user):
         job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
         started = datetime.now(timezone.utc) - timedelta(seconds=3)
-        job.update_fields({"running_started_at": started})
-        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
+        )
 
         service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -263,35 +284,34 @@ class TestBillingOutbox:
     def test_the_usage_message_ends_when_the_job_really_ended(self, service, user):
         job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
         started = datetime.now(timezone.utc) - timedelta(seconds=30)
-        job.update_fields({"running_started_at": started})
-        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-        job.update_fields({"running_ended_at": started + timedelta(seconds=20)})
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
+        )
 
-        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        service.to_succeeded(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            event_time=started + timedelta(seconds=20),
+        )
 
         usage = Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE)
         assert usage.payload["data"]["metric_value"] == 20
 
-    def test_a_job_never_seen_running_bills_from_the_start_the_caller_set(self, service, user):
-        """The case this exists for: the running folder is gone when the job ends, the task file is not."""
+    @pytest.mark.parametrize("transition", ["to_failed", "to_stopped"])
+    def test_a_failed_or_stopped_job_that_ran_enqueues_both_messages(self, service, user, transition):
         job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
         started = datetime.now(timezone.utc) - timedelta(seconds=30)
-        job.update_fields({"running_started_at": started, "running_ended_at": started + timedelta(seconds=20)})
+        service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
+        )
 
-        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-
-        rows = Outbox.objects.filter(job=job)
-        assert {row.channel for row in rows} == {OutboxChannel.LICENSE_FEE, OutboxChannel.JOB_USAGE}
-        assert {row.payload["data"]["job_started_at"] for row in rows} == {started.isoformat()}
-        assert Outbox.objects.get(job=job, channel=OutboxChannel.JOB_USAGE).payload["data"]["metric_value"] == 20
-
-    @pytest.mark.parametrize("transition", ["to_failed", "to_stopped"])
-    def test_a_failed_or_stopped_job_with_a_start_enqueues_both_messages(self, service, user, transition):
-        """Same rule as before, only the source of the start changes: a job with a start owes the fee."""
-        job = _created_a_minute_ago(_licensed_fleets_job(user, Job.PENDING))
-        job.update_fields({"running_started_at": datetime.now(timezone.utc) - timedelta(seconds=30)})
-
-        getattr(service, transition)(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        getattr(service, transition)(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            event_time=started + timedelta(seconds=20),
+        )
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
@@ -647,7 +667,7 @@ class TestBestEffortEvents:
         )
         events_before = JobEvent.objects.filter(job=fleets_job).count()
 
-        service.running_to_running(fleets_job)
+        service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
 
         sender.send.assert_called_once()
         assert sender.send.call_args.kwargs == {"timeout": 0}
@@ -668,7 +688,7 @@ class TestBestEffortEvents:
         )
 
         with caplog.at_level(logging.ERROR):
-            service.running_to_running(fleets_job)  # must not raise
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))  # must not raise
 
         assert "event dropped" in caplog.text
         assert "kafka down" in caplog.text
@@ -686,12 +706,12 @@ class TestBestEffortEvents:
         external_call_metrics.enable(registry)
         labels = {"operation": "job_in_progress_event", "status": "ok"}
         try:
-            service.running_to_running(fleets_job)
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
             assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
 
             Job.objects.filter(pk=fleets_job.pk).update(filler=True)
             fleets_job.refresh_from_db()
-            service.running_to_running(fleets_job)
+            service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
             assert registry.get_sample_value("scheduler_operation_duration_seconds_count", labels) == 1
         finally:
             external_call_metrics.disable()
@@ -700,7 +720,7 @@ class TestBestEffortEvents:
         Job.objects.filter(pk=fleets_job.pk).update(filler=True)
         fleets_job.refresh_from_db()
 
-        service.running_to_running(fleets_job)
+        service.running_to_running(fleets_job, JobEvent.objects.first_running_at(fleets_job.id))
 
         sender.send.assert_not_called()
 
@@ -904,7 +924,7 @@ class TestStatusMirror:
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=Job.RUNNING,
         )
-        mirrored_service.running_to_running(running)
+        mirrored_service.running_to_running(running, JobEvent.objects.first_running_at(running.id))
         no_fleet = _licensed_fleets_job(user, Job.RUNNING, fleet_id=None)
         assert (
             mirrored_service.stop(no_fleet, origin=JobEventOrigin.API, context=JobEventContext.STOP_JOB) == Job.STOPPED

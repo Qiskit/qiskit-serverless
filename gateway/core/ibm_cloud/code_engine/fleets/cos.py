@@ -255,6 +255,28 @@ class JobCOS:
 
         self._cos.upload_fileobj(fileobj=fileobj, bucket=bucket_name, key=key)
 
+    def get_task_times(self, *, bucket_name: str, project_id: str, fleet_id: str) -> TaskTimes:
+        """When Code Engine says the task of a fleet started and finished, from its task file, which unlike the keys
+        under ``queue/`` stays after the task ends. A job runs a single task, so there is a single task file.
+
+        Args:
+            bucket_name: COS bucket of the task store.
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            The times found, each ``None`` while unknown. ``TaskTimes()`` when there is no task file yet.
+
+        Raises:
+            ValueError: If bucket_name, project_id or fleet_id is missing.
+        """
+        keys = self.list_keys(bucket_name=bucket_name, prefix=tasks_prefix(project_id, fleet_id))
+        # A key ending in "/" is a directory marker, not a task file
+        key = next((key for key in keys if not key.endswith("/")), None)
+        if key is None:
+            return TaskTimes()
+        return parse_task_times(self.get_object_bytes(bucket_name=bucket_name, key=key), key)
+
     def get_object_bytes(self, *, bucket_name: str, key: str) -> bytes:
         """Retrieve an object fully into memory.
 

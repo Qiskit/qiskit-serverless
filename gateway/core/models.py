@@ -803,10 +803,7 @@ class Job(models.Model):
         blank=True,
         help_text="IBM Cloud subscription ID of the instance, captured at job creation time",
     )
-    # When the job started and ended running, as the runner reports it (Code Engine for a Fleets job), or when the
-    # scheduler noticed it. Billing and the Runtime API read them through started_at() / ended_at().
     running_started_at = models.DateTimeField(null=True, blank=True)
-    running_ended_at = models.DateTimeField(null=True, blank=True)
     ce_project_name = models.CharField(
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
     )
@@ -845,25 +842,6 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
-
-    def started_at(self):
-        """When the job started running: running_started_at, or the first RUNNING event for the jobs without it.
-        None if it never ran. The event time comes with the job when it was loaded with ``with_event_times()``, and
-        is queried when it was not."""
-        if self.running_started_at is not None:
-            return self.running_started_at
-        logger.debug("job_id=%s has no running_started_at, falling back to its first RUNNING event", self.id)
-        if "_first_running_at" in self.__dict__:
-            return self.first_running_at
-        return JobEvent.objects.first_running_at(self.id)
-
-    def ended_at(self):
-        """When the job ended: running_ended_at, or the first terminal event for the jobs without it. None if it did
-        not."""
-        if self.running_ended_at is not None:
-            return self.running_ended_at
-        logger.debug("job_id=%s has no running_ended_at, falling back to its first terminal event", self.id)
-        return JobEvent.objects.first_terminal_at(self.id)
 
     @property
     def compute_profile_id(self) -> str | None:
@@ -991,6 +969,10 @@ class JobEvent(models.Model):
     origin = models.CharField(max_length=100, blank=False, null=False)
     context = models.CharField(max_length=100, blank=False, null=False)
     created = models.DateTimeField(auto_now_add=True, null=True)
+    # When the event really happened, if the runner knows (Code Engine for a Fleets job). ``created`` is when the row
+    # was written, so it follows the pace of the scheduler. Read the two through JobEventQuerySet.first_running_at()
+    # and first_terminal_at(), which fall back to created.
+    event_time = models.DateTimeField(null=True, blank=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
     objects: JobEventQuerySet = JobEventQuerySet.as_manager()

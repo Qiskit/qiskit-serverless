@@ -27,10 +27,14 @@ def _make_transitions():
     also owe (outbox, Kafka) is tested in tests/core/services/test_job_transitions.py."""
     transitions = MagicMock()
 
-    def _pending_to_running(job, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+    def _pending_to_running(
+        job, *, origin, context, job_fields=None, event_time=None
+    ):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.RUNNING, **(job_fields or {})})
 
-    def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
+    def _to_terminal(
+        job, status, *, origin, context, job_fields=None, event_time=None
+    ):  # pylint: disable=unused-argument
         job.update_fields({"status": status, **(job_fields or {})})
 
     def _try_stop(job, *, origin, context):  # pylint: disable=unused-argument
@@ -79,8 +83,6 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
     job.in_terminal_state.return_value = status in Job.TERMINAL_STATUSES
     # what JobQuerySet.with_event_times() loads with each job
     job.created = datetime.now(timezone.utc)
-    job.running_started_at = None
-    job.running_ended_at = None
     job.first_running_at = None
 
     def _apply_update_fields(fields_map):
@@ -88,8 +90,6 @@ def _make_fleets_job(status=Job.RUNNING, fleet_id="fleet-123"):
             setattr(job, field, value)
 
     job.update_fields = MagicMock(side_effect=_apply_update_fields)
-    job.started_at.return_value = datetime.now(timezone.utc) - timedelta(seconds=60)
-    job.ended_at.return_value = datetime.now(timezone.utc)
     return job
 
 
@@ -131,9 +131,10 @@ class TestUpdateJobStatus:
     def test_succeeded_calls_to_terminal(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-
+        ended = datetime.now(timezone.utc) - timedelta(seconds=4)
         mock_runner = MagicMock()
         mock_runner.status.return_value = Job.SUCCEEDED
+        mock_runner.get_task_times.return_value = TaskTimes(finished_at=ended)
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
@@ -141,14 +142,15 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_terminal.assert_called_once_with(job, Job.SUCCEEDED, mock_runner)
+        mock_terminal.assert_called_once_with(job, Job.SUCCEEDED, ended)
 
     def test_pending_to_running_calls_to_running(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-
+        started = datetime.now(timezone.utc) - timedelta(seconds=4)
         mock_runner = MagicMock()
         mock_runner.status.return_value = Job.RUNNING
+        mock_runner.get_task_times.return_value = TaskTimes(started_at=started)
 
         with (
             patch(f"{_MOD}.get_runner", return_value=mock_runner),
@@ -157,7 +159,36 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_called_once_with(job, mock_runner)
+        mock_running.assert_called_once_with(job, started)
+
+    def test_a_job_that_is_still_pending_does_not_read_the_task_file(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.PENDING)
+        mock_runner = MagicMock()
+        mock_runner.status.return_value = Job.PENDING
+
+        with (
+            patch(f"{_MOD}.get_runner", return_value=mock_runner),
+            patch.object(task, "stop_job_if_timeout"),
+        ):
+            task.update_job_status(job)
+
+        mock_runner.get_task_times.assert_not_called()
+
+    def test_the_task_file_is_read_before_the_transition(self):
+        """The transition holds a transaction and a lock on the job: the COS call must not be inside it."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        calls = []
+        runner = MagicMock()
+        runner.status.return_value = Job.FAILED
+        runner.get_task_times.side_effect = lambda: calls.append("get_task_times") or TaskTimes()
+        task.transitions.to_terminal.side_effect = lambda *a, **k: calls.append("to_terminal")
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
+        assert calls == ["get_task_times", "to_terminal"]
 
     def test_running_to_running_calls_to_running(self):
         """to_running is called unconditionally for a RUNNING poll result; it is the one
@@ -176,7 +207,8 @@ class TestUpdateJobStatus:
         ):
             task.update_job_status(job)
 
-        mock_running.assert_called_once_with(job, mock_runner)
+        mock_runner.get_task_times.assert_not_called()
+        mock_running.assert_called_once_with(job, None)
 
     def test_none_status_skips_update_and_returns_false(self):
         task = _make_task()
@@ -263,7 +295,10 @@ class TestToTerminal:
         job.sub_status = "pending"
         job.env_vars = '{"key": "value"}'
 
-        with patch(f"{_MOD}.JobEvent"):
+        with (
+            patch(f"{_MOD}.JobEvent.objects.first_running_at", return_value=None),
+            patch(f"{_MOD}.JobEvent.objects.first_terminal_at", return_value=None),
+        ):
             task.to_terminal(job, Job.SUCCEEDED)
 
         assert job.status == Job.SUCCEEDED
@@ -275,146 +310,75 @@ class TestToTerminal:
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             job_fields={"sub_status": None, "env_vars": "{}"},
+            event_time=None,
         )
 
-    def test_a_succeeded_job_records_the_duration_billing_reads(self):
-        """to_terminal owns this, so every route to SUCCEEDED gets it. The duration is from the job's own start and
-        end, the ones billing reads, and not from the events."""
-        task = _make_task()
-        job = _make_fleets_job()
-        started = datetime.now(timezone.utc) - timedelta(seconds=90)
-        job.started_at.return_value = started
-        job.ended_at.return_value = started + timedelta(seconds=30)
-        job.program_id = None
-
-        task.to_terminal(job, Job.SUCCEEDED)
-
-        task.metrics.observe_job_execution_duration.assert_called_once_with(30.0, "custom")
-
-    @pytest.mark.parametrize("missing", ["started_at", "ended_at"])
-    def test_no_duration_is_recorded_without_both_ends(self, missing):
-        task = _make_task()
-        job = _make_fleets_job()
-        job.started_at.return_value = datetime.now(timezone.utc) - timedelta(seconds=90)
-        job.ended_at.return_value = datetime.now(timezone.utc)
-        getattr(job, missing).return_value = None
-
-        task.to_terminal(job, Job.SUCCEEDED)
-
-        task.metrics.observe_job_execution_duration.assert_not_called()
-
-    def test_a_duration_is_never_negative(self):
-        """Two clocks: an end read from the task store can precede a start read from the events."""
-        task = _make_task()
-        job = _make_fleets_job()
-        ended = datetime.now(timezone.utc)
-        job.started_at.return_value = ended + timedelta(seconds=5)
-        job.ended_at.return_value = ended
-
-        task.to_terminal(job, Job.SUCCEEDED)
-
-        assert task.metrics.observe_job_execution_duration.call_args.args[0] == 0
-
-    def test_an_end_time_from_the_task_store_is_stored_in_the_job(self):
+    def test_the_transition_gets_the_time_code_engine_finished_the_task(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-        job.running_started_at = datetime.now(timezone.utc) - timedelta(seconds=30)
         ended = datetime.now(timezone.utc) - timedelta(seconds=4)
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes(finished_at=ended)
 
-        task.to_terminal(job, Job.FAILED, runner)
+        task.to_terminal(job, Job.FAILED, ended)
 
-        assert job.running_ended_at == ended
+        assert task.transitions.to_terminal.call_args.kwargs["event_time"] == ended
 
-    def test_a_job_never_seen_running_gets_the_start_of_the_task_file(self):
-        """It went from PENDING to its end between two scans, so the task file is the only place with its start."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        started = datetime.now(timezone.utc) - timedelta(seconds=40)
-        ended = datetime.now(timezone.utc) - timedelta(seconds=4)
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes(started_at=started, finished_at=ended)
-
-        task.to_terminal(job, Job.SUCCEEDED, runner)
-
-        assert (job.running_started_at, job.running_ended_at) == (started, ended)
-
-    def test_a_job_that_has_a_start_keeps_it(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-        job.running_started_at = datetime.now(timezone.utc) - timedelta(seconds=60)
-        kept = job.running_started_at
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes(
-            started_at=datetime.now(timezone.utc) - timedelta(seconds=50), finished_at=datetime.now(timezone.utc)
-        )
-
-        task.to_terminal(job, Job.SUCCEEDED, runner)
-
-        assert job.running_started_at == kept
-
-    def test_a_missing_end_time_does_not_clear_one_the_job_has(self):
-        """Only what Code Engine gives is written: a null in the file is not a reason to empty the field."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-        job.running_started_at = datetime.now(timezone.utc) - timedelta(seconds=60)
-        job.running_ended_at = datetime.now(timezone.utc) - timedelta(seconds=5)
-        before = (job.running_started_at, job.running_ended_at)
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes()
-
-        task.to_terminal(job, Job.FAILED, runner)
-
-        assert (job.running_started_at, job.running_ended_at) == before
-
-    def test_a_missing_start_does_not_empty_the_one_the_job_has_when_the_file_only_has_the_end(self):
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-        job.running_started_at = datetime.now(timezone.utc) - timedelta(seconds=60)
-        kept = job.running_started_at
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes(finished_at=datetime.now(timezone.utc))
-
-        task.to_terminal(job, Job.FAILED, runner)
-
-        assert job.running_started_at == kept
-
-    def test_nothing_is_written_when_the_task_file_gives_no_time(self):
-        """No time, no write: update_fields would still bump the version and the updated time of the job."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes()
-        job.update_fields.reset_mock()
-
-        task.to_running(job, runner)
-
-        written = [call.args[0] for call in job.update_fields.call_args_list]
-        assert all("running_started_at" not in fields and "running_ended_at" not in fields for fields in written)
-
-    def test_a_status_the_scheduler_decided_reads_no_time(self):
+    def test_a_status_the_scheduler_decided_has_no_time(self):
         """A timeout or an unconfirmed stop has no task in the task store: no time is the normal case."""
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
 
         task.to_terminal(job, Job.STOPPED)
 
-        assert job.running_started_at is None
-        assert job.running_ended_at is None
+        assert task.transitions.to_terminal.call_args.kwargs["event_time"] is None
 
-    def test_the_end_time_is_read_before_the_transition(self):
-        """The transition holds a transaction and a lock on the job: the COS call must not be inside it."""
+    @pytest.mark.django_db
+    def test_a_succeeded_job_records_the_duration_billing_reads(self):
+        """to_terminal owns this, so every route to SUCCEEDED gets it. The duration is from the time of the first
+        RUNNING and terminal events, the ones billing reads."""
         task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-        calls = []
-        runner = MagicMock()
-        runner.get_task_times.side_effect = lambda: calls.append("get_task_times") or TaskTimes()
-        task.transitions.to_terminal.side_effect = lambda *a, **k: calls.append("to_terminal")
+        job = _make_fleets_job()
+        job.program_id = None
+        started = datetime.now(timezone.utc) - timedelta(seconds=90)
 
-        task.to_terminal(job, Job.FAILED, runner)
+        with (
+            patch(f"{_MOD}.JobEvent.objects.first_running_at", return_value=started),
+            patch(f"{_MOD}.JobEvent.objects.first_terminal_at", return_value=started + timedelta(seconds=30)),
+        ):
+            task.to_terminal(job, Job.SUCCEEDED)
 
-        assert calls == ["get_task_times", "to_terminal"]
+        task.metrics.observe_job_execution_duration.assert_called_once_with(30.0, "custom")
+
+    @pytest.mark.parametrize("missing", ["first_running_at", "first_terminal_at"])
+    def test_no_duration_is_recorded_without_both_ends(self, missing):
+        task = _make_task()
+        job = _make_fleets_job()
+        times = {
+            "first_running_at": datetime.now(timezone.utc) - timedelta(seconds=90),
+            "first_terminal_at": datetime.now(timezone.utc),
+        }
+        times[missing] = None
+
+        with (
+            patch(f"{_MOD}.JobEvent.objects.first_running_at", return_value=times["first_running_at"]),
+            patch(f"{_MOD}.JobEvent.objects.first_terminal_at", return_value=times["first_terminal_at"]),
+        ):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        task.metrics.observe_job_execution_duration.assert_not_called()
+
+    def test_a_duration_is_never_negative(self):
+        """Two clocks: an end read from Code Engine can precede a start the scheduler wrote."""
+        task = _make_task()
+        job = _make_fleets_job()
+        ended = datetime.now(timezone.utc)
+
+        with (
+            patch(f"{_MOD}.JobEvent.objects.first_running_at", return_value=ended + timedelta(seconds=5)),
+            patch(f"{_MOD}.JobEvent.objects.first_terminal_at", return_value=ended),
+        ):
+            task.to_terminal(job, Job.SUCCEEDED)
+
+        assert task.metrics.observe_job_execution_duration.call_args.args[0] == 0
 
     def test_job_reaches_failed_state(self):
         task = _make_task()
@@ -433,6 +397,7 @@ class TestToTerminal:
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.UPDATE_JOB_STATUS,
             job_fields={"sub_status": None, "env_vars": "{}"},
+            event_time=None,
         )
 
     def test_to_terminal_never_sends_an_in_progress_event(self):
@@ -440,7 +405,10 @@ class TestToTerminal:
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
 
-        with patch(f"{_MOD}.JobEvent"):
+        with (
+            patch(f"{_MOD}.JobEvent.objects.first_running_at", return_value=None),
+            patch(f"{_MOD}.JobEvent.objects.first_terminal_at", return_value=None),
+        ):
             task.to_terminal(job, Job.SUCCEEDED)
 
         task.transitions.running_to_running.assert_not_called()
@@ -467,44 +435,25 @@ class TestToRunning:
     def test_job_transitions_from_pending_to_running(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes()
 
-        task.to_running(job, runner)
+        task.to_running(job)
 
         assert job.status == Job.RUNNING
         task.transitions.pending_to_running.assert_called_once_with(
-            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=None
         )
-        assert job.running_started_at is None
         task.transitions.running_to_running.assert_not_called()
 
     def test_the_transition_gets_the_time_code_engine_started_the_job(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.PENDING)
         started = datetime.now(timezone.utc) - timedelta(seconds=4)
-        runner = MagicMock()
-        runner.get_task_times.return_value = TaskTimes(started_at=started)
 
-        task.to_running(job, runner)
+        task.to_running(job, started)
 
         task.transitions.pending_to_running.assert_called_once_with(
-            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS, event_time=started
         )
-        assert job.running_started_at == started
-
-    def test_the_start_time_is_read_before_the_transition(self):
-        """The transition holds a transaction and a lock on the job: the COS call must not be inside it."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.PENDING)
-        calls = []
-        runner = MagicMock()
-        runner.get_task_times.side_effect = lambda: calls.append("get_task_times") or TaskTimes()
-        task.transitions.pending_to_running.side_effect = lambda *a, **k: calls.append("pending_to_running")
-
-        task.to_running(job, runner)
-
-        assert calls == ["get_task_times", "pending_to_running"]
 
     def test_does_not_send_in_progress_when_the_job_already_turned_terminal(self):
         """A user-initiated stop can race this poll and win it first: the transition then
@@ -522,25 +471,15 @@ class TestToRunning:
         task.transitions.running_to_running.assert_not_called()
 
     def test_already_running_job_emits_in_progress_instead_of_transitioning(self):
+        """The start comes with the job (with_event_times()), so the tick that happens every second queries nothing."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
-        runner = MagicMock()
+        job.first_running_at = datetime.now(timezone.utc) - timedelta(seconds=60)
 
-        task.to_running(job, runner)
+        task.to_running(job)
 
-        task.transitions.running_to_running.assert_called_once_with(job)
+        task.transitions.running_to_running.assert_called_once_with(job, job_started_at=job.first_running_at)
         task.transitions.pending_to_running.assert_not_called()
-        runner.get_task_times.assert_not_called()
-
-    def test_an_already_running_job_does_not_read_the_start_time_again(self):
-        """The start time is read once per job, in the transition, not on every tick."""
-        task = _make_task()
-        job = _make_fleets_job(status=Job.RUNNING)
-        runner = MagicMock()
-
-        task.to_running(job, runner)
-
-        runner.get_task_times.assert_not_called()
 
 
 class TestStopJobIfTimeout:
@@ -848,7 +787,7 @@ class TestEventStreamsIntegration:
         ):
             task.update_job_status(job)
 
-        task.transitions.running_to_running.assert_called_once_with(job)
+        task.transitions.running_to_running.assert_called_once_with(job, job_started_at=None)
 
     def test_run_publish_failure_skips_db_update_and_continues_other_jobs(self):
         task = _make_task()
@@ -1055,6 +994,8 @@ class TestStoppingJobs:
         ):
             # no RUNNING event, so the duration is skipped: this test is about the status
             mock_event.objects.filter.return_value.order_by.return_value.first.return_value = None
+            mock_event.objects.first_running_at.return_value = None
+            mock_event.objects.first_terminal_at.return_value = None
             changed = task.update_job_status(job)
 
         assert changed is True

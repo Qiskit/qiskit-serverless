@@ -47,10 +47,8 @@ from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
     TaskTimes,
-    parse_task_times,
     queue_prefix,
     task_state_from_key,
-    tasks_prefix,
 )
 from core.ibm_cloud.code_engine.fleets.utils import (
     FleetJobPaths,
@@ -373,15 +371,11 @@ class FleetsRunner(AbstractRunner):
         COS all give ``TaskTimes()``."""
         try:
             self._project = self._project or self._get_project()
-            bucket = self._project.cos_bucket_task_store_name
-            prefix = tasks_prefix(self._project.project_id, self.job.fleet_id)
-            keys = self._list_task_state_keys(bucket, prefix)
-            # A key ending in "/" is a directory marker, not a task file
-            key = next((key for key in keys or [] if not key.endswith("/")), None)
-            if key is None:
-                return TaskTimes()
-            content = self._get_cos().get_object_bytes(bucket_name=bucket, key=key)
-            return parse_task_times(content, key)
+            return self._get_cos().get_task_times(
+                bucket_name=self._project.cos_bucket_task_store_name,
+                project_id=self._project.project_id,
+                fleet_id=self.job.fleet_id,
+            )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
             return TaskTimes()
