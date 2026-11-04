@@ -308,6 +308,14 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Link to this heading">¶</a></h2>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">qiskit-mitigation==0.1.1</span></code> and <code class="docutils literal notranslate"><span class="pre">qiskit-addon-slc==0.2.0</span></code> to the
+dynamic dependencies allowlist bundled in the custom functions image. Qiskit
+Functions that declare these packages as dependencies can now use them:
+<code class="docutils literal notranslate"><span class="pre">qiskit-mitigation</span></code> for client-side mitigation methods via the Executor
+primitive, and <code class="docutils literal notranslate"><span class="pre">qiskit-addon-slc</span></code> for the shaded-light-cones enhancement
+for PEC mitigation.</p></li>
+</ul>
 <ul>
 <li><p>Added a way to bring Python packages that are not baked into the runtime
 image: build a wheel locally, upload it with your function, and install it
