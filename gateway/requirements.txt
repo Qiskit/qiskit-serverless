@@ -25,12 +25,20 @@ django-cors-headers>=4.9.0, <5
 whitenoise>=6.12.0, <7
 objsize>=0.8.0, <1
 psutil>=7.2.2, <8
-ibm-platform-services>=0.77.2, <1
+# Pinned to 0.77.1, not 0.77.2: 0.77.2 requires ibm-cloud-sdk-core>=3.28.1,
+# which transitively requires python-dateutil>=3.0.0 and reintroduces the
+# conflict with ibm-cos-sdk described below. 0.77.1 only needs >=3.24.4.
+ibm-platform-services>=0.77.1, <1
 python-magic>=0.4.27, <1
 python-json-logger>=4.2.0
 PyJWT>=2.15.1, <3
 ibm-cos-sdk>=2.16.2, <3
-ibm-cloud-sdk-core>=3.28.1, <4
+# Pinned to 3.28.0, not 3.28.1: 3.28.1 requires python-dateutil>=3.0.0, which
+# conflicts with ibm-cos-sdk-core (ibm-cos-sdk) requiring python-dateutil<3.0.0.
+# 3.28.0 requires dateutil<3.0.0 and resolves cleanly with both. Keep
+# ibm-platform-services at <0.77.2 (above) so it does not pull 3.28.1 in
+# transitively. Do not bump this floor until ibm-cos-sdk supports dateutil 3.x.
+ibm-cloud-sdk-core>=3.28.0, <4
 jsonschema>=4.26.0,<5
 confluent-kafka>=2.16.1,<3
 mozilla-django-oidc>=5.0.2, <6
