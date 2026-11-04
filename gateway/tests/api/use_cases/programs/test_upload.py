@@ -32,6 +32,31 @@ def ce_project(settings):
 
 
 class TestUploadFunctionUseCase:
+    @pytest.fixture(autouse=True)
+    def fleets_deployment(self, settings):
+        """Make the default (Fleets) upload path work without per-test setup.
+
+        The runner now defaults to Fleets, so a plain upload needs a CE project to assign and
+        a registered default profile to seed a size from. A custom function takes the default
+        project; a provider function takes its provider's dedicated project, so this also wires
+        one to the 'my-provider' provider the provider tests use (via get_or_create_provider).
+        Tests that exercise the Ray path still pass runner=Program.RAY and ignore all of this.
+        """
+        settings.CE_DEFAULT_PROJECT_NAME = "default-ce-project"
+        # A dedicated default profile id that no individual test registers itself, so the
+        # seed never collides with a test's own ComputeProfile.objects.create(...).
+        settings.DEFAULT_FUNCTION_SIZE_PROFILE = "default-seed-profile"
+        TestUtils.get_or_create_ce_project(
+            project_name="default-ce-project",
+            project_id="ce-proj-id",
+        )
+        provider_ce_project = TestUtils.get_or_create_ce_project(
+            project_name="provider-ce-project",
+            project_id="provider-ce-proj-id",
+        )
+        TestUtils.get_or_create_provider(provider="my-provider", code_engine_project=provider_ce_project)
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+
     def test_creates_new_private_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -66,8 +91,8 @@ class TestUploadFunctionUseCase:
     def test_creates_provider_function(self, user):
         group = TestUtils.get_or_create_group("my-provider")
         TestUtils.add_user_to_group(user, group)
-        provider = Provider.objects.create(name="my-provider")
-        provider.admin_groups.add(group)
+        # Reuse the provider wired to a CE project by the fleets_deployment fixture.
+        TestUtils.get_or_create_provider(provider="my-provider", admin_group=group)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         result = UploadFunctionUseCase().execute(
@@ -81,8 +106,7 @@ class TestUploadFunctionUseCase:
     def test_updates_existing_provider_function(self, user):
         group = TestUtils.get_or_create_group("my-provider")
         TestUtils.add_user_to_group(user, group)
-        provider = Provider.objects.create(name="my-provider")
-        provider.admin_groups.add(group)
+        provider = TestUtils.get_or_create_provider(provider="my-provider", admin_group=group)
         existing = Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -98,8 +122,7 @@ class TestUploadFunctionUseCase:
         TestUtils.add_user_to_group(user, group)
         other_admin = User.objects.create_user(username="other-admin")
         TestUtils.add_user_to_group(other_admin, group)
-        provider = Provider.objects.create(name="my-provider")
-        provider.admin_groups.add(group)
+        provider = TestUtils.get_or_create_provider(provider="my-provider", admin_group=group)
         existing = Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -130,7 +153,7 @@ class TestUploadFunctionUseCase:
         # Registered so the no-sizes-declared update seeds a default size without
         # tripping over the (here irrelevant) unregistered-profile rejection; this
         # test is about the CE project check, not sizing.
-        ComputeProfile.objects.create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
         Program.objects.create(title="my-fn", author=user, entrypoint="old.py", runner=Program.FLEETS)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -144,7 +167,7 @@ class TestUploadFunctionUseCase:
         assert result.runner == Program.FLEETS
 
     def test_author_can_update_provider_function_without_admin_group(self, user):
-        provider = Provider.objects.create(name="my-provider")
+        provider = TestUtils.get_or_create_provider(provider="my-provider")
         Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -156,7 +179,7 @@ class TestUploadFunctionUseCase:
 
     def test_non_author_non_admin_cannot_update_provider_function(self, user):
         other = User.objects.create_user(username="other")
-        provider = Provider.objects.create(name="my-provider")
+        provider = TestUtils.get_or_create_provider(provider="my-provider")
         Program.objects.create(title="my-fn", provider=provider, author=user, entrypoint="old.py")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
@@ -166,7 +189,7 @@ class TestUploadFunctionUseCase:
             )
 
     def test_creating_new_provider_function_requires_admin_group(self, user):
-        Provider.objects.create(name="my-provider")
+        TestUtils.get_or_create_provider(provider="my-provider")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         with pytest.raises(FunctionNotFoundException):
@@ -261,7 +284,7 @@ class TestUploadFunctionUseCase:
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         result = UploadFunctionUseCase().execute(
-            user, accessible, UploadFunctionInput(title="my-fn", entrypoint="main.py")
+            user, accessible, UploadFunctionInput(title="my-fn", entrypoint="main.py", runner=Program.RAY)
         )
 
         assert result.runner == Program.RAY
@@ -276,7 +299,9 @@ class TestUploadFunctionUseCase:
         result = UploadFunctionUseCase().execute(
             user,
             accessible,
-            UploadFunctionInput(title="my-fn", entrypoint="main.py", sizes={"m": "16x128"}, default_size="m"),
+            UploadFunctionInput(
+                title="my-fn", entrypoint="main.py", runner=Program.RAY, sizes={"m": "16x128"}, default_size="m"
+            ),
         )
 
         assert result.runner == Program.RAY
@@ -299,6 +324,9 @@ class TestUploadFunctionUseCase:
 
     def test_unknown_compute_profile_error_lists_available_profiles(self, user):
         """An unregistered profile is rejected with an aligned, ordered list of what IS registered."""
+        # This asserts the exact registered-profile listing, so start from an empty catalog:
+        # drop the default seed the fleets_deployment fixture registered.
+        ComputeProfile.objects.all().delete()
         # Created out of order; the error must sort them: CPU-only first, then GPU by memory.
         ComputeProfile.objects.create(compute_profile_id="20x320x2a100", cpu="20", memory="320", gpu="2a100")
         ComputeProfile.objects.create(compute_profile_id="24x120", cpu="24", memory="120")
@@ -325,7 +353,7 @@ class TestUploadFunctionUseCase:
 
     def test_update_ray_function_with_valid_sizes_validates_but_does_not_persist(self, user):
         """Same as create: a valid 'sizes'/'default_size' pair sent to an existing Ray function is not persisted."""
-        Program.objects.create(title="my-fn", author=user, entrypoint="old.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="old.py", runner=Program.RAY)
         ComputeProfile.objects.create(compute_profile_id="16x128")
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
