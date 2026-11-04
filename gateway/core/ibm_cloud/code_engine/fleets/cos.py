@@ -112,17 +112,14 @@ class TaskTimes(NamedTuple):
     finished_at: datetime | None = None
 
 
-def _aware_datetime(value: Any) -> datetime | None:
-    """The value as an aware datetime, or ``None`` when it is not one or is not set (the zero time). YAML reads an
-    unquoted timestamp as a datetime and a quoted one as a string; both are accepted."""
-    if isinstance(value, str):
-        try:
-            value = datetime.fromisoformat(value.strip())
-        except ValueError:
-            return None
-    if not isinstance(value, datetime) or value.utcoffset() is None or value <= _UNSET_TIME:
+def _parse_utc_datetime(value: Any) -> datetime | None:
+    """The value as a datetime with a timezone, or ``None`` when it is not one or is not set (the zero time). YAML reads
+    an unquoted timestamp as a datetime and a quoted one as a string, so both go through their text form."""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
         return None
-    return value
+    return parsed if parsed.tzinfo and parsed > _UNSET_TIME else None
 
 
 def parse_task_times(content: bytes, source: str) -> TaskTimes:
@@ -152,7 +149,7 @@ def parse_task_times(content: bytes, source: str) -> TaskTimes:
     times = {}
     for field, key in (("started_at", "startedAt"), ("finished_at", "finishedAt")):
         raw = document.get(key)
-        parsed = _aware_datetime(raw)
+        parsed = _parse_utc_datetime(raw)
         if raw is not None and parsed is None:
             logger.warning("Task file %s has a %s that is not a timestamp with a timezone, or is not set", source, key)
         times[field] = parsed
