@@ -634,6 +634,18 @@ gunicorn thread keeps one connection, so the gateway holds
 <code class="docutils literal notranslate"><span class="pre">pods</span> <span class="pre">x</span> <span class="pre">workers</span> <span class="pre">x</span> <span class="pre">threads</span></code> connections even when it is idle, and the
 scheduler holds one.</p></li>
 </ul>
+<ul>
+<li><p>The default execution backend for a function is now Fleets instead of Ray.
+A function uploaded without an explicit <code class="docutils literal notranslate"><span class="pre">runner</span></code>, and a job created from
+one, now default to the Fleets runner. Uploads that name <code class="docutils literal notranslate"><span class="pre">runner</span></code> keep
+running on whatever they ask for, and functions already stored keep the
+runner they were created with.</p>
+<p>Because a Fleets function needs a Code Engine project to run, a deployment
+that lets users upload functions without specifying a runner must have a
+default Code Engine project configured (<code class="docutils literal notranslate"><span class="pre">CE_DEFAULT_PROJECT_NAME</span></code>) before
+this change goes live, or those uploads will fail.</p>
+</li>
+</ul>
 <ul class="simple">
 <li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">dependencies_versions()</span></code> is read-only
 discovery of the dependencies baked into the runtime image (“what the image
