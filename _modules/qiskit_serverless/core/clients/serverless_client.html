@@ -207,6 +207,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../function_features/basic/02_arguments_and_results.html">Passing input arguments to your Qiskit Function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../function_features/basic/03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../function_features/basic/04_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../function_features/basic/05_bring_your_own_wheels.html">Bring your own wheels</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../function_features/experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../function_features/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
 </ul>
@@ -325,6 +326,7 @@
 <span class="sd">"""</span>
 
 <span class="c1"># pylint: disable=duplicate-code,too-many-lines</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os.path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
@@ -334,7 +336,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlparse</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
 
@@ -360,6 +362,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace_decorator_factory</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">Channel</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.files</span><span class="w"> </span><span class="kn">import</span> <span class="n">GatewayFilesClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.wheels</span><span class="w"> </span><span class="kn">import</span> <span class="n">WHEELS_SUBDIR</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.job</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Job</span><span class="p">,</span>
     <span class="n">Configuration</span><span class="p">,</span>
@@ -400,6 +403,84 @@
 <span class="c1"># The gateway signs the token for 5 minutes, so the client stops using it 30 s before</span>
 <span class="n">_STATUS_TOKEN_REUSE_SECONDS</span> <span class="o">=</span> <span class="mi">270</span>
 <span class="n">_TOKEN_REFUSED_CODES</span> <span class="o">=</span> <span class="p">(</span><span class="mi">401</span><span class="p">,</span> <span class="mi">403</span><span class="p">,</span> <span class="mi">404</span><span class="p">)</span>
+
+<span class="c1"># A requirement looks like "name[extras]&lt;specifier&gt;", e.g. "numpy&gt;=2",</span>
+<span class="c1"># "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1", or a bare "mypkg".</span>
+<span class="n">_REQUIREMENT_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^\s*([A-Za-z0-9._-]+)\s*(?:\[[^\]]*\])?\s*(.*?)\s*$"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_requirement</span><span class="p">(</span><span class="n">requirement</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Split a requirement string into (name, specifier-or-version).</span>
+
+<span class="sd">    For a baked entry like ``"numpy==2.1.0"`` the second item is the pinned version</span>
+<span class="sd">    ``"2.1.0"``; for a user requirement like ``"jax&lt;0.5"`` it is the specifier ``"&lt;0.5"``.</span>
+<span class="sd">    Extras are dropped. A bare name yields an empty specifier.</span>
+<span class="sd">    """</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">_REQUIREMENT_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">requirement</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">requirement</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="s2">""</span>
+    <span class="n">name</span><span class="p">,</span> <span class="n">spec</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="c1"># Normalize a bare "==x" baked pin down to just the version for display/comparison.</span>
+    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"=="</span><span class="p">):</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">name</span><span class="p">,</span> <span class="n">spec</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_dep_name</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""PEP 503 name normalization: lowercase, runs of -_. collapse to a single '-'."""</span>
+    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">"[-_.]+"</span><span class="p">,</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_spec_allows</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">baked_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Best-effort check that a baked version satisfies a user specifier.</span>
+
+<span class="sd">    Deliberately simple and dependency-free: an exact ``==`` or bare version must match the</span>
+<span class="sd">    baked version; anything else (ranges like ``&gt;=2``, ``&lt;0.5``) is treated as compatible so the</span>
+<span class="sd">    report does not raise false clashes. The report is advisory, not an installer.</span>
+<span class="sd">    """</span>
+    <span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">spec</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"=="</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">spec</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="n">baked_version</span>
+    <span class="c1"># A bare version with no operator (e.g. report entry already reduced to "2.1.0").</span>
+    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^[0-9]"</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">spec</span> <span class="o">==</span> <span class="n">baked_version</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DependencyReportEntry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One row of a :class:`DependencyReport`.</span>
+
+<span class="sd">    ``status`` is one of ``"baked"`` (already in the image, don't bring), ``"bring"`` (upload a</span>
+<span class="sd">    wheel), or ``"clash"`` (the image ships a different version).</span>
+<span class="sd">    """</span>
+
+    <span class="n">requirement</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">note</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DependencyReport</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">DependencyReportEntry</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">"""A list of :class:`DependencyReportEntry` that prints as an aligned table.</span>
+
+<span class="sd">    Behaves like an ordinary list; only ``str``/``repr`` differ so</span>
+<span class="sd">    ``print(client.dependency_report([...]))`` shows the table without the caller iterating.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_format_dependency_report</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_format_dependency_report</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_dependency_report</span><span class="p">(</span><span class="n">entries</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">DependencyReportEntry</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"requirement"</span><span class="p">,</span> <span class="s2">"status"</span><span class="p">,</span> <span class="s2">"note"</span><span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span><span class="n">header</span><span class="p">]</span> <span class="o">+</span> <span class="p">[(</span><span class="n">e</span><span class="o">.</span><span class="n">requirement</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">note</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">]</span>
+    <span class="n">widths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">])</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">"  "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="n">widths</span><span class="p">[</span><span class="n">col</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">row</span><span class="p">))</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="ServerlessClient">
@@ -1109,9 +1190,12 @@
     <span class="c1">####### FILES #######</span>
     <span class="c1">#####################</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">"""Returns the list of files available for the user in the Qiskit Function folder."""</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Returns the list of files available for the user in the Qiskit Function folder.</span>
+
+<span class="sd">        ``sub_path`` optionally lists a sub-directory of the function's folder (e.g. ``"wheels"``).</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">provider_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""Returns the list of files available for the provider in the Qiskit Function folder."""</span>
@@ -1137,21 +1221,120 @@
 <span class="w">        </span><span class="sd">"""Download a file available to the provider for the specific Qiskit Function."""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_download</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Deletes a file available to the user for the specific Qiskit Function."""</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Deletes a file available to the user for the specific Qiskit Function.</span>
+
+<span class="sd">        ``sub_path`` optionally targets a sub-directory of the function's folder (e.g. ``"wheels"``).</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">provider_file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Deletes a file available to the provider for the specific Qiskit Function."""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_delete</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">"""Uploads a file in the specific user's Qiskit Function folder."""</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Uploads a file in the specific user's Qiskit Function folder.</span>
+
+<span class="sd">        ``sub_path`` optionally stores the file in a sub-directory of the function's folder</span>
+<span class="sd">        (e.g. ``"wheels"``).</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">provider_file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Uploads a file in the specific provider's Qiskit Function folder."""</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_wheels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">patterns</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Upload locally-built wheels to a function's file area.</span>
+
+<span class="sd">        Each pattern is a local path or glob (e.g. ``"dist/mypkg-1.0-*.whl"``); every match</span>
+<span class="sd">        must be a ``.whl`` file. This is a thin wrapper over :meth:`file_upload` that expands</span>
+<span class="sd">        the patterns and uploads each wheel into the function's ``wheels`` sub-directory, so</span>
+<span class="sd">        they are available to the function at runtime. Install them from your entrypoint with</span>
+<span class="sd">        ``install_uploaded_wheels()``, which reads that same directory. Use :meth:`list_wheels`</span>
+<span class="sd">        and :meth:`remove_wheels` to see and remove what has been uploaded.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            function: the function whose file area the wheels are uploaded to.</span>
+<span class="sd">            patterns: local paths or globs matching the wheel files to upload.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The uploaded wheel file names, in upload order.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: if a pattern matches no files, or a match is not a</span>
+<span class="sd">                ``.whl`` file.</span>
+<span class="sd">        """</span>
+        <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">patterns</span><span class="p">:</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No files match wheel pattern: </span><span class="si">{</span><span class="n">pattern</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">paths</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+
+        <span class="n">non_wheels</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".whl"</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">non_wheels</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"add_wheels only accepts .whl files; got: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">non_wheels</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+        <span class="n">uploaded</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_upload</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">sub_path</span><span class="o">=</span><span class="n">WHEELS_SUBDIR</span><span class="p">)</span>
+            <span class="n">uploaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">uploaded</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_wheels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""List the wheels currently uploaded to a function (via :meth:`add_wheels`).</span>
+
+<span class="sd">        Returns the wheel file names in the function's ``wheels`` sub-directory.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">sub_path</span><span class="o">=</span><span class="n">WHEELS_SUBDIR</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove_wheels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Remove previously uploaded wheels from a function.</span>
+
+<span class="sd">        To *update* a wheel, remove the old one and :meth:`add_wheels` the new build (a rebuild</span>
+<span class="sd">        with a different version has a different file name, so it would otherwise accumulate</span>
+<span class="sd">        alongside the old one and both would be installed).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            function: the function to remove wheels from.</span>
+<span class="sd">            names: wheel file names to remove, as returned by :meth:`list_wheels`.</span>
+<span class="sd">        """</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_delete</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">sub_path</span><span class="o">=</span><span class="n">WHEELS_SUBDIR</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">dependency_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requirements</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">"DependencyReport"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Diff your requirements against what the runtime image already ships.</span>
+
+<span class="sd">        For each requirement this reports whether it is already ``baked`` into the image (so you</span>
+<span class="sd">        should not bring it), needs to be brought as a wheel (``bring``), or ``clashes`` with a</span>
+<span class="sd">        different baked version. It is a client-side diff over :meth:`dependencies_versions`; it</span>
+<span class="sd">        uploads nothing. The result prints as an aligned table.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            requirements: requirement strings, e.g. ``["numpy&gt;=2", "mypkg", "jax&lt;0.5"]``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`DependencyReport` (a list of :class:`DependencyReportEntry` that prints as</span>
+<span class="sd">            a table).</span>
+<span class="sd">        """</span>
+        <span class="n">baked</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependencies_versions</span><span class="p">():</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">_split_requirement</span><span class="p">(</span><span class="n">dep</span><span class="p">)</span>
+            <span class="n">baked</span><span class="p">[</span><span class="n">_normalize_dep_name</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span> <span class="o">=</span> <span class="n">version</span>
+
+        <span class="n">entries</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">DependencyReportEntry</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">requirement</span> <span class="ow">in</span> <span class="n">requirements</span><span class="p">:</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">spec</span> <span class="o">=</span> <span class="n">_split_requirement</span><span class="p">(</span><span class="n">requirement</span><span class="p">)</span>
+            <span class="n">baked_version</span> <span class="o">=</span> <span class="n">baked</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">_normalize_dep_name</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">baked_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">status</span><span class="p">,</span> <span class="n">note</span> <span class="o">=</span> <span class="s2">"bring"</span><span class="p">,</span> <span class="s2">"not in image — upload a wheel"</span>
+            <span class="k">elif</span> <span class="n">spec</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">_spec_allows</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="n">baked_version</span><span class="p">):</span>
+                <span class="n">status</span><span class="p">,</span> <span class="n">note</span> <span class="o">=</span> <span class="s2">"clash"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"image ships </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">==</span><span class="si">{</span><span class="n">baked_version</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">status</span><span class="p">,</span> <span class="n">note</span> <span class="o">=</span> <span class="s2">"baked"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"already in image (</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">==</span><span class="si">{</span><span class="n">baked_version</span><span class="si">}</span><span class="s2">)"</span>
+            <span class="n">entries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DependencyReportEntry</span><span class="p">(</span><span class="n">requirement</span><span class="o">=</span><span class="n">requirement</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">note</span><span class="o">=</span><span class="n">note</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">DependencyReport</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span></div>
 
 
 

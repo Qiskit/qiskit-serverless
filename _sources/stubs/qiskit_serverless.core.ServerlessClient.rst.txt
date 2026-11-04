@@ -14,9 +14,11 @@
    .. autosummary::
    
       ~ServerlessClient.__init__
+      ~ServerlessClient.add_wheels
       ~ServerlessClient.compute_profile
       ~ServerlessClient.compute_profiles
       ~ServerlessClient.dependencies_versions
+      ~ServerlessClient.dependency_report
       ~ServerlessClient.events
       ~ServerlessClient.file_delete
       ~ServerlessClient.file_download
@@ -33,6 +35,7 @@
       ~ServerlessClient.job
       ~ServerlessClient.jobs
       ~ServerlessClient.list
+      ~ServerlessClient.list_wheels
       ~ServerlessClient.logs
       ~ServerlessClient.provider_file_delete
       ~ServerlessClient.provider_file_download
@@ -40,6 +43,7 @@
       ~ServerlessClient.provider_files
       ~ServerlessClient.provider_jobs
       ~ServerlessClient.provider_logs
+      ~ServerlessClient.remove_wheels
       ~ServerlessClient.result
       ~ServerlessClient.run
       ~ServerlessClient.runtime_jobs

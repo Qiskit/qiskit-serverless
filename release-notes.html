@@ -207,6 +207,7 @@
 <li class="toctree-l2"><a class="reference internal" href="function_features/basic/02_arguments_and_results.html">Passing input arguments to your Qiskit Function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="function_features/basic/03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="function_features/basic/04_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="function_features/basic/05_bring_your_own_wheels.html">Bring your own wheels</a></li>
 <li class="toctree-l2"><a class="reference internal" href="function_features/experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="function_features/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
 </ul>
@@ -307,6 +308,25 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Link to this heading">¶</a></h2>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Added a way to bring Python packages that are not baked into the runtime
+image: build a wheel locally, upload it with your function, and install it
+from your entrypoint at run time.</p>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_wheels()</span></code> uploads local wheel
+files (paths or globs) to a function’s file area.</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">dependency_report()</span></code> diffs a list of
+requirements against what the runtime image already ships, reporting each as
+already present, to bring as a wheel, or clashing with a baked version. It is
+a client-side check and uploads nothing.</p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">install_uploaded_wheels()</span></code>, called from the entrypoint,
+installs the uploaded wheels offline and makes them importable.</p></li>
+</ul>
+<p>Wheels are installed on every execution, and each wheel must contain everything
+it needs that is not already shipped in the image. See the “Bring your own
+wheels” guide in the function-features documentation.</p>
+</li>
+</ul>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BackgroundExecutor.submit</span></code> accepts an optional <code class="docutils literal notranslate"><span class="pre">replace_key</span></code>: a task
 that is still waiting with the same key in the same pool is replaced by the

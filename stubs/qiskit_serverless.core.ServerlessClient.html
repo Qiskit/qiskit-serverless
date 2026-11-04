@@ -207,6 +207,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../function_features/basic/02_arguments_and_results.html">Passing input arguments to your Qiskit Function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../function_features/basic/03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../function_features/basic/04_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../function_features/basic/05_bring_your_own_wheels.html">Bring your own wheels</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../function_features/experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../function_features/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
 </ul>
@@ -351,28 +352,34 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#qiskit_serverless.core.ServerlessClient.__init__" title="qiskit_serverless.core.ServerlessClient.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([host, version, token, instance, ...])</p></td>
 <td><p>Initializes the ServerlessClient instance.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_profile</span></code>([compute_profile_id, cpu, ...])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_wheels</span></code>(function, patterns)</p></td>
+<td><p>Upload locally-built wheels to a function's file area.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_profile</span></code>([compute_profile_id, cpu, ...])</p></td>
 <td><p>Get a single registered compute profile, by id or by exact resources.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_profiles</span></code>()</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_profiles</span></code>()</p></td>
 <td><p>Get the compute profiles registered on this deployment.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">dependencies_versions</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">dependencies_versions</span></code>()</p></td>
 <td><p>Discover the dependencies (and versions) baked into the runtime image.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">dependency_report</span></code>(requirements)</p></td>
+<td><p>Diff your requirements against what the runtime image already ships.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">events</span></code>(job_id, **kwargs)</p></td>
 <td><p>Returns events of the job.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_delete</span></code>(file, function)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_delete</span></code>(file, function[, sub_path])</p></td>
 <td><p>Deletes a file available to the user for the specific Qiskit Function.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_download</span></code>(file, function[, target_name, ...])</p></td>
 <td><p>Download a file available to the user for the specific Qiskit Function.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_upload</span></code>(file, function)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_upload</span></code>(file, function[, sub_path])</p></td>
 <td><p>Uploads a file in the specific user's Qiskit Function folder.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">files</span></code>(function)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">files</span></code>(function[, sub_path])</p></td>
 <td><p>Returns the list of files available for the user in the Qiskit Function folder.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">filtered_logs</span></code>(job_id, **kwargs)</p></td>
@@ -408,26 +415,32 @@
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>([provider])</p></td>
 <td><p>Returns list of available programs.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>(job_id)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list_wheels</span></code>(function)</p></td>
+<td><p>List the wheels currently uploaded to a function (via <code class="xref py py-meth docutils literal notranslate"><span class="pre">add_wheels()</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>(job_id)</p></td>
 <td><p>Return logs.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_delete</span></code>(file, function)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_delete</span></code>(file, function)</p></td>
 <td><p>Deletes a file available to the provider for the specific Qiskit Function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_download</span></code>(file, function[, ...])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_download</span></code>(file, function[, ...])</p></td>
 <td><p>Download a file available to the provider for the specific Qiskit Function.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_upload</span></code>(file, function)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_file_upload</span></code>(file, function)</p></td>
 <td><p>Uploads a file in the specific provider's Qiskit Function folder.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_files</span></code>(function)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_files</span></code>(function)</p></td>
 <td><p>Returns the list of files available for the provider in the Qiskit Function folder.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_jobs</span></code>(function, **kwargs)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_jobs</span></code>(function, **kwargs)</p></td>
 <td><p>Retrieve jobs for a specific provider and function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_logs</span></code>(job_id)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider_logs</span></code>(job_id)</p></td>
 <td><p>Return provider logs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_wheels</span></code>(function, names)</p></td>
+<td><p>Remove previously uploaded wheels from a function.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>(job_id)</p></td>
 <td><p>Return results.</p></td>

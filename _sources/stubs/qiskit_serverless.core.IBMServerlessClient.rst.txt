@@ -14,11 +14,13 @@
    .. autosummary::
    
       ~IBMServerlessClient.__init__
+      ~IBMServerlessClient.add_wheels
       ~IBMServerlessClient.backend
       ~IBMServerlessClient.backends
       ~IBMServerlessClient.compute_profile
       ~IBMServerlessClient.compute_profiles
       ~IBMServerlessClient.dependencies_versions
+      ~IBMServerlessClient.dependency_report
       ~IBMServerlessClient.events
       ~IBMServerlessClient.file_delete
       ~IBMServerlessClient.file_download
@@ -36,6 +38,7 @@
       ~IBMServerlessClient.jobs
       ~IBMServerlessClient.least_busy
       ~IBMServerlessClient.list
+      ~IBMServerlessClient.list_wheels
       ~IBMServerlessClient.logs
       ~IBMServerlessClient.provider_file_delete
       ~IBMServerlessClient.provider_file_download
@@ -43,6 +46,7 @@
       ~IBMServerlessClient.provider_files
       ~IBMServerlessClient.provider_jobs
       ~IBMServerlessClient.provider_logs
+      ~IBMServerlessClient.remove_wheels
       ~IBMServerlessClient.result
       ~IBMServerlessClient.run
       ~IBMServerlessClient.runtime_jobs
