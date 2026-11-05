@@ -13,7 +13,7 @@ import pytest
 from prometheus_client import CollectorRegistry
 
 from core.config_key import ConfigKey
-from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
+from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, JobStoragePaths, Program
 from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.main import Main
@@ -92,6 +92,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
 
     fillers = Job.objects.filter(filler=True)
     assert fillers.count() == 4
+    assert JobStoragePaths.objects.filter(job__in=fillers).count() == 4
     assert submit.call_count == 4
     assert arguments.call_count == 4
     assert {job.compute_profile_fk for job in fillers} == {filler_program.default_size.compute_profile}

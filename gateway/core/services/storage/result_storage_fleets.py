@@ -17,8 +17,8 @@ import logging
 from ibm_botocore.exceptions import ClientError
 
 from core.ibm_cloud import get_cos_client
-from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Job
+from core.services.storage.job_storage_paths import get_storage_paths
 from core.services.storage.result_storage import ResultStorage
 
 logger = logging.getLogger("core.FleetsResultStorage")
@@ -34,26 +34,20 @@ class FleetsResultStorage(ResultStorage):
     NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
     def __init__(self, job: Job) -> None:
-        """Initialize the storage with COS path information from the job's program.
+        """Initialize the storage with the bucket and key saved for the job.
 
         Args:
             job: The Job instance to retrieve results for.
+
+        Raises:
+            ValueError: If the job has no saved paths and they can't be built from its function's project.
         """
         self._job_id = str(job.id)
         self._user_id = job.author.id
         self._project = job.program.code_engine_project
-        paths = build_job_paths(job)
-        self._results_key = paths.cos_results_key
-        self._user_bucket = self._load_user_bucket()
-
-    def _load_user_bucket(self) -> str:
-        """Return the user data bucket name, raising ValueError if not configured."""
-        user_bucket = self._project.cos_bucket_user_data_name
-        if not user_bucket:
-            raise ValueError(
-                f"CodeEngineProject '{self._project.project_name}' has no cos_bucket_user_data_name configured"
-            )
-        return user_bucket
+        paths = get_storage_paths(job)
+        self._results_key = paths.results_key
+        self._user_bucket = paths.user_bucket
 
     def get(self) -> str | None:
         """Retrieve the result for this job from COS.

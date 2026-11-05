@@ -21,10 +21,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from core.ibm_cloud import get_cos_client
-from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.models import Program
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.file_storage_ray import FileStorageRay
+from core.services.storage.job_storage_paths import get_storage_paths
 from core.services.storage.logs_storage_ray import RayLogsStorage
 from core.services.storage.result_storage_ray import RayResultStorage
 
@@ -99,29 +99,20 @@ class JobFileExplorer:
         return FileGroup(category="Function artifact", files=[entry])
 
     def _explore_fleets(self, job: Job) -> list[FileGroup]:
-        paths = build_job_paths(job)
-        project = job.program.code_engine_project
-        cos = get_cos_client(project)
-        user_bucket = project.cos_bucket_user_data_name
+        paths = get_storage_paths(job)
+        cos = get_cos_client(job.program.code_engine_project)
         groups: list[FileGroup] = []
 
-        group = self._list_cos_group("Data Files", cos, user_bucket, paths.cos_user_function_prefix)
-        if group:
-            groups.append(group)
-
-        group = self._list_cos_group("Job Files", cos, user_bucket, paths.cos_user_job_prefix)
-        if group:
-            groups.append(group)
-
-        if paths.cos_provider_function_prefix:
-            provider_bucket = project.cos_bucket_provider_data_name
-            group = self._list_cos_group("Provider Data", cos, provider_bucket, paths.cos_provider_function_prefix)
-            if group:
-                groups.append(group)
-
-        if paths.cos_provider_job_prefix:
-            provider_bucket = project.cos_bucket_provider_data_name
-            group = self._list_cos_group("Provider Job Files", cos, provider_bucket, paths.cos_provider_job_prefix)
+        listings = [
+            ("Data Files", paths.user_bucket, paths.user_function_prefix),
+            ("Job Files", paths.user_bucket, paths.user_job_prefix),
+            ("Provider Data", paths.provider_bucket, paths.provider_function_prefix),
+            ("Provider Job Files", paths.provider_bucket, paths.provider_job_prefix),
+        ]
+        for category, bucket, prefix in listings:
+            if not prefix:
+                continue
+            group = self._list_cos_group(category, cos, bucket, prefix)
             if group:
                 groups.append(group)
 
