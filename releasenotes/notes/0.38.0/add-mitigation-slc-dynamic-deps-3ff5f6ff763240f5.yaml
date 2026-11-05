@@ -1,5 +1,5 @@
 ---
-features:
+upgrade:
   - |
     Added ``qiskit-mitigation==0.1.1`` and ``qiskit-addon-slc==0.2.0`` to the
     dynamic dependencies allowlist bundled in the custom functions image. Qiskit
