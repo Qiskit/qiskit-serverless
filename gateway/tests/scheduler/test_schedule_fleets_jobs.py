@@ -12,6 +12,9 @@ from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
+# the breakers read their thresholds from Config
+pytestmark = pytest.mark.django_db
+
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
 
 
@@ -23,6 +26,11 @@ def _fleets_limits():
         f"{_MOD}.Config.get_int", side_effect=lambda key, **kw: config[key] if key in config else get_int(key, **kw)
     ):
         yield config
+
+
+@pytest.fixture(autouse=True)
+def _config_defaults(db):
+    Config.add_defaults()
 
 
 @pytest.fixture(autouse=True)
@@ -170,7 +178,7 @@ def test_a_job_in_a_paused_region_is_not_submitted():
 def test_a_failed_submit_keeps_its_free_fleet():
     jobs = [_job(), _job()]
 
-    submitted, _ = _schedule(jobs, lambda project: 1, submits=[RunnerError("refused"), True])
+    submitted, _ = _schedule(jobs, lambda project, region: 1, submits=[RunnerError("refused"), True])
 
     assert submitted == jobs
 
@@ -178,7 +186,7 @@ def test_a_failed_submit_keeps_its_free_fleet():
 def test_a_project_with_no_free_fleet_keeps_its_jobs_queued():
     full, other = _job("full"), _job("other")
 
-    submitted, _ = _schedule([full, other], lambda project: 0 if project.project_name == "full" else math.inf)
+    submitted, _ = _schedule([full, other], lambda project, region: 0 if project.project_name == "full" else math.inf)
 
     assert submitted == [other]
 
@@ -186,7 +194,7 @@ def test_a_project_with_no_free_fleet_keeps_its_jobs_queued():
 def test_each_submit_takes_one_free_fleet_of_its_project():
     jobs = [_job(), _job(), _job()]
 
-    submitted, free_fleets = _schedule(jobs, lambda project: 2)
+    submitted, free_fleets = _schedule(jobs, lambda project, region: 2)
 
     assert submitted == jobs[:2]
     free_fleets.assert_called_once()
@@ -197,7 +205,7 @@ def test_a_job_without_an_active_project_is_not_counted():
     inactive = _job()
     inactive.program.code_engine_project.active = False
 
-    submitted, free_fleets = _schedule([no_project, inactive], lambda project: 0)
+    submitted, free_fleets = _schedule([no_project, inactive], lambda project, region: 0)
 
     assert submitted == [no_project, inactive]
     free_fleets.assert_not_called()
@@ -211,10 +219,25 @@ def test_free_fleets_is_the_quota_less_the_fleets_code_engine_counts(fleet_count
     fleet_count.side_effect = None
     fleet_count.return_value = count
 
-    assert ScheduleFleetsJobs._free_fleets(MagicMock()) == expected
+    assert _make_task()._free_fleets(MagicMock(), "eu-de") == expected
 
 
 def test_free_fleets_is_unlimited_when_code_engine_cannot_count(fleet_count):
     fleet_count.side_effect = RunnerRetryableError("Too Many Requests")
 
-    assert ScheduleFleetsJobs._free_fleets(MagicMock()) == math.inf
+    assert _make_task()._free_fleets(MagicMock(), "eu-de") == math.inf
+
+
+def test_a_count_that_fails_feeds_the_code_engine_breaker_and_one_that_works_resets_it(fleet_count):
+    task = _make_task()
+    project = MagicMock()
+    breaker = task.submitter.breakers.code_engine.get_breaker("eu-de")
+
+    fleet_count.side_effect = RunnerRetryableError("Too Many Requests")
+    task._free_fleets(project, "eu-de")
+    assert breaker._consecutive_failures == 1
+
+    fleet_count.side_effect = None
+    fleet_count.return_value = 3
+    task._free_fleets(project, "eu-de")
+    assert breaker._consecutive_failures == 0

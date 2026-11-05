@@ -90,7 +90,7 @@ class Destination:
         for region in self._pending_regions(channel):
             if not self._should_continue_draining(channel, deadline):
                 return
-            if self.get_breaker(region).is_open:
+            if self.get_breaker(region).is_open():
                 logger.info("Circuit breaker open, skipping channel=%s region=%s this tick", channel, region)
                 continue
             self._drain_region(channel, region, deadline)
@@ -112,7 +112,7 @@ class Destination:
         # region's rows from being sent in this tick. A row that fails is not due again for at least a second
         # (see _keep_for_retry), so the next fetch cannot find it and one tick makes at most one attempt per
         # row that is due.
-        while not breaker.is_open and self._should_continue_draining(channel, deadline):
+        while not breaker.is_open() and self._should_continue_draining(channel, deadline):
             # Rows that never failed go first, then the oldest of the rest. A pile of rows that always fail
             # (each due again after its wait) can then never be what a whole batch is made of, and keep the
             # breaker from closing on a success, while a fresh row is waiting behind it.
@@ -170,7 +170,7 @@ class Destination:
         against the breaker right away, and once it opens the rest of the batch is left untouched, like the
         rows the budget or a kill signal cut off."""
         for row in batch:
-            if breaker.is_open or not self._should_continue_draining(channel, deadline):
+            if breaker.is_open() or not self._should_continue_draining(channel, deadline):
                 return
             try:
                 self.sender.send(row.payload)

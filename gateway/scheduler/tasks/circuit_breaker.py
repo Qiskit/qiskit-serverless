@@ -1,13 +1,17 @@
 """In-memory circuit breaker for a scheduler task's outbound sends.
 
-Not persisted: a process restart resets it to closed. The scheduler is single-threaded (one instance
-per task, used only from the main loop), so no locking is needed here.
+Not persisted: a process restart resets it to closed. The scheduler runs several loops, each in its own thread, and
+the Fleets breakers are shared between them (the submitter and the canceller feed the same ones), so every method
+that reads or writes the state of a breaker holds its lock. That includes the read of a Config entry, which hits the
+database only when its cache entry has expired.
 """
 
+import threading
 import time
 
 from core.config_key import ConfigKey
 from core.models import Config
+from core.synchronized import synchronized
 
 DEFAULT_FAILURE_THRESHOLD = 5
 DEFAULT_PAUSE_SECONDS = 60
@@ -25,23 +29,27 @@ class CircuitBreaker:
     def __init__(self, failure_threshold_key: ConfigKey, pause_seconds_key: ConfigKey):
         self._failure_threshold_key = failure_threshold_key
         self._pause_seconds_key = pause_seconds_key
+        self._lock = threading.Lock()
         self._consecutive_failures = 0
         self._opened_at: float | None = None
 
-    @property
+    @synchronized
     def is_open(self) -> bool:
         """Whether sends should currently be skipped."""
         if self._opened_at is None:
             return False
         if time.monotonic() - self._opened_at >= self._pause_seconds():
-            self._reset()
+            self._consecutive_failures = 0
+            self._opened_at = None
             return False
         return True
 
+    @synchronized
     def record_success(self) -> None:
         """Reset the failure streak after a successful send."""
         self._consecutive_failures = 0
 
+    @synchronized
     def record_failure(self) -> None:
         """Count one failed send, opening the breaker once the threshold is reached."""
         self._consecutive_failures += 1
@@ -53,7 +61,3 @@ class CircuitBreaker:
 
     def _pause_seconds(self) -> int:
         return Config.get_int(self._pause_seconds_key, default=DEFAULT_PAUSE_SECONDS)
-
-    def _reset(self) -> None:
-        self._consecutive_failures = 0
-        self._opened_at = None

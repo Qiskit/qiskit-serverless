@@ -166,7 +166,7 @@ status after the transition has committed, never inside its transaction. Only th
 requests (the stop endpoint and the backoffice button), which uses `WorkloadInlineMirror`: it sends `Stopping` on the
 thread of the request with a `PUT` of 2 seconds, counts nothing (the gateway has no Prometheus multiprocess mode) and
 only logs an error. It only sends for a
-job that has a `WorkloadMirror` row. The payload is built on the scheduler thread and the `PUT` runs on the
+job that has a `WorkloadMirror` row. The payload is built on the thread of a scheduler loop and the `PUT` runs on the
 `RUNTIME_API` background pool with the `replace_key` `job:<id>`, so a newer status replaces an older one that is
 still waiting. Any error is logged, counted in `workload_best_effort_mirror_total` and swallowed, except
 `OperationalError` and `InterfaceError`, which are re-raised so the scheduler still counts a database outage, and
@@ -359,7 +359,7 @@ for any channel using that destination, while the other regions are still sent.
   has elapsed, with the failure counter back at zero: it takes a whole new streak to open it again. A
   destination that is still down therefore costs one failure streak (the threshold) per pause, which is why
   both are tuned together (a lower threshold makes the streak cheap, a longer pause makes it rare). With the
-  defaults, and a failed Kafka batch costing about one flush timeout (5 s) of the single-threaded scheduler, an
+  defaults, and a failed Kafka batch costing about one flush timeout (5 s) of a scheduler loop, an
   outage costs roughly 15 s every 135 s (an estimate, not a measurement), and a recovered destination is picked
   up again after at most 2 minutes.
 - A region's breaker is checked right before each of its batches is sent, so a failure that

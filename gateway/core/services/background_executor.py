@@ -36,9 +36,8 @@ whether to submit more now or on the next tick (``free_slots`` counts new slots 
     done, not_done = concurrent.futures.wait(self.in_flight, timeout=0)  # timeout=0 does not block
 
 ``queued == 0`` alone is not enough to know that a task will start soon: the threads are shared, so another pool can
-be holding all of them. That is what ``idle_workers`` (the idle threads) tells. With a single thread submitting (the
-scheduler) the status can only get freer after it is read, so it is reliable; with several, check what ``submit``
-returns.
+be holding all of them. That is what ``idle_workers`` (the idle threads) tells. The scheduler submits from several
+threads (one per loop), so the status can change between reading it and submitting: check what ``submit`` returns.
 The future of a task that ran is resolved after its slot is free, so ``status`` right after a ``wait`` already counts
 it. A task cancelled with ``future.cancel()`` while it is still queued gives its slot back at once.
 

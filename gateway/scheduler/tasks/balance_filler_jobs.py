@@ -270,7 +270,7 @@ class BalanceFillerJobs(SchedulerTask):
             get_arguments_storage(job).save("{}")
             job.save()
         except DB_EXCEPTIONS:
-            # Never swallowed: main.py counts consecutive database failures to restart
+            # Never swallowed: scheduler/loop.py counts consecutive database failures to restart
             # the pod, and returning normally here would clear a streak.
             raise
         except Exception as ex:  # pylint: disable=broad-exception-caught

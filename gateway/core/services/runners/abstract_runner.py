@@ -34,6 +34,15 @@ class RunnerRetryableError(RunnerError):
     """A later try can work, for example after a 429, so the caller should not fail the row."""
 
 
+class UnrecognizedFleetTaskStateError(RunnerError):
+    """Code Engine probably renamed or added a state. The job update doesn't fail: the caller reads it as an
+    unknown status, which ends at the timeout."""
+
+    def __init__(self, message: str, states: list[str]):
+        super().__init__(message)
+        self.states = states
+
+
 class CosRetryableError(RunnerRetryableError):
     """A COS call a later try can fix, so the COS breaker is counted and not the Code Engine one."""
 

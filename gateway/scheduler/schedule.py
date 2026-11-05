@@ -1,6 +1,7 @@
 """Scheduling related functions."""
 
 import logging
+import threading
 import time
 from typing import List
 from datetime import datetime, timedelta
@@ -27,14 +28,14 @@ from core.services.runners import (
     RunnerError,
     RunnerRetryableError,
 )
+from core.warn_once import WarnOnce
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
 
 # Jobs whose cancel was refused, so first_cancel_refusal reports each one once.
-_REFUSED_CANCEL_WARNED: set[str] = set()
-_REFUSED_CANCEL_LIMIT = 10_000
+_REFUSED_CANCEL_WARNED = WarnOnce()
 
 
 def execute_ray_job(job: Job) -> Job:
@@ -78,20 +79,29 @@ class RegionBreakers:
 
     def __init__(self) -> None:
         self.breakers: dict[str | None, CircuitBreaker] = {}
+        # Loops in different threads share these breakers: two threads asking for a new region at once must get
+        # the same breaker, or the failures counted on one of them would be lost.
+        self._lock = threading.Lock()
 
     def get_breaker(self, region: str | None) -> CircuitBreaker:
         """The circuit breaker for this region (null included), built the first time it is asked for."""
-        if region not in self.breakers:
-            self.breakers[region] = build_fleets_circuit_breaker()
-        return self.breakers[region]
+        with self._lock:
+            if region not in self.breakers:
+                self.breakers[region] = build_fleets_circuit_breaker()
+            return self.breakers[region]
+
+    def snapshot(self) -> list[tuple[str | None, CircuitBreaker]]:
+        """The breakers built so far, as a copy that is safe to loop over while another thread adds a region."""
+        with self._lock:
+            return list(self.breakers.items())
 
     def paused(self, region: str | None) -> bool:
         """Whether the breaker of this region is open."""
-        return self.get_breaker(region).is_open
+        return self.get_breaker(region).is_open()
 
     def paused_regions(self) -> list[str | None]:
         """The regions whose breaker is open right now, out of the ones asked for so far."""
-        return [region for region, breaker in self.breakers.items() if breaker.is_open]
+        return [region for region, breaker in self.snapshot() if breaker.is_open()]
 
 
 class FleetsBreakers:
@@ -271,7 +281,7 @@ class FleetsJobCanceller:
             return False
 
         breaker = self.breakers.code_engine.get_breaker(job.ce_region)
-        if breaker.is_open:
+        if breaker.is_open():
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
             written = self.transitions.stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
@@ -287,7 +297,7 @@ class FleetsJobCanceller:
             breaker.record_success()
             raise
         breaker.record_success()
-        _REFUSED_CANCEL_WARNED.discard(str(job.id))
+        _REFUSED_CANCEL_WARNED.forget(str(job.id))
         return written == Job.STOPPING
 
 
@@ -331,12 +341,7 @@ def first_cancel_refusal(job: Job) -> bool:
     Both scheduler callers ask again every tick for as long as the job is active, so they report the
     first refusal and drop to debug after it.
     """
-    if str(job.id) in _REFUSED_CANCEL_WARNED:
-        return False
-    if len(_REFUSED_CANCEL_WARNED) >= _REFUSED_CANCEL_LIMIT:
-        _REFUSED_CANCEL_WARNED.clear()
-    _REFUSED_CANCEL_WARNED.add(str(job.id))
-    return True
+    return _REFUSED_CANCEL_WARNED.first(str(job.id))
 
 
 def get_jobs_to_schedule_fair_share(

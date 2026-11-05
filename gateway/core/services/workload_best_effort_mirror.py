@@ -1,9 +1,10 @@
 """Best effort mirror of the intermediate statuses of a Functions job (Pending, Running, Stopping) to the Runtime API.
 
 The terminal status does not go through here: it goes through the WORKLOAD outbox channel, which guarantees delivery
-and repairs any intermediate status lost here. ``send`` runs on the scheduler thread, and only the network call runs on
-the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for the Runtime API. The gateway has no
-background executor, so it uses ``WorkloadInlineMirror``, which makes the call on the thread of the request.
+and repairs any intermediate status lost here. ``send`` runs on the thread of a scheduler loop, and only the network
+call runs on the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for the Runtime API. The
+gateway has no background executor, so it uses ``WorkloadInlineMirror``, which makes the call on the thread of the
+request.
 """
 
 import logging

@@ -36,6 +36,7 @@ from core.services.runners.abstract_runner import (
     CosRetryableError,
     RunnerError,
     RunnerRetryableError,
+    UnrecognizedFleetTaskStateError,
 )
 from core.domain.exceptions.retryable_error import RetryableError
 from core.external_call_metrics import FLEET_SUBMIT_UPLOAD, observe_operation
@@ -58,12 +59,6 @@ from core.ibm_cloud.code_engine.fleets.utils import (
 )
 
 logger = logging.getLogger("FleetsRunner")
-
-# Fleets already warned about an unresolved task state. The scheduler is a single
-# long-lived, single-threaded process, so this keeps one warning per fleet instead of
-# one per poll. Bounded because a scheduler runs for weeks.
-_UNRESOLVED_WARNED: set[str] = set()
-_WARNED_FLEETS_LIMIT = 10_000
 
 
 # Code Engine accepts lowercase alphanumerics and hyphens in a fleet name. On staging it accepted 64
@@ -349,7 +344,6 @@ class FleetsRunner(AbstractRunner):
 
         for state, status in self._STATE_TO_JOB_STATUS:
             if state in found:
-                _UNRESOLVED_WARNED.discard(self.job.fleet_id)
                 if status in Job.TERMINAL_STATUSES:
                     # The segment after the state is the result code, so a terminal
                     # state alone does not prove the task exited zero. Log the whole
@@ -361,31 +355,13 @@ class FleetsRunner(AbstractRunner):
                     logger.debug("Fleet [%s] COS status: %s", self.job.fleet_id, status)
                 return status
 
-        self._warn_unresolved_state(prefix, keys, found)
+        if found:
+            # Keys that carry a state, none of them known. No keys at all, or only a directory marker, is not this.
+            raise UnrecognizedFleetTaskStateError(
+                f"Fleet [{self.job.fleet_id}] has task states {sorted(found)} under {prefix}, none of them known",
+                sorted(found),
+            )
         return None
-
-    def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
-        """Report a listing that held keys but no state this gateway recognises.
-
-        Warns once per fleet rather than once per poll: the scheduler re-polls every
-        running job roughly every second, and the condition this reports, a Code Engine
-        state rename, would hit every fleet at once and bury the logs exactly when they
-        are needed.
-
-        Args:
-            prefix: The queue prefix that was read.
-            keys: The keys found under it.
-            found: States parsed from those keys, mapped to the key that produced each.
-        """
-        message = "Fleet [%s] has %s task state key(s) under %s but no known state (found %s, samples %s)"
-        args = (self.job.fleet_id, len(keys), prefix, sorted(found), keys[:3])
-        if self.job.fleet_id in _UNRESOLVED_WARNED:
-            logger.debug(message, *args)
-            return
-        if len(_UNRESOLVED_WARNED) >= _WARNED_FLEETS_LIMIT:
-            _UNRESOLVED_WARNED.clear()
-        _UNRESOLVED_WARNED.add(self.job.fleet_id)
-        logger.warning(message, *args)
 
     def _resolve_task_state_keys(self, bucket: str, project_id: str, fleet_id: str) -> tuple[str, list[str]]:
         """Find the queue prefix holding this fleet's task state, with its keys.
