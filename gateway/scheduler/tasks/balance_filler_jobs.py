@@ -17,7 +17,7 @@ from core.services.storage import get_arguments_storage
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
-from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter, first_cancel_refusal
+from scheduler.schedule import FleetsJobCanceller, FleetsJobSubmitter
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.BalanceFillerJobs")
@@ -342,8 +342,7 @@ class BalanceFillerJobs(SchedulerTask):
             )
             return
         except RunnerError as ex:
-            log = logger.error if first_cancel_refusal(job) else logger.debug
-            log(
+            logger.warning(
                 "[BalanceFillerJobs] job_id=%s fleet_id=%s cancel could not be sent, the filler stays active: %s",
                 job.id,
                 job.fleet_id,

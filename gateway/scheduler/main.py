@@ -40,6 +40,7 @@ class Main:
     """
 
     def __init__(self, metrics: SchedulerMetrics):
+        self.loops = []
         self.kill_signal = KillSignal()
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
 
@@ -63,41 +64,41 @@ class Main:
 
         # Inside a loop the tasks run in order. Across loops there is no order, so a task that wants fresh data
         # reads what the database holds, which is at most one iteration of the other loop old.
-        self.loops = [
-            self.loop(
-                "ray",
-                # submit jobs, status change from QUEUED to PENDING/FAILED
-                ScheduleRayJobs(self.kill_signal, self.metrics),
-                UpdateRayJobsStatuses(self.kill_signal, self.metrics),
-                FreeRayResources(self.kill_signal, self.metrics),
-            ),
-            self.loop(
-                "fleets-schedule",
-                ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
-                StopBlockedFleetsJobs(self.kill_signal, canceller),
-                # keeps a scarce compute profile busy with filler jobs, which the other tasks leave alone
-                BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter, canceller),
-            ),
-            # alone, so a slow submit can never make it miss the PENDING and RUNNING states of a short job
-            self.loop(
-                "fleets-update",
-                UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions, canceller),
-            ),
-            self.loop(
-                "maintenance",
-                UpdateJobStatusCounts(self.kill_signal, self.metrics),
-                ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
-                OutboxTask(self.kill_signal, self.metrics),
-                FreeFleetsResources(self.kill_signal, self.metrics, breakers),
-                # last, so the gauge shows the cleanup breaker as this iteration left it. The submit and cancel
-                # breakers are fed by other loops, so the gauge can be one iteration of those loops behind
-                ExportFleetsBreakers(self.metrics, breakers),
-            ),
-        ]
+        self.add_loop(
+            "ray",
+            # submit jobs, status change from QUEUED to PENDING/FAILED
+            ScheduleRayJobs(self.kill_signal, self.metrics),
+            UpdateRayJobsStatuses(self.kill_signal, self.metrics),
+            FreeRayResources(self.kill_signal, self.metrics),
+        )
+        self.add_loop(
+            "fleets-schedule",
+            ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
+            StopBlockedFleetsJobs(self.kill_signal, canceller),
+            # keeps a scarce compute profile busy with filler jobs, which the other tasks leave alone
+            BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter, canceller),
+        )
 
-    def loop(self, name: str, *tasks: SchedulerTask) -> SchedulerLoop:
-        """A loop that runs these tasks in order, with what every loop shares."""
-        return SchedulerLoop(name, list(tasks), self.kill_signal, self.metrics, self.health)
+        # alone, so a slow submit can never make it miss the PENDING and RUNNING states of a short job
+        self.add_loop(
+            "fleets-update",
+            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions, canceller),
+        )
+
+        self.add_loop(
+            "maintenance",
+            UpdateJobStatusCounts(self.kill_signal, self.metrics),
+            ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
+            OutboxTask(self.kill_signal, self.metrics),
+            FreeFleetsResources(self.kill_signal, self.metrics, breakers),
+            # last, so the gauge shows the cleanup breaker as this iteration left it. The submit and cancel
+            # breakers are fed by other loops, so the gauge can be one iteration of those loops behind
+            ExportFleetsBreakers(self.metrics, breakers),
+        )
+
+    def add_loop(self, name: str, *tasks: SchedulerTask) -> None:
+        """Add a loop that runs these tasks in order, with what every loop shares."""
+        self.loops.append(SchedulerLoop(name, list(tasks), self.kill_signal, self.metrics, self.health))
 
     @property
     def tasks(self) -> list:

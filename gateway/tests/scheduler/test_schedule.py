@@ -33,7 +33,6 @@ from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import (
     check_job_timeout,
-    first_cancel_refusal,
     FleetsJobCanceller,
     FleetsBreakers,
     FleetsFleetDeleter,
@@ -766,15 +765,6 @@ def test_a_retryable_submit_error_records_a_fleet_submit_error_and_still_raises(
     assert _operation_count(operation_registry, "fleet_submit", "ok") == 0
 
 
-class TestFirstCancelRefusal:
-    """Both scheduler callers ask again every tick, so a refusal must report once, not once a second."""
-
-    def test_only_the_first_refusal_reports(self):
-        job = MagicMock(id="job-refused")
-
-        assert [first_cancel_refusal(job) for _ in range(3)] == [True, False, False]
-
-
 @pytest.mark.django_db
 class TestFleetsJobCanceller:
     """The scheduler's cancel: one try, and the region's breaker decides when to try again."""
@@ -795,16 +785,6 @@ class TestFleetsJobCanceller:
         assert canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS) is True
         assert canceller.paused("us-east") is False
         transitions.stop.assert_called_once()
-
-    def test_a_cancel_that_lands_lets_a_later_refusal_report_again(self):
-        """Without the discard the set only ever grows, and a job that recovers stays silenced."""
-        canceller, _ = self._canceller(returns=Job.STOPPING)
-        job = MagicMock(ce_region="us-east")
-        assert first_cancel_refusal(job) is True
-
-        canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
-
-        assert first_cancel_refusal(job) is True
 
     def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
         """False is Code Engine's own 404, so the region is answering."""

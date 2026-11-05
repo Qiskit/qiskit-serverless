@@ -28,14 +28,10 @@ from core.services.runners import (
     RunnerError,
     RunnerRetryableError,
 )
-from core.warn_once import WarnOnce
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 User: Model = get_user_model()
 logger = logging.getLogger("scheduler.schedule")
-
-# Jobs whose cancel was refused, so first_cancel_refusal reports each one once.
-_REFUSED_CANCEL_WARNED = WarnOnce()
 
 
 def execute_ray_job(job: Job) -> Job:
@@ -297,7 +293,6 @@ class FleetsJobCanceller:
             breaker.record_success()
             raise
         breaker.record_success()
-        _REFUSED_CANCEL_WARNED.forget(str(job.id))
         return written == Job.STOPPING
 
 
@@ -333,15 +328,6 @@ class FleetsFleetDeleter:
             breaker.record_success()
         else:
             breaker.record_failure()
-
-
-def first_cancel_refusal(job: Job) -> bool:
-    """True the first time this job's cancel is refused.
-
-    Both scheduler callers ask again every tick for as long as the job is active, so they report the
-    first refusal and drop to debug after it.
-    """
-    return _REFUSED_CANCEL_WARNED.first(str(job.id))
 
 
 def get_jobs_to_schedule_fair_share(

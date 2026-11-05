@@ -21,7 +21,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, program_timeout_hours
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, program_timeout_hours
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -237,8 +237,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.warning("job_id=%s fleet_id=%s cancel not delivered on timeout: %s", job.id, job.fleet_id, str(ex))
             return False
         except RunnerError as ex:
-            log = logger.error if first_cancel_refusal(job) else logger.debug
-            log(
+            logger.warning(
                 "job_id=%s fleet_id=%s cancel could not be sent, the job stays active: %s",
                 job.id,
                 job.fleet_id,

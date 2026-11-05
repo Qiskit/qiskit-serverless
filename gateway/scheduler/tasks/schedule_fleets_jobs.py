@@ -127,25 +127,18 @@ class ScheduleFleetsJobs(SchedulerTask):
         if project is None or not project.active:
             return None
         if project.id not in free_fleets:
-            free_fleets[project.id] = self._free_fleets(project, job.ce_region)
+            free_fleets[project.id] = self._free_fleets(project)
         return project
 
-    def _free_fleets(self, project: CodeEngineProject, region: str | None) -> float:
-        """How many more fleets the project can hold, or infinity when Code Engine could not count them.
-
-        It is a Code Engine call like the submit, so it feeds the same breaker, the one of the job's region (the
-        region the job was created with, which is what the submit uses). A region that answers nothing here gets
-        paused instead of being asked again on every pass.
-        """
-        breaker = self.submitter.breakers.code_engine.get_breaker(region)
+    @staticmethod
+    def _free_fleets(project: CodeEngineProject) -> float:
+        """How many more fleets the project can hold, or infinity when Code Engine could not count them."""
         try:
             with observe_operation(FLEET_COUNT):
                 count = count_fleets(project, COUNT_DEADLINE_SECONDS)
         except RunnerError as ex:
-            breaker.record_failure()
             logger.warning("project=%s fleets not counted, submitting anyway: %s", project.project_name, ex)
             return math.inf
-        breaker.record_success()
         quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
         logger.info("project=%s holds %s of %s fleets", project.project_name, count, quota)
         return max(0, quota - count)

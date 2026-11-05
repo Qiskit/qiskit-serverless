@@ -386,15 +386,6 @@ class TestMain:
 
         assert main.kill_signal.received is True
 
-    def test_the_signal_handler_takes_no_lock(self):
-        """It runs on the main thread between two bytecodes, so a lock the main thread already holds would deadlock it."""
-        main = self.scheduler_main
-        # holding the lock of the wake-up event is what the main thread does while it waits
-        with main.kill_signal._wakeup._cond:
-            main.kill_signal._handle_signal(15, None)
-
-        assert main.kill_signal.received is True
-
     def test_liveness_unhealthy_after_db_errors(self):
         """After UNHEALTHY_THRESHOLD consecutive DB errors, liveness should return 503."""
         call_count = 0

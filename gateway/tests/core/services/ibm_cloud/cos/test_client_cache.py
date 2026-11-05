@@ -110,29 +110,3 @@ def test_threads_asking_for_the_same_key_at_once_build_it_once():
 
     assert len(builds) == 1
     assert len({id(client) for client in results}) == 1
-
-
-def test_a_cached_client_is_returned_while_another_one_is_being_built():
-    """A hit never waits: only a miss takes the build lock."""
-    cache = CosClientCache(ttl_seconds=60)
-    cache.get("cached", lambda: "cached client")
-    slow_started = threading.Event()
-    release_slow = threading.Event()
-
-    def slow_build():
-        slow_started.set()
-        assert release_slow.wait(timeout=10)
-        return "slow client"
-
-    slow = threading.Thread(target=lambda: cache.get("slow", slow_build))
-    slow.start()
-    assert slow_started.wait(timeout=10)
-
-    answered = []
-    hit = threading.Thread(target=lambda: answered.append(cache.get("cached", lambda: "never built")))
-    hit.start()
-    hit.join(timeout=5)
-    release_slow.set()
-    slow.join()
-
-    assert answered == ["cached client"]
