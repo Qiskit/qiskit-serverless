@@ -797,8 +797,13 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">):</span>
             <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span>
             <span class="n">provider</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">provider</span>
+            <span class="n">ran_on_ray</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">runner</span> <span class="o">==</span> <span class="s2">"ray"</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">title</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+            <span class="c1"># A bare title gives us no runner to inspect, so we cannot tell locally whether this</span>
+            <span class="c1"># ran on Ray. The gateway still returns its deprecation text in the warning field</span>
+            <span class="c1"># below; we just surface it as a plain warning rather than a DeprecationWarning.</span>
+            <span class="n">ran_on_ray</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">"client.tracer"</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">"job.run"</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
@@ -831,7 +836,12 @@
             <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">"job.id"</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"warning"</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">"warning"</span><span class="p">],</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># The gateway returns the warning text (Ray deprecation, a blocked resource, or both)</span>
+            <span class="c1"># so every client, old or new, is covered. When we can see locally that the function</span>
+            <span class="c1"># ran on the deprecated Ray runner, raise the category to DeprecationWarning so it is</span>
+            <span class="c1"># filterable as one; otherwise keep the default warning category.</span>
+            <span class="n">category</span> <span class="o">=</span> <span class="ne">DeprecationWarning</span> <span class="k">if</span> <span class="n">ran_on_ray</span> <span class="k">else</span> <span class="ne">UserWarning</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">"warning"</span><span class="p">],</span> <span class="n">category</span><span class="o">=</span><span class="n">category</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">Job</span><span class="p">(</span>
             <span class="n">job_id</span><span class="p">,</span>
