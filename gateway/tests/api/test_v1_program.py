@@ -13,6 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from api.domain.arguments_schema import MAX_SCHEMA_LENGTH
+from core.config_key import ConfigKey
 from core.domain.business_models import BusinessModel
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
@@ -105,7 +106,13 @@ class TestProgramApiLegacyGroupsPermissions:
 
             response = client.post(
                 "/api/v1/programs/upload/",
-                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+                data={
+                    "title": "my-func",
+                    "provider": "my-provider",
+                    "dependencies": "[]",
+                    "entrypoint": "main.py",
+                    "runner": Program.RAY,
+                },
             )
 
             assert response.status_code == status.HTTP_200_OK
@@ -169,7 +176,7 @@ class TestProgramApi(APITestCase):
         Config.add_defaults()  # running a function reads the workload mirror flag
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
-        self.LIMITS_ACTIVE_JOBS_PER_USER = 2
+        self.active_jobs_limit = 2
         self.runner_permission = ["run_program", "api", "program"]
         self.viewer_permission = ["view_program", "api", "program"]
 
@@ -192,6 +199,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "arguments_schema": arguments_schema,
                     "artifact": fake_file,
+                    "runner": Program.RAY,
                 },
                 format="multipart",
             )
@@ -519,11 +527,9 @@ class TestProgramApi(APITestCase):
                 format="json",
             )
 
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, str(self.active_jobs_limit))
         with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(
-                LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER,
-                MEDIA_ROOT=temp_dir,
-            ):
+            with self.settings(MEDIA_ROOT=temp_dir):
                 user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
                 program = TestUtils.create_program(
                     program_title="Docker-Image-Program-Test",
@@ -537,27 +543,24 @@ class TestProgramApi(APITestCase):
                 num_jobs_in_queue = Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
 
                 # Checking that this test will run according to scripts
-                assert self.LIMITS_ACTIVE_JOBS_PER_USER > num_jobs_in_queue
+                assert self.active_jobs_limit > num_jobs_in_queue
 
                 # filling up the queue to the limit
-                for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_PER_USER):
+                for _ in range(num_jobs_in_queue, self.active_jobs_limit):
                     programs_response = run_program()
                     assert programs_response.status_code == status.HTTP_200_OK  # ok
 
                 # the user has a job with status `SUCCEEDED`.
                 # Checking it doesn't count it towards the limit
-                assert (
-                    self.LIMITS_ACTIVE_JOBS_PER_USER
-                    == Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
-                )
-                assert Job.objects.filter(author=user).count() > self.LIMITS_ACTIVE_JOBS_PER_USER
+                assert self.active_jobs_limit == Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
+                assert Job.objects.filter(author=user).count() > self.active_jobs_limit
 
                 # Failing to add a job to the queue
                 programs_response_fail = run_program()
                 assert programs_response_fail.status_code == status.HTTP_429_TOO_MANY_REQUESTS  # limit error
                 assert (
                     programs_response_fail.data.get("message") == f"Active job limit reached. The maximum allowed is "
-                    f"{self.LIMITS_ACTIVE_JOBS_PER_USER}."
+                    f"{self.active_jobs_limit}."
                 )
 
                 # Changing a queued job status to Fail and check we can submit another job.
@@ -565,10 +568,7 @@ class TestProgramApi(APITestCase):
                 job.status = Job.FAILED
                 job.save()
 
-                assert (
-                    self.LIMITS_ACTIVE_JOBS_PER_USER
-                    > Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
-                )
+                assert self.active_jobs_limit > Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
 
                 # lastly adding job to the queue
                 programs_response = run_program()
@@ -662,6 +662,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "env_vars": env_vars,
                     "artifact": fake_file,
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -742,6 +743,7 @@ class TestProgramApi(APITestCase):
                     "env_vars": env_vars,
                     "artifact": fake_file,
                     "provider": "default",
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -770,6 +772,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "env_vars": env_vars,
                     "artifact": fake_file,
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -842,6 +845,7 @@ class TestProgramApi(APITestCase):
                     "artifact": fake_file,
                     "provider": "default",
                     "description": description,
+                    "runner": Program.RAY,
                 },
             )
             assert programs_response.status_code == status.HTTP_200_OK
@@ -1080,6 +1084,7 @@ class TestProgramApi(APITestCase):
                     "entrypoint": "main.py",
                     "dependencies": "[]",
                     "artifact": fake_file_user,
+                    "runner": Program.RAY,
                 },
             )
             assert upload_response_user.status_code == status.HTTP_200_OK
@@ -1099,6 +1104,7 @@ class TestProgramApi(APITestCase):
                     "dependencies": "[]",
                     "artifact": fake_file_provider,
                     "provider": "default",
+                    "runner": Program.RAY,
                 },
             )
             assert upload_response_provider.status_code == status.HTTP_200_OK
@@ -1227,14 +1233,18 @@ class TestProgramApi(APITestCase):
         program = Program.objects.get(title="Fleetsfunction")
         assert program.runner == Program.FLEETS
 
-    def test_upload_without_runner_defaults_to_ray(self):
-        """Upload without runner field defaults to Program.RAY."""
+    def test_upload_without_runner_defaults_to_fleets(self):
+        """Upload without runner field defaults to Program.FLEETS."""
         fake_file = ContentFile(b"print('Hello World')")
         fake_file.name = "test_run.tar"
 
         TestUtils.authorize_client(user="test_user_2", client=self.client)
+        TestUtils.get_or_create_ce_project(project_name="test-project", project_id="test-id")
+        # A Fleets function needs a CE project and a seedable default size; neither is
+        # what this test is about, both just let the default-fleets upload succeed.
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
 
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, CE_DEFAULT_PROJECT_NAME="test-project"):
             response = self.client.post(
                 "/api/v1/programs/upload/",
                 data={
@@ -1247,7 +1257,7 @@ class TestProgramApi(APITestCase):
             assert response.status_code == status.HTTP_200_OK
 
         program = Program.objects.get(title="Defaultrunnerfunction")
-        assert program.runner == Program.RAY
+        assert program.runner == Program.FLEETS
 
     def test_upload_with_arguments_schema_stores_it(self):
         """Upload with arguments_schema saves the schema on the Program."""
@@ -1664,7 +1674,13 @@ class TestProgramApiRuntimeInstances:
 
             response = client.post(
                 "/api/v1/programs/upload/",
-                data={"title": "my-func", "provider": "my-provider", "dependencies": "[]", "entrypoint": "main.py"},
+                data={
+                    "title": "my-func",
+                    "provider": "my-provider",
+                    "dependencies": "[]",
+                    "entrypoint": "main.py",
+                    "runner": Program.RAY,
+                },
             )
 
             assert response.status_code == expected_status
@@ -1684,7 +1700,7 @@ class TestProgramApiRuntimeInstances:
 
             response = client.post(
                 "/api/v1/programs/upload/",
-                data={"title": "my-custom-func", "dependencies": "[]", "entrypoint": "main.py"},
+                data={"title": "my-custom-func", "dependencies": "[]", "entrypoint": "main.py", "runner": Program.RAY},
             )
 
             assert response.status_code == expected_status

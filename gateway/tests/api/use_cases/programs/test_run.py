@@ -84,7 +84,7 @@ def make_fleets_function(user, ce_project):
 
 class TestRunFunctionUseCase:
     def test_creates_job_for_own_function(self, user):
-        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
@@ -120,17 +120,18 @@ class TestRunFunctionUseCase:
 
         assert "function-custom.run" in str(exc_info.value)
 
-    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
     def test_raises_active_job_limit_after_function_resolved(self, user):
-        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "1")
+        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         Job.objects.create(program=function, author=user, status=Job.QUEUED)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(ActiveJobLimitExceeded):
+        with pytest.raises(ActiveJobLimitExceeded) as error:
             RunFunctionUseCase().execute(user, accessible, make_input())
+        assert error.value.message == "Active job limit reached. The maximum allowed is 1."
 
-    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
     def test_raises_not_found_not_limit_when_function_missing(self, user):
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "1")
         other = User.objects.create_user(username="other")
         other_fn = Program.objects.create(title="other-fn", author=other, entrypoint="main.py")
         Job.objects.create(program=other_fn, author=user, status=Job.QUEUED)
@@ -140,7 +141,7 @@ class TestRunFunctionUseCase:
             RunFunctionUseCase().execute(user, accessible, make_input(title="nonexistent-fn"))
 
     def test_rolls_back_job_and_config_when_creation_fails(self, user, monkeypatch):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         def boom(*args, **kwargs):
@@ -168,7 +169,7 @@ class TestRunFunctionUseCase:
 
     def test_ray_job_leaves_compute_profile_fk_null(self, user):
         """The Ray path has no profile; the FK stays null and no registration is required."""
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
@@ -247,7 +248,7 @@ class TestRunFunctionUseCase:
 
     def test_ray_job_ignores_function_size(self, user):
         """Ray ignores sizing inputs; a stray ``function_size`` leaves the profile and FK null."""
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
@@ -336,7 +337,7 @@ class TestWorkloadMirror:
         assert WorkloadMirror.objects.filter(job=job).exists()
 
     def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
 

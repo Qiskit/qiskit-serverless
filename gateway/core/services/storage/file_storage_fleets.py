@@ -14,6 +14,7 @@ from django.core.files import File
 
 from core.ibm_cloud import get_cos_client
 from core.models import Program
+from core.utils import sanitize_file_path, sanitize_sub_path
 
 logger = logging.getLogger("core.FileStorage")
 
@@ -74,27 +75,34 @@ class FileStorageFleets:
         self._user_bucket = self._load_user_bucket(function)
         self._provider_bucket = self._load_provider_bucket(function)
 
-    def get_public_files(self) -> list[str]:
+    def get_public_files(self, sub_path: str = "") -> list[str]:
         """
         This method returns a list of file names following the next rules:
             - It returns only files from a user or a provider file storage
             - Directories are excluded
 
+        Args:
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder to list (e.g. ``"wheels"``). Empty lists the folder root.
+
         Returns:
             list[str]: list of file names
         """
+        safe_sub_path = sanitize_sub_path(sub_path)
+        prefix = f"{self._public_folder_key}/{safe_sub_path}" if safe_sub_path else self._public_folder_key
         try:
-            files = get_cos_client(self._project).list_keys(
-                bucket_name=self._user_bucket, prefix=self._public_folder_key
-            )
+            keys = get_cos_client(self._project).list_keys(bucket_name=self._user_bucket, prefix=prefix)
             logger.info(
                 "[get-public-files] user_id=%s function_id=%s bucket=%s key=%s Files retrieved from COS",
                 self._user_id,
                 self._function_id,
                 self._user_bucket,
-                self._public_folder_key,
+                prefix,
             )
-            return [os.path.basename(f) for f in files]
+            # Only return files directly under `prefix` (exclude keys in deeper sub-directories),
+            # mirroring the non-recursive listing of the Ray backend.
+            relative = [k[len(prefix) :].lstrip("/") for k in keys]
+            return [os.path.basename(r) for r in relative if r and "/" not in r]
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code", "")
             if code in self.NOT_FOUND_CODES:
@@ -369,7 +377,7 @@ class FileStorageFleets:
             )
             return None
 
-    def upload_public_file(self, file: File) -> str:
+    def upload_public_file(self, file: File, sub_path: str = "") -> str:
         """
         This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
@@ -377,11 +385,18 @@ class FileStorageFleets:
 
         Args:
             file (django.File): the file to store in the specific path
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
-            str: the path where the file was stored
+            str: the path where the file (relative to the public folder) was stored
         """
-        key = f"{self._public_folder_key}/{file.name}"
+        # The file name and sub_path are sanitized at the API boundary; re-sanitize here for
+        # defense in depth, and never let either escape the function's public folder key.
+        basename = os.path.basename(sanitize_file_path(file.name))
+        safe_sub_path = sanitize_sub_path(sub_path)
+        relative_path = f"{safe_sub_path}/{basename}" if safe_sub_path else basename
+        key = f"{self._public_folder_key}/{relative_path}"
         try:
             get_cos_client(self._project).upload_fileobj(fileobj=file, bucket_name=self._user_bucket, key=key)
             logger.info(
@@ -391,7 +406,7 @@ class FileStorageFleets:
                 self._user_bucket,
                 key,
             )
-            return file.name
+            return relative_path
         except ClientError as e:
             logger.error(
                 "[upload-public-file] user_id=%s function_id=%s | COS error %s: %s",
@@ -438,18 +453,24 @@ class FileStorageFleets:
             )
             raise
 
-    def remove_public_file(self, file_name: str) -> bool:
+    def remove_public_file(self, file_name: str, sub_path: str = "") -> bool:
         """
         This method removes a file in the path of file_name
 
         Args:
             file_name (str): the name of the file to remove
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder the file lives in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             - True if it was deleted
             - False otherwise
         """
-        key = f"{self._public_folder_key}/{file_name}"
+        # Sanitize both name and sub_path so a key can never escape the function's folder.
+        basename = os.path.basename(sanitize_file_path(file_name))
+        safe_sub_path = sanitize_sub_path(sub_path)
+        relative_path = f"{safe_sub_path}/{basename}" if safe_sub_path else basename
+        key = f"{self._public_folder_key}/{relative_path}"
         try:
             get_cos_client(self._project).delete_object(bucket_name=self._user_bucket, key=key)
             logger.info(

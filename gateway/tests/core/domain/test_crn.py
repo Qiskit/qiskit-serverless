@@ -1,6 +1,10 @@
 """Unit tests for Crn.parse."""
 
-from core.domain.crn import Crn, regional_base_url
+import re
+
+import pytest
+
+from core.domain.crn import Crn, region_crn_regex, regional_base_url
 
 
 def test_parses_region_and_account():
@@ -34,3 +38,23 @@ def test_regional_base_url_keeps_the_bare_host_for_the_default_region_or_an_unpa
     assert regional_base_url(BASE, crn, "us-east") == BASE
     assert regional_base_url(BASE, "not-a-crn", "us-east") == BASE
     assert regional_base_url(BASE, None, "us-east") == BASE
+
+
+@pytest.mark.parametrize(
+    "crn",
+    [
+        "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        "crn:v1:bluemix:public:quantum-computing:us-east-2:a/acct:inst::",
+        "crn:v1:bluemix:public:quantum-computing:eu-de:a/acct:inst::",
+        "crn:v1:bluemix:public:quantum-computing::a/acct:inst::",
+        "not-a-crn",
+    ],
+)
+def test_region_crn_regex_matches_what_parse_reads(crn):
+    parsed = Crn.parse(crn)
+    for region in ("us-east", "us-east-2", "eu-de"):
+        assert bool(re.search(region_crn_regex(region), crn)) == (parsed is not None and parsed.region == region)
+
+
+def test_region_crn_regex_matches_the_region_literally():
+    assert not re.search(region_crn_regex("us.east"), "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::")

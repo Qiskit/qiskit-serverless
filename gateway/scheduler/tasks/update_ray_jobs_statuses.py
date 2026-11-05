@@ -12,11 +12,7 @@ from core.services.storage import get_logs_storage
 from core.models import Job, JobEvent, Program
 from core.services.runners import get_runner, RunnerError
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from scheduler.schedule import (
-    check_job_timeout,
-    fail_job_insufficient_resources,
-    latest_event_at,
-)
+from scheduler.schedule import check_job_timeout, fail_job_insufficient_resources, program_timeout_hours
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
@@ -73,12 +69,12 @@ class UpdateRayJobsStatuses(SchedulerTask):
 
         status_has_changed = False
         lines: FilteredLogs | None = None
-        if check_job_timeout(job, latest_event_at(job)):
+        if check_job_timeout(job, JobEvent.objects.first_running_at(job.id)):
             logger.warning(
                 "job_id=%s cluster=%s timeout=%s hours: job stopped.",
                 job.id,
                 job.compute_resource.title,
-                settings.PROGRAM_TIMEOUT,
+                program_timeout_hours(),
             )
             job_new_status = Job.STOPPED
 

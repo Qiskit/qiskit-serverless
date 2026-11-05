@@ -4,8 +4,8 @@ import logging
 
 from core.config_key import ConfigKey
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.models import BlockedCloudResource, Config, Job, Program
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.services.runners import RunnerError, RunnerRetryableError
 
 from scheduler.kill_signal import KillSignal
@@ -15,6 +15,12 @@ from .task import SchedulerTask
 logger = logging.getLogger("scheduler.StopBlockedFleetsJobs")
 
 _CONTEXT = JobEventContext.BLOCKED_RESOURCE_STOP
+# The client reads this code to explain a cancelled job's missing result, so it must not change
+BLOCKED_RESOURCE_ERROR_CODE = "BLOCKED_RESOURCE"
+BLOCKED_RESOURCE_ERROR_MESSAGE = (
+    "This job was cancelled because your account, plan or subscription is blocked, "
+    "so its result may be missing or incomplete. Run it again once the block is lifted."
+)
 
 
 class StopBlockedFleetsJobs(SchedulerTask):
@@ -39,14 +45,19 @@ class StopBlockedFleetsJobs(SchedulerTask):
         jobs = Job.objects.filter(
             blocked, runner=Program.FLEETS, filler=False, status__in=[Job.PENDING, Job.RUNNING]
         ).select_related("author", "program__provider", "program__code_engine_project")
+        stopped = []
         for job in jobs:
             if self.kill_signal.received:
-                return
-            self._stop(job)
+                break
+            if self._stop(job):
+                stopped.append(job)
+        # One insert per pass, so the pass stays flat however many jobs it stops
+        JobEvent.objects.bulk_create([_blocked_resource_error(job) for job in stopped])
 
-    def _stop(self, job: Job) -> None:
+    def _stop(self, job: Job) -> bool:
+        """True when the job was stopped, so it is owed the blocked-resource error event."""
         if self.canceller.paused(job.ce_region):
-            return
+            return False
 
         logger.warning(
             "job_id=%s account_id=%s plan_id=%s subscription_id=%s resource is blocked: stopping the job.",
@@ -58,6 +69,7 @@ class StopBlockedFleetsJobs(SchedulerTask):
         try:
             if not self.canceller.cancel(job, context=_CONTEXT):
                 self.canceller.transitions.to_stopped(job, origin=JobEventOrigin.SCHEDULER, context=_CONTEXT)
+            return True
         except RunnerRetryableError as ex:
             logger.warning("job_id=%s fleet_id=%s cancel not delivered: %s", job.id, job.fleet_id, str(ex))
         except RunnerError as ex:
@@ -65,3 +77,20 @@ class StopBlockedFleetsJobs(SchedulerTask):
             log("job_id=%s fleet_id=%s cancel could not be sent: %s", job.id, job.fleet_id, str(ex))
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping: %s", job.id, str(ex))
+        return False
+
+
+def _blocked_resource_error(job: Job) -> JobEvent:
+    """The ERROR event the client reads to explain why a stopped job has no result."""
+    return JobEvent(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=_CONTEXT,
+        event_type=JobEventType.ERROR,
+        data={
+            "code": BLOCKED_RESOURCE_ERROR_CODE,
+            "message": BLOCKED_RESOURCE_ERROR_MESSAGE,
+            "exception": "BlockedResource",
+            "args": {"account_id": job.account_id, "plan_id": job.plan_id, "subscription_id": job.subscription_id},
+        },
+    )

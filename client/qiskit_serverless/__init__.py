@@ -32,9 +32,11 @@ from .core import (
     get_runtime_service,
     send_error,
     ServerlessError,
+    install_uploaded_wheels,
 )
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
+from .core.compute_profile import ComputeProfile
 from .serializers import get_arguments, get_function_size, get_compute_profile
 from .utils import ServerlessRuntimeService, get_logger, get_provider_logger
 from .version import __version__

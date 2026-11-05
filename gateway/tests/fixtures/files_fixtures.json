@@ -69,6 +69,7 @@
         "model": "api.program",
         "pk": "6160a2ff-e482-443d-af23-15110b646ae2",
         "fields": {
+          "runner": "ray",
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "Program",
             "image": "icr.io/awesome-namespace/awesome-title",
@@ -84,6 +85,7 @@
         "model": "api.program",
         "pk": "5b7deef6-45e2-4142-9e31-efb9e32e3592",
         "fields": {
+          "runner": "ray",
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "personal-program",
             "entrypoint": "program.py",

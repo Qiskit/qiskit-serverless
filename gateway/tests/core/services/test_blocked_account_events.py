@@ -3,8 +3,9 @@ BlockedCloudResource a mirror of the blocked set."""
 
 import pytest
 
+from core.config_key import ConfigKey
 from core.ibm_cloud.event_streams.kafka_consumer import InvalidEventError
-from core.models import BlockedCloudResource
+from core.models import BlockedCloudResource, Config
 from core.services.blocked_account_events import BlockedAccountEventsService
 
 _MISSING = object()
@@ -96,13 +97,16 @@ class TestReasonsAndRegions:
 
     @pytest.mark.parametrize("lifted, still_blocking", [(_TOTAL_TOPIC, "non_quantum"), (_NON_QUANTUM_TOPIC, "total")])
     def test_lifting_one_limit_keeps_the_other_blocking(self, lifted, still_blocking):
+        Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
+        # Global matching: the regions are what this test varies
+        Config.set(ConfigKey.BLOCKED_RESOURCES_REGIONAL, "false")
         _handle(_event(), topic=_TOTAL_TOPIC)
         _handle(_event(), topic=_NON_QUANTUM_TOPIC)
 
         _handle(_event(deleted=True), topic=lifted)
 
         assert _reasons_and_regions() == [(still_blocking, "us-east")]
-        assert BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1")
+        assert BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1", None)
 
     def test_lifting_both_limits_unblocks_the_resource(self):
         _handle(_event(), topic=_TOTAL_TOPIC)
@@ -111,7 +115,7 @@ class TestReasonsAndRegions:
         _handle(_event(deleted=True), topic=_NON_QUANTUM_TOPIC)
         _handle(_event(deleted=True), topic=_TOTAL_TOPIC)
 
-        assert not BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1")
+        assert not BlockedCloudResource.blocks("acc-1", "plan-1", "sub-1", None)
 
     def test_an_unblock_in_one_region_keeps_another_regions_block(self):
         _handle(_event(), region="us-east")
