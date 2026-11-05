@@ -34,20 +34,15 @@ class CircuitBreaker:
 
     def is_open(self) -> bool:
         """Whether sends should currently be skipped."""
-        with self._lock:
-            opened_at = self._opened_at
-        if opened_at is None:
-            return False
         pause_seconds = self._pause_seconds()  # don't do this inside the lock: it can query the database
-        if time.monotonic() - opened_at < pause_seconds:
-            return True
         with self._lock:
-            # only the thread that still sees the same opening closes it, so a breaker that opened again meanwhile
-            # is not closed by a late caller
-            if self._opened_at == opened_at:
-                self._consecutive_failures = 0
-                self._opened_at = None
-        return False
+            if self._opened_at is None:
+                return False
+            if time.monotonic() - self._opened_at < pause_seconds:
+                return True
+            self._consecutive_failures = 0
+            self._opened_at = None
+            return False
 
     def record_success(self) -> None:
         """Reset the failure streak after a successful send."""

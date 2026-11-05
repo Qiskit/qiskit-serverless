@@ -100,11 +100,6 @@ class Main:
         """Add a loop that runs these tasks in order, with what every loop shares."""
         self.loops.append(SchedulerLoop(name, list(tasks), self.kill_signal, self.metrics, self.health))
 
-    @property
-    def tasks(self) -> list:
-        """Every task of every loop."""
-        return [task for loop in self.loops for task in loop.tasks]
-
     def start_http_server(self):
         """Start the internal HTTP server for probes and metrics."""
         if self.http_server.is_running():
@@ -117,7 +112,7 @@ class Main:
 
     def close_tasks(self):
         """Close every task, each on its own, so one that fails to close does not keep the others open."""
-        for task in self.tasks:
+        for task in (task for loop in self.loops for task in loop.tasks):
             try:
                 task.close()
             except Exception as ex:  # pylint: disable=broad-exception-caught

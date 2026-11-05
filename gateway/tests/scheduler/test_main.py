@@ -63,8 +63,12 @@ class TestMain:
         main = self.scheduler_main
         return SchedulerLoop(name, tasks, main.kill_signal, main.metrics, main.health)
 
+    @property
+    def tasks(self):
+        return [task for loop in self.scheduler_main.loops for task in loop.tasks]
+
     def task_of(self, task_type):
-        return next(task for task in self.scheduler_main.tasks if isinstance(task, task_type))
+        return next(task for task in self.tasks if isinstance(task, task_type))
 
     def loop_of(self, task_type):
         return next(
@@ -189,15 +193,15 @@ class TestMain:
 
     def test_every_task_has_a_distinct_name(self):
         """The task metrics are labeled by task name only, so two tasks with one name would add up."""
-        names = [task.name for task in self.scheduler_main.tasks]
+        names = [task.name for task in self.tasks]
 
         assert len(names) == len(set(names))
 
     def test_the_tasks_that_change_a_job_status_share_one_transition_service(self):
         """One service, so the Kafka producers of its sender are created once for the whole scheduler."""
         sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs)
-        tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
-        submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
+        tasks = [task for task in self.tasks if isinstance(task, sharing)]
+        submitters = [task.submitter for task in self.tasks if isinstance(task, ScheduleFleetsJobs)]
 
         assert len(tasks) == len(sharing)
         assert len({id(task.transitions) for task in tasks} | {id(s.transitions) for s in submitters}) == 1
@@ -209,17 +213,17 @@ class TestMain:
 
     def test_the_tasks_that_submit_fleets_jobs_share_one_submitter(self):
         sharing = (ScheduleFleetsJobs, BalanceFillerJobs)
-        tasks = [task for task in self.scheduler_main.tasks if isinstance(task, sharing)]
+        tasks = [task for task in self.tasks if isinstance(task, sharing)]
 
         assert len(tasks) == len(sharing)
         assert len({id(task.submitter) for task in tasks}) == 1
 
     def test_the_tasks_that_call_code_engine_share_one_fleets_breakers(self):
         sharing = (UpdateFleetsJobsStatuses, BalanceFillerJobs, StopBlockedFleetsJobs)
-        submitters = [task.submitter for task in self.scheduler_main.tasks if isinstance(task, ScheduleFleetsJobs)]
-        cancellers = [task.canceller for task in self.scheduler_main.tasks if isinstance(task, sharing)]
-        deleters = [task.deleter for task in self.scheduler_main.tasks if isinstance(task, FreeFleetsResources)]
-        exporters = [task for task in self.scheduler_main.tasks if isinstance(task, ExportFleetsBreakers)]
+        submitters = [task.submitter for task in self.tasks if isinstance(task, ScheduleFleetsJobs)]
+        cancellers = [task.canceller for task in self.tasks if isinstance(task, sharing)]
+        deleters = [task.deleter for task in self.tasks if isinstance(task, FreeFleetsResources)]
+        exporters = [task for task in self.tasks if isinstance(task, ExportFleetsBreakers)]
 
         assert submitters and len(cancellers) == len(sharing) and len(deleters) == 1 and len(exporters) == 1
         assert len({id(owner.breakers) for owner in submitters + cancellers + deleters + exporters}) == 1
