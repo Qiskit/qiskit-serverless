@@ -80,6 +80,7 @@ from qiskit_serverless.core.function import (
     QiskitFunction,
     RunService,
     RunnableQiskitFunction,
+    RAY_RUNNER_DEPRECATION,
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
@@ -774,6 +775,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     #########################
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
+        if program.runner == "ray":
+            warnings.warn(RAY_RUNNER_DEPRECATION, DeprecationWarning, stacklevel=2)
         if program.dependencies:
             warnings.warn(
                 "`dependencies=` is deprecated and no longer installs anything; it is accepted but "
