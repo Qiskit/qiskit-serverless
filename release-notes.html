@@ -8,7 +8,7 @@
         <link rel="prefetch" href="_static/images/qiskit-dark-logo.svg" as="image">
 
     <!-- Generated with Sphinx 7.4.7 and Furo 2025.12.19 -->
-        <title>Release Notes - Qiskit Serverless 0.37.0</title>
+        <title>Release Notes - Qiskit Serverless 0.38.0</title>
       <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="_static/styles/qiskit-sphinx-theme.css?v=fc6d6d93" />
@@ -158,7 +158,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">Qiskit Serverless 0.37.0</div></a>
+      <a href="index.html"><div class="brand">Qiskit Serverless 0.38.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -184,7 +184,7 @@
     <img class="sidebar-logo only-dark" src="_static/images/qiskit-dark-logo.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Qiskit Serverless 0.37.0</span>
+  <span class="sidebar-brand-text">Qiskit Serverless 0.38.0</span>
   
 </a>
 <form class="sidebar-search-container" method="get" action="search.html" role="search">
@@ -306,16 +306,12 @@
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Link to this heading">¶</a></h1>
 <section id="upcoming-qiskit-serverless-release">
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Link to this heading">¶</a></h2>
+<section id="prelude">
+<span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.38.0</span></code> makes Fleets the default execution backend for a function. A function has a <code class="docutils literal notranslate"><span class="pre">runner</span></code>, either <code class="docutils literal notranslate"><span class="pre">&quot;ray&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;fleets&quot;</span></code>, and a function uploaded without an explicit <code class="docutils literal notranslate"><span class="pre">runner</span></code> now runs on Fleets instead of Ray; functions already stored keep the runner they were created with, and an upload that names <code class="docutils literal notranslate"><span class="pre">runner</span></code> still gets what it asks for. A Fleets function runs on an IBM Cloud Code Engine project rather than a Ray cluster, so a deployment that lets users upload without naming a runner must have a default Code Engine project configured before upgrading. A handful of interface items apply only to Fleets functions and are the ones to watch when moving a function over: a function declares a <code class="docutils literal notranslate"><span class="pre">sizes_map</span></code> of named resource tiers with a <code class="docutils literal notranslate"><span class="pre">default_size</span></code>, and picks one per run with <code class="docutils literal notranslate"><span class="pre">function.run(function_size=&quot;s&quot;)</span></code>; <code class="docutils literal notranslate"><span class="pre">client.compute_profiles()</span></code> and <code class="docutils literal notranslate"><span class="pre">client.compute_profile(...)</span></code> discover the compute profiles a <code class="docutils literal notranslate"><span class="pre">sizes_map</span></code> can name; and a Fleets job exposes its Code Engine fleet through <code class="docutils literal notranslate"><span class="pre">Job.fleet_id</span></code>, while the in-function helpers <code class="docutils literal notranslate"><span class="pre">get_function_size()</span></code> and <code class="docutils literal notranslate"><span class="pre">get_compute_profile()</span></code> report the size a running Fleets job was given. This release also adds the “bring your own wheels” workflow (<code class="docutils literal notranslate"><span class="pre">add_wheels()</span></code>, <code class="docutils literal notranslate"><span class="pre">dependency_report()</span></code> and <code class="docutils literal notranslate"><span class="pre">install_uploaded_wheels()</span></code>, which work on either runner), deprecates the <code class="docutils literal notranslate"><span class="pre">dependencies=</span></code> upload argument, which is now ignored, measures a job’s timeout from execution start, and raises the required <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> version to <code class="docutils literal notranslate"><span class="pre">0.51</span></code>.</p>
+</section>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p>Added <code class="docutils literal notranslate"><span class="pre">qiskit-mitigation==0.1.1</span></code> and <code class="docutils literal notranslate"><span class="pre">qiskit-addon-slc==0.2.0</span></code> to the
-dynamic dependencies allowlist bundled in the custom functions image. Qiskit
-Functions that declare these packages as dependencies can now use them:
-<code class="docutils literal notranslate"><span class="pre">qiskit-mitigation</span></code> for client-side mitigation methods via the Executor
-primitive, and <code class="docutils literal notranslate"><span class="pre">qiskit-addon-slc</span></code> for the shaded-light-cones enhancement
-for PEC mitigation.</p></li>
-</ul>
 <ul>
 <li><p>Added a way to bring Python packages that are not baked into the runtime
 image: build a wheel locally, upload it with your function, and install it
@@ -607,7 +603,15 @@ jobs that were registered in the Runtime API (those created while
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">qiskit-paulice==0.2.1</span></code> has been added to the dynamic dependencies allowlist
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">qiskit-mitigation==0.1.1</span></code> and <code class="docutils literal notranslate"><span class="pre">qiskit-addon-slc==0.2.0</span></code> to the
+dynamic dependencies allowlist bundled in the custom functions image. Qiskit
+Functions that declare these packages as dependencies can now use them:
+<code class="docutils literal notranslate"><span class="pre">qiskit-mitigation</span></code> for client-side mitigation methods via the Executor
+primitive, and <code class="docutils literal notranslate"><span class="pre">qiskit-addon-slc</span></code> for the shaded-light-cones enhancement
+for PEC mitigation.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">qiskit-paulice==0.3</span></code> has been added to the dynamic dependencies allowlist
 bundled in the custom functions image. Qiskit Functions that declare it as a
 dependency can now use it.</p></li>
 </ul>
@@ -617,6 +621,11 @@ hand. It goes through the same transition service as every other stop, so an
 operator sees an error instead of a silent write when Code Engine cannot be
 reached. The Qiskit Runtime jobs a job started are not cancelled from the
 backoffice: that needs the caller’s own service credentials.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The required version of <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> has been raised to
+<code class="docutils literal notranslate"><span class="pre">&gt;=0.51.0,</span> <span class="pre">&lt;0.52.0</span></code>. Install an <code class="docutils literal notranslate"><span class="pre">0.51.x</span></code> release of <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code>
+alongside this client.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The compute-profile <code class="docutils literal notranslate"><span class="pre">name</span></code> is no longer included in API responses. It was an internal
@@ -696,11 +705,6 @@ now have buckets up to 30 minutes. The old buckets stopped at 10 seconds.</p></l
 <li><p><code class="docutils literal notranslate"><span class="pre">scheduler_loop_duration_seconds</span></code> and <code class="docutils literal notranslate"><span class="pre">scheduler_task_duration_seconds</span></code>
 have three more buckets, 3600, 7200 and 14400 seconds.</p></li>
 </ul>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">qiskit-paulice</span></code> has been updated from <code class="docutils literal notranslate"><span class="pre">0.2.1</span></code> to <code class="docutils literal notranslate"><span class="pre">0.3</span></code> in the dynamic
-dependencies allowlist bundled in the custom functions image. Qiskit Functions
-that declare <code class="docutils literal notranslate"><span class="pre">qiskit-paulice==0.3</span></code> as a dependency can now use it.</p></li>
-</ul>
 </section>
 <section id="deprecation-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-deprecation-notes"></span><h3>Deprecation Notes<a class="headerlink" href="#deprecation-notes" title="Link to this heading">¶</a></h3>
@@ -768,6 +772,33 @@ existence of providers the caller cannot access.</p></li>
 <li><p>A database connection that the network drops without a reply now fails
 after about 40 seconds, and a connection attempt after 10 seconds,
 instead of hanging for many minutes.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Fixed a Fleets function’s file listing returning entries that were not in the
+listed directory. Listing a subdirectory such as the wheels area also matched
+sibling files whose name started with the same prefix, and returned them with
+that prefix sliced off their name. Listings now stop at the directory boundary.</p></li>
+</ul>
+<ul class="simple">
+<li><p>The internal wrapper file the gateway writes into a Fleets function’s data
+folder to run the job no longer appears in <code class="xref py py-meth docutils literal notranslate"><span class="pre">files()</span></code>
+or <code class="xref py py-meth docutils literal notranslate"><span class="pre">list_wheels()</span></code> output. Only files
+the user uploaded are listed.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Fixed deleting or downloading a file by a name containing a character that is
+replaced on upload, such as <code class="docutils literal notranslate"><span class="pre">+</span></code> in a wheel like <code class="docutils literal notranslate"><span class="pre">torch-2.1+cu121.whl</span></code>. The
+name was sanitized one way on upload and a different way on delete and download,
+so the file could be uploaded but never removed or fetched by name. All three
+now resolve to the same stored name.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Fixed job logs, results and status being read from the wrong storage after a
+function was switched between the Ray and Fleets runners while it still had
+jobs in flight. A job now reads and writes its logs, results and arguments
+using the runner it actually ran with, instead of the function’s current
+runner. Before, such a job could raise an error on every status update and
+never reach a terminal state.</p></li>
 </ul>
 <ul class="simple">
 <li><p>A failed request for an IAM token that the caller retries is now logged as
@@ -870,12 +901,12 @@ and its compute profile in one database query.</p></li>
 </section>
 <section id="v0-37-0">
 <span id="release-notes-v0-37-0"></span><h2>v0.37.0<a class="headerlink" href="#v0-37-0" title="Link to this heading">¶</a></h2>
-<section id="prelude">
-<span id="release-notes-v0-37-0-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Link to this heading">¶</a></h3>
+<section id="release-notes-v0-37-0-prelude">
+<span id="id2"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-37-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.37.0</span></code> tightens circuit serialization: the gateway now injects an authoritative Qiskit configuration into every job and enforces a minimum QPY version of <code class="docutils literal notranslate"><span class="pre">13</span></code> (Qiskit <code class="docutils literal notranslate"><span class="pre">1.3.0</span></code>), so circuits serialized with an older Qiskit are rejected at load time. Cancelling a job now reports a new <code class="docutils literal notranslate"><span class="pre">STOPPING</span></code> status until the compute is actually released, instead of being reported as stopped straight away. The deprecated <code class="docutils literal notranslate"><span class="pre">compute_profile</span></code> input on <code class="docutils literal notranslate"><span class="pre">run()</span></code> is removed in favour of <code class="docutils literal notranslate"><span class="pre">function_size</span></code>, whose label is restricted to <code class="docutils literal notranslate"><span class="pre">S</span></code>, <code class="docutils literal notranslate"><span class="pre">M</span></code>, <code class="docutils literal notranslate"><span class="pre">L</span></code> and <code class="docutils literal notranslate"><span class="pre">XL</span></code>. This release also adds a <code class="docutils literal notranslate"><span class="pre">provider</span></code> filter to function listing, bundles the CUDA runtime libraries and <code class="docutils literal notranslate"><span class="pre">qiskit-fermions</span></code> for GPU chemistry in the custom functions image, and raises the required <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> version to <code class="docutils literal notranslate"><span class="pre">0.50</span></code>. Finally, it removes the Ray-coupling client helpers that were deprecated in 0.34.0 (the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator, the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and <code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> helpers, <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function</span></code> and <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.core.remote</span></code>); functions that need in-function parallelism should use Ray directly.</p>
 </section>
 <section id="release-notes-v0-37-0-new-features">
-<span id="id2"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-37-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id3"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-37-0-new-features" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>Running Qiskit Functions can now read the compute sizing their job resolved
 to, with two new helpers,
@@ -934,7 +965,7 @@ stopping.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-37-0-upgrade-notes">
-<span id="id3"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-37-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id4"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-37-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Qiskit Serverless now requires <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime==0.50</span></code>, raised from
 <code class="docutils literal notranslate"><span class="pre">0.49</span></code>.</p></li>
@@ -1051,7 +1082,7 @@ asks for the stop and does not wait for it to finish.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-37-0-security-issues">
-<span id="id4"></span><h3>Security Issues<a class="headerlink" href="#release-notes-v0-37-0-security-issues" title="Link to this heading">¶</a></h3>
+<span id="id5"></span><h3>Security Issues<a class="headerlink" href="#release-notes-v0-37-0-security-issues" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">custom_token</span></code> authentication mechanism no longer accepts the <code class="docutils literal notranslate"><span class="pre">local</span></code>
 channel, which checks a static mock token and needs no instance. The Helm chart
@@ -1060,7 +1091,7 @@ mechanism is <code class="docutils literal notranslate"><span class="pre">mock_t
 </ul>
 </section>
 <section id="release-notes-v0-37-0-bug-fixes">
-<span id="id5"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-37-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id6"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-37-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>A request whose authentication could not be completed because IBM Cloud was
 unreachable, timed out, or returned a server error now fails with <code class="docutils literal notranslate"><span class="pre">HTTP</span> <span class="pre">503</span></code>
@@ -1104,11 +1135,11 @@ the header, instead of an internal server error.</p></li>
 <section id="v0-36-0">
 <span id="release-notes-v0-36-0"></span><h2>v0.36.0<a class="headerlink" href="#v0-36-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-36-0-prelude">
-<span id="id6"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-36-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id7"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-36-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.36.0</span></code> updates the pinned <code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> requirement to <code class="docutils literal notranslate"><span class="pre">0.49.0</span></code> and refreshes the client, gateway and test dependency groups. The rest of the release is internal platform work and is not part of the public surface; upgrading is optional for users of the Python client.</p>
 </section>
 <section id="release-notes-v0-36-0-upgrade-notes">
-<span id="id7"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-36-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id8"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-36-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">qiskit-ibm-runtime</span></code> is now required at <code class="docutils literal notranslate"><span class="pre">0.49.0</span></code> (raised from
 <code class="docutils literal notranslate"><span class="pre">0.47.0</span></code>). Environments that pin the client’s transitive dependencies
@@ -1119,11 +1150,11 @@ should widen the constraint accordingly.</p></li>
 <section id="v0-35-1">
 <span id="release-notes-v0-35-1"></span><h2>v0.35.1<a class="headerlink" href="#v0-35-1" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-35-1-prelude">
-<span id="id8"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-35-1-prelude" title="Link to this heading">¶</a></h3>
+<span id="id9"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-35-1-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.35.1</span></code> is a bug-fix release with a few improvements over <code class="docutils literal notranslate"><span class="pre">v0.35.0</span></code>; upgrading is advised but not required. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/provider</span></code> now scopes its results to the requested provider, running a Qiskit Function with a large batch of arguments no longer fails with a <code class="docutils literal notranslate"><span class="pre">500</span></code> error, and <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now compatible with VPE configurations. The author of a provider function is also now treated as an admin of that function for the provider operations, so an automated publisher can manage the functions it uploads.</p>
 </section>
 <section id="release-notes-v0-35-1-upgrade-notes">
-<span id="id9"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-35-1-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id10"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-35-1-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Two new settings, both also exposed as chart values under
 <code class="docutils literal notranslate"><span class="pre">gateway.application.limits</span></code>: <code class="docutils literal notranslate"><span class="pre">MAX_REQUEST_BODY_SIZE_MB</span></code>
@@ -1146,7 +1177,7 @@ access that worked before is unaffected.</p>
 </ul>
 </section>
 <section id="release-notes-v0-35-1-bug-fixes">
-<span id="id10"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-35-1-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id11"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-35-1-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Running a Qiskit Function with a large batch of arguments no longer fails with
 <code class="docutils literal notranslate"><span class="pre">500</span> <span class="pre">Internal</span> <span class="pre">server</span> <span class="pre">error</span></code>. The gateway now accepts request bodies of up to
@@ -1191,11 +1222,11 @@ against the job’s own provider and is unchanged.</p></li>
 <section id="v0-35-0">
 <span id="release-notes-v0-35-0"></span><h2>v0.35.0<a class="headerlink" href="#v0-35-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-35-0-prelude">
-<span id="id11"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-35-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id12"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-35-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.35.0</span></code> is a feature release that adds argument validation for Qiskit Functions: functions can now declare a JSON Schema for their arguments and the gateway validates submissions before any compute is used, with a new <code class="docutils literal notranslate"><span class="pre">validate_arguments</span></code> client method for pre-flight checks. The <code class="docutils literal notranslate"><span class="pre">QiskitFunction.schema</span></code> field has been renamed to <code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code>. This release also removes the deprecated <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter from <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> and bumps the <code class="docutils literal notranslate"><span class="pre">ray-node</span></code> default Python version to 3.12.</p>
 </section>
 <section id="release-notes-v0-35-0-new-features">
-<span id="id12"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-35-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id13"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-35-0-new-features" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>Qiskit Functions can now declare the arguments they accept as a JSON Schema, and the gateway validates submitted
 arguments against it before any compute is used. Previously a function given bad input failed mid-execution, after
@@ -1256,7 +1287,7 @@ arguments a function expects can be inspected even by callers who did not upload
 </ul>
 </section>
 <section id="release-notes-v0-35-0-upgrade-notes">
-<span id="id13"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-35-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id14"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-35-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">QiskitFunction.schema</span></code> has been renamed to <code class="docutils literal notranslate"><span class="pre">arguments_schema</span></code> and its type changed from <code class="docutils literal notranslate"><span class="pre">Optional[str]</span></code> to
 <code class="docutils literal notranslate"><span class="pre">Optional[Union[Dict[str,</span> <span class="pre">Any],</span> <span class="pre">bool]]</span></code>. The old field was never read by the client nor sent to the gateway, so
@@ -1329,7 +1360,7 @@ account) is unaffected by this change.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-35-0-bug-fixes">
-<span id="id14"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-35-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id15"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-35-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Requesting a job that does not exist through <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/jobs/{job_id}/</span></code>
 now returns HTTP 404 with a <code class="docutils literal notranslate"><span class="pre">Job</span> <span class="pre">[job_id]</span> <span class="pre">not</span> <span class="pre">found</span></code> message instead of
@@ -1341,11 +1372,11 @@ triggers, so <code class="docutils literal notranslate"><span class="pre">Job.Do
 <section id="v0-34-0">
 <span id="release-notes-v0-34-0"></span><h2>v0.34.0<a class="headerlink" href="#v0-34-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-34-0-prelude">
-<span id="id15"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-34-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id16"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-34-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.34.0</span></code> makes <code class="docutils literal notranslate"><span class="pre">ray</span></code> an optional client dependency (install with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code> when needed), raises the minimum Qiskit version to 2.2, and removes the previously deprecated <code class="docutils literal notranslate"><span class="pre">widget()</span></code> interface and <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.visualization</span></code> module. GPU scheduling is now configured via a <code class="docutils literal notranslate"><span class="pre">gpu</span></code> flag on the <code class="docutils literal notranslate"><span class="pre">Program</span></code> model, replacing the provider allowlist. This release also deprecates the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code>, <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code>, and <code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> helpers in favour of their Ray equivalents, and includes a range of client bug fixes and UX improvements.</p>
 </section>
 <section id="release-notes-v0-34-0-new-features">
-<span id="id16"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-34-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id17"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-34-0-new-features" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a <code class="docutils literal notranslate"><span class="pre">gpu</span></code> boolean field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> model. When a program is
 owned by a provider and has <code class="docutils literal notranslate"><span class="pre">gpu</span></code> enabled, jobs run from that program are
@@ -1355,7 +1386,7 @@ configuration instead of a per-program flag.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-34-0-upgrade-notes">
-<span id="id17"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-34-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id18"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-34-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">cotengrust==0.2.0</span></code> is now included in the dynamic dependencies allowlist
 bundled in the Ray runner image. Qiskit Functions that declare <code class="docutils literal notranslate"><span class="pre">cotengrust</span></code>
@@ -1410,7 +1441,7 @@ module (deprecated in 0.33.0) has been completely removed from the package.</p><
 </ul>
 </section>
 <section id="release-notes-v0-34-0-deprecation-notes">
-<span id="id18"></span><h3>Deprecation Notes<a class="headerlink" href="#release-notes-v0-34-0-deprecation-notes" title="Link to this heading">¶</a></h3>
+<span id="id19"></span><h3>Deprecation Notes<a class="headerlink" href="#release-notes-v0-34-0-deprecation-notes" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator and the <code class="docutils literal notranslate"><span class="pre">get</span></code>, <code class="docutils literal notranslate"><span class="pre">put</span></code> and
 <code class="docutils literal notranslate"><span class="pre">get_refs_by_status</span></code> helper functions have been deprecated and will be
@@ -1479,7 +1510,7 @@ For more details, see the
 </ul>
 </section>
 <section id="release-notes-v0-34-0-bug-fixes">
-<span id="id19"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-34-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id20"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-34-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed <code class="xref py py-meth docutils literal notranslate"><span class="pre">status()</span></code> returning <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>
 for jobs that report a <code class="docutils literal notranslate"><span class="pre">sub_status</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">RUNNING:</span> <span class="pre">MAPPING</span></code>). The
@@ -1525,11 +1556,11 @@ exception message so the real cause is visible to the caller.</p>
 <section id="v0-33-0">
 <span id="release-notes-v0-33-0"></span><h2>v0.33.0<a class="headerlink" href="#v0-33-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-33-0-prelude">
-<span id="id20"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-33-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id21"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-33-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.33.0</span></code> is a feature release that expands the <code class="docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code> with methods to inspect IBM Quantum backends and runtime usage through the Qiskit IBM Runtime service, and adds pre-flight validation to <code class="docutils literal notranslate"><span class="pre">run()</span></code> so that quota and backend-access problems surface immediately instead of after a silent queue wait. Cloud (instance) authentication now goes through <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> to align with the Qiskit Runtime APIs. This release also deprecates the Jupyter <code class="docutils literal notranslate"><span class="pre">widget()</span></code> interface, the unused client <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter, and the <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.visualization</span></code> module, updates dependencies, and fixes a couple of bugs from 0.32.0.</p>
 </section>
 <section id="release-notes-v0-33-0-new-features">
-<span id="id21"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-33-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id22"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-33-0-new-features" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p><a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a> now exposes several methods that wrap the Qiskit IBM Runtime
 <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> API to interact with IBM Quantum backends:</p>
@@ -1569,7 +1600,7 @@ at least one backend (result cached). Raises <a class="reference internal" href=
 </ul>
 </section>
 <section id="release-notes-v0-33-0-upgrade-notes">
-<span id="id22"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-33-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id23"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-33-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-addon-aqc-tensor</span></code> package bundled in the Ray runner image has
 been updated from <code class="docutils literal notranslate"><span class="pre">0.2.0</span></code> to <code class="docutils literal notranslate"><span class="pre">0.3.0</span></code> (installed with the <code class="docutils literal notranslate"><span class="pre">quimb-jax</span></code>
@@ -1629,7 +1660,7 @@ credential management.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-33-0-deprecation-notes">
-<span id="id23"></span><h3>Deprecation Notes<a class="headerlink" href="#release-notes-v0-33-0-deprecation-notes" title="Link to this heading">¶</a></h3>
+<span id="id24"></span><h3>Deprecation Notes<a class="headerlink" href="#release-notes-v0-33-0-deprecation-notes" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">name</span></code> parameter in <a class="reference internal" href="stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient" title="qiskit_serverless.core.BaseClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClient</span></code></a>, <a class="reference internal" href="stubs/qiskit_serverless.core.ServerlessClient.html#qiskit_serverless.core.ServerlessClient" title="qiskit_serverless.core.ServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessClient</span></code></a>, and
 <a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a> is deprecated and will be removed in a future release.
@@ -1654,7 +1685,7 @@ will also be removed at that time.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-33-0-bug-fixes">
-<span id="id24"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-33-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id25"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-33-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed authentication failures for IBM Cloud instances in regions other than the
 gateway’s default region (for example <code class="docutils literal notranslate"><span class="pre">eu-de</span></code>). During authentication the gateway
@@ -1683,11 +1714,11 @@ read path matches where the function writes.</p></li>
 <section id="v0-32-0">
 <span id="release-notes-v0-32-0"></span><h2>v0.32.0<a class="headerlink" href="#v0-32-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-32-0-prelude">
-<span id="id25"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-32-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id26"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-32-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.32.0</span></code> is a feature release that improves telemetry collection, updates dependencies and drops Python 3.9 support. Additionally, it fixes a couple of bugs from 0.31.0.</p>
 </section>
 <section id="release-notes-v0-32-0-upgrade-notes">
-<span id="id26"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-32-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id27"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-32-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>Job time limiting is now enforced while a job is in the <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> or <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>
 state, rather than being applied once when the job is first queued. This means
@@ -1715,7 +1746,7 @@ their local installation before using this release:</p>
 </ul>
 </section>
 <section id="release-notes-v0-32-0-bug-fixes">
-<span id="id27"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-32-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id28"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-32-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The <code class="xref py py-meth docutils literal notranslate"><span class="pre">Job.error_message()</span></code> method now correctly returns error details for jobs
 that use the events-based error reporting introduced in a previous release, while
@@ -1723,7 +1754,7 @@ remaining backward compatible with jobs whose errors were stored in the legacy f
 </ul>
 </section>
 <section id="release-notes-v0-32-0-other-notes">
-<span id="id28"></span><h3>Other Notes<a class="headerlink" href="#release-notes-v0-32-0-other-notes" title="Link to this heading">¶</a></h3>
+<span id="id29"></span><h3>Other Notes<a class="headerlink" href="#release-notes-v0-32-0-other-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Internal improvements to telemetry collection and observability infrastructure,
 including better integration of OpenTelemetry instrumentation across the API layer.</p></li>
@@ -1731,13 +1762,13 @@ including better integration of OpenTelemetry instrumentation across the API lay
 </section>
 </section>
 <section id="release-notes-0-31-0">
-<span id="id29"></span><h2>0.31.0<a class="headerlink" href="#release-notes-0-31-0" title="Link to this heading">¶</a></h2>
+<span id="id30"></span><h2>0.31.0<a class="headerlink" href="#release-notes-0-31-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-0-31-0-prelude">
-<span id="id30"></span><h3>Prelude<a class="headerlink" href="#release-notes-0-31-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id31"></span><h3>Prelude<a class="headerlink" href="#release-notes-0-31-0-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.31.0</span></code> introduces error event tracking for Qiskit Functions, structured JSON logging across all components, and a range of scheduler observability and reliability improvements.</p>
 </section>
 <section id="release-notes-0-31-0-new-features">
-<span id="id31"></span><h3>New Features<a class="headerlink" href="#release-notes-0-31-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id32"></span><h3>New Features<a class="headerlink" href="#release-notes-0-31-0-new-features" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>Added comprehensive error tracking and event management capabilities for Qiskit Functions.
 This feature enables function developers to send custom error events via <code class="xref py py-func docutils literal notranslate"><span class="pre">send_error()</span></code>
@@ -1947,7 +1978,7 @@ retrieved in bulk for comprehensive debugging. Each event is represented by a
 </ul>
 </section>
 <section id="release-notes-0-31-0-upgrade-notes">
-<span id="id32"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-0-31-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id33"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-0-31-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The gateway, scheduler, and core components now emit structured JSON logs by default.
 Operators using log aggregation tools (e.g. Elasticsearch, Splunk) will see log lines
@@ -1973,11 +2004,11 @@ their local installation before using this release:</p>
 <section id="v0-30-1">
 <span id="release-notes-v0-30-1"></span><h2>v0.30.1<a class="headerlink" href="#v0-30-1" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-30-1-prelude">
-<span id="id33"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-1-prelude" title="Link to this heading">¶</a></h3>
+<span id="id34"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-1-prelude" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">qiskit_serverless</span> <span class="pre">v0.30.1</span></code> is a small patch release that fixes a minor client issue, introduces a series of API/Gateway/Scheduler improvements that increase the health of the deployed service, and updates the base image with the newest dependency versions.</p>
 </section>
 <section id="release-notes-v0-30-1-bug-fixes">
-<span id="id34"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-1-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id35"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-1-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed gateway triggering out of memory errors when downloading a big file. Now, the download uses a 64Kb stream buffer 
 that prevents it from crashing.</p></li>
@@ -1991,11 +2022,11 @@ The method now correctly raises a <a class="reference internal" href="stubs/qisk
 <section id="v0-30-0">
 <span id="release-notes-v0-30-0"></span><h2>v0.30.0<a class="headerlink" href="#v0-30-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-30-0-prelude">
-<span id="id35"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-0-prelude" title="Link to this heading">¶</a></h3>
+<span id="id36"></span><h3>Prelude<a class="headerlink" href="#release-notes-v0-30-0-prelude" title="Link to this heading">¶</a></h3>
 <p>The main feature in this release is the major refactor in logs to differentiate between provider logs and user logs and optimize storage. The logs are now stored in COS while keeping backward compatibility.</p>
 </section>
 <section id="release-notes-v0-30-0-new-features">
-<span id="id36"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-30-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id37"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-30-0-new-features" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> Python library added two new utilities, <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code>
 and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>, available to Qiskit Function developers.
@@ -2056,7 +2087,7 @@ by the platform.</p>
 </ul>
 </section>
 <section id="release-notes-v0-30-0-upgrade-notes">
-<span id="id37"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-30-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id38"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-30-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a new <code class="docutils literal notranslate"><span class="pre">version</span></code> field to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> Django model. This field is used to track the version of the program (function).</p></li>
 </ul>
@@ -2116,7 +2147,7 @@ API now accepts a dynamic configuration system that allows changing application 
 </ul>
 </section>
 <section id="release-notes-v0-30-0-deprecation-notes">
-<span id="id38"></span><h3>Deprecation Notes<a class="headerlink" href="#release-notes-v0-30-0-deprecation-notes" title="Link to this heading">¶</a></h3>
+<span id="id39"></span><h3>Deprecation Notes<a class="headerlink" href="#release-notes-v0-30-0-deprecation-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_function</span></code> decorator has been deprecated and will
 be removed in following releases. The decorator was designed for remote
@@ -2125,7 +2156,7 @@ serverless clients through the <code class="docutils literal notranslate"><span 
 </ul>
 </section>
 <section id="release-notes-v0-30-0-bug-fixes">
-<span id="id39"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id40"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-30-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>Fixed a bug in the function versioning workflow where the version set upon function creation
 couldn’t be uploaded to the platform, stored in the database, or retrieved upon function retrieval.
@@ -2169,7 +2200,7 @@ arguments. After the fix, the data paths are resolved correctly, and no error is
 <section id="v0-29-0">
 <span id="release-notes-v0-29-0"></span><h2>v0.29.0<a class="headerlink" href="#v0-29-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-29-0-upgrade-notes">
-<span id="id40"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-29-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id41"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-29-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Refactored storage service initialization to accept <code class="docutils literal notranslate"><span class="pre">Program</span></code> model instances
 instead of individual parameters. The <code class="docutils literal notranslate"><span class="pre">FileStorage</span></code> and <code class="docutils literal notranslate"><span class="pre">ArgumentsStorage</span></code>
@@ -2200,7 +2231,7 @@ and a CRN is present, the system defaults to <code class="docutils literal notra
 </ul>
 </section>
 <section id="release-notes-v0-29-0-bug-fixes">
-<span id="id41"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id42"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-29-0-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the json decoder that would crop the response details to the first character when
 gateway errors were raised. This utility now forwards the full error message to the raised
@@ -2230,7 +2261,7 @@ storage path resolution when users have multiple functions with the same title.<
 <section id="v0-28-0">
 <span id="release-notes-v0-28-0"></span><h2>v0.28.0<a class="headerlink" href="#v0-28-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-28-0-new-features">
-<span id="id42"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id43"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-28-0-new-features" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a>  now supports custom gateway host URLs through the <code class="docutils literal notranslate"><span class="pre">host</span></code> parameter.
 This allows for a more streamlined testing of the client connecting to non-production gateways.</p></li>
@@ -2243,7 +2274,7 @@ This allows for a more streamlined testing of the client connecting to non-produ
 <section id="v0-27-1">
 <span id="release-notes-v0-27-1"></span><h2>v0.27.1<a class="headerlink" href="#v0-27-1" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-27-1-upgrade-notes">
-<span id="id43"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id44"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-1-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The scheduling logic that was managing non GPU and GPU jobs was improved.
 Now the scheduler manages both type of jobs independently so
@@ -2254,7 +2285,7 @@ you can adjust separately where each of these jobs are run.</p></li>
 </ul>
 </section>
 <section id="release-notes-v0-27-1-bug-fixes">
-<span id="id44"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="id45"></span><h3>Bug Fixes<a class="headerlink" href="#release-notes-v0-27-1-bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the scheduler that was preventing it from
 stopping jobs automatically after the timeout threshold specified
@@ -2265,7 +2296,7 @@ with the environment variable <code class="docutils literal notranslate"><span c
 <section id="v0-27-0">
 <span id="release-notes-v0-27-0"></span><h2>v0.27.0<a class="headerlink" href="#v0-27-0" title="Link to this heading">¶</a></h2>
 <section id="release-notes-v0-27-0-new-features">
-<span id="id45"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Link to this heading">¶</a></h3>
+<span id="id46"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Link to this heading">¶</a></h3>
 <ul>
 <li><p>A new utility <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now available to simplify the instantiation of
 a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> within a function. It automatically pulls credentials from environment
@@ -2330,7 +2361,7 @@ For example:</p>
 </ul>
 </section>
 <section id="release-notes-v0-27-0-upgrade-notes">
-<span id="id46"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="id47"></span><h3>Upgrade Notes<a class="headerlink" href="#release-notes-v0-27-0-upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added a new AccessPolicy for User model to be able to allow or
 not the access to the service by the <code class="docutils literal notranslate"><span class="pre">is_active</span></code> parameter.</p></li>
@@ -2447,6 +2478,7 @@ specific jobs. For example:</p>
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
 <li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#deprecation-notes">Deprecation Notes</a></li>
@@ -2456,7 +2488,7 @@ specific jobs. For example:</p>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-37-0">v0.37.0</a><ul>
-<li><a class="reference internal" href="#prelude">Prelude</a></li>
+<li><a class="reference internal" href="#release-notes-v0-37-0-prelude">Prelude</a></li>
 <li><a class="reference internal" href="#release-notes-v0-37-0-new-features">New Features</a></li>
 <li><a class="reference internal" href="#release-notes-v0-37-0-upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#release-notes-v0-37-0-security-issues">Security Issues</a></li>
@@ -2553,7 +2585,7 @@ specific jobs. For example:</p>
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=29b1acb9"></script>
+</div><script src="_static/documentation_options.js?v=9fa2033d"></script>
     <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
