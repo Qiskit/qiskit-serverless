@@ -34,20 +34,18 @@ class DurationMaxCollector(Collector):
         with self._lock:
             now = time.monotonic()
             group[name].append((now, elapsed_seconds))
-            self._prune(group, name, now)
+            self._prune(group[name], now)
 
     @staticmethod
-    def _prune(group: dict[str, deque], name: str, now: float) -> deque:
-        samples = group[name]
+    def _prune(samples: deque, now: float) -> None:
         while samples and now - samples[0][0] > WINDOW_SECONDS:
             samples.popleft()
-        return samples
 
     def _maximums(self, group: dict[str, deque], now: float) -> dict[str, float]:
         """The worst duration of each name still inside the window. Call it with the lock held."""
         maximums = {}
-        for name in list(group):
-            samples = self._prune(group, name, now)
+        for name, samples in list(group.items()):
+            self._prune(samples, now)
             if samples:
                 maximums[name] = max(value for _, value in samples)
             else:

@@ -357,9 +357,9 @@ class FleetsRunner(AbstractRunner):
 
         if found:
             # Keys that carry a state, none of them known. No keys at all, or only a directory marker, is not this.
+            states = sorted(found)
             raise UnrecognizedFleetTaskStateError(
-                f"Fleet [{self.job.fleet_id}] has task states {sorted(found)} under {prefix}, none of them known",
-                sorted(found),
+                f"Fleet [{self.job.fleet_id}] has task states {states} under {prefix}, none of them known", states
             )
         return None
 
