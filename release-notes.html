@@ -727,6 +727,17 @@ function. The deprecation text comes from the gateway, so it is surfaced on any 
 version; when the client can see the function ran on Ray it raises the category from a
 plain warning to <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code> so it can be filtered as one.</p></li>
 </ul>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">upload()</span></code> and
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">run()</span></code> now emit a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>
+when the function uses the Ray runner (<code class="docutils literal notranslate"><span class="pre">runner=&quot;ray&quot;</span></code>). The Ray runner is being
+deprecated in favor of Fleets, and Fleets-only features such as GPU compute
+profiles (<code class="docutils literal notranslate"><span class="pre">function_size</span></code>) and uploaded-wheel installs are unavailable on Ray,
+so a job landing on Ray can fail in confusing ways. The warning is raised from the
+local runner check, so it appears at upload and at run time even against a
+gateway that does not return a deprecation message. Set <code class="docutils literal notranslate"><span class="pre">runner=&quot;fleets&quot;</span></code> (the
+default in recent releases) to silence it.</p></li>
+</ul>
 </section>
 <section id="security-issues">
 <span id="release-notes-upcoming-qiskit-serverless-release-security-issues"></span><h3>Security Issues<a class="headerlink" href="#security-issues" title="Link to this heading">¶</a></h3>

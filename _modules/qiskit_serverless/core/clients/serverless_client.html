@@ -379,6 +379,7 @@
     <span class="n">QiskitFunction</span><span class="p">,</span>
     <span class="n">RunService</span><span class="p">,</span>
     <span class="n">RunnableQiskitFunction</span><span class="p">,</span>
+    <span class="n">RAY_RUNNER_DEPRECATION</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.exception</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitServerlessException</span>
@@ -1078,6 +1079,8 @@
     <span class="c1">#########################</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">runner</span> <span class="o">==</span> <span class="s2">"ray"</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">RAY_RUNNER_DEPRECATION</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                 <span class="s2">"`dependencies=` is deprecated and no longer installs anything; it is accepted but "</span>

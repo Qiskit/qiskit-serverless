@@ -341,6 +341,13 @@
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.exception</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitServerlessException</span>
 
+<span class="c1"># Warned at upload and run when runner="ray"; the Ray runner is being deprecated in favor of Fleets.</span>
+<span class="n">RAY_RUNNER_DEPRECATION</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"The Ray runner is deprecated and will be removed in a future release. Set runner='fleets' on "</span>
+    <span class="s2">"your QiskitFunction (the default in recent releases). Ray-only jobs do not get Fleets features "</span>
+    <span class="s2">"such as GPU compute profiles (function_size) or uploaded-wheel installs."</span>
+<span class="p">)</span>
+
 <span class="n">GenericType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"GENERIC"</span><span class="p">]</span>
 <span class="n">ApplicationType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"APPLICATION"</span><span class="p">]</span>
 <span class="n">CircuitType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"CIRCUIT"</span><span class="p">]</span>
@@ -571,6 +578,9 @@
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_service</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"No clients specified for a function."</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">runner</span> <span class="o">==</span> <span class="s2">"ray"</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">RAY_RUNNER_DEPRECATION</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="n">config</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"config"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">compute_profile</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"compute_profile"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
