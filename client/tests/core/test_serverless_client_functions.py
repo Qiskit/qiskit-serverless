@@ -1048,3 +1048,43 @@ class TestUploadHelpersSendSizes:
         data = mock_post.call_args[1]["data"]
         assert data["sizes"] == json.dumps({"s": "24x120", "m": "16x128"})
         assert data["default_size"] == "m"
+
+
+class TestRunSurfacesGatewayWarning:
+    """How ServerlessClient.run() surfaces the gateway's response ``warning`` field.
+
+    The gateway returns the warning text (Ray deprecation, blocked resource, or both) for every
+    client version. A recent client raises the category to ``DeprecationWarning`` when it can see
+    locally that the function ran on the deprecated Ray runner.
+    """
+
+    _RAY_WARNING = (
+        'This function runs on Ray, a deprecated platform. Please migrate to the Fleets runner (runner="fleets").'
+    )
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_ray_function_warns_as_a_deprecation(self, mock_post, mock_client):
+        mock_post.return_value = _ok_response({"id": "job-1", "warning": self._RAY_WARNING})
+        program = QiskitFunction(title="my-func", image="img:latest", runner="ray")
+
+        with pytest.warns(DeprecationWarning, match="deprecated platform"):
+            mock_client.run(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_fleets_function_with_no_warning_does_not_warn(self, mock_post, mock_client):
+        mock_post.return_value = _ok_response({"id": "job-1"})
+        program = QiskitFunction(title="my-func", image="img:latest", runner="fleets")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any warning would raise
+            mock_client.run(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_bare_title_falls_back_to_a_plain_warning(self, mock_post, mock_client):
+        # Running by title gives the client no runner to inspect, so it cannot know this ran on
+        # Ray; it still surfaces the gateway text, just not as a DeprecationWarning.
+        mock_post.return_value = _ok_response({"id": "job-1", "warning": self._RAY_WARNING})
+
+        with pytest.warns(UserWarning, match="deprecated platform") as caught:
+            mock_client.run("my-func")
+        assert not any(issubclass(w.category, DeprecationWarning) for w in caught)
