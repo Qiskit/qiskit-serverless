@@ -135,6 +135,33 @@ class TestUploadMethod:
             warnings.simplefilter("error", DeprecationWarning)
             mock_client.upload(program)
 
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_warns_when_runner_is_ray(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() emits a DeprecationWarning when the function's runner is 'ray'."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest", runner="ray")
+
+        with pytest.warns(DeprecationWarning, match="Ray runner is deprecated"):
+            mock_client.upload(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_does_not_warn_for_fleets_runner(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() does not emit the Ray DeprecationWarning for a Fleets function."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest", runner="fleets")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            mock_client.upload(program)
+
     @patch("qiskit_serverless.core.clients.serverless_client.trace")
     def test_upload_raises_when_neither_image_nor_entrypoint(self, mock_trace, mock_client):
         """upload() raises QiskitServerlessException when program has neither image nor entrypoint."""

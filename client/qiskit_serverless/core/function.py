@@ -42,6 +42,13 @@ from qiskit_serverless.core.job import (
 )
 from qiskit_serverless.exception import QiskitServerlessException
 
+# Warned at upload and run when runner="ray"; the Ray runner is being deprecated in favor of Fleets.
+RAY_RUNNER_DEPRECATION = (
+    "The Ray runner is deprecated and will be removed in a future release. Set runner='fleets' on "
+    "your QiskitFunction (the default in recent releases). Ray-only jobs do not get Fleets features "
+    "such as GPU compute profiles (function_size) or uploaded-wheel installs."
+)
+
 GenericType = Literal["GENERIC"]
 ApplicationType = Literal["APPLICATION"]
 CircuitType = Literal["CIRCUIT"]
@@ -269,6 +276,9 @@ class RunnableQiskitFunction(QiskitFunction):
         """
         if self._run_service is None:
             raise ValueError("No clients specified for a function.")
+
+        if self.runner == "ray":
+            warnings.warn(RAY_RUNNER_DEPRECATION, DeprecationWarning, stacklevel=2)
 
         config = kwargs.pop("config", None)
         compute_profile = kwargs.pop("compute_profile", None)
