@@ -218,6 +218,8 @@ def run_program(request: Request) -> Response:
 
     # A run can raise more than one warning (a Ray function that is also on a blocked resource), so
     # they are collected and joined rather than one overwriting the other. Deprecation comes first.
+    # Each warning is a self-contained sentence ending in a period, so they are joined with a plain
+    # space (one sentence after another); a comma would leave a period next to it ("...runner.").
     warnings = []
     if job.runner == Program.RAY:
         warnings.append(RAY_DEPRECATION_WARNING_PROVIDER if job.program.provider_id else RAY_DEPRECATION_WARNING_CUSTOM)
