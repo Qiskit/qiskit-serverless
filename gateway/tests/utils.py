@@ -404,6 +404,34 @@ class TestUtils:
                 program.default_size = row
                 program.save(update_fields=["default_size"])
 
+    DEFAULT_FLEETS_PROJECT_NAME = "default-ce-project"
+
+    @staticmethod
+    def register_default_fleets_project() -> CodeEngineProject:
+        """Register the default CE project and profile and turn on Fleets provisioning for create_program.
+
+        This is the shared body behind the ``default_ce_project`` pytest fixture and the
+        unittest-style setUp that mirrors it: the default compute profile, an active default Code
+        Engine project, and the ``_provision_fleets_programs`` flag that makes ``create_program``
+        call ``make_fleets_program_runnable``. The caller still owns the lifecycle that differs
+        between the two styles -- setting ``CE_DEFAULT_PROJECT_NAME``, stubbing the Fleets argument
+        storage, and resetting the flag afterwards -- so this helper does not touch settings or
+        patch anything. Returns the project for callers that need the handle.
+        """
+        from core.models import ComputeProfile  # pylint: disable=import-outside-toplevel
+
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+        project = TestUtils.get_or_create_ce_project(
+            project_name=TestUtils.DEFAULT_FLEETS_PROJECT_NAME,
+            project_id="ce-proj-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        TestUtils._provision_fleets_programs = True
+        return project
+
     @staticmethod
     def create_job_config(
         workers: int = None,

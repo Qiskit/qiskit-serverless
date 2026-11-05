@@ -37,19 +37,8 @@ def default_ce_project(settings, db):
     and size once this fixture has registered the default project and the default compute profile.
     Returns the project for tests that need the handle.
     """
-    from core.models import ComputeProfile  # pylint: disable=import-outside-toplevel
-
-    settings.CE_DEFAULT_PROJECT_NAME = "default-ce-project"
-    ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
-    project = TestUtils.get_or_create_ce_project(
-        project_name="default-ce-project",
-        project_id="ce-proj-id",
-        cos_bucket_user_data_name="user-bucket",
-        cos_bucket_provider_data_name="provider-bucket",
-        cos_instance_name="cos-instance",
-        cos_key_name="cos-key",
-    )
-    TestUtils._provision_fleets_programs = True
+    settings.CE_DEFAULT_PROJECT_NAME = TestUtils.DEFAULT_FLEETS_PROJECT_NAME
+    project = TestUtils.register_default_fleets_project()
     try:
         with patch("core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"):
             yield project

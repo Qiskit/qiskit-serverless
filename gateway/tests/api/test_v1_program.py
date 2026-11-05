@@ -188,21 +188,14 @@ class TestProgramApi(APITestCase):
         # The functions these tests create default to Fleets, like production, so upload and run
         # need a default CE project, a registered default profile, and the Fleets argument storage
         # stubbed out (enqueueing a Fleets job writes arguments to COS, which a unit test must not
-        # reach). This mirrors the `default_ce_project` conftest fixture for this unittest-style class.
-        self._ce_default_override = override_settings(CE_DEFAULT_PROJECT_NAME="default-ce-project")
+        # reach). TestUtils.register_default_fleets_project() is the shared body with the
+        # `default_ce_project` conftest fixture; this unittest-style class only differs in how it
+        # sets the setting, stubs storage, and resets the flag (enable()/start()/tearDown).
+        self._ce_default_override = override_settings(CE_DEFAULT_PROJECT_NAME=TestUtils.DEFAULT_FLEETS_PROJECT_NAME)
         self._ce_default_override.enable()
-        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
-        TestUtils.get_or_create_ce_project(
-            project_name="default-ce-project",
-            project_id="ce-proj-id",
-            cos_bucket_user_data_name="user-bucket",
-            cos_bucket_provider_data_name="provider-bucket",
-            cos_instance_name="cos-instance",
-            cos_key_name="cos-key",
-        )
+        TestUtils.register_default_fleets_project()
         self._args_storage_patcher = patch("core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save")
         self._args_storage_patcher.start()
-        TestUtils._provision_fleets_programs = True
 
     def tearDown(self):
         TestUtils._provision_fleets_programs = False
