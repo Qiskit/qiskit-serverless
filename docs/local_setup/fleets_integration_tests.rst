@@ -61,8 +61,10 @@ From the repository root:
 
    # 1. Build the fleets runtime base image. The fleet-worker is FROM
    #    fleet-node:latest, and `compose up --build` does not build a
-   #    FROM-referenced base, so it must be built first.
-   make build-fleet-node
+   #    FROM-referenced base, so it must be built first. This builds the CPU
+   #    runtime; `make build-fleet-node` builds the published GPU image, which
+   #    the tests do not need and which has no arm64 build.
+   make build-fleet-node-local
 
    # 2. Build and start the stack (gateway, scheduler, postgres, MinIO, fleet-worker)
    docker compose -f docker-compose-fleets-test.yaml up --build -d
