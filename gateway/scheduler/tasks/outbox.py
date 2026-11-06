@@ -83,5 +83,5 @@ class OutboxTask(SchedulerTask):
         # Once every channel has drained, so the channels that share a destination report the same state, one
         # that a later channel opened during this very tick included.
         for channel_name, destination in self.channels.items():
-            any_open = any(breaker.is_open() for breaker in destination.breakers.values())
+            any_open = any(breaker.is_open for breaker in destination.breakers.values())
             self.metrics.set_outbox_breaker_open(any_open, channel=channel_name)

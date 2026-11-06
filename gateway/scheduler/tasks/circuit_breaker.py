@@ -32,6 +32,7 @@ class CircuitBreaker:
         self._consecutive_failures = 0
         self._opened_at: float | None = None
 
+    @property
     def is_open(self) -> bool:
         """Whether sends should currently be skipped."""
         pause_seconds = self._pause_seconds()  # don't do this inside the lock: it can query the database

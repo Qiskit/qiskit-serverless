@@ -113,7 +113,7 @@ class TestFailureHandling:
         task.run()
 
         assert Outbox.objects.filter(pk=row.pk).exists()
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is True
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
     def test_only_the_confirmed_rows_are_deleted_and_the_breaker_stays_closed(self):
         bad_row = _make_row()
@@ -125,7 +125,7 @@ class TestFailureHandling:
 
         assert Outbox.objects.filter(pk=bad_row.pk).exists()
         assert not Outbox.objects.filter(pk=good_row.pk).exists()
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is False
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
 
 
 class TestBreakerIsolationBetweenChannels:
@@ -156,7 +156,7 @@ class TestBreakerIsolationBetweenChannels:
         Config.set(ConfigKey.OUTBOX_KAFKA_CHANNEL_BREAKER_FAILURES, "1")
         _make_row()  # trips the usage breaker on this first run()
         task.run()
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is True
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
         other_row = Outbox.objects.create(job=_make_job(), channel="other", payload={})
         task.run()  # billing breaker open and skipped; workload must still be attempted
@@ -179,7 +179,7 @@ class TestSharedBreakerAcrossChannelsWithTheSameDestination:
 
         task.run()
 
-        assert task.channels[OutboxChannel.LICENSE_FEE].get_breaker(None).is_open() is True
+        assert task.channels[OutboxChannel.LICENSE_FEE].get_breaker(None).is_open is True
         assert shared_sender.send_batch.call_count == 1  # USAGE skipped: breaker already open
         assert Outbox.objects.filter(pk=billing_row.pk).exists()
 
@@ -282,7 +282,7 @@ class TestPartialSuccessWithARealKafkaSender:
 
         assert Outbox.objects.filter(pk=bad.pk).exists()
         assert not Outbox.objects.filter(pk=good.pk).exists()
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is False
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
 
     def test_a_batch_where_every_row_is_rejected_opens_the_breaker(self):
         task = self._task_with_kafka({b"bad-1", b"bad-2"})
@@ -291,7 +291,7 @@ class TestPartialSuccessWithARealKafkaSender:
         task.run()
 
         assert Outbox.objects.filter(pk__in=[first.pk, second.pk]).count() == 2
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is True
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
     def test_rows_still_outstanding_after_the_flush_are_kept_and_count_as_a_failed_batch(self):
         task = self._task_with_kafka(set(), hang_subjects={b"slow-1", b"slow-2"})
@@ -300,7 +300,7 @@ class TestPartialSuccessWithARealKafkaSender:
         task.run()
 
         assert Outbox.objects.filter(pk__in=[first.pk, second.pk]).count() == 2
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is True
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
     def test_a_payload_that_is_not_even_a_dict_does_not_stop_the_other_rows(self):
         task = self._task_with_kafka(set())
@@ -345,8 +345,8 @@ class TestRegionsAreIndependent:
         task.run()
 
         destination = task.channels[OutboxChannel.JOB_USAGE]
-        assert destination.get_breaker("eu-de").is_open() is True
-        assert destination.get_breaker("us-east").is_open() is False
+        assert destination.get_breaker("eu-de").is_open is True
+        assert destination.get_breaker("us-east").is_open is False
         assert list(Outbox.objects.values_list("pk", flat=True)) == [dead.pk]
 
     def test_rows_without_a_region_are_drained_apart_from_the_regional_ones(self):
@@ -507,7 +507,7 @@ class TestSendersWithoutBatches:
         assert sender.send.call_count == 2  # the third row was never attempted
         assert Outbox.objects.count() == 5  # nothing is deleted when it fails
         assert task.metrics.increment_outbox_send.call_args_list == [((OutboxChannel.JOB_USAGE, "failure"),)] * 2
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is True
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
 
     def test_a_permanent_error_marks_the_row_unrecoverable_without_touching_the_breaker(self):
         sender = _single_sender()
@@ -529,7 +529,7 @@ class TestSendersWithoutBatches:
         assert bad.unrecoverable is True
         assert bad.attempts == 1
         assert "ValueError" in bad.last_error
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is False
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
         task.metrics.increment_outbox_send.assert_any_call(OutboxChannel.JOB_USAGE, "unrecoverable")
 
     def test_an_unrecoverable_row_is_never_read_again_and_is_reported_apart(self):
@@ -556,7 +556,7 @@ class TestSendersWithoutBatches:
 
         task.run()
 
-        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is False
+        assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is False
         assert sorted(Outbox.objects.values_list("pk", flat=True)) == sorted([bad_one.pk, bad_two.pk])
 
     def test_the_kill_signal_stops_the_rest_of_the_batch(self):
@@ -771,7 +771,7 @@ class TestRetryWithBackoff:
             patch("django.utils.timezone.now", side_effect=lambda: base + timedelta(seconds=clock[0])),
         ):
             task.run()  # the three bad rows fail and open the breaker
-            assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open() is True
+            assert task.channels[OutboxChannel.JOB_USAGE].get_breaker(None).is_open is True
             clock[0] = 70.0  # past the breaker's pause (60 s) and still inside the wait of the bad rows (120 s)
             task.run()
 

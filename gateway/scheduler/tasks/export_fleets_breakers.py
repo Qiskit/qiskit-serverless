@@ -16,4 +16,4 @@ class ExportFleetsBreakers(SchedulerTask):
         for dependency, registry in self.breakers.registries().items():
             # a copy, because the loops that submit and cancel can add a region while this one runs
             for region, breaker in registry.snapshot():
-                self.metrics.set_fleets_breaker_open(breaker.is_open(), dependency, region)
+                self.metrics.set_fleets_breaker_open(breaker.is_open, dependency, region)

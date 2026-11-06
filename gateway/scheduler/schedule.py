@@ -93,11 +93,11 @@ class RegionBreakers:
 
     def paused(self, region: str | None) -> bool:
         """Whether the breaker of this region is open."""
-        return self.get_breaker(region).is_open()
+        return self.get_breaker(region).is_open
 
     def paused_regions(self) -> list[str | None]:
         """The regions whose breaker is open right now, out of the ones asked for so far."""
-        return [region for region, breaker in self.snapshot() if breaker.is_open()]
+        return [region for region, breaker in self.snapshot() if breaker.is_open]
 
 
 class FleetsBreakers:
@@ -277,7 +277,7 @@ class FleetsJobCanceller:
             return False
 
         breaker = self.breakers.code_engine.get_breaker(job.ce_region)
-        if breaker.is_open():
+        if breaker.is_open:
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
             written = self.transitions.stop(job, origin=JobEventOrigin.SCHEDULER, context=context)
