@@ -289,3 +289,21 @@ def test_generate_presigned_url_uses_public_endpoint() -> None:
     url = client.generate_presigned_url(bucket="my-bucket", key="some/key")
 
     assert url.startswith(public_url)
+
+
+def test_generate_presigned_put_url_signs_the_size() -> None:
+    from ibm_boto3 import client as ibm_boto3_client
+
+    s3 = ibm_boto3_client(
+        "s3",
+        aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+        aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        endpoint_url="https://s3.us-east.cloud-object-storage.appdomain.cloud",
+        region_name="us-east",
+    )
+    client, _ = _make_client()
+
+    with patch.object(COSClient, "_s3_presigned", s3):
+        url = client.generate_presigned_put_url(bucket="my-bucket", key="some/key", size=1234, expiry=300)
+
+    assert "X-Amz-SignedHeaders=content-length%3Bhost" in url

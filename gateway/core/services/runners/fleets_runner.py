@@ -678,19 +678,19 @@ class FleetsRunner(AbstractRunner):
         """Dispatcher: uploads COS objects for the job before fleet submission.
 
         Dispatches to the appropriate upload method based on job type:
-        - artifact set → :meth:`_upload_custom_image_entrypoint`
+        - artifact set, or no image and no provider → :meth:`_upload_custom_image_entrypoint`
         - image set (no artifact) → :meth:`_upload_provider_image_entrypoint`
 
         Args:
             paths: Pre-computed paths from :func:`build_job_paths`.
         """
-        if self.job.program.artifact:
+        if self.job.program.artifact or not (self.job.program.image or self.job.program.provider):
             self._upload_custom_image_entrypoint(paths)
         elif self.job.program.image:
             self._upload_provider_image_entrypoint(paths)
 
     def _upload_custom_image_entrypoint(self, paths: FleetJobPaths) -> None:
-        """Extract the program artifact tar and upload files to COS.
+        """Upload the wrapper and, when the program has an artifact tar, its files to COS.
 
         Custom jobs: entrypoint → user bucket at function level; other files → user bucket at job level.
         Provider functions skip this — their files are pre-uploaded by the provider admin.
@@ -699,9 +699,6 @@ class FleetsRunner(AbstractRunner):
             paths: Pre-computed paths from :func:`build_job_paths`.
         """
         program = self.job.program
-        if not program.artifact:
-            return
-
         user_bucket = self._project.cos_bucket_user_data_name
 
         # upload template
@@ -718,6 +715,8 @@ class FleetsRunner(AbstractRunner):
             bucket_name=user_bucket,
             key=paths.cos_docker_entrypoint,
         )
+        if not program.artifact:
+            return
 
         # upload user source files (including entrypoint)
         entrypoint_found = False
