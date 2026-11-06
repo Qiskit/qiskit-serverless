@@ -92,6 +92,7 @@ from qiskit_serverless.utils.json import (
     raise_for_non_ok_response,
 )
 from qiskit_serverless.utils.formatting import format_provider_name_and_title
+from qiskit_serverless.utils.urls import url_path_join
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
@@ -803,16 +804,20 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     channel=self.channel,
                 )
             elif program.entrypoint:
-                # upload function with artifact
-                function_uploaded = _upload_with_artifact(
-                    program=program,
-                    url=url,
-                    token=self.token,
-                    span=span,
-                    client=self,
-                    instance=self.instance,
-                    channel=self.channel,
-                )
+                kwargs: Dict[str, Any] = {
+                    "program": program,
+                    "url": url,
+                    "token": self.token,
+                    "span": span,
+                    "client": self,
+                    "instance": self.instance,
+                    "channel": self.channel,
+                }
+                # upload the files straight to COS, or the artifact tar for a provider, Ray or an old gateway
+                function_uploaded = None
+                if program.runner != "ray" and not program.provider:
+                    function_uploaded = _upload_files_to_cos(**kwargs)
+                function_uploaded = function_uploaded or _upload_with_artifact(**kwargs)
             else:
                 raise QiskitServerlessException("Function must either have `entrypoint` or `image` specified.")
 
@@ -1462,6 +1467,31 @@ def _sizes_payload(program: QiskitFunction) -> Dict[str, Any]:
     return payload
 
 
+def _upload_fields(program: QiskitFunction) -> Dict[str, Any]:
+    """The fields of a function upload with its code."""
+    return {
+        "title": program.title,
+        "provider": program.provider,
+        "entrypoint": program.entrypoint,
+        "runner": program.runner,
+        "arguments": json.dumps({}),
+        "dependencies": json.dumps(program.dependencies or []),
+        "env_vars": json.dumps(program.env_vars or {}),
+        "description": program.description,
+        "version": program.version,
+        **({"arguments_schema": json.dumps(program.arguments_schema)} if program.arguments_schema is not None else {}),
+        **_sizes_payload(program),
+    }
+
+
+def _uploaded_function(response_data: Dict[str, Any], span: Any, client: RunService) -> RunnableQiskitFunction:
+    """The function the gateway returned for an upload, tagged on the tracing span."""
+    span.set_attribute("function.title", response_data.get("title", "na"))
+    span.set_attribute("function.provider", response_data.get("provider", "na"))
+    response_data["client"] = client
+    return RunnableQiskitFunction.from_json(response_data)
+
+
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
     program: QiskitFunction,
     url: str,
@@ -1507,12 +1537,87 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
             timeout=REQUESTS_TIMEOUT,
         )
     )
-    program_title = response_data.get("title", "na")
-    program_provider = response_data.get("provider", "na")
-    span.set_attribute("function.title", program_title)
-    span.set_attribute("function.provider", program_provider)
-    response_data["client"] = client
-    return RunnableQiskitFunction.from_json(response_data)
+    return _uploaded_function(response_data, span, client)
+
+
+def _working_dir_files(working_dir: str) -> Dict[str, str]:
+    """Every file under ``working_dir``, by its path relative to it.
+
+    Raises:
+        QiskitServerlessException: if the files are larger than ``MAX_ARTIFACT_FILE_SIZE_MB``.
+    """
+    files = {}
+    for root, _, names in os.walk(working_dir, followlinks=True):
+        for name in names:
+            full_path = os.path.join(root, name)
+            files[Path(os.path.relpath(full_path, working_dir)).as_posix()] = full_path
+    size_in_mb = sum(map(os.path.getsize, files.values())) / 1024**2
+    if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+        raise QiskitServerlessException(
+            f"The files of {working_dir} are {int(size_in_mb)} Mb, "
+            f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. Try to reduce size of `working_dir`."
+        )
+    return files
+
+
+def _put_files(urls: Dict[str, str], files: Dict[str, str]) -> None:
+    """PUT each file to its presigned URL, by its relative path."""
+    with requests.Session() as session:
+        for path, put_url in urls.items():
+            with open(files[path], "rb") as file:
+                # requests sends no Content-Length for an empty file object
+                body = file if os.path.getsize(files[path]) else b""
+                raise_for_non_ok_response(session.put(put_url, data=body, timeout=REQUESTS_TIMEOUT))
+
+
+def _upload_files_to_cos(  # pylint: disable=too-many-positional-arguments
+    program: QiskitFunction,
+    url: str,
+    token: str,
+    span: Any,
+    client: RunService,
+    instance: Optional[str],
+    channel: Optional[str],
+) -> Optional[RunnableQiskitFunction]:
+    """Uploads the files of ``working_dir`` straight to COS, with a presigned URL for each.
+
+    Returns None when the gateway has no ``upload/start`` endpoint, so the caller uploads the artifact tar instead.
+    """
+    try:
+        files = _working_dir_files(program.working_dir)
+        sizes: List[Dict[str, Any]] = [{"path": p, "size": os.path.getsize(f)} for p, f in files.items()]
+    except OSError as error:
+        raise QiskitServerlessException(f"The function files could not be read: {error}") from error
+    entrypoint = Path(os.path.normpath(program.entrypoint)).as_posix()
+    if entrypoint not in files:
+        raise QiskitServerlessException(
+            f"Entrypoint file [{program.entrypoint}] does not exist in [{program.working_dir}] working directory."
+        )
+
+    headers = get_headers(token=token, instance=instance, channel=channel)
+    try:
+        start = requests.post(
+            url=url_path_join(url, "start/"),
+            json={"title": program.title, "entrypoint": entrypoint, "files": sizes},
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if start.status_code == 404:
+            return None
+        raise_for_non_ok_response(start)
+        _put_files(start.json()["urls"], files)
+    except (requests.exceptions.RequestException, OSError) as error:
+        raise QiskitServerlessException(f"The function files could not be uploaded: {error}") from error
+
+    response_data = safe_json_request_as_dict(
+        request=lambda: requests.post(
+            url=url_path_join(url, "finish/"),
+            data={**_upload_fields(program), "entrypoint": entrypoint, "files": json.dumps(sizes)},
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT,
+        )
+    )
+    return _uploaded_function(response_data, span, client)
 
 
 def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, too-many-locals
@@ -1566,32 +1671,13 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.post(
                     url=url,
-                    data={
-                        "title": program.title,
-                        "provider": program.provider,
-                        "entrypoint": program.entrypoint,
-                        "runner": program.runner,
-                        "arguments": json.dumps({}),
-                        "dependencies": json.dumps(program.dependencies or []),
-                        "env_vars": json.dumps(program.env_vars or {}),
-                        "description": program.description,
-                        "version": program.version,
-                        **(
-                            {"arguments_schema": json.dumps(program.arguments_schema)}
-                            if program.arguments_schema is not None
-                            else {}
-                        ),
-                        **_sizes_payload(program),
-                    },
+                    data=_upload_fields(program),
                     files={"artifact": file},
                     headers=get_headers(token=token, instance=instance, channel=channel),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            span.set_attribute("function.title", response_data.get("title", "na"))
-            span.set_attribute("function.provider", response_data.get("provider", "na"))
-            response_data["client"] = client
-            response_function = RunnableQiskitFunction.from_json(response_data)
+            response_function = _uploaded_function(response_data, span, client)
     except QiskitServerlessException as error:
         raise error
     except Exception as error:  # pylint: disable=broad-exception-caught
