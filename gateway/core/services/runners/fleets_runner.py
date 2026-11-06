@@ -45,6 +45,7 @@ from core.ibm_cloud.code_engine.fleets.handler import FleetHandler
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
+    TaskTimes,
     queue_prefix,
     task_state_from_key,
 )
@@ -363,6 +364,22 @@ class FleetsRunner(AbstractRunner):
 
         self._warn_unresolved_state(prefix, keys, found)
         return None
+
+    def get_task_times(self) -> TaskTimes:
+        """When Code Engine says the task started and finished, from its task file, which unlike the keys under
+        ``queue/`` stays after the task ends. A time that is not known or not set is ``None``. It only improves on
+        the moment the scheduler noticed, so it never raises: no fleet, no file yet, an unreadable file and a failing
+        COS all give ``TaskTimes()``."""
+        try:
+            self._project = self._project or self._get_project()
+            return self._get_cos().get_task_times(
+                bucket_name=self._project.cos_bucket_task_store_name,
+                project_id=self._project.project_id,
+                fleet_id=self.job.fleet_id,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.warning("Could not read the task times of fleet [%s]: %s", self.job.fleet_id, exc)
+            return TaskTimes()
 
     def _warn_unresolved_state(self, prefix: str, keys: list[str], found: dict[str, str]) -> None:
         """Report a listing that held keys but no state this gateway recognises.

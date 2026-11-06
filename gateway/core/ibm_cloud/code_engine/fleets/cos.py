@@ -15,11 +15,18 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
+from typing import Any, NamedTuple
+
+import yaml
 
 from core.ibm_cloud.cos.cos_client import COSClient
 
 logger = logging.getLogger("FleetHandler")
 
+# Code Engine writes a zero time in ``finishedAt`` while the task runs (year 1, the zero of Go). This and anything
+# before it is a time that is not set.
+_UNSET_TIME = datetime.fromtimestamp(0, timezone.utc)
 
 # Task-store schema versions, newest first. Code Engine writes the task state under a
 # version segment and only these two exist: v3 is the layout it is moving to, v2 the
@@ -71,6 +78,78 @@ def task_state_from_key(prefix: str, key: str) -> str | None:
     if not key.startswith(prefix):
         return None
     return key[len(prefix) :].split("/", 1)[0].strip().lower() or None
+
+
+def tasks_prefix(project_id: str, fleet_id: str, version: str = TASK_STORE_VERSIONS[0]) -> str:
+    """Build the COS task file key prefix for a fleet.
+
+    Code Engine keeps one file per task under ``ce/{project_id}/{fleet_id}/{version}/tasks/``, named after the task
+    id. Unlike the keys under ``queue/``, it stays after the task ends, and it holds when the task started and
+    finished. A job runs a single task, so the prefix holds a single file.
+
+    Args:
+        project_id: The CE project UUID.
+        fleet_id: The fleet UUID.
+        version: Task-store schema version segment. Defaults to the newest.
+
+    Returns:
+        The tasks key prefix, ending in a trailing slash.
+
+    Raises:
+        ValueError: If project_id or fleet_id is missing.
+    """
+    if not project_id:
+        raise ValueError("project_id is required.")
+    if not fleet_id:
+        raise ValueError("fleet_id is required.")
+    return f"ce/{project_id}/{fleet_id}/{version}/tasks/"
+
+
+class TaskTimes(NamedTuple):
+    """When Code Engine says the task started and finished, each ``None`` while unknown."""
+
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+def _parse_utc_datetime(value: Any) -> datetime | None:
+    """The value as a datetime with a timezone, or ``None`` when it is not one or is not set (the zero time). YAML reads
+    an unquoted timestamp as a datetime and a quoted one as a string, so both go through their text form."""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo and parsed > _UNSET_TIME else None
+
+
+def _parse_task_times(content: bytes, source: str) -> TaskTimes:
+    """Read ``startedAt`` and ``finishedAt`` from the content of a task file.
+
+    The ``startTime`` and ``endTime`` of the worker under ``status`` are not read. The file holds the environment
+    of the task, tokens included, so nothing of its content is logged, not even in the error of a bad YAML.
+
+    Args:
+        content: The task file, YAML.
+        source: Where it comes from, only used to log.
+
+    Returns:
+        The times found. A key that is missing, null, not a timestamp, without a timezone or not set is ``None``.
+    """
+    try:
+        document = yaml.safe_load(content)
+    except (yaml.YAMLError, ValueError) as exc:
+        # Not the message: a YAML error quotes the line it failed on. A ValueError is a timestamp YAML cannot build,
+        # like year 0000
+        logger.warning("Task file %s is not valid YAML (%s)", source, type(exc).__name__)
+        return TaskTimes()
+    if not isinstance(document, dict):
+        logger.warning("Task file %s is not a YAML mapping", source)
+        return TaskTimes()
+
+    return TaskTimes(
+        started_at=_parse_utc_datetime(document.get("startedAt")),
+        finished_at=_parse_utc_datetime(document.get("finishedAt")),
+    )
 
 
 class JobCOS:
@@ -168,6 +247,28 @@ class JobCOS:
             raise ValueError("key is required.")
 
         self._cos.upload_fileobj(fileobj=fileobj, bucket=bucket_name, key=key)
+
+    def get_task_times(self, *, bucket_name: str, project_id: str, fleet_id: str) -> TaskTimes:
+        """When Code Engine says the task of a fleet started and finished, from its task file, which unlike the keys
+        under ``queue/`` stays after the task ends. A job runs a single task, so there is a single task file.
+
+        Args:
+            bucket_name: COS bucket of the task store.
+            project_id: The CE project UUID.
+            fleet_id: The fleet UUID.
+
+        Returns:
+            The times found, each ``None`` while unknown. ``TaskTimes()`` when there is no task file yet.
+
+        Raises:
+            ValueError: If project_id or fleet_id is missing.
+        """
+        keys = self.list_keys(bucket_name=bucket_name, prefix=tasks_prefix(project_id, fleet_id))
+        # A key ending in "/" is a directory marker, not a task file
+        key = next((key for key in keys if not key.endswith("/")), None)
+        if key is None:
+            return TaskTimes()
+        return _parse_task_times(self.get_object_bytes(bucket_name=bucket_name, key=key), key)
 
     def get_object_bytes(self, *, bucket_name: str, key: str) -> bytes:
         """Retrieve an object fully into memory.

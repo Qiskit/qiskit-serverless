@@ -972,6 +972,10 @@ class JobEvent(models.Model):
     origin = models.CharField(max_length=100, blank=False, null=False)
     context = models.CharField(max_length=100, blank=False, null=False)
     created = models.DateTimeField(auto_now_add=True, null=True)
+    # When the event really happened, if the runner knows (Code Engine for a Fleets job). ``created`` is when the row
+    # was written, so it follows the pace of the scheduler. Read the two through JobEventQuerySet.first_running_at()
+    # and first_terminal_at(), which fall back to created.
+    event_time = models.DateTimeField(null=True, blank=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
     objects: JobEventQuerySet = JobEventQuerySet.as_manager()

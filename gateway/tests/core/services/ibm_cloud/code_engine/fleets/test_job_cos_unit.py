@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
@@ -28,8 +29,11 @@ from core.domain.exceptions.retryable_error import RetryableError
 from core.ibm_cloud.code_engine.fleets.cos import (
     TASK_STORE_VERSIONS,
     JobCOS,
+    TaskTimes,
+    _parse_task_times,
     queue_prefix,
     task_state_from_key,
+    tasks_prefix,
 )
 
 _IBM_CLOUD_MOD = "core.ibm_cloud"
@@ -131,6 +135,15 @@ def test_job_cos_head_object() -> None:
     job_cos, mock_cos = _make_job_cos()
     job_cos.head_object(bucket_name="my-bucket", key="some/key")
     mock_cos.head_object.assert_called_once_with(bucket="my-bucket", key="some/key")
+
+
+def test_job_cos_list_keys_lists_under_the_prefix() -> None:
+    """list_keys() hands the bucket and the prefix to the COS client."""
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.list_keys.return_value = ["a/b"]
+
+    assert job_cos.list_keys(bucket_name="my-bucket", prefix="a/") == ["a/b"]
+    mock_cos.list_keys.assert_called_once_with(bucket="my-bucket", prefix="a/")
 
 
 def test_job_cos_head_object_raises_on_empty_bucket() -> None:
@@ -456,3 +469,174 @@ class TestQueuePrefixAndState:
         prefix = queue_prefix("proj", "fleet")
         key = f"{prefix}pending/000-00000-0/succeeded/0/2026-08-26T19:09:39Z/uuid"
         assert task_state_from_key(prefix, key) == "pending"
+
+
+class TestTasksPrefix:
+    """The task file layout, which stays after the task ends."""
+
+    def test_it_sits_next_to_the_queue_under_the_newest_version(self):
+        assert tasks_prefix("proj", "fleet") == "ce/proj/fleet/v3/tasks/"
+        assert (
+            tasks_prefix("proj", "fleet").rsplit("tasks/", 1)[0] == queue_prefix("proj", "fleet").rsplit("queue/", 1)[0]
+        )
+
+    @pytest.mark.parametrize("project_id, fleet_id", [("", "fleet"), (None, "fleet"), ("proj", ""), ("proj", None)])
+    def test_it_needs_a_project_and_a_fleet(self, project_id, fleet_id):
+        """A missing id would build a prefix like ``ce/proj/None/v3/tasks/`` that lists nothing."""
+        with pytest.raises(ValueError, match="is required"):
+            tasks_prefix(project_id, fleet_id)
+
+
+class TestParseTaskTimes:
+    """_parse_task_times() reads startedAt and finishedAt, and logs nothing of the content."""
+
+    def test_an_unquoted_timestamp_with_nanoseconds_is_read(self):
+        times = _parse_task_times(b"startedAt: 2026-01-02T03:04:05.123456789Z\nfinishedAt: 2026-01-02T03:06:07Z\n", "k")
+
+        assert times == TaskTimes(
+            datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc),
+            datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc),
+        )
+
+    def test_a_quoted_timestamp_with_nanoseconds_is_read(self):
+        times = _parse_task_times(b"startedAt: '2026-01-02T03:04:05.123456789Z'\n", "k")
+
+        assert times.started_at == datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc)
+
+    def test_an_offset_other_than_utc_is_kept_aware(self):
+        times = _parse_task_times(b"startedAt: '2026-01-02T03:04:05+02:00'\n", "k")
+
+        assert times.started_at == datetime(2026, 1, 2, 1, 4, 5, tzinfo=timezone.utc)
+
+    def test_the_times_of_the_worker_are_ignored(self):
+        content = b"status:\n- startTime: '2026-01-02T03:04:05Z'\n  endTime: '2026-01-02T03:06:07Z'\n"
+
+        assert _parse_task_times(content, "k") == TaskTimes()
+
+    @pytest.mark.parametrize("zero", ["0001-01-01T00:00:00Z", "'0001-01-01T00:00:00Z'", "1970-01-01T00:00:00Z"])
+    def test_the_zero_time_is_not_set(self, zero):
+        """Code Engine writes it in finishedAt while the task runs: year 1, the zero of Go, or the Unix epoch."""
+        content = f"startedAt: 2026-01-02T03:04:05Z\nfinishedAt: {zero}\n".encode()
+
+        times = _parse_task_times(content, "k")
+
+        assert times == TaskTimes(datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), None)
+
+    def test_a_time_after_the_zero_is_set(self):
+        assert _parse_task_times(b"startedAt: 1970-01-01T00:00:01Z\n", "k").started_at is not None
+
+    def test_an_unquoted_year_zero_makes_the_whole_file_unreadable(self, caplog):
+        """YAML cannot build it and raises ValueError, so the start of the same file is lost too. Quoted, it is a string
+        that is not a timestamp and the other time is kept. Code Engine has not been seen writing it."""
+        content = b"startedAt: 2026-01-02T03:04:05Z\nfinishedAt: 0000-00-00T00:00:00Z\n"
+
+        assert _parse_task_times(content, "k") == TaskTimes()
+        assert "is not valid YAML" in caplog.text
+        assert _parse_task_times(content.replace(b"0000-00-00T00:00:00Z", b"'0000-00-00T00:00:00Z'"), "k").started_at
+
+    def test_null_and_missing_are_none(self):
+        assert _parse_task_times(b"startedAt: null\n", "k") == TaskTimes()
+        assert _parse_task_times(b"taskState: pending\n", "k") == TaskTimes()
+
+    def test_yaml_cannot_build_python_objects(self):
+        """safe_load: a tag that would run code is an error, not an object."""
+        assert _parse_task_times(b"startedAt: !!python/object/apply:os.getcwd []\n", "k") == TaskTimes()
+
+
+_TASKS = "ce/proj/fleet/v3/tasks/"
+_TASK_FILE = f"{_TASKS}00000000-0000-0000-0000-000000000001"
+
+
+def _task_file(started_at="2026-01-02T03:04:05Z", finished_at="2026-01-02T03:06:07Z") -> bytes:
+    """The task file Code Engine keeps, with invented values and the worker times the gateway must ignore."""
+    return (
+        "taskState: successful\n"
+        "status:\n"
+        "- worker: fleet-test-0\n"
+        "  startTime: '2000-01-01T00:00:00Z'\n"
+        "  endTime: '2000-01-01T00:00:09Z'\n"
+        f"startedAt: {started_at}\n"
+        f"finishedAt: {finished_at}\n"
+    ).encode()
+
+
+def _job_cos_with_task_file(content: bytes | None = None, keys: list[str] | None = None) -> tuple[JobCOS, MagicMock]:
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.list_keys.return_value = [_TASK_FILE] if keys is None else keys
+    mock_cos.get_object_bytes.return_value = _task_file() if content is None else content
+    return job_cos, mock_cos
+
+
+class TestGetTaskTimes:
+    """JobCOS.get_task_times() reads the task file of a fleet."""
+
+    @staticmethod
+    def _times(job_cos: JobCOS) -> TaskTimes:
+        return job_cos.get_task_times(bucket_name="bucket", project_id="proj", fleet_id="fleet")
+
+    def test_they_are_startedat_and_finishedat(self):
+        job_cos, _ = _job_cos_with_task_file()
+
+        assert self._times(job_cos) == TaskTimes(
+            datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc)
+        )
+
+    def test_it_reads_the_only_file_under_the_tasks_prefix(self):
+        job_cos, mock_cos = _job_cos_with_task_file()
+
+        self._times(job_cos)
+
+        mock_cos.list_keys.assert_called_once_with(bucket="bucket", prefix=_TASKS)
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE)
+
+    def test_a_directory_marker_is_not_a_task_file(self):
+        job_cos, mock_cos = _job_cos_with_task_file(keys=[_TASKS, _TASK_FILE])
+
+        assert self._times(job_cos).started_at is not None
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE)
+
+    @pytest.mark.parametrize("keys", [[], [_TASKS]])
+    def test_no_task_file_yet_gives_no_times_and_reads_nothing(self, keys):
+        job_cos, mock_cos = _job_cos_with_task_file(keys=keys)
+
+        assert self._times(job_cos) == TaskTimes()
+        mock_cos.get_object_bytes.assert_not_called()
+
+    def test_the_times_of_the_worker_are_not_read(self):
+        job_cos, _ = _job_cos_with_task_file(_task_file(started_at="null", finished_at="null"))
+
+        assert self._times(job_cos) == TaskTimes()
+
+    def test_a_task_that_has_not_finished_has_only_the_start(self):
+        """Code Engine writes the zero time in finishedAt while the task runs."""
+        job_cos, _ = _job_cos_with_task_file(_task_file(finished_at="0001-01-01T00:00:00Z"))
+
+        times = self._times(job_cos)
+
+        assert times.started_at is not None
+        assert times.finished_at is None
+
+    @pytest.mark.parametrize("content", [b"", b"- a\n- b\n", b"just text", b"{unclosed: ["])
+    def test_a_file_that_is_not_a_yaml_mapping_gives_no_times(self, content):
+        job_cos, _ = _job_cos_with_task_file(content)
+
+        assert self._times(job_cos) == TaskTimes()
+
+    def test_the_content_is_never_logged(self, caplog):
+        """The file holds tokens, and a YAML error quotes the line it failed on."""
+        job_cos, _ = _job_cos_with_task_file(b"env: {ENV_JOB_GATEWAY_TOKEN: secret-token-value, : [}\n")
+
+        self._times(job_cos)
+
+        assert "secret-token-value" not in caplog.text
+        assert "is not valid YAML" in caplog.text
+
+    @pytest.mark.parametrize("kwargs", [{"project_id": ""}, {"fleet_id": ""}, {"fleet_id": None}])
+    def test_it_needs_a_project_and_a_fleet(self, kwargs):
+        job_cos, mock_cos = _job_cos_with_task_file()
+        args = {"bucket_name": "bucket", "project_id": "proj", "fleet_id": "fleet", **kwargs}
+
+        with pytest.raises(ValueError, match="is required"):
+            job_cos.get_task_times(**args)
+
+        mock_cos.list_keys.assert_not_called()

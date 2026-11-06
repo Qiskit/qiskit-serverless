@@ -1,6 +1,7 @@
 """Job events model manager."""
 
 import logging
+from datetime import datetime
 from typing import Any, Self
 import uuid
 
@@ -70,8 +71,9 @@ class JobEventQuerySet(QuerySet):
         origin: JobEventOrigin,
         context: JobEventContext,
         status: str,
+        event_time: datetime | None = None,
     ):
-        """Status change event for jobs."""
+        """Status change event for jobs. event_time is when the status was really reached, if the runner knows."""
 
         logger.info(
             "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
@@ -87,6 +89,7 @@ class JobEventQuerySet(QuerySet):
             origin=origin,
             context=context,
             event_type=JobEventType.STATUS_CHANGE,
+            event_time=event_time,
             data={"status": status},
         )
 
@@ -96,25 +99,27 @@ class JobEventQuerySet(QuerySet):
 
         return self.filter(event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING).order_by("created")
 
+    def terminal_status_events(self) -> Self:
+        """The status changes to a terminal status, oldest first. The first one is when the job ended."""
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        return self.filter(event_type=JobEventType.STATUS_CHANGE, data__status__in=Job.TERMINAL_STATUSES).order_by(
+            "created"
+        )
+
     def first_running_at(self, job_id: uuid.UUID):
-        """When this job first reached RUNNING, from its own event history.
+        """When this job first reached RUNNING: the time the runner gave, or else when the event was written.
         Returns None if it never did (still queued/pending, or terminated without running).
         """
         event = self.filter(job_id=job_id).running_status_events().first()
-        return event.created if event else None
+        return (event.event_time or event.created) if event else None
 
     def first_terminal_at(self, job_id: uuid.UUID):
-        """When this job first reached a terminal status, from its own event history.
-        Returns None if it never did.
+        """When this job first reached a terminal status: the time the runner gave, or else when the event was
+        written. Returns None if it never did.
         """
-        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
-
-        event = (
-            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status__in=Job.TERMINAL_STATUSES)
-            .order_by("created")
-            .first()
-        )
-        return event.created if event else None
+        event = self.filter(job_id=job_id).terminal_status_events().first()
+        return (event.event_time or event.created) if event else None
 
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,
