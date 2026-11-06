@@ -18,13 +18,13 @@ metrics:
   - name: gateway_pods_available
     query: max(kube_deployment_status_replicas_available{kube_cluster_name="{cluster}", kube_namespace_name="{namespace}", kube_deployment_name="gateway"})
   - name: last_tick_timestamp
-    query: max(scheduler_last_tick_timestamp_seconds{kube_cluster_name="{cluster}"})
+    query: min(max by (loop) (scheduler_last_tick_timestamp_seconds{kube_cluster_name="{cluster}"}))  # the loop that ticked longest ago, so a stalled loop shows
   - name: task_duration_seconds_mean
     query: sum by (task_name) (rate(scheduler_task_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum by (task_name) (rate(scheduler_task_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
   - name: loop_duration_seconds_mean
-    query: sum(rate(scheduler_loop_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum(rate(scheduler_loop_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
+    query: sum by (loop) (rate(scheduler_loop_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum by (loop) (rate(scheduler_loop_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
   - name: loop_duration_max  # the slowest tick of the last 120 s, which the 1 minute mean hides
-    query: max(scheduler_loop_duration_max_seconds{kube_cluster_name="{cluster}"})
+    query: max by (loop) (scheduler_loop_duration_max_seconds{kube_cluster_name="{cluster}"})
   - name: task_duration_max  # the slowest run of each task in the last 120 s
     query: max by (task_name) (scheduler_task_duration_max_seconds{kube_cluster_name="{cluster}"})
   - name: fleet_deletes

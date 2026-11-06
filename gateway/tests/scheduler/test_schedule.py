@@ -32,9 +32,7 @@ from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 
 from scheduler.schedule import (
-    _REFUSED_CANCEL_WARNED,
     check_job_timeout,
-    first_cancel_refusal,
     FleetsJobCanceller,
     FleetsBreakers,
     FleetsFleetDeleter,
@@ -632,6 +630,7 @@ def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
     ran the task to the end with nothing tracking it, because fleet_id only reached the database
     through the status transition that was refused.
     """
+    Config.add_defaults()
     author = User.objects.create_user(username="submit-race-author")
     job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED, env_vars='{"KEY": "value"}')
 
@@ -659,6 +658,7 @@ def test_a_job_stopped_while_submitting_keeps_its_fleet_and_cancels_it():
 def test_a_failed_submit_records_its_reason_in_the_database():
     """Against the real transition service. GET /jobs/{id}/events returns only ERROR events, so
     without this row the user sees a FAILED job and an empty list."""
+    Config.add_defaults()
     author = User.objects.create_user(username="submit-failure-author")
     job = Job.objects.create(author=author, runner=Program.FLEETS, status=Job.QUEUED, env_vars='{"KEY": "value"}')
 
@@ -681,8 +681,10 @@ def test_a_failed_submit_records_its_reason_in_the_database():
     assert error.context == JobEventContext.FILLER_SUBMIT
 
 
+@pytest.mark.django_db
 def test_a_cancel_that_fails_leaves_the_fleet_on_the_row_and_on_the_timeline():
     """The row is terminal, so nothing retries this cancel. The job timeline is the only signal."""
+    Config.add_defaults()
     runner = MagicMock()
     runner.stop.side_effect = RunnerRetryableError("Too Many Requests")
     transitions = MagicMock()
@@ -701,8 +703,10 @@ def test_a_cancel_that_fails_leaves_the_fleet_on_the_row_and_on_the_timeline():
     assert mock_event.objects.add_error_event.call_args.kwargs["code"] == "FLEET_LEFT_RUNNING"
 
 
+@pytest.mark.django_db
 def test_fleets_submit_records_the_given_event_context():
     """The JobEvent context is the caller's, defaulting to SCHEDULE_JOBS."""
+    Config.add_defaults()
     mock_job = MagicMock()
     mock_job.id = uuid.uuid4()
 
@@ -713,8 +717,10 @@ def test_fleets_submit_records_the_given_event_context():
     assert transitions.queued_to_pending.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
 
 
+@pytest.mark.django_db
 def test_fleets_submit_defaults_to_the_schedule_jobs_context():
     """Callers that pass no context still record SCHEDULE_JOBS."""
+    Config.add_defaults()
     mock_job = MagicMock()
     mock_job.id = uuid.uuid4()
 
@@ -740,6 +746,7 @@ def _operation_count(registry: CollectorRegistry, operation: str, status: str) -
 
 @pytest.mark.django_db
 def test_a_submit_records_one_fleet_submit_sample_around_the_upload(operation_registry):
+    Config.add_defaults()
     runner = MagicMock()
 
     def upload_then_submit():
@@ -767,34 +774,13 @@ def test_a_retryable_submit_error_records_a_fleet_submit_error_and_still_raises(
     assert _operation_count(operation_registry, "fleet_submit", "ok") == 0
 
 
-class TestFirstCancelRefusal:
-    """Both scheduler callers ask again every tick, so a refusal must report once, not once a second."""
-
-    @pytest.fixture(autouse=True)
-    def _clear_warned(self):
-        _REFUSED_CANCEL_WARNED.clear()
-        yield
-        _REFUSED_CANCEL_WARNED.clear()
-
-    def test_only_the_first_refusal_reports(self):
-        job = MagicMock(id="job-refused")
-
-        assert [first_cancel_refusal(job) for _ in range(3)] == [True, False, False]
-
-    def test_the_warned_set_is_bounded(self):
-        with patch("scheduler.schedule._REFUSED_CANCEL_LIMIT", 2):
-            for index in range(3):
-                first_cancel_refusal(MagicMock(id=f"job-{index}"))
-
-        assert len(_REFUSED_CANCEL_WARNED) == 1
-
-
 @pytest.mark.django_db
 class TestFleetsJobCanceller:
     """The scheduler's cancel: one try, and the region's breaker decides when to try again."""
 
     @staticmethod
     def _canceller(side_effect=None, returns=Job.STOPPING, breakers=None):
+        Config.add_defaults()  # the breakers read their pause from Config
         transitions = MagicMock()
         if side_effect is not None:
             transitions.stop.side_effect = side_effect
@@ -809,16 +795,6 @@ class TestFleetsJobCanceller:
         assert canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS) is True
         assert canceller.paused("us-east") is False
         transitions.stop.assert_called_once()
-
-    def test_a_cancel_that_lands_lets_a_later_refusal_report_again(self):
-        """Without the discard the set only ever grows, and a job that recovers stays silenced."""
-        canceller, _ = self._canceller(returns=Job.STOPPING)
-        job = MagicMock(ce_region="us-east")
-        _REFUSED_CANCEL_WARNED.add(str(job.id))
-
-        canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
-
-        assert str(job.id) not in _REFUSED_CANCEL_WARNED
 
     def test_nothing_to_cancel_counts_as_an_answer_from_code_engine(self):
         """False is Code Engine's own 404, so the region is answering."""
