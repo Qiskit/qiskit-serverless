@@ -90,6 +90,15 @@ class JobEventQuerySet(QuerySet):
             data={"status": status},
         )
 
+    def first_status_at(self, job_id: uuid.UUID, status: str):
+        """When this job first reached ``status``, from its own event history, or None if it never did."""
+        event = (
+            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=status)
+            .order_by("created")
+            .first()
+        )
+        return event.created if event else None
+
     def running_status_events(self) -> Self:
         """The status changes to RUNNING, oldest first. The first one is when the job started."""
         from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
