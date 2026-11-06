@@ -1,0 +1,16 @@
+---
+features:
+  - |
+    A custom Fleets function can now be uploaded with its files going
+    straight to COS, and not through the gateway.
+    ``POST /api/v1/programs/upload/start`` takes the ``title``, the
+    ``entrypoint`` and the ``files`` to upload, each with its ``path`` and
+    ``size``, and returns a presigned URL to ``PUT`` each file to. Each URL
+    signs the declared size, and ``start`` refuses files over 50 MB in
+    total with a ``413``. After the ``PUT`` calls,
+    ``POST /api/v1/programs/upload/finish`` takes the same fields as
+    ``/api/v1/programs/upload/`` without the file, plus the same file list,
+    checks that every file was uploaded with its size, and saves the
+    function. The job reads the files where they were uploaded, so a submit
+    does not copy them. A provider function keeps uploading its image with
+    ``/api/v1/programs/upload/``, and so does a Ray function.
