@@ -135,6 +135,33 @@ class TestUploadMethod:
             warnings.simplefilter("error", DeprecationWarning)
             mock_client.upload(program)
 
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_warns_when_runner_is_ray(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() emits a DeprecationWarning when the function's runner is 'ray'."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest", runner="ray")
+
+        with pytest.warns(DeprecationWarning, match="Ray runner is deprecated"):
+            mock_client.upload(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_does_not_warn_for_fleets_runner(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() does not emit the Ray DeprecationWarning for a Fleets function."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest", runner="fleets")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            mock_client.upload(program)
+
     @patch("qiskit_serverless.core.clients.serverless_client.trace")
     def test_upload_raises_when_neither_image_nor_entrypoint(self, mock_trace, mock_client):
         """upload() raises QiskitServerlessException when program has neither image nor entrypoint."""
@@ -582,7 +609,7 @@ class TestUploadWithDockerImage:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["image"] == "my-image:1.0"
-        assert data["runner"] == "ray"
+        assert data["runner"] == "fleets"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -668,7 +695,7 @@ class TestUploadWithArtifact:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["entrypoint"] == entrypoint
-        assert data["runner"] == "ray"
+        assert data["runner"] == "fleets"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -775,15 +802,15 @@ class TestUploadWithArtifact:
 class TestQiskitFunctionDefaults:
     """Tests for QiskitFunction default field values."""
 
-    def test_default_runner_is_ray(self):
-        """QiskitFunction.runner defaults to 'ray' when not specified."""
+    def test_default_runner_is_fleets(self):
+        """QiskitFunction.runner defaults to 'fleets' when not specified."""
         program = QiskitFunction(title="my-function", image="img:latest")
-        assert program.runner == "ray"
+        assert program.runner == "fleets"
 
     def test_runner_can_be_overridden(self):
         """QiskitFunction.runner accepts a custom value."""
-        program = QiskitFunction(title="my-function", image="img:latest", runner="fleets")
-        assert program.runner == "fleets"
+        program = QiskitFunction(title="my-function", image="img:latest", runner="ray")
+        assert program.runner == "ray"
 
 
 class TestValidateArgumentsMethod:
@@ -1048,3 +1075,43 @@ class TestUploadHelpersSendSizes:
         data = mock_post.call_args[1]["data"]
         assert data["sizes"] == json.dumps({"s": "24x120", "m": "16x128"})
         assert data["default_size"] == "m"
+
+
+class TestRunSurfacesGatewayWarning:
+    """How ServerlessClient.run() surfaces the gateway's response ``warning`` field.
+
+    The gateway returns the warning text (Ray deprecation, blocked resource, or both) for every
+    client version. A recent client raises the category to ``DeprecationWarning`` when it can see
+    locally that the function ran on the deprecated Ray runner.
+    """
+
+    _RAY_WARNING = (
+        'This function runs on Ray, a deprecated platform. Please migrate to the Fleets runner (runner="fleets").'
+    )
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_ray_function_warns_as_a_deprecation(self, mock_post, mock_client):
+        mock_post.return_value = _ok_response({"id": "job-1", "warning": self._RAY_WARNING})
+        program = QiskitFunction(title="my-func", image="img:latest", runner="ray")
+
+        with pytest.warns(DeprecationWarning, match="deprecated platform"):
+            mock_client.run(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_fleets_function_with_no_warning_does_not_warn(self, mock_post, mock_client):
+        mock_post.return_value = _ok_response({"id": "job-1"})
+        program = QiskitFunction(title="my-func", image="img:latest", runner="fleets")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any warning would raise
+            mock_client.run(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_bare_title_falls_back_to_a_plain_warning(self, mock_post, mock_client):
+        # Running by title gives the client no runner to inspect, so it cannot know this ran on
+        # Ray; it still surfaces the gateway text, just not as a DeprecationWarning.
+        mock_post.return_value = _ok_response({"id": "job-1", "warning": self._RAY_WARNING})
+
+        with pytest.warns(UserWarning, match="deprecated platform") as caught:
+            mock_client.run("my-func")
+        assert not any(issubclass(w.category, DeprecationWarning) for w in caught)

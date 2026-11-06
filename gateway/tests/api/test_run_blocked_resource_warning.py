@@ -17,8 +17,11 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture(autouse=True)
-def blocked_jobs_stop_enabled():
-    """Blocked resources are not enforced by default, and these tests are about enforcing them."""
+def blocked_jobs_stop_enabled(default_ce_project):
+    """Blocked resources are not enforced by default, and these tests are about enforcing them.
+
+    Pulls in default_ce_project so the Fleets-default function these tests run is runnable.
+    """
     Config.add_defaults()
     Config.set(ConfigKey.BLOCKED_JOBS_STOP_ENABLED, "true")
     # Global matching; test_with_regional_matching_only_the_instance_crns_region_gets_a_warning covers the regional one

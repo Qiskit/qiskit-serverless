@@ -31,10 +31,12 @@ class TestAvailableDependenciesVersion(APITestCase):
             "cotengrust==0.2.0",
             "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1",
             "qiskit-addon-obp==0.3.0",
+            "qiskit-addon-slc==0.2.0",
             "qiskit-addon-sqd==0.13.1",
             "qiskit-addon-utils==0.2.0",
             "qiskit-aer==0.17.2",
             "qiskit-fermions==0.2.0",
+            "qiskit-mitigation==0.1.1",
             "qiskit-paulice==0.3",
             "qrmi[ibm]==0.24.4",
         ]

@@ -80,6 +80,7 @@ from qiskit_serverless.core.function import (
     QiskitFunction,
     RunService,
     RunnableQiskitFunction,
+    RAY_RUNNER_DEPRECATION,
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
@@ -493,8 +494,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if isinstance(program, QiskitFunction):
             title = program.title
             provider = program.provider
+            ran_on_ray = program.runner == "ray"
         else:
             title = str(program)
+            # A bare title gives us no runner to inspect, so we cannot tell locally whether this
+            # ran on Ray. The gateway still returns its deprecation text in the warning field
+            # below; we just surface it as a plain warning rather than a DeprecationWarning.
+            ran_on_ray = False
 
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -527,7 +533,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             span.set_attribute("job.id", job_id)
 
         if response_data.get("warning"):
-            warnings.warn(response_data["warning"], stacklevel=2)
+            # The gateway returns the warning text (Ray deprecation, a blocked resource, or both)
+            # so every client, old or new, is covered. When we can see locally that the function
+            # ran on the deprecated Ray runner, raise the category to DeprecationWarning so it is
+            # filterable as one; otherwise keep the default warning category.
+            category = DeprecationWarning if ran_on_ray else UserWarning
+            warnings.warn(response_data["warning"], category=category, stacklevel=2)
 
         return Job(
             job_id,
@@ -764,6 +775,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     #########################
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
+        if program.runner == "ray":
+            warnings.warn(RAY_RUNNER_DEPRECATION, DeprecationWarning, stacklevel=2)
         if program.dependencies:
             warnings.warn(
                 "`dependencies=` is deprecated and no longer installs anything; it is accepted but "

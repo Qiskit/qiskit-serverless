@@ -40,8 +40,8 @@ def provider_with_admin(provider, other_user):
 
 @pytest.fixture()
 def provider_job(author, provider):
-    program = Program.objects.create(title="my-function", author=author, provider=provider)
-    job = Job.objects.create(author=author, program=program)
+    program = Program.objects.create(title="my-function", author=author, provider=provider, runner=Program.RAY)
+    job = Job.objects.create(author=author, program=program, runner=Program.RAY)
     job.logs = "some provider logs"
     job.save()
     return job

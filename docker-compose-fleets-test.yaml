@@ -77,7 +77,7 @@ services:
     # client, so use the official awscli image with `s3api create-bucket`.
     # Idempotent: re-creating an existing bucket errors, which we swallow so
     # re-runs stay green.
-    image: amazon/aws-cli:2.31.15
+    image: amazon/aws-cli:2.39.3
     depends_on:
       minio:
         condition: service_healthy
