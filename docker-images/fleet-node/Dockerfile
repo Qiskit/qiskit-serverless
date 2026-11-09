@@ -215,7 +215,7 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 # shared with ray-node. After the builder COPYs so they cannot clobber it.
 # ray_dist.jar (Ray's Java API) is deleted in the same layer: it bundles outdated Jackson,
 # Guava and log4j jars that image scanners flag, and Ray is only used from Python.
-RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3" && \
+RUN pip install --no-cache-dir "ray[default]>=2.60.0,<3"
     rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar
 
 # Every CUDA shared object gpu4pyscf dlopens must be in the loader cache. This is
