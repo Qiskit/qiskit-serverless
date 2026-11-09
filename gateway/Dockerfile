@@ -54,10 +54,11 @@ COPY gateway/requirements.txt .
 # ray_dist.jar is Ray's Java API, bundled in the wheel with outdated Jackson, Guava and log4j
 # jars that image scanners flag. The gateway only uses Ray from Python, so it is deleted in
 # this same layer (a later layer would still leave it visible to the scanner).
+# No -f on purpose: if Ray moves the file, the build fails instead of shipping the jar.
 RUN python${PYTHON_VERSION} -m ensurepip --upgrade && \
     python${PYTHON_VERSION} -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
     python${PYTHON_VERSION} -m pip install -r requirements.txt --no-cache-dir --upgrade && \
-    python${PYTHON_VERSION} -c "import glob, os, sysconfig; [os.remove(f) for p in {sysconfig.get_paths()['platlib'], sysconfig.get_paths()['purelib']} for f in glob.glob(p + '/ray/jars/ray_dist.jar')]" && \
+    rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar && \
     python${PYTHON_VERSION} -m pip uninstall -y pip
 
 COPY --chown=1000:100 gateway .

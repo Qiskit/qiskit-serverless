@@ -37,7 +37,7 @@ COPY client /tmp/qs
 # jars that image scanners flag. Ray is only used from Python here, so it is deleted in this
 # same layer.
 RUN pip install "/tmp/qs[ray]" --no-cache-dir && rm -rf /tmp/qs && \
-    python -c "import glob, os, sysconfig; [os.remove(f) for p in {sysconfig.get_paths()['platlib'], sysconfig.get_paths()['purelib']} for f in glob.glob(p + '/ray/jars/ray_dist.jar')]"
+    rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar
 USER 1000:1000
 
 # The openmpi wheel is a native library, not an importable package: it exists so
