@@ -213,7 +213,7 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 # client's [ray] extra in client/pyproject.toml. Not in
 # requirements-dynamic-dependencies.txt: that file is gateway-advertised and
 # shared with ray-node. After the builder COPYs so they cannot clobber it.
-RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3"
+RUN pip install --no-cache-dir "ray[default]>=2.60.0,<3"
 
 # Every CUDA shared object gpu4pyscf dlopens must be in the loader cache. This is
 # asserted rather than assumed because the failure mode is invisible: a missing
