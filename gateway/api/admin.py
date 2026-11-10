@@ -6,7 +6,7 @@
 import json
 import logging
 import uuid
-from dataclasses import asdict
+from dataclasses import fields as dataclass_fields
 
 from django import forms
 from django.contrib import admin, messages
@@ -53,9 +53,11 @@ from core.services.job_transitions import JobTransitionService
 from core.services.workload_best_effort_mirror import WorkloadInlineMirror
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage.job_file_explorer import JobFileExplorer
-from core.services.storage.job_storage_paths import get_storage_paths
+from core.domain.storage_paths import StoragePaths
 
 logger = logging.getLogger("gateway.admin")
+
+STORAGE_PATH_FIELDS = [field.name for field in dataclass_fields(StoragePaths)]
 
 # How many jobs the "Timeline" admin action can carry in the redirect query string
 MAX_TIMELINE_JOBS = 200
@@ -987,23 +989,19 @@ class JobAdmin(admin.ModelAdmin):
     @admin.display(description="Storage paths")
     def storage_paths_table(self, obj):
         """Where the job's files live in COS. Read-only: the job wrote its files there, so changing the row would
-        only make the gateway look somewhere else. A job without a saved row shows the paths today's layout gives it,
-        which are the ones every reader uses for it."""
+        only make the gateway look somewhere else. Viewing the page never saves a row: a job without one gets it on
+        the first read of its files."""
         if obj._state.adding or obj.runner != Program.FLEETS:  # pylint: disable=protected-access
             return "-"
-        note = ""
-        if not JobStoragePaths.objects.filter(job=obj).exists():
-            note = "Not saved: built with today's layout and the function's current Code Engine project."
-        try:
-            paths = get_storage_paths(obj)
-        except ValueError as ex:
-            return f"Not saved, and they can't be built: {ex}"
+        row = JobStoragePaths.objects.filter(job=obj).first()
+        if row is None:
+            return "Not saved yet: they are saved, with today's layout, the first time the job's files are read."
         rows = format_html_join(
             "",
             "<tr><th>{}</th><td><code>{}</code></td></tr>",
-            ((name, value) for name, value in asdict(paths).items() if value is not None),
+            ((name, getattr(row, name)) for name in STORAGE_PATH_FIELDS if getattr(row, name) is not None),
         )
-        return format_html("<p>{}</p><table>{}</table>", note, rows) if note else format_html("<table>{}</table>", rows)
+        return format_html("<table>{}</table>", rows)
 
     def has_delete_permission(self, request, obj=None):
         """Disabled: a Job with a pending outbox row must not be deleted casually from the admin."""
