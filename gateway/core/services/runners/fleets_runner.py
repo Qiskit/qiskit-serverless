@@ -49,6 +49,8 @@ from core.ibm_cloud.code_engine.fleets.cos import (
     task_state_from_key,
 )
 from core.ibm_cloud.code_engine.fleets.utils import (
+    CUSTOM_JOB_WRAPPER_NAME,
+    PROVIDER_JOB_WRAPPER_NAME,
     FleetJobPaths,
     build_job_paths,
     build_run_env_variables,
@@ -713,7 +715,7 @@ class FleetsRunner(AbstractRunner):
         cos = self._get_storage_cos(saved)
 
         # upload template
-        template_name = "fleet_custom_job_wrapper.py"
+        template_name = CUSTOM_JOB_WRAPPER_NAME
         script = get_template(template_name).render(
             {
                 "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
@@ -788,7 +790,7 @@ class FleetsRunner(AbstractRunner):
         cos = self._get_storage_cos(saved)
 
         # upload wrapper script
-        wrapper_script = get_template("fleet_provider_job_wrapper.py").render(
+        wrapper_script = get_template(PROVIDER_JOB_WRAPPER_NAME).render(
             {
                 "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
                 # JSON-encoded: a valid Python str literal the wrapper writes to settings.conf.

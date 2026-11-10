@@ -33,7 +33,11 @@ RUN mkdir /data /function_data /function_user_data /job_user_data /function_prov
 # Install latest version of client (at the end for better layer cache usage).
 # Ray is an optional extra of the client; the Ray node needs it, so install [ray].
 COPY client /tmp/qs
-RUN pip install "/tmp/qs[ray]" --no-cache-dir && rm -rf /tmp/qs
+# ray_dist.jar is Ray's Java API, bundled in the wheel with outdated Jackson, Guava and log4j
+# jars that image scanners flag. Ray is only used from Python here, so it is deleted in this
+# same layer.
+RUN pip install "/tmp/qs[ray]" --no-cache-dir && rm -rf /tmp/qs && \
+    rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar
 USER 1000:1000
 
 # The openmpi wheel is a native library, not an importable package: it exists so

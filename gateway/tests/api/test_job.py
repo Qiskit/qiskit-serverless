@@ -70,6 +70,8 @@ class TestJobApi:
             admin_user.groups.add(admin_group)
             provider.admin_groups.add(admin_group)
 
+        # Some callers (the arguments-storage-path tests) read the Ray local storage path, so this
+        # helper's jobs are Ray jobs.
         program = Program.objects.create(
             title=f"{author}-{provider_admin or 'custom'}",
             author=author,
@@ -930,7 +932,7 @@ class TestJobApi:
         )
         assert job_event_response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_job_account_id(self):
+    def test_job_account_id(self, default_ce_project):
         """Tests check that the instance attributes are inserted to the job object."""
 
         from api.domain.authentication.channel import Channel

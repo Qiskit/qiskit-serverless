@@ -49,6 +49,16 @@ JOB_USER_DATA_PATH = "/job_user_data"  # user bucket  — job-scoped data (argum
 FUNCTION_PROVIDER_DATA_PATH = "/function_provider_data"  # provider bucket — function-scoped data (provider only)
 JOB_PROVIDER_DATA_PATH = "/job_provider_data"  # provider bucket — job-scoped data (provider logs; provider only)
 
+# Wrapper scripts the gateway injects into the function-data folder at submit time. They sit
+# alongside the user's own files, so file listings must exclude them (see INTERNAL_FUNCTION_FILES).
+CUSTOM_JOB_WRAPPER_NAME = "fleet_custom_job_wrapper.py"
+PROVIDER_JOB_WRAPPER_NAME = "fleet_provider_job_wrapper.py"
+
+# Files the gateway writes into a function's data folder that the user never uploaded and should
+# not see listed. Only the custom wrapper lands in the *user* bucket (the provider wrapper goes to
+# the provider bucket), but both are listed here so the filter is correct for either folder.
+INTERNAL_FUNCTION_FILES = frozenset({CUSTOM_JOB_WRAPPER_NAME, PROVIDER_JOB_WRAPPER_NAME})
+
 
 @dataclass(frozen=True)
 class FleetJobPaths:  # pylint: disable=too-many-instance-attributes
@@ -270,9 +280,9 @@ def build_custom_job_paths(job: Job) -> FleetJobPaths:
         cos_results_key=f"{cos_user_job_prefix}/results.json",
         cos_provider_log_key=None,
         cos_function_entrypoint=f"{cos_user_function_data}/{job.program.entrypoint}",
-        cos_docker_entrypoint=f"{cos_user_function_data}/fleet_custom_job_wrapper.py",
+        cos_docker_entrypoint=f"{cos_user_function_data}/{CUSTOM_JOB_WRAPPER_NAME}",
         container_function_entrypoint=f"{FUNCTION_USER_DATA_PATH}/{job.program.entrypoint}",
-        container_docker_entrypoint=f"{FUNCTION_USER_DATA_PATH}/fleet_custom_job_wrapper.py",
+        container_docker_entrypoint=f"{FUNCTION_USER_DATA_PATH}/{CUSTOM_JOB_WRAPPER_NAME}",
         container_private_log_path=None,
         container_public_log_path=f"{JOB_USER_DATA_PATH}/logs.log",
         container_arguments_path=f"{JOB_USER_DATA_PATH}/arguments.json",
@@ -311,9 +321,9 @@ def build_provider_job_paths(job: Job) -> FleetJobPaths:
         cos_results_key=f"{cos_user_job_prefix}/results.json",
         cos_provider_log_key=f"{cos_provider_job_prefix}/logs.log",
         cos_function_entrypoint=f"{cos_provider_function_data}/{job.program.entrypoint}",
-        cos_docker_entrypoint=f"{cos_provider_function_data}/fleet_provider_job_wrapper.py",
+        cos_docker_entrypoint=f"{cos_provider_function_data}/{PROVIDER_JOB_WRAPPER_NAME}",
         container_function_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/{job.program.entrypoint}",
-        container_docker_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/fleet_provider_job_wrapper.py",
+        container_docker_entrypoint=f"{FUNCTION_PROVIDER_DATA_PATH}/{PROVIDER_JOB_WRAPPER_NAME}",
         container_private_log_path=f"{JOB_PROVIDER_DATA_PATH}/logs.log",
         container_public_log_path=f"{JOB_USER_DATA_PATH}/logs.log",
         container_arguments_path=f"{JOB_USER_DATA_PATH}/arguments.json",
