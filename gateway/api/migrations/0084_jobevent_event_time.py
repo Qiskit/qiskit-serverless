@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0082_delete_fleets_jobs_per_user_per_tick_config"),
+        ("api", "0083_alter_job_runner_alter_program_runner"),
     ]
 
     operations = [
