@@ -213,7 +213,10 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 # client's [ray] extra in client/pyproject.toml. Not in
 # requirements-dynamic-dependencies.txt: that file is gateway-advertised and
 # shared with ray-node. After the builder COPYs so they cannot clobber it.
-RUN pip install --no-cache-dir "ray[default]>=2.60.0,<3"
+# ray_dist.jar (Ray's Java API) is deleted in the same layer: it bundles outdated Jackson,
+# Guava and log4j jars that image scanners flag, and Ray is only used from Python.
+RUN pip install --no-cache-dir "ray[default]>=2.60.0,<3" && \
+    rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar
 
 # Every CUDA shared object gpu4pyscf dlopens must be in the loader cache. This is
 # asserted rather than assumed because the failure mode is invisible: a missing
