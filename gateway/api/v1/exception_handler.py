@@ -13,6 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
@@ -47,7 +48,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     Catches domain exceptions and converts them to appropriate HTTP responses:
     - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
-    - InvalidAccessException -> 403 FORBIDDEN
+    - CustomFunctionNotEntitledException, InvalidAccessException -> 403 FORBIDDEN
     - EngineUnavailableException, RetryableError -> 503 SERVICE UNAVAILABLE
     - ValidationError, InvalidArgumentsException, FunctionConfigurationException -> 400 BAD REQUEST
     - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
@@ -55,7 +56,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     """
 
     @wraps(view_func)
-    def wrapped_view(*args, **kwargs):  # pylint: disable=too-many-return-statements
+    def wrapped_view(*args, **kwargs):  # pylint: disable=too-many-return-statements,too-many-branches
         try:
             return view_func(*args, **kwargs)
         except FunctionDisabledException as error:
@@ -83,6 +84,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": "Service temporarily unavailable, please retry."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except CustomFunctionNotEntitledException as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_403_FORBIDDEN,
             )
         except InvalidAccessException as error:
             return Response(

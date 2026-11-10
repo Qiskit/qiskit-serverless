@@ -36,14 +36,14 @@ class GetProviderJobLogsUseCase:
             GetLogsResponse() with both fields None (Fleet, no logs yet),
             or GetLogsResponse with raw_log set (Ray).
         """
-        job = Job.objects.filter(id=job_id).first()
+        job = Job.objects.with_program().filter(id=job_id).first()
         if job is None:
             raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_read_provider_logs(user, job, accessible_functions=accessible_functions):
             raise InvalidAccessException(f"You don't have access to job [{job_id}]")
 
-        if job.program.runner == Program.FLEETS:
+        if job.runner == Program.FLEETS:
             logs_storage = get_logs_storage(job)
             url = logs_storage.get_private_logs_url()
             if url:
@@ -70,7 +70,7 @@ class GetProviderJobLogsUseCase:
                     "[get-provider-logs] job_id=%s user_id=%s runner=%s | Failed to get provider logs",
                     job.id,
                     user.id,
-                    job.program.runner,
+                    job.runner,
                 )
                 return GetLogsResponse(raw_log=f"Logs not available for job [{job_id}] during execution.")
 
@@ -81,7 +81,7 @@ class GetProviderJobLogsUseCase:
                 "[get-provider-logs] job_id=%s user_id=%s runner=%s | Got provider logs from runner",
                 job.id,
                 user.id,
-                job.program.runner,
+                job.runner,
             )
             return GetLogsResponse(raw_log="\n".join(lines.private_logs) + "\n")
 

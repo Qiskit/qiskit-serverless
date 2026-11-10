@@ -21,9 +21,23 @@ from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.serializer_utils import ComputeProfileSerializer
 from api.domain.function_sizes import normalize_function_size
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import Job, JobConfig
+from core.domain.crn import Crn
+from core.models import BlockedCloudResource, Job, JobConfig, Program
 
 logger = logging.getLogger("api.api.v1.views.programs.run")
+
+BLOCKED_RESOURCE_WARNING = (
+    "This job was queued, but your account, plan or subscription is blocked. "
+    "It will not start until the block is lifted."
+)
+
+RAY_DEPRECATION_WARNING_CUSTOM = (
+    'This function runs on Ray, a deprecated platform. Please migrate to the Fleets runner (runner="fleets").'
+)
+RAY_DEPRECATION_WARNING_PROVIDER = (
+    "This function runs on Ray, a deprecated platform. Please contact the function vendor to migrate it "
+    "to the Fleets runner."
+)
 
 
 class InputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
@@ -103,11 +117,29 @@ class OutputSerializer(serializers.ModelSerializer):
     """Response serializer for a queued job."""
 
     compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    # Documents the field run_program adds for a Ray deprecation notice, a blocked resource, or both
+    warning = serializers.CharField(read_only=True, required=False)
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "arguments", "compute_profile_fk", "size_source"]
+        fields = [
+            "id",
+            "result",
+            "status",
+            "program",
+            "created",
+            "arguments",
+            "compute_profile_fk",
+            "size_source",
+            "warning",
+        ]
         ref_name = "ProgramsRunOutput"
+
+
+def _region(instance: str | None) -> str | None:
+    """The region of the instance CRN, or None when it has none."""
+    crn = Crn.parse(instance)
+    return crn.region if crn else None
 
 
 @swagger_auto_schema(
@@ -182,4 +214,23 @@ def run_program(request: Request) -> Response:
         ),
     )
     logger.info("[programs-run] user_id=%s job_id=%s | Job queued ok", user.id, job.id)
-    return Response(OutputSerializer(job).data)
+    data = OutputSerializer(job).data
+
+    # A run can raise more than one warning (a Ray function that is also on a blocked resource), so
+    # they are collected and joined rather than one overwriting the other. Deprecation comes first.
+    # Each warning is a self-contained sentence ending in a period, so they are joined with a plain
+    # space (one sentence after another); a comma would leave a period next to it ("...runner.").
+    warnings = []
+    if job.runner == Program.RAY:
+        warnings.append(RAY_DEPRECATION_WARNING_PROVIDER if job.program.provider_id else RAY_DEPRECATION_WARNING_CUSTOM)
+        logger.warning(
+            "[programs-run] user_id=%s job_id=%s program=%s | Ray function run on a deprecated platform",
+            user.id,
+            job.id,
+            job.program.title,
+        )
+    if BlockedCloudResource.blocks(account_id, plan_id, subscription_id, _region(instance)):
+        warnings.append(BLOCKED_RESOURCE_WARNING)
+    if warnings:
+        data["warning"] = " ".join(warnings)
+    return Response(data)

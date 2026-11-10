@@ -14,6 +14,7 @@ from scheduler.metrics.system_metrics_collector import SystemMetricsCollector
 _TICK_BUCKETS_UP_TO_30_MIN = (0.01, 0.025, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1200, 1800)
 TICK_BUCKETS = _TICK_BUCKETS_UP_TO_30_MIN + (3600, 7200, 14400, float("inf"))
 CLOUD_CALL_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10, 30, 60, float("inf"))
+FLEET_DELETE_OUTCOMES = ("deleted", "failed", "gave_up")
 
 
 class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
@@ -48,6 +49,13 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             "Items a scheduler task handled (jobs submitted, jobs whose status was checked). Divide the rate of "
             "scheduler_task_duration_seconds_sum by the rate of this to get the cost per item.",
             labelnames=("task_name",),
+            registry=self.registry,
+        )
+        self.fleet_deletes_total = Counter(
+            "scheduler_fleet_deletes_total",
+            "Fleet deletes Code Engine answered, by project and outcome (deleted, failed or gave_up). A 429 or a "
+            "timeout is not counted, it shows on scheduler_fleets_breaker_open.",
+            labelnames=("project", "outcome"),
             registry=self.registry,
         )
         self.fleets_jobs_skipped_by_breaker_total = Counter(
@@ -120,6 +128,12 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
             "feature failing to do its job. Absent while the feature is off, because then "
             "nothing measures that profile.",
             labelnames=("kind",),
+            registry=self.registry,
+        )
+        self.held_fleets = Gauge(
+            "scheduler_held_fleets",
+            "Fleets not yet deleted, per Code Engine project name, counting every job status.",
+            labelnames=("project",),
             registry=self.registry,
         )
         self.job_execution_duration = Histogram(
@@ -215,8 +229,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         )
         self.fleets_breaker_open = Gauge(
             "scheduler_fleets_breaker_open",
-            "1 while the Code Engine circuit breaker of a region is open, 0 otherwise.",
-            labelnames=("region",),
+            "1 while a circuit breaker of a region is open, 0 otherwise: code_engine, cos or cleanup.",
+            labelnames=("dependency", "region"),
             registry=self.registry,
         )
 
@@ -249,6 +263,15 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         if count > 0:
             self.task_items_total.labels(task_name=task_name).inc(count)
 
+    def init_fleet_deletes(self, project: str) -> None:
+        """Create a project's delete series at 0, so the first failure shows in increase() and rate()."""
+        for outcome in FLEET_DELETE_OUTCOMES:
+            self.fleet_deletes_total.labels(project=project, outcome=outcome)
+
+    def increment_fleet_deletes(self, project: str, outcome: str) -> None:
+        """Count one fleet delete, outcome one of FLEET_DELETE_OUTCOMES. gave_up is the attempt that hit the limit."""
+        self.fleet_deletes_total.labels(project=project, outcome=outcome).inc()
+
     def increment_fleets_jobs_skipped_by_breaker(self, region: str | None, count: int = 1) -> None:
         """Count queued Fleets jobs not submitted because their region's breaker was open."""
         self.fleets_jobs_skipped_by_breaker_total.labels(region=region or "none").inc(count)
@@ -277,9 +300,9 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         """Record whether a given outbox channel's circuit breaker is currently open."""
         self.outbox_breaker_open.labels(channel=channel).set(1 if is_open else 0)
 
-    def set_fleets_breaker_open(self, is_open: bool, region: str | None) -> None:
-        """Record whether the Code Engine circuit breaker of a region is open."""
-        self.fleets_breaker_open.labels(region=region or "none").set(1 if is_open else 0)
+    def set_fleets_breaker_open(self, is_open: bool, dependency: str, region: str | None) -> None:
+        """Record whether one circuit breaker of a region is open."""
+        self.fleets_breaker_open.labels(dependency=dependency, region=region or "none").set(1 if is_open else 0)
 
     def observe_code_engine_call(self, endpoint: str, status: str, seconds: float) -> None:
         """Record one Code Engine API call."""
@@ -300,6 +323,14 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
     def set_blocked_account_consumer_lag(self, region: str, topic: str, lag: int) -> None:
         """Set how many messages of a topic the blocked-account-plan consumer of a region is behind."""
         self.blocked_account_consumer_lag.labels(region=region, topic=topic).set(lag)
+
+    def clear_held_fleets(self) -> None:
+        """Remove all label combinations from held_fleets to avoid stale values."""
+        self.held_fleets.clear()
+
+    def set_held_fleets(self, count: int, project: str) -> None:
+        """Set the number of fleets not yet deleted in one Code Engine project."""
+        self.held_fleets.labels(project=project).set(count)
 
     def clear_job_status_counts(self) -> None:
         """Remove all label combinations from job_status_count to avoid stale values."""

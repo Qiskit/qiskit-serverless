@@ -3,11 +3,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.8-1789345812 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.8-1791895366 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed.
-FROM registry.access.redhat.com/ubi9:9.8-1791810986 AS build
+FROM registry.access.redhat.com/ubi9:9.8-1793580630 AS build
 ARG PYTHON_VERSION
 ARG MICRO_IMAGE_DIR
 
@@ -50,10 +50,15 @@ ENV SCARF_ANALYTICS=false \
 
 COPY gateway/requirements.txt .
 
-# Install pip, dependencies, and uninstall pip (not needed in final image)
+# Install pip, dependencies, and uninstall pip (not needed in final image).
+# ray_dist.jar is Ray's Java API, bundled in the wheel with outdated Jackson, Guava and log4j
+# jars that image scanners flag. The gateway only uses Ray from Python, so it is deleted in
+# this same layer (a later layer would still leave it visible to the scanner).
+# No -f on purpose: if Ray moves the file, the build fails instead of shipping the jar.
 RUN python${PYTHON_VERSION} -m ensurepip --upgrade && \
     python${PYTHON_VERSION} -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
     python${PYTHON_VERSION} -m pip install -r requirements.txt --no-cache-dir --upgrade && \
+    rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar && \
     python${PYTHON_VERSION} -m pip uninstall -y pip
 
 COPY --chown=1000:100 gateway .

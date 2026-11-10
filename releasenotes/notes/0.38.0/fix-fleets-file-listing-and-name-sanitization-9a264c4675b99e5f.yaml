@@ -1,0 +1,18 @@
+---
+fixes:
+  - |
+    Fixed a Fleets function's file listing returning entries that were not in the
+    listed directory. Listing a subdirectory such as the wheels area also matched
+    sibling files whose name started with the same prefix, and returned them with
+    that prefix sliced off their name. Listings now stop at the directory boundary.
+  - |
+    The internal wrapper file the gateway writes into a Fleets function's data
+    folder to run the job no longer appears in :meth:`~qiskit_serverless.ServerlessClient.files`
+    or :meth:`~qiskit_serverless.ServerlessClient.list_wheels` output. Only files
+    the user uploaded are listed.
+  - |
+    Fixed deleting or downloading a file by a name containing a character that is
+    replaced on upload, such as ``+`` in a wheel like ``torch-2.1+cu121.whl``. The
+    name was sanitized one way on upload and a different way on delete and download,
+    so the file could be uploaded but never removed or fetched by name. All three
+    now resolve to the same stored name.

@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import tarfile
+import time
 from io import BytesIO
 
 from django.conf import settings
@@ -32,6 +33,7 @@ from core.domain.workload_payload import is_mirrored
 from core.models import Job, CodeEngineProject
 from core.services.runners.abstract_runner import (
     AbstractRunner,
+    CosRetryableError,
     RunnerError,
     RunnerRetryableError,
 )
@@ -47,6 +49,8 @@ from core.ibm_cloud.code_engine.fleets.cos import (
     task_state_from_key,
 )
 from core.ibm_cloud.code_engine.fleets.utils import (
+    CUSTOM_JOB_WRAPPER_NAME,
+    PROVIDER_JOB_WRAPPER_NAME,
     FleetJobPaths,
     build_job_paths,
     build_run_env_variables,
@@ -66,6 +70,18 @@ _WARNED_FLEETS_LIMIT = 10_000
 # characters and refused 70 as TOOLONG. Two segments of twelve, the 36 character job id and two hyphens
 # make at most 62.
 _FLEET_NAME_SEGMENT_MAX = 12
+
+
+def count_fleets(project: CodeEngineProject, deadline_seconds: float) -> int:
+    """How many fleets the project holds, read with no urllib3 read retry. RunnerError on any failure."""
+    if not settings.IBM_CLOUD_API_KEY:
+        raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
+    try:
+        api_client = get_ce_auth(settings.IBM_CLOUD_API_KEY, project.region, retry_reads=False).api_client
+        handler = FleetHandler(ce_api_client=api_client, project_id=project.project_id)
+        return handler.count_fleets(time.monotonic() + deadline_seconds)
+    except Exception as ex:
+        raise RunnerError(f"Unable to count the fleets of project {project.project_name}", ex) from ex
 
 
 def _fleet_name_segment(value: str) -> str:
@@ -171,7 +187,7 @@ class FleetsRunner(AbstractRunner):
             code = ex.response.get("Error", {}).get("Code")
             status = ex.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
             if status in (429, 500, 502, 503, 504) or code in ("SlowDown", "RequestTimeout", "Throttling"):
-                raise RunnerRetryableError(f"COS error: {code}", ex) from ex
+                raise CosRetryableError(f"COS error: {code}", ex) from ex
             logger.error("COS error submitting job_id=[%s]: %s", self.job.id, ex)
             raise RunnerError(f"COS error: {code}", ex) from ex
         except ApiException as ex:
@@ -187,7 +203,7 @@ class FleetsRunner(AbstractRunner):
                 raise RunnerError("Unable to resolve the Code Engine host, check the CE project region", ex) from ex
             raise RunnerRetryableError("Unable to reach Code Engine", ex) from ex
         except (BotoConnectionError, BotoHTTPClientError, ReadTimeoutError, ProtocolError) as ex:
-            raise RunnerRetryableError("Unable to reach COS or Code Engine", ex) from ex
+            raise CosRetryableError("Unable to reach COS", ex) from ex
         except RetryableError as ex:
             raise RunnerRetryableError(str(ex), ex) from ex
         except Exception as ex:
@@ -508,25 +524,97 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError(f"Unable to stop fleet [{self.job.fleet_id}]", ex) from ex
 
     def free_resources(self) -> bool:
-        """Delete the fleet associated with this job.
+        """Delete this job's fleet, so it stops counting against the project's fleet limit.
 
         Returns:
-            ``True`` if cleaned up (or already deleted), ``False`` on error.
+            ``True`` when the fleet is gone, including a 404. ``False`` when there is nothing to
+            delete, or when Code Engine, the host name or the project rows refuse it in a way a
+            retry will not fix.
         """
-        # NOTE: fleet deletion disabled to preserve fleets for post-run inspection.
-        # Re-enable after the demo.
-        # if not self.job.fleet_id:
-        #     logger.debug("No fleet_id to clean up for job_id=[%s]", self.job.id)
-        #     return False
-        #
-        # try:
-        #     self._get_handler().delete_job(self.job.fleet_id)
-        #     logger.info("Deleted fleet [%s]", self.job.fleet_id)
-        #     return True
-        # except Exception as ex:  # pylint: disable=broad-exception-caught
-        #     logger.warning("Failed to delete fleet [%s]: %s", self.job.fleet_id, ex)
-        #     return False
-        return False
+        if not self._may_delete_fleet():
+            return False
+
+        try:
+            self._project = self._execution_project()
+        except RunnerError as ex:
+            logger.error("No project to delete fleet [%s] of job_id=[%s] in: %s", self.job.fleet_id, self.job.id, ex)
+            return False
+
+        try:
+            self._ensure_connected()
+            deleted = self._get_handler().delete_job(self.job.fleet_id)
+        except RunnerError as ex:
+            raise RunnerRetryableError(f"Unable to reach Code Engine: {ex}", ex) from ex
+        except ApiException as ex:
+            status = ex.status or 0
+            if status in (0, 429) or status >= 500:
+                raise RunnerRetryableError(f"Code Engine API error: {ex.reason}", ex) from ex
+            logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
+            return False
+        except MaxRetryError as ex:
+            if isinstance(ex.reason, NameResolutionError):
+                logger.warning(
+                    "Cannot resolve the Code Engine host of fleet [%s] of job_id=[%s], check the project region: %s",
+                    self.job.fleet_id,
+                    self.job.id,
+                    ex,
+                )
+                return False
+            raise RunnerRetryableError(f"Code Engine request failed: {ex}", ex) from ex
+        except (ReadTimeoutError, ProtocolError) as ex:
+            raise RunnerRetryableError(f"Code Engine request failed: {ex}", ex) from ex
+        except RetryableError as ex:
+            raise RunnerRetryableError("Unable to reach IBM Cloud IAM", ex) from ex
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to delete fleet [%s] of job_id=[%s]: %s", self.job.fleet_id, self.job.id, ex)
+            return False
+
+        if deleted:
+            logger.info("Deleted fleet [%s] of job_id=[%s]", self.job.fleet_id, self.job.id)
+        else:
+            logger.warning(
+                "Fleet [%s] of job_id=[%s] was not in project [%s]. It is gone, or it lives in another "
+                "project and still holds a slot there",
+                self.job.fleet_id,
+                self.job.id,
+                self._project.project_name,
+            )
+        return True
+
+    def _may_delete_fleet(self) -> bool:
+        """Whether this job has a fleet we are allowed to delete."""
+        if not self.job.fleet_id:
+            logger.debug("No fleet_id to delete for job_id=[%s]", self.job.id)
+            return False
+
+        if self.job.status not in Job.TERMINAL_STATUSES:
+            logger.error(
+                "Refusing to delete fleet [%s] of job_id=[%s]: the job is %s, deleting it would kill the job",
+                self.job.fleet_id,
+                self.job.id,
+                self.job.status,
+            )
+            return False
+
+        return True
+
+    def _execution_project(self) -> CodeEngineProject:
+        """Return the project the fleet was created in, by name, falling back to the program's.
+
+        Accepts an inactive project, unlike ``_get_project``.
+        """
+        if not self.job.ce_project_name:
+            # Jobs created before migration 0053 have no snapshot
+            if not self.job.program:
+                raise RunnerError(f"Program for job '{self.job.id}' has been deleted")
+            if not self.job.program.code_engine_project:
+                raise RunnerError(f"No Code Engine project assigned to job '{self.job.id}'")
+            return self.job.program.code_engine_project
+
+        project = CodeEngineProject.objects.select_by_name(self.job.ce_project_name, self.job.ce_region)
+        if not project:
+            raise RunnerError(f"No Code Engine project '{self.job.ce_project_name}' for job '{self.job.id}'")
+        return project
 
     def _get_project(self) -> CodeEngineProject:
         """Return the program's assigned Code Engine project.
@@ -617,7 +705,7 @@ class FleetsRunner(AbstractRunner):
         user_bucket = self._project.cos_bucket_user_data_name
 
         # upload template
-        template_name = "fleet_custom_job_wrapper.py"
+        template_name = CUSTOM_JOB_WRAPPER_NAME
         script = get_template(template_name).render(
             {
                 "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
@@ -691,7 +779,7 @@ class FleetsRunner(AbstractRunner):
         provider_bucket = self._project.cos_bucket_provider_data_name
 
         # upload wrapper script
-        wrapper_script = get_template("fleet_provider_job_wrapper.py").render(
+        wrapper_script = get_template(PROVIDER_JOB_WRAPPER_NAME).render(
             {
                 "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
                 # JSON-encoded: a valid Python str literal the wrapper writes to settings.conf.

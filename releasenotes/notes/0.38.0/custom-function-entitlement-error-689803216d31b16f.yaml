@@ -1,0 +1,10 @@
+---
+fixes:
+  - |
+    Uploading or running a custom (provider-less) Qiskit Function without the
+    required entitlement now returns ``403 Forbidden`` with a message naming the
+    missing permission (``function-custom.write`` for upload, ``function-custom.run``
+    for run), instead of a misleading ``404`` ``"Qiskit Function <name> doesn't
+    exist."``. A function that is genuinely missing still returns ``404``. The
+    error for provider functions is unchanged, so that it keeps hiding the
+    existence of providers the caller cannot access.

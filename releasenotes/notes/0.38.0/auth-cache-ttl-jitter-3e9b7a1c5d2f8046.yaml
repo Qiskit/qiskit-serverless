@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Cached IAM, Resource Controller, access groups and Runtime API answers now
+    expire at a random 80 to 100 % of their TTL, so the entries written in a
+    burst no longer expire together and call IBM Cloud at once.

@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    ``POST /api/v1/programs/run/`` now returns a ``warning`` field when the
+    account, plan and subscription of the request are blocked. The job is still
+    queued, but it will not start until the block is lifted. The field is left
+    out when nothing is blocked.
+  - |
+    :meth:`~qiskit_serverless.core.clients.serverless_client.ServerlessClient.run`
+    now shows the gateway's warning with :func:`warnings.warn`, so a user whose
+    account is blocked knows why the job is not starting. With an older gateway
+    nothing changes.

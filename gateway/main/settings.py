@@ -178,6 +178,18 @@ DATABASES = {
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        # seconds a connection is reused across requests, 0 closes it after each request
+        "CONN_MAX_AGE": int(os.environ.get("DATABASE_CONN_MAX_AGE", "0")),
+        "CONN_HEALTH_CHECKS": True,
+        # fail a connection that the network dropped without a reply, instead of hanging for minutes
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+            "tcp_user_timeout": 30000,
+        },
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
@@ -330,11 +342,6 @@ FLEETS_GATEWAY_HOST = os.environ.get("FLEETS_GATEWAY_HOST", SITE_HOST)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-# Per-user concurrent running-job limit for the Fleets (Code Engine) runner.
-# Fleets scales differently from Ray (no per-cluster capacity), so it gets its
-# own, higher default independent of the Ray-oriented LIMITS_JOBS_PER_USER.
-LIMITS_JOBS_PER_USER_FLEETS = int(os.environ.get("LIMITS_JOBS_PER_USER_FLEETS", "50"))
-LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_MAX_FLEETS = int(os.environ.get("LIMITS_MAX_FLEETS", "1000"))  # Fleets Project limit
@@ -432,7 +439,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.37.0")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.38.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
@@ -467,10 +474,13 @@ QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 RUNTIME_API_BASE_URL = os.environ.get("RUNTIME_API_BASE_URL", "https://quantum.test.cloud.ibm.com")
 RUNTIME_API_CACHE_TTL = int(os.environ.get("RUNTIME_API_CACHE_TTL", "60"))
 # Read timeout, in seconds, for the IBM Cloud calls made while authenticating a request
-# (IAM token, Resource Controller, and the entitlements lookup). Kept short so a slow or
-# hung backend does not hold a gateway worker: long enough to ride out a normal latency
-# spike, short enough to fail fast and let the client retry.
+# (IAM token and keys, Resource Controller, Access Groups, and the entitlements lookup).
+# Kept short so a slow or hung backend does not hold a gateway worker: long enough to ride
+# out a normal latency spike, short enough to fail fast and let the client retry.
 IBM_CLOUD_API_TIMEOUT = int(os.environ.get("IBM_CLOUD_API_TIMEOUT", "10"))
+if IBM_CLOUD_API_TIMEOUT <= 0:
+    # requests refuses a timeout of 0, so every login would fail
+    raise ImproperlyConfigured(f"IBM_CLOUD_API_TIMEOUT must be above 0, got {IBM_CLOUD_API_TIMEOUT}.")
 # The Runtime API is region-scoped. RUNTIME_API_BASE_URL serves the default region on the
 # bare host; other regions are reached via a "{region}." host prefix derived from the CRN.
 RUNTIME_API_DEFAULT_REGION = os.environ.get("RUNTIME_API_DEFAULT_REGION", "us-east")
@@ -629,23 +639,85 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "integer",
         "description": "The longest a workload outbox row waits between two tries, however many times it has failed.",
     },
+    "scheduler.fleets.cleanup.enabled": {
+        "default": "true",
+        "type": "boolean",
+        "description": "Enable deletion of the fleets of terminal Fleets jobs, so a Code Engine project "
+        "does not reach its 1000-fleet limit.",
+    },
+    "scheduler.fleets.cleanup.retention_hours": {
+        "default": "336",
+        "type": "integer",
+        "description": "How long a fleet is kept after the job reached a terminal status, so Code Engine "
+        "support can still inspect it. Two weeks by default.",
+    },
+    "scheduler.fleets.cleanup.force_at_percent": {
+        "default": "80",
+        "type": "integer",
+        "description": "Once a Code Engine project holds this much of scheduler.fleets.quota_per_project, its "
+        "oldest terminal fleets are deleted whatever the retention window says. 100 turns this off.",
+    },
+    "scheduler.fleets.cleanup.budget_ms": {
+        "default": "500",
+        "type": "integer",
+        "description": "Time budget per scheduler loop tick for the fleet cleanup, in milliseconds. Each delete "
+        "is a Code Engine round trip, and the loop is single threaded.",
+    },
+    "scheduler.fleets.cleanup.max_deletes_per_cycle": {
+        "default": "20",
+        "type": "integer",
+        "description": "How many fleets one cleanup cycle deletes. The scheduler loop is about a second, so "
+        "this is also the delete rate against one Code Engine project.",
+    },
+    "scheduler.fleets.quota_per_project": {
+        "default": "1000",
+        "type": "integer",
+        "description": "How many fleets one Code Engine project can hold. The submit keeps a job QUEUED when its "
+        "project has no free fleet, and the cleanup reads it too. It is not the LIMITS_MAX_FLEETS concurrency cap.",
+    },
     "scheduler.fleets.breaker_failures": {
         "default": "5",
         "type": "integer",
-        "description": "Consecutive Code Engine or COS failures in one region (429, 5xx, connection errors, "
-        "timeouts) before the scheduler stops submitting and cancelling Fleets jobs in that region.",
+        "description": "Consecutive failures of one dependency, Code Engine or COS, in one region (429, 5xx, "
+        "connection errors, timeouts) before the scheduler stops calling that dependency there. Each is "
+        "counted separately: Code Engine pauses submits and cancels, COS pauses submits, and the fleet "
+        "cleanup pauses only itself.",
     },
     "scheduler.fleets.breaker_pause_seconds": {
         "default": "60",
         "type": "integer",
-        "description": "How long the scheduler stops submitting and cancelling Fleets jobs in a region once its "
-        "breaker trips.",
+        "description": "How long the scheduler stops calling a dependency in a region once its breaker trips.",
     },
     "scheduler.blocked_jobs_stop.enabled": {
+        "default": "false",
+        "type": "boolean",
+        "description": "Act on blocked_cloud_resources: warn when a blocked account, plan and subscription runs a "
+        "job, hold its QUEUED Fleets jobs and cancel its PENDING and RUNNING ones. The rows are stored either way.",
+    },
+    "gateway.blocked_resources.regional.enabled": {
         "default": "true",
         "type": "boolean",
-        "description": "Cancel the PENDING and RUNNING Fleets jobs whose account, plan and subscription are in "
-        "blocked_cloud_resources. Set to false to stop cancelling them without a deploy.",
+        "description": "Match a job against blocked_cloud_resources by its region too, the one in its instance CRN, "
+        "rather than by account, plan and subscription alone. A job whose CRN has no region is then never blocked.",
+    },
+    "scheduler.fleets.jobs_per_tick": {
+        "default": "5",
+        "type": "integer",
+        "description": "Most queued Fleets jobs the scheduler submits in one tick, for all users together, taken in "
+        "rounds across users. 0 or less stops new Fleets submits.",
+    },
+    "gateway.limits.active_jobs_per_user": {
+        "default": "50",
+        "type": "integer",
+        "description": "Most jobs one user can have queued or running. The gateway checks it at submit, and the "
+        "scheduler uses it as the most Fleets jobs one user can have running. 0 blocks every submit.",
+    },
+    "scheduler.program_timeout_hours": {
+        "default": str(PROGRAM_TIMEOUT),
+        "type": "integer",
+        "description": "How many hours a job may run before the scheduler stops it, measured from when it "
+        "started running. The default comes from the PROGRAM_TIMEOUT env var; set it here to override that "
+        "without a redeploy.",
     },
 }
 
@@ -656,7 +728,7 @@ CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
 # override it via ce.fleetsDefaultImage.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.37.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.38.0",
 )
 
 

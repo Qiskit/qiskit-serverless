@@ -1,0 +1,12 @@
+# Version constraints applied to every pip invocation in the tox envs, via the
+# PIP_CONSTRAINT env var set in tox.ini's [testenv] setenv. This covers the
+# literal `pip install -e ../client` in the commands blocks, which does not go
+# through tox's install_command.
+#
+# botocore (pulled in by the boto3 test dependency) requires python-dateutil<3.
+# python-dateutil 3.0.0 was released and gets dragged in transitively by the
+# client's qiskit-ibm-runtime -> ibm-cloud-sdk-core chain, which no longer caps
+# dateutil's upper bound. Without a constraint, the `pip install -e ../client`
+# step upgrades dateutil to 3.0.0 and the subsequent `pip check` fails. A plain
+# requirement line cannot prevent that upgrade; a constraint can.
+python-dateutil<3

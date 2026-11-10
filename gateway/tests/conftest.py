@@ -12,6 +12,8 @@
 
 """Global pytest fixtures for gateway tests."""
 
+from unittest.mock import patch
+
 import pytest
 from django.core.cache import cache
 
@@ -19,6 +21,29 @@ from core.clients.iam_token_provider import get_iam_token_provider
 from core.config_key import ConfigKey
 from core.models import Config
 from core.ibm_cloud import clear_cos_clients
+
+from tests.utils import TestUtils
+
+
+@pytest.fixture
+def default_ce_project(settings, db):
+    """Wire up the deployment infra so a Fleets-default function is runnable.
+
+    Request this in run-path tests that are not about a specific runner: they create a function
+    with ``TestUtils.create_program`` (now Fleets by default, like production) and then run it, so
+    the function needs an active default CE project, a default size, and the Fleets argument
+    storage stubbed out (enqueueing a Fleets job writes its arguments to COS, which a unit test
+    must not reach). ``create_program`` (via ``make_fleets_program_runnable``) assigns the project
+    and size once this fixture has registered the default project and the default compute profile.
+    Returns the project for tests that need the handle.
+    """
+    settings.CE_DEFAULT_PROJECT_NAME = TestUtils.DEFAULT_FLEETS_PROJECT_NAME
+    project = TestUtils.register_default_fleets_project()
+    try:
+        with patch("core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"):
+            yield project
+    finally:
+        TestUtils._provision_fleets_programs = False
 
 
 @pytest.fixture(autouse=True)
@@ -43,13 +68,39 @@ def clear_django_cache():
 
 
 @pytest.fixture(autouse=True)
-def workloads_mirror_off(request):
-    """The use case that creates a job reads the workload mirror flag, so every test that uses the database starts with
-    its Config row there, off. A test that needs it on sets it with Config.set."""
+def job_creation_config(request):
+    """The use case that creates a job reads the workload mirror flag and the active job limit, so every test that uses
+    the database starts with their Config rows there, the mirror off and the limit at 50. A test that needs another
+    value sets it with Config.set."""
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        for key, value in ((ConfigKey.WORKLOADS_MIRROR_ENABLED, "false"), (ConfigKey.ACTIVE_JOBS_PER_USER, "50")):
+            Config.objects.get_or_create(name=key.value, defaults={"value": value, "description": "test"})
+
+
+@pytest.fixture(autouse=True)
+def blocked_jobs_stop_disabled(request):
+    """A run request reads the blocked resources flag, so every test that uses the database starts with its Config
+    row there, off. A test that needs it on sets it with Config.set."""
     if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
         request.getfixturevalue("db")
         Config.objects.get_or_create(
-            name=ConfigKey.WORKLOADS_MIRROR_ENABLED.value, defaults={"value": "false", "description": "test"}
+            name=ConfigKey.BLOCKED_JOBS_STOP_ENABLED.value, defaults={"value": "false", "description": "test"}
+        )
+        # Read whenever a job is checked against blocked_cloud_resources
+        Config.objects.get_or_create(
+            name=ConfigKey.BLOCKED_RESOURCES_REGIONAL.value, defaults={"value": "true", "description": "test"}
+        )
+
+
+@pytest.fixture(autouse=True)
+def program_timeout_hours_default(request):
+    """check_job_timeout reads the program timeout from Config, so every test that uses the database starts
+    with its Config row there, at the 24h default. A test that needs another value sets it with Config.set."""
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        Config.objects.get_or_create(
+            name=ConfigKey.PROGRAM_TIMEOUT_HOURS.value, defaults={"value": "24", "description": "test"}
         )
 
 

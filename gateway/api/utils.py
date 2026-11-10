@@ -3,6 +3,7 @@
 from collections import OrderedDict
 import json
 import logging
+import random
 import re
 from typing import Any, Optional, Tuple, Callable, Dict, List
 from django.conf import settings
@@ -148,6 +149,13 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
     return result
 
 
+def jittered_cache_ttl(ttl: int) -> int:
+    """The TTL shortened by a random 0 to 20 %, at least 1 s. A TTL of 0 or less is returned as is."""
+    if ttl <= 0:
+        return ttl
+    return max(1, int(ttl * (1 - 0.2 * random.random())))
+
+
 def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
     """Remove duplicates from a list maintaining the order.
     Args:
@@ -208,16 +216,35 @@ def sanitize_boolean(value: Optional[str]) -> Optional[bool]:
 
 
 def sanitize_file_name(name: Optional[str]):
-    """Sanitize the name of a file"""
+    """Sanitize the name of a file.
+
+    Disallowed characters are *replaced* with ``_`` rather than removed, so that this matches
+    ``core.utils.sanitize_file_path`` (which the storage layer applies on upload). Upload stores
+    a file under the ``sanitize_file_path`` form of its name (e.g. ``torch-2.1+cu121.whl`` becomes
+    ``torch-2.1_cu121.whl``); delete and download look the file up by name through this function.
+    If the two disagreed, a name with a disallowed character would upload under one key but be
+    deleted/downloaded under another, so the file could be stored but never removed or fetched.
+    The only intended difference from ``sanitize_file_path`` is that ``/`` is disallowed here.
+    """
     if not name:
         return name
-    # Remove all characters except alphanumeric, _, ., -
-    return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
+    # Apply the exact same transform as sanitize_file_path, minus the "/" directory delimiter:
+    # a by-name argument is a single file name, not a path. Replacing a *run* of disallowed
+    # characters with a single "_" (note the "+") and collapsing ".." first are both required so
+    # the key matches: e.g. "a++b.whl" -> "a_b.whl" under both functions, not "a_b.whl" on upload
+    # but "a__b.whl" on delete/download.
+    if ".." in name:
+        name = name.replace("..", "_")
+    return re.sub("[^a-zA-Z0-9_\\.\\-]+", "_", name)
 
 
-def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
+def get_image_dependencies() -> Dict[str, Requirement]:
     """
-    Create dictionary of allowed additional dependencies for function providers.
+    Return the dependencies shipped in the runtime (selector) images.
+
+    This is the "packing list" for the runtime images: it is read-only discovery of
+    what the image already ships, surfaced to users through the ``dependencies-versions``
+    endpoint so they know what they do *not* need to bring themselves.
 
     The format of the read file should be a requirements.txt file.
     """
@@ -246,48 +273,11 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
-def active_jobs_limit_reached(author: str) -> bool:
+def active_jobs_limit_reached(author: str, active_jobs_limit: int) -> bool:
     """
     Returns True if the user reached his active jobs limit,
     False otherwise.
     """
-    active_jobs_limit = settings.LIMITS_ACTIVE_JOBS_PER_USER
     user_active_jobs_count = Job.objects.filter(author=author, status__in=Job.ACTIVE_STATUSES).count()
 
     return user_active_jobs_count >= active_jobs_limit
-
-
-DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long
-
-
-def check_whitelisted(dependencies: List[Requirement], inject_version_if_missing=False) -> List[Requirement]:
-    """
-    check if a list of dependencies are whitelisted.
-
-    if "inject_version_if_missing" is True, the dependencies that has an empty version,
-    will receive the version of the whitelist.
-    """
-    whitelist_deps = create_dynamic_dependencies_whitelist()
-
-    for dependency in dependencies:
-        whitelisted_dependency = whitelist_deps.get(dependency.name)
-        if not whitelisted_dependency:
-            raise ValueError(
-                f"Dependency `{dependency.name}` is not allowed. "
-                f"You can request the dependency here: {DEPENDENCY_REQUEST_URL}"
-            )
-
-        req_version_list = list(dependency.specifier)
-        if len(req_version_list) == 0:
-            if inject_version_if_missing:
-                dependency.specifier = whitelisted_dependency.specifier
-            continue
-
-        req_version = list(dependency.specifier)[0].version
-        if not whitelisted_dependency.specifier.contains(req_version):
-            raise ValueError(
-                f"Dependency ({dependency.name}) version ({req_version})"
-                f" is not allowed. Valid versions: {whitelisted_dependency}"
-            )
-
-    return dependencies

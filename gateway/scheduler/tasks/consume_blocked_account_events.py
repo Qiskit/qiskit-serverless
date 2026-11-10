@@ -6,6 +6,7 @@ from django.conf import settings
 
 from core.ibm_cloud.event_streams import kafka_consumer
 from core.ibm_cloud.event_streams.kafka_consumer import DrainStats, KafkaRegionalConsumer
+from core.models import BlockedCloudResource
 from core.services.blocked_account_events import BlockedAccountEventsService
 
 from scheduler.kill_signal import KillSignal
@@ -26,12 +27,12 @@ _ERROR_KINDS = {
 }
 
 
-def blocked_accounts_topics(environment: str) -> list[str]:
-    """The topics the blocked-account-plan events are published to."""
-    return [
-        f"quantum.{environment}.blocked-account-plans.v1",
-        f"quantum.{environment}.blocked-account-plans-non-quantum.v1",
-    ]
+def blocked_accounts_topics(environment: str) -> dict[str, str]:
+    """The topics the blocked-account-plan events are published to, each with the reason its blocks are stored under."""
+    return {
+        f"quantum.{environment}.blocked-account-plans.v1": BlockedCloudResource.TOTAL,
+        f"quantum.{environment}.blocked-account-plans-non-quantum.v1": BlockedCloudResource.NON_QUANTUM,
+    }
 
 
 class ConsumeBlockedAccountEvents(SchedulerTask):
@@ -42,10 +43,11 @@ class ConsumeBlockedAccountEvents(SchedulerTask):
         self.metrics = metrics
         self.consumer: KafkaRegionalConsumer | None = None
         if settings.EVENT_STREAMS_ENABLED:
+            topic_reasons = blocked_accounts_topics(settings.ENVIRONMENT)
             self.consumer = KafkaRegionalConsumer(
-                topics=blocked_accounts_topics(settings.ENVIRONMENT),
+                topics=list(topic_reasons),
                 group_id=f"qiskit-serverless-scheduler-blocked-accounts-{settings.ENVIRONMENT}",
-                handler=BlockedAccountEventsService().handle,
+                handler=BlockedAccountEventsService(topic_reasons).handle,
             )
         else:
             logger.info("EVENT_STREAMS_ENABLED is False, blocked-account events will not be consumed")

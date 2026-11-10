@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    When the scheduler cancels a Fleets job because its account, plan and
+    subscription are blocked, the gateway now records an ``ERROR`` event on the
+    job with the code ``BLOCKED_RESOURCE`` and a message explaining the cause.
+  - |
+    :meth:`~qiskit_serverless.core.job.Job.result` now raises
+    :class:`~qiskit_serverless.exception.QiskitServerlessException` for a job
+    cancelled because its account, plan or subscription is blocked, explaining
+    why it was cancelled and why its result may be missing or incomplete. Jobs
+    cancelled for any other reason return their result as before.

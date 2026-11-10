@@ -16,10 +16,10 @@ from core.services.storage.result_storage_ray import RayResultStorage
 
 
 def get_arguments_storage(job: Job) -> ArgumentsStorage:
-    """Factory: return the appropriate ArgumentsStorage for the job's program runner.
+    """Factory: return the appropriate ArgumentsStorage for the job's runner that ran it.
 
     Args:
-        job: The Job instance whose program runner determines the implementation.
+        job: The Job instance whose runner that ran it determines the implementation.
 
     Returns:
         An ArgumentsStorage instance appropriate for the runner type.
@@ -27,18 +27,18 @@ def get_arguments_storage(job: Job) -> ArgumentsStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
-    if job.program.runner == Program.RAY:
+    if job.runner == Program.RAY:
         return RayArgumentsStorage(job)
-    if job.program.runner == Program.FLEETS:
+    if job.runner == Program.FLEETS:
         return FleetsArgumentsStorage(job)
-    raise ValueError(f"Unknown runner type: {job.program.runner}")
+    raise ValueError(f"Unknown runner type: {job.runner}")
 
 
 def get_logs_storage(job: Job) -> LogsStorage:
-    """Factory: return the appropriate LogsStorage for the job's program runner.
+    """Factory: return the appropriate LogsStorage for the job's runner that ran it.
 
     Args:
-        job: The Job instance whose program runner determines the implementation.
+        job: The Job instance whose runner that ran it determines the implementation.
 
     Returns:
         A LogsStorage instance appropriate for the runner type.
@@ -46,11 +46,11 @@ def get_logs_storage(job: Job) -> LogsStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
-    if job.program.runner == Program.RAY:
+    if job.runner == Program.RAY:
         return RayLogsStorage(job)
-    if job.program.runner == Program.FLEETS:
+    if job.runner == Program.FLEETS:
         return FleetsLogsStorage(job)
-    raise ValueError(f"Unknown runner type: {job.program.runner}")
+    raise ValueError(f"Unknown runner type: {job.runner}")
 
 
 def get_file_storage(
@@ -76,10 +76,10 @@ def get_file_storage(
 
 
 def get_result_storage(job: Job) -> ResultStorage:
-    """Factory: return the appropriate ResultStorage for the job's program runner.
+    """Factory: return the appropriate ResultStorage for the job's runner that ran it.
 
     Args:
-        job: The Job instance whose program runner determines the implementation.
+        job: The Job instance whose runner that ran it determines the implementation.
 
     Returns:
         A ResultStorage instance appropriate for the runner type.
@@ -87,8 +87,8 @@ def get_result_storage(job: Job) -> ResultStorage:
     Raises:
         ValueError: If the runner type is unknown.
     """
-    if job.program.runner == Program.RAY:
+    if job.runner == Program.RAY:
         return RayResultStorage(job)
-    if job.program.runner == Program.FLEETS:
+    if job.runner == Program.FLEETS:
         return FleetsResultStorage(job)
-    raise ValueError(f"Unknown runner type: {job.program.runner}")
+    raise ValueError(f"Unknown runner type: {job.runner}")
