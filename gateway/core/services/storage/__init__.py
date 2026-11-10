@@ -8,6 +8,7 @@ from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.file_storage import FileStorage
 from core.services.storage.file_storage_fleets import FileStorageFleets
 from core.services.storage.file_storage_ray import FileStorageRay
+from core.services.storage.job_storage_paths import get_storage_paths
 from core.services.storage.logs_storage import LogsStorage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
@@ -22,6 +23,7 @@ def get_arguments_storage(job: Job, paths: StoragePaths | None = None) -> Argume
     Args:
         job: The Job instance whose runner that ran it determines the implementation.
         paths: Fleets only: the job's storage paths, when they are built but not saved yet (at creation).
+            Otherwise the saved ones are read.
 
     Returns:
         An ArgumentsStorage instance appropriate for the runner type.
@@ -32,7 +34,7 @@ def get_arguments_storage(job: Job, paths: StoragePaths | None = None) -> Argume
     if job.runner == Program.RAY:
         return RayArgumentsStorage(job)
     if job.runner == Program.FLEETS:
-        return FleetsArgumentsStorage(job, paths)
+        return FleetsArgumentsStorage(job, paths or get_storage_paths(job))
     raise ValueError(f"Unknown runner type: {job.runner}")
 
 

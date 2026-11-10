@@ -243,7 +243,9 @@ class RunFunctionUseCase:
 
         # A Fleets job's paths are built once, here: the arguments go to that key, the row saved with the job keeps
         # it, and the container reads it at submit, however long the job waits in the queue.
-        storage_paths = build_fleets_storage_paths(job) if job.runner == Function.FLEETS else None
+        storage_paths = (
+            build_fleets_storage_paths(job, function.code_engine_project) if job.runner == Function.FLEETS else None
+        )
         arguments_storage = get_arguments_storage(job, storage_paths)
         arguments_storage.save(data.arguments)
 
@@ -253,7 +255,7 @@ class RunFunctionUseCase:
                 if data.config_data:
                     job.config = JobConfig.objects.create(**data.config_data)
                 job.save()
-                if storage_paths:
+                if job.runner == Function.FLEETS:
                     save_storage_paths(job, storage_paths)
                 JobEvent.objects.add_status_event(
                     job_id=job.id,

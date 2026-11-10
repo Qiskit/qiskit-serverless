@@ -20,11 +20,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from core.ibm_cloud import get_cos_client
 from core.models import Program
 from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.file_storage_ray import FileStorageRay
-from core.services.storage.job_storage_paths import get_storage_paths
+from core.services.storage.job_storage_paths import get_storage_cos_client, get_storage_paths
 from core.services.storage.logs_storage_ray import RayLogsStorage
 from core.services.storage.result_storage_ray import RayResultStorage
 
@@ -78,7 +77,8 @@ class JobFileExplorer:
         custom image). Metadata is read through the FileField's storage API so it works whether
         the media volume is a local disk or a COS-backed mount.
         """
-        artifact = job.program.artifact
+        # A Fleets job's own files are found from its saved paths alone, even after its function was deleted
+        artifact = job.program.artifact if job.program_id else None
         if not artifact:
             return None
         try:
@@ -100,7 +100,7 @@ class JobFileExplorer:
 
     def _explore_fleets(self, job: Job) -> list[FileGroup]:
         paths = get_storage_paths(job)
-        cos = get_cos_client(job.program.code_engine_project)
+        cos = get_storage_cos_client(job, paths)
         groups: list[FileGroup] = []
 
         listings = [

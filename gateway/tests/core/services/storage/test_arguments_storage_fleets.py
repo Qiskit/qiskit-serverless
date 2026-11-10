@@ -16,6 +16,7 @@ import pytest
 
 from core.models import Program
 from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
+from core.services.storage.job_storage_paths import get_storage_paths
 from tests.utils import TestUtils
 
 
@@ -57,14 +58,14 @@ class TestFleetsArgumentsStorage:
 
     def test_arguments_key_custom_function(self, job):
         """_arguments_key uses custom_functions path when program has no provider."""
-        storage = FleetsArgumentsStorage(job)
+        storage = FleetsArgumentsStorage(job, get_storage_paths(job))
         assert storage._arguments_key == (  # pylint: disable=protected-access
             f"users/alice/custom_functions/my-program/jobs/{job.id}/arguments.json"
         )
 
     def test_arguments_key_provider_function(self, job_with_provider):
         """_arguments_key uses provider_functions path when program has a provider."""
-        storage = FleetsArgumentsStorage(job_with_provider)
+        storage = FleetsArgumentsStorage(job_with_provider, get_storage_paths(job_with_provider))
         assert storage._arguments_key == (  # pylint: disable=protected-access
             f"users/alice/provider_functions/good-partner/my-program/jobs/{job_with_provider.id}/arguments.json"
         )
