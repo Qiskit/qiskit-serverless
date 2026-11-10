@@ -710,20 +710,20 @@ def test_a_creation_that_fails_before_the_submit_discards_the_row(filler_program
     assert JobEvent.objects.filter(job=job, context=JobEventContext.FILLER_FAILED).exists()
 
 
-def test_the_balancer_runs_after_the_fleets_status_update(settings):
-    """The balancer must see the freshest real-job count, so its position matters.
+def test_the_balancer_does_not_share_a_loop_with_the_fleets_status_update(settings):
+    """The status update runs alone in its loop, so a slow balancer can never delay it.
 
-    UpdateFleetsJobsStatuses runs first so that real jobs which finished this loop are
-    already reflected in the count the balancer reads.
+    The balancer no longer runs right after the update, so the real-job count it reads can be one iteration of the
+    update loop old. That is harmless: filler jobs are excluded from the real count, and the balancer only needs
+    it to be about right.
     """
     # A different port from tests/scheduler/test_main.py, which also constructs a
     # real Main and binds SITE_HOST, so the two cannot collide.
     settings.SITE_HOST = "http://127.0.0.1:8201"
     scheduler_main = Main(metrics=SchedulerMetrics(CollectorRegistry()))
     try:
-        names = [type(task).__name__ for task in scheduler_main.tasks]
-        assert (
-            names.index("UpdateFleetsJobsStatuses") < names.index("BalanceFillerJobs") < names.index("FreeRayResources")
-        )
+        loop_of = {type(task).__name__: loop.name for loop in scheduler_main.loops for task in loop.tasks}
+        assert loop_of["UpdateFleetsJobsStatuses"] == "fleets-update"
+        assert loop_of["BalanceFillerJobs"] == "fleets-schedule"
     finally:
         scheduler_main.stop_http_server()

@@ -1,11 +1,13 @@
 """Unit tests for CircuitBreaker."""
 
+import threading
 from unittest.mock import patch
 
 import pytest
 
 from core.config_key import ConfigKey
 from core.models import Config
+from scheduler.schedule import RegionBreakers
 from scheduler.tasks.circuit_breaker import CircuitBreaker
 
 pytestmark = pytest.mark.django_db
@@ -68,17 +70,20 @@ class TestCircuitBreaker:
     def test_threshold_change_takes_effect_immediately(self):
         """An operator can raise the threshold via Config mid-run, without recreating the breaker, and it is
         re-read on the very next record_failure()."""
-        breaker = _breaker(threshold=2)
+        breaker = _breaker(threshold=2, pause=60)
+        clock = [100.0]
 
-        breaker.record_failure()
-        breaker.record_failure()
-        assert breaker.is_open is True
+        with patch(f"{_MOD}.time.monotonic", side_effect=lambda: clock[0]):
+            breaker.record_failure()
+            breaker.record_failure()
+            assert breaker.is_open is True
 
-        breaker._reset()  # pylint: disable=protected-access
-        Config.set(_FAILURES, "5")
-        breaker.record_failure()
-        breaker.record_failure()
-        assert breaker.is_open is False  # now needs 5, not 2
+            clock[0] += 61  # the pause is over, so the breaker closes with its streak back at zero
+            assert breaker.is_open is False
+            Config.set(_FAILURES, "5")
+            breaker.record_failure()
+            breaker.record_failure()
+            assert breaker.is_open is False  # now needs 5, not 2
 
     def test_pause_change_takes_effect_immediately(self):
         """Same idea for the pause: a shorter one set mid-run closes the breaker sooner, without recreating it."""
@@ -109,3 +114,22 @@ class TestAfterThePause:
             assert breaker.is_open is False  # one failure short of a new streak
             breaker.record_failure()
             assert breaker.is_open is True
+
+
+def test_threads_asking_for_the_same_new_region_get_the_same_breaker():
+    """Loops in different threads share the Fleets breakers, and a breaker built twice would lose its failures."""
+    registry = RegionBreakers()
+    barrier = threading.Barrier(8)
+    found = []
+
+    def ask():
+        barrier.wait()
+        found.append(registry.get_breaker("us-east"))
+
+    threads = [threading.Thread(target=ask) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len({id(breaker) for breaker in found}) == 1

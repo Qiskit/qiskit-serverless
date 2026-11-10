@@ -10,12 +10,18 @@ from core.models import Job, JobEvent, Program
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
 from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
-from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.services.runners import (
+    get_runner,
+    RunnerError,
+    RunnerRetryableError,
+    FleetsRunner,
+    UnrecognizedFleetTaskStateError,
+)
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, check_job_timeout, first_cancel_refusal, program_timeout_hours
+from scheduler.schedule import FleetsJobCanceller, check_job_timeout, program_timeout_hours
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
 
@@ -24,6 +30,8 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 # Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
 # 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
 _STOPPING_DEADLINE_SECONDS = 600
+
+_UNRECOGNIZED_STATE_CODE = "FLEET_STATE_UNRECOGNIZED"
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -57,6 +65,11 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # The whole read of one job, which can be two COS listings (current and legacy layout)
             with observe_operation(FLEET_STATUS_READ):
                 new_status = runner.status()
+        except UnrecognizedFleetTaskStateError as ex:
+            # Not a failure of the job: Code Engine probably renamed a state. The job waits as for any unknown status,
+            # and its timeline says why, once.
+            self._record_unrecognized_state(job, ex)
+            new_status = None
         except (RunnerError, ValueError) as ex:
             # status() raises on configuration and data problems, never on a job that failed: a
             # deleted program, an inactive project, an unconfigured bucket, a bad COS secret.
@@ -101,6 +114,28 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
         return True
 
+    def _record_unrecognized_state(self, job: Job, error: UnrecognizedFleetTaskStateError) -> None:
+        """Leave an error event on the job the first time its task states are not recognised.
+
+        Whether it was already written is read from the job's own events, not remembered by the process, so it
+        survives a restart and a loop that polls every job once a second does not repeat it.
+        """
+        already_written = JobEvent.objects.filter(
+            job=job, event_type=JobEventType.ERROR, data__code=_UNRECOGNIZED_STATE_CODE
+        ).exists()
+        if already_written:
+            return
+        logger.error("job_id=%s fleet_id=%s %s", job.id, job.fleet_id, str(error))
+        JobEvent.objects.add_error_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            code=_UNRECOGNIZED_STATE_CODE,
+            message="The status of the job could not be read: its task states are not recognised",
+            exception=type(error).__name__,
+            args=error.states,
+        )
+
     def confirm_stop(self, job: Job, new_status: str | None) -> bool:
         """End a STOPPING job with whatever terminal state the task store reports, or STOPPED on the deadline.
 
@@ -136,7 +171,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
 
     def to_terminal(self, job: Job, new_status: str) -> None:
         """Persist a terminal status transition, then count it and record a succeeded job's duration."""
-        stop_landed = job.status == Job.STOPPING and new_status == Job.STOPPED
         logger.info(
             "job_id=%s user_id=%s Changing status from %s to %s",
             job.id,
@@ -155,7 +189,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected from %s, ignoring: %s", job.id, job.status, str(ex))
             return
-        self._increment_terminal_counter(job, stop_landed=stop_landed)
+        self._increment_terminal_counter(job)
         if new_status == Job.SUCCEEDED:
             self._record_execution_duration(job)
 
@@ -203,8 +237,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.warning("job_id=%s fleet_id=%s cancel not delivered on timeout: %s", job.id, job.fleet_id, str(ex))
             return False
         except RunnerError as ex:
-            log = logger.error if first_cancel_refusal(job) else logger.debug
-            log(
+            logger.warning(
                 "job_id=%s fleet_id=%s cancel could not be sent, the job stays active: %s",
                 job.id,
                 job.fleet_id,
@@ -230,11 +263,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         time, so it never times out here: PROGRAM_TIMEOUT is a cap on execution, not on queue or PENDING wait."""
         return check_job_timeout(job, job.first_running_at)
 
-    def _increment_terminal_counter(self, job: Job, *, stop_landed: bool = False) -> None:
-        """Increment terminal jobs counter. `stop_landed` means a cancel is what ended this job."""
+    def _increment_terminal_counter(self, job: Job) -> None:
+        """Increment terminal jobs counter."""
         if job.filler:
-            # A filler never counts as user demand, so it has its own two counters.
-            if stop_landed:
+            # A filler never counts as user demand, so it has its own two counters. It is meant to run for ever, so
+            # one that ends STOPPED was stopped (by the balancer), and SUCCEEDED or FAILED means it ended by itself.
+            if job.status == Job.STOPPED:
                 self.metrics.increment_filler_jobs_stopped()
             else:
                 self.metrics.increment_filler_jobs_ended(job.status)
@@ -283,7 +317,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                     if self.update_job_status(job):
                         counter += 1
                 except DB_EXCEPTIONS as ex:
-                    # Keep going so one failing job does not skip the others, then raise for main.py
+                    # Keep going so one failing job does not skip the others, then raise for scheduler/loop.py
                     logger.exception("job_id=%s Database error, the job is retried next iteration", job.id)
                     db_error = db_error or ex
                 except Exception:  # pylint: disable=broad-exception-caught

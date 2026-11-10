@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import threading
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -16,6 +15,7 @@ from core.ibm_cloud import call_metrics
 from core.ibm_cloud.clients import IBMCloudClientProvider, COS_PUBLIC_URL_TEMPLATE
 from core.ibm_cloud.code_engine.ce_client import ApiClient, Configuration, SecretsAndConfigmapsApi
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
+from core.ibm_cloud.cos.client_cache import CosClientCache
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 
@@ -23,8 +23,7 @@ if TYPE_CHECKING:
     from core.models import CodeEngineProject
 
 _COS_CLIENT_TTL_SECONDS = 60
-_cos_clients: dict[tuple, tuple[JobCOS, float]] = {}
-_cos_clients_lock = threading.Lock()
+_cos_clients: CosClientCache[JobCOS] = CosClientCache(_COS_CLIENT_TTL_SECONDS)
 
 # (connect, read) seconds for the HMAC secret read. Deliberately tighter than the IAM budget: the IAM
 # fetch above it already costs up to 8s of the 25s a gunicorn request gets.
@@ -65,7 +64,7 @@ def get_ce_auth(api_key: str, region: str, *, retry_reads: bool = True) -> CEAut
 
     cfg.refresh_api_key_hook = refresh_token
     api_client = _MeteredApiClient(cfg)
-    # urllib3 retries a timed-out read on a DELETE 3 times, which holds the single-threaded scheduler 4x its timeout
+    # urllib3 retries a timed-out read on a DELETE 3 times, which holds a scheduler loop 4x its timeout
     api_client.rest_client.pool_manager.connection_pool_kw["retries"] = Retry.DEFAULT.new(
         allowed_methods=Retry.DEFAULT_ALLOWED_METHODS - {"DELETE"},
         read=None if retry_reads else False,
@@ -118,22 +117,13 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
         RetryableError: If Code Engine or IAM answers 429 or 5xx, or does not answer in time.
         ApiException: If the CE secrets API call fails for any other reason.
     """
-    key = (project.project_id, project.region)
-    now = time.monotonic()
-    with _cos_clients_lock:
-        cached = _cos_clients.get(key)
-    if cached and now - cached[1] < _COS_CLIENT_TTL_SECONDS:
-        return cached[0]
-    client = _create_cos_client(project)
-    with _cos_clients_lock:
-        _cos_clients[key] = (client, now)
-    return client
+    # _create_cos_client is looked up when called, not here: tests patch it to redirect every caller
+    return _cos_clients.get((project.project_id, project.region), lambda: _create_cos_client(project))
 
 
 def clear_cos_clients() -> None:
     """Drop every cached COS client."""
-    with _cos_clients_lock:
-        _cos_clients.clear()
+    _cos_clients.clear()
 
 
 def _create_cos_client(project: CodeEngineProject) -> JobCOS:

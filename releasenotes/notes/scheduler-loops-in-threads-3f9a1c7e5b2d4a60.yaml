@@ -1,0 +1,14 @@
+---
+upgrade:
+  - |
+    The metrics ``scheduler_loop_duration_seconds``, ``scheduler_last_tick_timestamp_seconds`` and
+    ``scheduler_loop_duration_max_seconds`` now have a ``loop`` label, with one series per scheduler loop.
+    Alerts and dashboards that read them without grouping by ``loop`` now mix the loops: take the oldest
+    ``scheduler_last_tick_timestamp_seconds`` (``min``) to detect a stalled loop.
+other:
+  - |
+    The scheduler now runs four loops, each in its own thread: ``ray``, ``fleets-schedule``,
+    ``fleets-update`` and ``maintenance``. A slow task only delays the tasks of its own loop, so a slow
+    Fleets submit can no longer delay the Fleets status updates, which made short jobs go from PENDING to
+    SUCCEEDED without a RUNNING event. The liveness probe fails when any loop reaches the consecutive
+    database errors threshold, and the scheduler exits with an error when a loop thread dies.

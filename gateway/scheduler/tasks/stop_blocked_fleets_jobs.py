@@ -9,7 +9,7 @@ from core.models import BlockedCloudResource, Config, Job, JobEvent, Program
 from core.services.runners import RunnerError, RunnerRetryableError
 
 from scheduler.kill_signal import KillSignal
-from scheduler.schedule import FleetsJobCanceller, first_cancel_refusal
+from scheduler.schedule import FleetsJobCanceller
 from .task import SchedulerTask
 
 logger = logging.getLogger("scheduler.StopBlockedFleetsJobs")
@@ -73,8 +73,7 @@ class StopBlockedFleetsJobs(SchedulerTask):
         except RunnerRetryableError as ex:
             logger.warning("job_id=%s fleet_id=%s cancel not delivered: %s", job.id, job.fleet_id, str(ex))
         except RunnerError as ex:
-            log = logger.error if first_cancel_refusal(job) else logger.debug
-            log("job_id=%s fleet_id=%s cancel could not be sent: %s", job.id, job.fleet_id, str(ex))
+            logger.warning("job_id=%s fleet_id=%s cancel could not be sent: %s", job.id, job.fleet_id, str(ex))
         except InvalidJobTransitionException as ex:
             logger.info("job_id=%s transition rejected, skipping: %s", job.id, str(ex))
         return False
