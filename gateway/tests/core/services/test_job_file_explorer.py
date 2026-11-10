@@ -12,17 +12,17 @@
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from core.models import JobStoragePaths
+from core.domain.storage_paths import StoragePaths
+from core.ibm_cloud.code_engine.fleets.utils import build_job_paths
 from core.services.storage.job_file_explorer import FileEntry, FileGroup, JobFileExplorer
 
 
 def _make_job(runner="fleets", has_provider=False, artifact=None):
     job = MagicMock()
-    type(job).storage_paths = PropertyMock(side_effect=JobStoragePaths.DoesNotExist)  # no saved row
     job.id = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000001")
     job.author.username = "alice"
     job.runner = runner
@@ -40,6 +40,38 @@ def _make_job(runner="fleets", has_provider=False, artifact=None):
     return job
 
 
+def _saved_paths(job):
+    """The row the job would have saved: today's layout in its mock project's buckets."""
+    paths = build_job_paths(job)
+    is_provider = paths.cos_provider_job_prefix is not None
+    return StoragePaths(
+        ce_project_id="project-id",
+        ce_project_name="project",
+        cos_region="us-east",
+        user_bucket="user-bucket",
+        provider_bucket="provider-bucket" if is_provider else None,
+        user_pds="user-pds",
+        provider_pds="provider-pds" if is_provider else None,
+        user_function_prefix=paths.cos_user_function_prefix,
+        user_job_prefix=paths.cos_user_job_prefix,
+        provider_function_prefix=paths.cos_provider_function_prefix,
+        provider_job_prefix=paths.cos_provider_job_prefix,
+        arguments_key=f"{paths.cos_user_job_prefix}/arguments.json",
+        results_key=paths.cos_results_key,
+        user_log_key=paths.cos_user_log_key,
+        provider_log_key=paths.cos_provider_log_key,
+    )
+
+
+class _WithSavedPaths(TestCase):
+    """These jobs are mocks with no database row, so their saved paths are built from the mock."""
+
+    def setUp(self):
+        get_paths = patch("core.services.storage.job_file_explorer.get_storage_paths", side_effect=_saved_paths)
+        get_paths.start()
+        self.addCleanup(get_paths.stop)
+
+
 TS = datetime(2024, 5, 10, 14, 32, 0, tzinfo=timezone.utc)
 
 
@@ -47,8 +79,8 @@ def _cos_objects(*names, bucket_prefix=""):
     return [{"key": f"{bucket_prefix}{n}", "size": 100, "last_modified": TS} for n in names]
 
 
-class TestJobFileExplorerFleets(TestCase):
-    @patch("core.services.storage.job_file_explorer.get_cos_client")
+class TestJobFileExplorerFleets(_WithSavedPaths):
+    @patch("core.services.storage.job_file_explorer.get_storage_cos_client")
     def test_custom_function_data_files_grouped(self, mock_get_cos):
         job = _make_job(runner="fleets", has_provider=False)
         cos = MagicMock()
@@ -70,7 +102,7 @@ class TestJobFileExplorerFleets(TestCase):
         assert data_group.files[0].last_modified == TS
         assert data_group.files[0].bucket_or_path == "user-bucket"
 
-    @patch("core.services.storage.job_file_explorer.get_cos_client")
+    @patch("core.services.storage.job_file_explorer.get_storage_cos_client")
     def test_job_artifacts_listed_as_job_files(self, mock_get_cos):
         job = _make_job(runner="fleets", has_provider=False)
         cos = MagicMock()
@@ -92,7 +124,7 @@ class TestJobFileExplorerFleets(TestCase):
         job_group = next(g for g in groups if g.category == "Job Files")
         assert len(job_group.files) == 3
 
-    @patch("core.services.storage.job_file_explorer.get_cos_client")
+    @patch("core.services.storage.job_file_explorer.get_storage_cos_client")
     def test_empty_groups_are_omitted(self, mock_get_cos):
         job = _make_job(runner="fleets", has_provider=False)
         cos = MagicMock()
@@ -103,7 +135,7 @@ class TestJobFileExplorerFleets(TestCase):
 
         assert groups == []
 
-    @patch("core.services.storage.job_file_explorer.get_cos_client")
+    @patch("core.services.storage.job_file_explorer.get_storage_cos_client")
     def test_cos_error_on_one_prefix_skips_that_group(self, mock_get_cos):
         job = _make_job(runner="fleets", has_provider=False)
         cos = MagicMock()
@@ -124,8 +156,8 @@ class TestJobFileExplorerFleets(TestCase):
         assert "Job Files" not in categories
 
 
-class TestJobFileExplorerArtifact(TestCase):
-    @patch("core.services.storage.job_file_explorer.get_cos_client")
+class TestJobFileExplorerArtifact(_WithSavedPaths):
+    @patch("core.services.storage.job_file_explorer.get_storage_cos_client")
     def test_program_artifact_group_listed(self, mock_get_cos):
         mock_get_cos.return_value = MagicMock(list_with_metadata=MagicMock(return_value=[]))
         artifact = MagicMock()

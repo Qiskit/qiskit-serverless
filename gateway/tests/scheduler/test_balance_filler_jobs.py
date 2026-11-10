@@ -50,7 +50,10 @@ def filler_program():
         provider=_PROVIDER,
         runner=Program.FLEETS,
         code_engine_project=TestUtils.get_or_create_ce_project(
-            project_name="ce-filler", project_id="ce-id", cos_bucket_user_data_name="filler-bucket"
+            project_name="ce-filler",
+            project_id="ce-id",
+            cos_bucket_user_data_name="filler-bucket",
+            cos_bucket_provider_data_name="filler-provider-bucket",
         ),
     )
     profile = ComputeProfile.objects.create(compute_profile_id=_PROFILE, cpu="160", memory="1792", gpu="8h100")
