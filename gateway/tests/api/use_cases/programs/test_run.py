@@ -92,6 +92,8 @@ class TestRunFunctionUseCase:
         assert job.program.title == "my-fn"
         assert job.program.id == function.id
         assert job.author == user
+        # Only Fleets jobs read their files from saved paths
+        assert not JobStoragePaths.objects.filter(job=job).exists()
 
     def test_raises_not_found_when_function_does_not_exist(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
@@ -304,7 +306,12 @@ class TestWorkloadMirror:
 
         job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
-        assert JobStoragePaths.objects.get(job=job).arguments_key.endswith(f"/jobs/{job.id}/arguments.json")
+        saved = JobStoragePaths.objects.get(job=job)
+        assert saved.arguments_key.endswith(f"/jobs/{job.id}/arguments.json")
+        assert (saved.ce_project_id, saved.ce_project_name) == (
+            job.program.code_engine_project.project_id,
+            job.program.code_engine_project.project_name,
+        )
         put_function.assert_called_once()
         assert put_function.call_args.kwargs["function_id"] == str(job.id)
         assert put_function.call_args.kwargs["body"]["status"] == "Queued"

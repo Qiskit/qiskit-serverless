@@ -271,7 +271,7 @@ class BalanceFillerJobs(SchedulerTask):
         try:
             # Arguments first: a COS failure then leaves no orphan row behind. The job and its storage paths are
             # saved together, so a filler job never exists without them.
-            storage_paths = build_fleets_storage_paths(job)
+            storage_paths = build_fleets_storage_paths(job, project)
             get_arguments_storage(job, storage_paths).save("{}")
             with transaction.atomic():
                 job.save()

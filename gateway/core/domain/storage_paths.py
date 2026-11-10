@@ -28,12 +28,16 @@ class StoragePaths:  # pylint: disable=too-many-instance-attributes
     """Buckets, data stores, prefixes and keys of one Fleets job.
 
     The names are copies of the strings on the function's Code Engine project when the job was created, not
-    references to it. Keys are bucket-relative. The provider fields are ``None`` for a custom function.
+    references to it, so the job's files can be found and read from these values alone, after its function or its
+    project is changed or deleted. Keys are bucket-relative. The provider fields are ``None`` for a custom function.
     """
 
-    # Not read yet: only needed if the buckets ever move to another COS instance or region
+    # The project whose HMAC secret signs the COS requests, and the region of the project and its buckets. The
+    # project fields are None for a row whose project could not be found when it was saved; the COS client then
+    # comes from the function's current project.
+    ce_project_id: Optional[str]
+    ce_project_name: Optional[str]
     cos_region: str
-    cos_instance_name: Optional[str]
 
     user_bucket: str
     provider_bucket: Optional[str]
