@@ -34,11 +34,20 @@ import warnings
 from dataclasses import dataclass
 from typing import ClassVar, Literal, Optional, Dict, List, Any, Union
 
+from qiskit_serverless.core.compute_profile import ComputeProfile
+
 from qiskit_serverless.core.job import (
     Job,
     Configuration,
 )
 from qiskit_serverless.exception import QiskitServerlessException
+
+# Warned at upload and run when runner="ray"; the Ray runner is being deprecated in favor of Fleets.
+RAY_RUNNER_DEPRECATION = (
+    "The Ray runner is deprecated and will be removed in a future release. Set runner='fleets' on "
+    "your QiskitFunction (the default in recent releases). Ray-only jobs do not get Fleets features "
+    "such as GPU compute profiles (function_size) or uploaded-wheel installs."
+)
 
 GenericType = Literal["GENERIC"]
 ApplicationType = Literal["APPLICATION"]
@@ -102,12 +111,16 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         entrypoint: is a script that will be executed as a job
             ex: job.py
         env_vars: env vars
-        dependencies: list of python dependencies to execute a program
+        dependencies: DEPRECATED and no longer installs anything; accepted but ignored, and
+            will be removed in a future release. See ``client.dependencies_versions()`` for
+            what the runtime image already ships.
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
         sizes_map: the function's ``{size_label: compute_profile}`` t-shirt size catalog,
-            e.g. ``{"s": "24x120", "m": "16x128"}``. Set it to declare the catalog on upload;
+            e.g. ``{"s": "24x120", "m": "16x128"}``. Each value is a ``compute_profile_id``
+            string or a ``ComputeProfile`` object from ``client.compute_profile(...)`` (the two
+            are interchangeable). Set it to declare the catalog on upload;
             it is also how the catalog is carried back in a fetched function, read through
             :meth:`RunnableQiskitFunction.sizes`. A size is picked per run with
             ``function.run(function_size="s")``; labels are matched case-insensitively and each
@@ -151,13 +164,13 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     tags: Optional[List[str]] = None
     raw_data: Optional[Dict[str, Any]] = None
     image: Optional[str] = None
-    runner: str = "ray"
+    runner: str = "fleets"
     arguments_schema: Optional[Union[Dict[str, Any], bool]] = None
     type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
     # Raw size data carried in the function representation. Stored under names that do not
     # collide with the sizes()/get_default_size() accessors; the gateway's "sizes" key is
     # remapped onto sizes_map in from_json.
-    sizes_map: Optional[Dict[str, str]] = None
+    sizes_map: Optional[Dict[str, Union[str, ComputeProfile]]] = None
     default_size: Optional[str] = None
 
     def __post_init__(self):
@@ -231,7 +244,9 @@ class RunnableQiskitFunction(QiskitFunction):
         entrypoint: is a script that will be executed as a job
             ex: job.py
         env_vars: env vars
-        dependencies: list of python dependencies to execute a program
+        dependencies: DEPRECATED and no longer installs anything; accepted but ignored, and
+            will be removed in a future release. See ``client.dependencies_versions()`` for
+            what the runtime image already ships.
         working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
@@ -261,6 +276,9 @@ class RunnableQiskitFunction(QiskitFunction):
         """
         if self._run_service is None:
             raise ValueError("No clients specified for a function.")
+
+        if self.runner == "ray":
+            warnings.warn(RAY_RUNNER_DEPRECATION, DeprecationWarning, stacklevel=2)
 
         config = kwargs.pop("config", None)
         compute_profile = kwargs.pop("compute_profile", None)
@@ -338,11 +356,11 @@ class RunnableQiskitFunction(QiskitFunction):
         (``client.function(...)``) to pick up sizes changed after it was loaded.
 
         Returns:
-            dict: ``{size_label: compute_profile}`` mapping each declared size to
+            dict: ``{size_label: compute_profile_id}`` mapping each declared size to
             the compute profile it runs on. Empty when the function declares no
-            sizes.
+            sizes. Any ``ComputeProfile`` value is returned as its ``compute_profile_id``.
         """
-        return self.sizes_map or {}
+        return {label: str(profile) for label, profile in (self.sizes_map or {}).items()}
 
     def get_default_size(self) -> Optional[str]:
         """Return the size used when a run omits an explicit size.

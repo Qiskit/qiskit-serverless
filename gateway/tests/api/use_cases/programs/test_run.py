@@ -9,6 +9,7 @@ from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobL
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
 from api.domain.exceptions.function_disabled_exception import FunctionDisabledException
+from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.authentication.channel import Channel
 from api.use_cases.programs.run import RunFunctionUseCase
@@ -80,9 +81,24 @@ def make_fleets_function(user, ce_project):
     )
 
 
+def make_runnable_fleets_function(user, ce_project, monkeypatch):
+    """A Fleets function a run can reach job creation for: a default size and stubbed argument storage.
+
+    Use this for runner-agnostic tests that need to actually create a job, so they exercise the
+    production (Fleets) default rather than the deprecated Ray runner.
+    """
+    function = make_fleets_function(user, ce_project)
+    profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+    function.default_size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
+    function.save(update_fields=["default_size"])
+    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+    return function
+
+
 class TestRunFunctionUseCase:
-    def test_creates_job_for_own_function(self, user):
-        function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+    def test_creates_job_for_own_function(self, user, ce_project, monkeypatch):
+        # Runner-agnostic: runs on the Fleets default like production.
+        function = make_runnable_fleets_function(user, ce_project, monkeypatch)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
@@ -110,23 +126,28 @@ class TestRunFunctionUseCase:
         with pytest.raises(FunctionDisabledException):
             RunFunctionUseCase().execute(user, accessible, make_input())
 
-    def test_raises_not_found_when_no_permission_for_custom_function(self, user):
+    def test_raises_not_entitled_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
 
-        with pytest.raises(FunctionNotFoundException):
+        with pytest.raises(CustomFunctionNotEntitledException) as exc_info:
             RunFunctionUseCase().execute(user, accessible, make_input())
 
-    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
+        assert "function-custom.run" in str(exc_info.value)
+
     def test_raises_active_job_limit_after_function_resolved(self, user):
+        # Runner-agnostic: the limit check runs before any Fleets-specific setup, so this uses
+        # the Fleets default and needs no Code Engine project or size.
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "1")
         function = Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
         Job.objects.create(program=function, author=user, status=Job.QUEUED)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(ActiveJobLimitExceeded):
+        with pytest.raises(ActiveJobLimitExceeded) as error:
             RunFunctionUseCase().execute(user, accessible, make_input())
+        assert error.value.message == "Active job limit reached. The maximum allowed is 1."
 
-    @override_settings(LIMITS_ACTIVE_JOBS_PER_USER=1)
     def test_raises_not_found_not_limit_when_function_missing(self, user):
+        Config.set(ConfigKey.ACTIVE_JOBS_PER_USER, "1")
         other = User.objects.create_user(username="other")
         other_fn = Program.objects.create(title="other-fn", author=other, entrypoint="main.py")
         Job.objects.create(program=other_fn, author=user, status=Job.QUEUED)
@@ -135,8 +156,10 @@ class TestRunFunctionUseCase:
         with pytest.raises(FunctionNotFoundException):
             RunFunctionUseCase().execute(user, accessible, make_input(title="nonexistent-fn"))
 
-    def test_rolls_back_job_and_config_when_creation_fails(self, user, monkeypatch):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+    def test_rolls_back_job_and_config_when_creation_fails(self, user, ce_project, monkeypatch):
+        # Runner-agnostic: runs on the Fleets default. The failure is injected at status-event
+        # creation, which both runners reach, so the rollback path is the same.
+        make_runnable_fleets_function(user, ce_project, monkeypatch)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         def boom(*args, **kwargs):
@@ -164,7 +187,7 @@ class TestRunFunctionUseCase:
 
     def test_ray_job_leaves_compute_profile_fk_null(self, user):
         """The Ray path has no profile; the FK stays null and no registration is required."""
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
@@ -243,7 +266,7 @@ class TestRunFunctionUseCase:
 
     def test_ray_job_ignores_function_size(self, user):
         """Ray ignores sizing inputs; a stray ``function_size`` leaves the profile and FK null."""
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
@@ -330,7 +353,7 @@ class TestWorkloadMirror:
         assert WorkloadMirror.objects.filter(job=job).exists()
 
     def test_a_ray_job_is_created_but_not_sent(self, user, put_function):
-        Program.objects.create(title="my-fn", author=user, entrypoint="main.py")
+        Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
 

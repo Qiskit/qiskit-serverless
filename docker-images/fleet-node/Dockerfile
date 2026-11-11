@@ -32,7 +32,7 @@
 # (glibc 2.34) satisfies the mthree manylinux_2_34 wheel. Most pinned deps ship
 # linux/x86_64 wheels for 3.12; the two that do not are compiled in the builder
 # stage, which is the only place a build toolchain exists.
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1791808450 AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1793578971 AS base
 ARG PYTHON_VERSION=3.12
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -213,7 +213,10 @@ COPY --from=builder /usr/local/lib64/python3.12/site-packages/ \
 # client's [ray] extra in client/pyproject.toml. Not in
 # requirements-dynamic-dependencies.txt: that file is gateway-advertised and
 # shared with ray-node. After the builder COPYs so they cannot clobber it.
-RUN pip install --no-cache-dir "ray[default]>=2.58.0,<3"
+# ray_dist.jar (Ray's Java API) is deleted in the same layer: it bundles outdated Jackson,
+# Guava and log4j jars that image scanners flag, and Ray is only used from Python.
+RUN pip install --no-cache-dir "ray[default]>=2.60.0,<3" && \
+    rm /usr/local/lib64/python3.12/site-packages/ray/jars/ray_dist.jar
 
 # Every CUDA shared object gpu4pyscf dlopens must be in the loader cache. This is
 # asserted rather than assumed because the failure mode is invisible: a missing

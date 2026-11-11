@@ -4,7 +4,7 @@ features:
     The scheduler exports three new metrics:
     ``scheduler_code_engine_request_duration_seconds`` by endpoint and status,
     ``scheduler_cos_request_duration_seconds`` by operation and status, and
-    ``scheduler_fleets_breaker_open`` by region. A Code Engine 429 shows up
+    ``scheduler_fleets_breaker_open`` by dependency and region. A Code Engine 429 shows up
     as a ``status="429"`` series. The gateway does not record them.
 upgrade:
   - |

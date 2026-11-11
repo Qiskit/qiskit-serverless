@@ -1,7 +1,7 @@
 """Job events model manager."""
 
 import logging
-from typing import Any
+from typing import Any, Self
 import uuid
 
 from enum import StrEnum
@@ -90,17 +90,17 @@ class JobEventQuerySet(QuerySet):
             data={"status": status},
         )
 
+    def running_status_events(self) -> Self:
+        """The status changes to RUNNING, oldest first. The first one is when the job started."""
+        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        return self.filter(event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING).order_by("created")
+
     def first_running_at(self, job_id: uuid.UUID):
         """When this job first reached RUNNING, from its own event history.
         Returns None if it never did (still queued/pending, or terminated without running).
         """
-        from core.models import Job  # pylint: disable=import-outside-toplevel, cyclic-import
-
-        event = (
-            self.filter(job_id=job_id, event_type=JobEventType.STATUS_CHANGE, data__status=Job.RUNNING)
-            .order_by("created")
-            .first()
-        )
+        event = self.filter(job_id=job_id).running_status_events().first()
         return event.created if event else None
 
     def first_terminal_at(self, job_id: uuid.UUID):

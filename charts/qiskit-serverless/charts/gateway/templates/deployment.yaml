@@ -254,6 +254,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
+            - name: DATABASE_CONN_MAX_AGE
+              value: {{ .Values.application.database.connMaxAge | quote }}
             - name: ALLOWED_HOSTS
               value: {{ .Values.application.allowedHosts | quote }}
             - name: CSRF_TRUSTED_ORIGINS
@@ -286,8 +288,6 @@ spec:
               value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
             - name: SECURE_HSTS_PRELOAD
               value: {{ .Values.application.security.hstsPreload | quote }}
-            - name: LIMITS_ACTIVE_JOBS_PER_USER
-              value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
             - name: ARGUMENTS_SCHEMA_MEMORY_LIMIT_MB
               value: {{ .Values.application.limits.argumentsSchemaMemoryLimitMb | quote }}
             - name: ARGUMENTS_SCHEMA_CPU_LIMIT_SECONDS
@@ -490,6 +490,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
+            - name: DATABASE_CONN_MAX_AGE
+              value: {{ .Values.application.database.connMaxAge | quote }}
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE

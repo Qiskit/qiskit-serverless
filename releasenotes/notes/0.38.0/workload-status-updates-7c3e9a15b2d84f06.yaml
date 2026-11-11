@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    The scheduler now sends the Pending, Running and Stopping statuses of the
+    jobs that were registered in the Runtime API (those created while
+    ``workloads.mirror.enabled`` covered them) to the Runtime API, best effort.

@@ -1,0 +1,16 @@
+---
+upgrade:
+  - |
+    The function list is now ordered by title, and the jobs of a function
+    (``/programs/<id>/get_jobs``) are now ordered newest first, like the job
+    list. Both had no fixed order before.
+other:
+  - |
+    The gateway and the scheduler make fewer database queries: lists and
+    scheduler loops no longer run one extra query per row.
+fixes:
+  - |
+    The scheduler no longer hides a database error in the Fleets status loop,
+    so a database outage restarts it as intended.
+  - |
+    The Ray timeout check no longer fails for a running job with no events.

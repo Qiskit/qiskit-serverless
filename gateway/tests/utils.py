@@ -2,6 +2,7 @@
 
 from typing import Union, Literal, Iterable, Tuple
 
+from django.conf import settings
 from django.contrib.auth.models import (
     User,
     Group,
@@ -340,6 +341,9 @@ class TestUtils:
 
         author_obj, _ = TestUtils.get_user_and_username(author)
 
+        # No runner default here: the Program model defaults to FLEETS, like production.
+        # Tests that assert Ray behaviour pass runner=Program.RAY explicitly.
+
         if not instances:
             instances = []
         if not trial_instances:
@@ -360,7 +364,73 @@ class TestUtils:
         if instances or trial_instances:
             TestUtils.add_instance_to_program(program, instances=instances, trial_instances=trial_instances)
 
+        # Only tests that opted into the Fleets deployment (the `default_ce_project` fixture, which
+        # sets the flag below) get a runnable Fleets function. Everything else keeps a bare program
+        # row, so tests that create their own sizes, or assert the unassigned path, are untouched.
+        if program.runner == Program.FLEETS and TestUtils._provision_fleets_programs:
+            TestUtils.make_fleets_program_runnable(program)
+
         return program
+
+    # Set by the `default_ce_project` fixture for the span of a test that needs a runnable Fleets
+    # function; create_program then assigns a CE project and a default size, like the upload use case.
+    _provision_fleets_programs = False
+
+    @staticmethod
+    def make_fleets_program_runnable(program: Program) -> None:
+        """Assign a Code Engine project and a default size to a Fleets program, like the upload use case.
+
+        Skips either step whose infra is absent: no CE project is assigned without an active default
+        project, and no size is seeded without a registered default profile. A program that already
+        has a size keeps it, so a caller that declares its own sizes is never collided with.
+        """
+        from core.models import ComputeProfile, FunctionSize  # pylint: disable=import-outside-toplevel
+
+        if not program.code_engine_project:
+            # select_default() raises when CE_DEFAULT_PROJECT_NAME is unset (no infra), so swallow that.
+            try:
+                CodeEngineProject.objects.assign_to_program(program)
+            except ValueError:
+                pass
+            if program.code_engine_project:
+                program.save(update_fields=["code_engine_project"])
+
+        if not program.default_size_id and not FunctionSize.objects.filter(function=program).exists():
+            profile = ComputeProfile.objects.get_by_id(settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+            if profile is not None:
+                row = FunctionSize.objects.create(
+                    function=program, function_size=settings.DEFAULT_FUNCTION_SIZE, compute_profile=profile
+                )
+                program.default_size = row
+                program.save(update_fields=["default_size"])
+
+    DEFAULT_FLEETS_PROJECT_NAME = "default-ce-project"
+
+    @staticmethod
+    def register_default_fleets_project() -> CodeEngineProject:
+        """Register the default CE project and profile and turn on Fleets provisioning for create_program.
+
+        This is the shared body behind the ``default_ce_project`` pytest fixture and the
+        unittest-style setUp that mirrors it: the default compute profile, an active default Code
+        Engine project, and the ``_provision_fleets_programs`` flag that makes ``create_program``
+        call ``make_fleets_program_runnable``. The caller still owns the lifecycle that differs
+        between the two styles -- setting ``CE_DEFAULT_PROJECT_NAME``, stubbing the Fleets argument
+        storage, and resetting the flag afterwards -- so this helper does not touch settings or
+        patch anything. Returns the project for callers that need the handle.
+        """
+        from core.models import ComputeProfile  # pylint: disable=import-outside-toplevel
+
+        ComputeProfile.objects.get_or_create(compute_profile_id=settings.DEFAULT_FUNCTION_SIZE_PROFILE)
+        project = TestUtils.get_or_create_ce_project(
+            project_name=TestUtils.DEFAULT_FLEETS_PROJECT_NAME,
+            project_id="ce-proj-id",
+            cos_bucket_user_data_name="user-bucket",
+            cos_bucket_provider_data_name="provider-bucket",
+            cos_instance_name="cos-instance",
+            cos_key_name="cos-key",
+        )
+        TestUtils._provision_fleets_programs = True
+        return project
 
     @staticmethod
     def create_job_config(
@@ -458,6 +528,8 @@ class TestUtils:
         if isinstance(program, str):
             program = TestUtils.create_program(author=author, program_title=program)
 
+        # Like the run use case, the job keeps the runner its function had when it was created
+        kwargs.setdefault("runner", program.runner)
         job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
 
         # Creating associate JobEvent for creation of job (status will be QUEUED)
