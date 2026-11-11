@@ -279,13 +279,15 @@ SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER
 # back to the normal login, so nothing changes for the user. Both are required
 # because with only the id the callback would fail on the token exchange.
 #
-# Only three environment variables are needed:
-#   W3ID_SSO_CLIENT_ID      credentials of the registered w3id connector
-#   W3ID_SSO_CLIENT_SECRET
+# Environment variables:
+#   W3ID_SSO_CREDENTIALS    credentials of the registered w3id connector as JSON
+#                           ({"client_id", "client_secret"}), injected by the chart from the
+#                           `key_all` key of the synced Secret.
 #   W3ID_SSO_BASE_URL       provider base (defaults to the test environment);
 #                           the OIDC endpoints are derived from it.
-W3ID_SSO_CLIENT_ID = os.environ.get("W3ID_SSO_CLIENT_ID", "")
-W3ID_SSO_CLIENT_SECRET = os.environ.get("W3ID_SSO_CLIENT_SECRET", "")
+_w3id_credentials = json.loads(os.environ.get("W3ID_SSO_CREDENTIALS") or "{}")
+W3ID_SSO_CLIENT_ID = _w3id_credentials.get("client_id", "")
+W3ID_SSO_CLIENT_SECRET = _w3id_credentials.get("client_secret", "")
 W3ID_SSO_BASE_URL = os.environ.get("W3ID_SSO_BASE_URL", "https://test.login.w3.ibm.com")
 
 INSTALLED_APPS.append("mozilla_django_oidc")
