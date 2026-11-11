@@ -11,7 +11,7 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
@@ -24,6 +24,9 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 # Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
 # 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
 _STOPPING_DEADLINE_SECONDS = 600
+
+# The client reads this code to explain why a cancelled job has no result, so it must not change
+PROGRAM_TIMEOUT_ERROR_CODE = "PROGRAM_TIMEOUT"
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -215,10 +218,31 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
             return False
 
+        self._record_timeout_error(job)
         if not cancelled:
             # stop() wrote STOPPED itself, so only the counter is left
             self._increment_terminal_counter(job)
         return True
+
+    @staticmethod
+    def _record_timeout_error(job: Job) -> None:
+        """Write the ERROR event the client reads to explain why a stopped job has no result."""
+        hours = program_timeout_hours()
+        JobEvent.objects.create(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            event_type=JobEventType.ERROR,
+            data={
+                "code": PROGRAM_TIMEOUT_ERROR_CODE,
+                "message": (
+                    f"This job was stopped because it ran for longer than the program timeout of {hours} hours, "
+                    "so its result may be missing or incomplete."
+                ),
+                "exception": "ProgramTimeout",
+                "args": {"timeout_hours": hours},
+            },
+        )
 
     @staticmethod
     def _timed_out(job: Job) -> bool:

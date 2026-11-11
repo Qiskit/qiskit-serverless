@@ -408,6 +408,38 @@ class TestStopJobIfTimeout:
         task.transitions.try_stop.assert_called_once()
         assert job.status == Job.STOPPING
 
+    def test_a_timed_out_job_gets_a_program_timeout_error_event(self):
+        """The client reads this event to raise on result(), since the job ends as STOPPED."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=100)
+
+        with (
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            task.stop_job_if_timeout(job)
+
+        data = mock_event.objects.create.call_args.kwargs["data"]
+        assert data["code"] == "PROGRAM_TIMEOUT"
+        assert "1 hours" in data["message"]
+
+    def test_no_error_event_when_the_cancel_does_not_land(self):
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=100)
+        task.transitions.try_stop.side_effect = RunnerRetryableError("down")
+
+        with (
+            patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.program_timeout_hours", return_value=1),
+            patch(f"{_MOD}.JobEvent") as mock_event,
+        ):
+            assert task.stop_job_if_timeout(job) is False
+
+        mock_event.objects.create.assert_not_called()
+
     def test_a_fleet_already_gone_is_still_counted(self):
         """stop() writes STOPPED itself when Code Engine has no fleet left, so to_terminal here would
         be STOPPED to STOPPED, which is rejected and counts nothing."""
@@ -516,6 +548,7 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_SCHEDULE}.program_timeout_hours", return_value=24),
             patch(f"{_MOD}.program_timeout_hours", return_value=24),
+            patch(f"{_MOD}.JobEvent"),
         ):
             task.stop_job_if_timeout(job)
 

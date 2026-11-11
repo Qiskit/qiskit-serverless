@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    :meth:`~qiskit_serverless.core.job.Job.result` now raises a
+    :class:`~qiskit_serverless.exception.QiskitServerlessException` when the job was stopped
+    because it ran longer than the program timeout. Before, the job ended as ``CANCELED`` and
+    ``result()`` returned a missing or partial result without any error. The exception message
+    states the timeout that was reached. This applies to jobs on the Fleets runner.
