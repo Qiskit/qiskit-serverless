@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The required version of ``qiskit-ibm-runtime`` has been raised to
+    ``>=0.51.0, <0.52.0``. Install an ``0.51.x`` release of ``qiskit-ibm-runtime``
+    alongside this client.

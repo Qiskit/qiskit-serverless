@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Fixed job logs, results and status being read from the wrong storage after a
+    function was switched between the Ray and Fleets runners while it still had
+    jobs in flight. A job now reads and writes its logs, results and arguments
+    using the runner it actually ran with, instead of the function's current
+    runner. Before, such a job could raise an error on every status update and
+    never reach a terminal state.

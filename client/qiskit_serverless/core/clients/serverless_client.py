@@ -27,6 +27,7 @@ Qiskit Serverless provider
 """
 
 # pylint: disable=duplicate-code,too-many-lines
+import glob
 import json
 import os.path
 import os
@@ -36,7 +37,7 @@ import time
 import warnings
 from pathlib import Path
 from urllib.parse import urlparse
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Optional, List, Dict, Any, Union
 from collections.abc import Callable
 
@@ -62,6 +63,7 @@ from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.files import GatewayFilesClient
+from qiskit_serverless.core.wheels import WHEELS_SUBDIR
 from qiskit_serverless.core.job import (
     Job,
     Configuration,
@@ -78,6 +80,7 @@ from qiskit_serverless.core.function import (
     QiskitFunction,
     RunService,
     RunnableQiskitFunction,
+    RAY_RUNNER_DEPRECATION,
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
@@ -102,6 +105,84 @@ _STATUS_TOKEN_HEADER = "X-Job-Status-Token"
 # The gateway signs the token for 5 minutes, so the client stops using it 30 s before
 _STATUS_TOKEN_REUSE_SECONDS = 270
 _TOKEN_REFUSED_CODES = (401, 403, 404)
+
+# A requirement looks like "name[extras]<specifier>", e.g. "numpy>=2",
+# "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1", or a bare "mypkg".
+_REQUIREMENT_RE = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*(?:\[[^\]]*\])?\s*(.*?)\s*$")
+
+
+def _split_requirement(requirement: str) -> tuple:
+    """Split a requirement string into (name, specifier-or-version).
+
+    For a baked entry like ``"numpy==2.1.0"`` the second item is the pinned version
+    ``"2.1.0"``; for a user requirement like ``"jax<0.5"`` it is the specifier ``"<0.5"``.
+    Extras are dropped. A bare name yields an empty specifier.
+    """
+    match = _REQUIREMENT_RE.match(requirement)
+    if not match:
+        return requirement.strip(), ""
+    name, spec = match.group(1), match.group(2).strip()
+    # Normalize a bare "==x" baked pin down to just the version for display/comparison.
+    if spec.startswith("=="):
+        spec = spec[2:].strip()
+    return name, spec
+
+
+def _normalize_dep_name(name: str) -> str:
+    """PEP 503 name normalization: lowercase, runs of -_. collapse to a single '-'."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _spec_allows(spec: str, baked_version: str) -> bool:
+    """Best-effort check that a baked version satisfies a user specifier.
+
+    Deliberately simple and dependency-free: an exact ``==`` or bare version must match the
+    baked version; anything else (ranges like ``>=2``, ``<0.5``) is treated as compatible so the
+    report does not raise false clashes. The report is advisory, not an installer.
+    """
+    spec = spec.strip()
+    if not spec:
+        return True
+    if spec.startswith("=="):
+        return spec[2:].strip() == baked_version
+    # A bare version with no operator (e.g. report entry already reduced to "2.1.0").
+    if re.match(r"^[0-9]", spec):
+        return spec == baked_version
+    return True
+
+
+@dataclass
+class DependencyReportEntry:
+    """One row of a :class:`DependencyReport`.
+
+    ``status`` is one of ``"baked"`` (already in the image, don't bring), ``"bring"`` (upload a
+    wheel), or ``"clash"`` (the image ships a different version).
+    """
+
+    requirement: str
+    status: str
+    note: str
+
+
+class DependencyReport(List[DependencyReportEntry]):
+    """A list of :class:`DependencyReportEntry` that prints as an aligned table.
+
+    Behaves like an ordinary list; only ``str``/``repr`` differ so
+    ``print(client.dependency_report([...]))`` shows the table without the caller iterating.
+    """
+
+    def __str__(self) -> str:
+        return _format_dependency_report(self)
+
+    def __repr__(self) -> str:
+        return _format_dependency_report(self)
+
+
+def _format_dependency_report(entries: List[DependencyReportEntry]) -> str:
+    header = ("requirement", "status", "note")
+    rows = [header] + [(e.requirement, e.status, e.note) for e in entries]
+    widths = [max(len(row[col]) for row in rows) for col in range(3)]
+    return "\n".join("  ".join(cell.ljust(widths[col]) for col, cell in enumerate(row)) for row in rows)
 
 
 class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
@@ -193,7 +274,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             raise QiskitServerlessException(f"Credentials couldn't be verified: {reason}") from reason
 
     def dependencies_versions(self):
-        """Get the list of available dependencies and its versions for creating functions"""
+        """Discover the dependencies (and versions) baked into the runtime image.
+
+        Read-only discovery: this reports what the runtime image already ships, so you know
+        what you do *not* need to bring yourself.
+        """
         return safe_json_request_as_list(
             request=lambda: requests.get(
                 url=f"{self.host}/api/{self.version}/dependencies-versions/",
@@ -409,8 +494,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         if isinstance(program, QiskitFunction):
             title = program.title
             provider = program.provider
+            ran_on_ray = program.runner == "ray"
         else:
             title = str(program)
+            # A bare title gives us no runner to inspect, so we cannot tell locally whether this
+            # ran on Ray. The gateway still returns its deprecation text in the warning field
+            # below; we just surface it as a plain warning rather than a DeprecationWarning.
+            ran_on_ray = False
 
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -443,7 +533,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             span.set_attribute("job.id", job_id)
 
         if response_data.get("warning"):
-            warnings.warn(response_data["warning"], stacklevel=2)
+            # The gateway returns the warning text (Ray deprecation, a blocked resource, or both)
+            # so every client, old or new, is covered. When we can see locally that the function
+            # ran on the deprecated Ray runner, raise the category to DeprecationWarning so it is
+            # filterable as one; otherwise keep the default warning category.
+            category = DeprecationWarning if ran_on_ray else UserWarning
+            warnings.warn(response_data["warning"], category=category, stacklevel=2)
 
         return Job(
             job_id,
@@ -680,6 +775,17 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     #########################
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
+        if program.runner == "ray":
+            warnings.warn(RAY_RUNNER_DEPRECATION, DeprecationWarning, stacklevel=2)
+        if program.dependencies:
+            warnings.warn(
+                "`dependencies=` is deprecated and no longer installs anything; it is accepted but "
+                "ignored and will be removed in a future release. Use "
+                "`client.dependencies_versions()` to see what the runtime image already ships.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("function.upload") as span:
             span.set_attribute("function", program.title)
@@ -793,9 +899,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     ####### FILES #######
     #####################
 
-    def files(self, function: QiskitFunction) -> List[str]:
-        """Returns the list of files available for the user in the Qiskit Function folder."""
-        return self._files_client.list(function)
+    def files(self, function: QiskitFunction, sub_path: Optional[str] = None) -> List[str]:
+        """Returns the list of files available for the user in the Qiskit Function folder.
+
+        ``sub_path`` optionally lists a sub-directory of the function's folder (e.g. ``"wheels"``).
+        """
+        return self._files_client.list(function, sub_path)
 
     def provider_files(self, function: QiskitFunction) -> List[str]:
         """Returns the list of files available for the provider in the Qiskit Function folder."""
@@ -821,21 +930,120 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """Download a file available to the provider for the specific Qiskit Function."""
         return self._files_client.provider_download(file, download_location, function, target_name)
 
-    def file_delete(self, file: str, function: QiskitFunction):
-        """Deletes a file available to the user for the specific Qiskit Function."""
-        return self._files_client.delete(file, function)
+    def file_delete(self, file: str, function: QiskitFunction, sub_path: Optional[str] = None):
+        """Deletes a file available to the user for the specific Qiskit Function.
+
+        ``sub_path`` optionally targets a sub-directory of the function's folder (e.g. ``"wheels"``).
+        """
+        return self._files_client.delete(file, function, sub_path)
 
     def provider_file_delete(self, file: str, function: QiskitFunction):
         """Deletes a file available to the provider for the specific Qiskit Function."""
         return self._files_client.provider_delete(file, function)
 
-    def file_upload(self, file: str, function: QiskitFunction):
-        """Uploads a file in the specific user's Qiskit Function folder."""
-        return self._files_client.upload(file, function)
+    def file_upload(self, file: str, function: QiskitFunction, sub_path: Optional[str] = None):
+        """Uploads a file in the specific user's Qiskit Function folder.
+
+        ``sub_path`` optionally stores the file in a sub-directory of the function's folder
+        (e.g. ``"wheels"``).
+        """
+        return self._files_client.upload(file, function, sub_path)
 
     def provider_file_upload(self, file: str, function: QiskitFunction):
         """Uploads a file in the specific provider's Qiskit Function folder."""
         return self._files_client.provider_upload(file, function)
+
+    def add_wheels(self, function: QiskitFunction, patterns: List[str]) -> List[str]:
+        """Upload locally-built wheels to a function's file area.
+
+        Each pattern is a local path or glob (e.g. ``"dist/mypkg-1.0-*.whl"``); every match
+        must be a ``.whl`` file. This is a thin wrapper over :meth:`file_upload` that expands
+        the patterns and uploads each wheel into the function's ``wheels`` sub-directory, so
+        they are available to the function at runtime. Install them from your entrypoint with
+        ``install_uploaded_wheels()``, which reads that same directory. Use :meth:`list_wheels`
+        and :meth:`remove_wheels` to see and remove what has been uploaded.
+
+        Args:
+            function: the function whose file area the wheels are uploaded to.
+            patterns: local paths or globs matching the wheel files to upload.
+
+        Returns:
+            The uploaded wheel file names, in upload order.
+
+        Raises:
+            QiskitServerlessException: if a pattern matches no files, or a match is not a
+                ``.whl`` file.
+        """
+        paths: List[str] = []
+        for pattern in patterns:
+            matches = sorted(glob.glob(pattern))
+            if not matches:
+                raise QiskitServerlessException(f"No files match wheel pattern: {pattern}")
+            paths.extend(matches)
+
+        non_wheels = [p for p in paths if not p.endswith(".whl")]
+        if non_wheels:
+            raise QiskitServerlessException(f"add_wheels only accepts .whl files; got: {', '.join(non_wheels)}")
+
+        uploaded: List[str] = []
+        for path in paths:
+            self.file_upload(path, function, sub_path=WHEELS_SUBDIR)
+            uploaded.append(os.path.basename(path))
+        return uploaded
+
+    def list_wheels(self, function: QiskitFunction) -> List[str]:
+        """List the wheels currently uploaded to a function (via :meth:`add_wheels`).
+
+        Returns the wheel file names in the function's ``wheels`` sub-directory.
+        """
+        return self.files(function, sub_path=WHEELS_SUBDIR)
+
+    def remove_wheels(self, function: QiskitFunction, names: List[str]) -> None:
+        """Remove previously uploaded wheels from a function.
+
+        To *update* a wheel, remove the old one and :meth:`add_wheels` the new build (a rebuild
+        with a different version has a different file name, so it would otherwise accumulate
+        alongside the old one and both would be installed).
+
+        Args:
+            function: the function to remove wheels from.
+            names: wheel file names to remove, as returned by :meth:`list_wheels`.
+        """
+        for name in names:
+            self.file_delete(name, function, sub_path=WHEELS_SUBDIR)
+
+    def dependency_report(self, requirements: List[str]) -> "DependencyReport":
+        """Diff your requirements against what the runtime image already ships.
+
+        For each requirement this reports whether it is already ``baked`` into the image (so you
+        should not bring it), needs to be brought as a wheel (``bring``), or ``clashes`` with a
+        different baked version. It is a client-side diff over :meth:`dependencies_versions`; it
+        uploads nothing. The result prints as an aligned table.
+
+        Args:
+            requirements: requirement strings, e.g. ``["numpy>=2", "mypkg", "jax<0.5"]``.
+
+        Returns:
+            A :class:`DependencyReport` (a list of :class:`DependencyReportEntry` that prints as
+            a table).
+        """
+        baked = {}
+        for dep in self.dependencies_versions():
+            name, version = _split_requirement(dep)
+            baked[_normalize_dep_name(name)] = version
+
+        entries: List[DependencyReportEntry] = []
+        for requirement in requirements:
+            name, spec = _split_requirement(requirement)
+            baked_version = baked.get(_normalize_dep_name(name))
+            if baked_version is None:
+                status, note = "bring", "not in image — upload a wheel"
+            elif spec and not _spec_allows(spec, baked_version):
+                status, note = "clash", f"image ships {name}=={baked_version}"
+            else:
+                status, note = "baked", f"already in image ({name}=={baked_version})"
+            entries.append(DependencyReportEntry(requirement=requirement, status=status, note=note))
+        return DependencyReport(entries)
 
 
 class IBMServerlessClient(ServerlessClient):

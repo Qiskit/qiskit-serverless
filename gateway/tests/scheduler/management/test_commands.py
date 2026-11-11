@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 from prometheus_client import CollectorRegistry
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import ComputeResource, Job, JobEvent, Config
+from core.models import ComputeResource, Job, JobEvent, Config, Program
 from core.services.runners import RunnerError
 from core.services.runners.ray_runner import FilteredLogs
 from core.utils import check_logs
@@ -97,7 +97,7 @@ class TestCommands:
         test3_user = TestUtils.get_user_and_username("test3_user")[0]
         test4_user = TestUtils.get_user_and_username("test4_user")[0]
 
-        program = TestUtils.create_program(program_title="Program", author=test_user)
+        program = TestUtils.create_program(program_title="Program", author=test_user, runner=Program.RAY)
         compute_resource = TestUtils.get_or_create_compute_resource(
             title="compute resource", host="somehost", owner=test3_user
         )
@@ -400,6 +400,7 @@ WARNING: Private warning
             program_title=f"program-{author_user.username}-{provider_admin or 'custom'}",
             author=author_user,
             provider=provider,
+            runner=Program.RAY,
         )
 
         return TestUtils.create_job(

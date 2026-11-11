@@ -72,7 +72,7 @@ class TestScheduleApi(APITestCase):
         test3_user = TestUtils.get_user_and_username("test3_user")[0]
         test4_user = TestUtils.get_user_and_username("test4_user")[0]
 
-        program = TestUtils.create_program(program_title="Program", author=test_user)
+        program = TestUtils.create_program(program_title="Program", author=test_user, runner=Program.RAY)
         compute_resource = TestUtils.get_or_create_compute_resource(
             title="compute resource", host="somehost", owner=test3_user
         )
@@ -114,7 +114,7 @@ class TestScheduleApi(APITestCase):
         separate per-user tally and limit.
         """
         user = TestUtils.get_user_and_username("mixed_user")[0]
-        program = TestUtils.create_program(program_title="Program", author=user)
+        program = TestUtils.create_program(program_title="Program", author=user, runner=Program.RAY)
 
         # 2 running Ray jobs -> user is at the Ray cap.
         TestUtils.create_job(author=user, program=program, status=Job.RUNNING, runner=Program.RAY)
@@ -502,9 +502,11 @@ class TestScheduleApi(APITestCase):
         user = TestUtils.authorize_client(user="test_limit_user", client=self.client)
 
         # Create a private program for the job. If provider is given, the public logs will be empty.
+        # This is a Ray scheduler test (UpdateRayJobsStatuses), so the program must run on Ray.
         program = TestUtils.create_program(
             program_title="Timeout-Test-Program",
             author=user,
+            runner=Program.RAY,
         )
 
         compute_resource = ComputeResource.objects.create(title="test-cluster-test-job-id", active=True)
