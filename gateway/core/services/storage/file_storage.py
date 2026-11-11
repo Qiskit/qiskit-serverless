@@ -79,7 +79,7 @@ class FileStorage(ABC):
 
     @abstractmethod
     def get_public_file_stream(
-        self, file_name: str, chunk_size: int = 65536
+        self, file_name: str, chunk_size: int = 65536, sub_path: str = ""
     ) -> Optional[Tuple[Iterator[bytes], str, int]]:
         """
         This method returns a streaming generator for a file that we can use for large files
@@ -87,6 +87,8 @@ class FileStorage(ABC):
         Args:
             file_name (str): the name of the file to download
             chunk_size (int): bytes per chunk (default 64 KB)
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder the file lives in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             Iterator[bytes]: generator that yields file chunks

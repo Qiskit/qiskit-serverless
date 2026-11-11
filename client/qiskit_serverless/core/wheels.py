@@ -19,11 +19,15 @@ Install wheels that were uploaded to a function's file area (see
 during execution.
 """
 
+import hashlib
+import json
 import os
+import shutil
 import site
 import subprocess
 import sys
-from typing import Optional
+import tempfile
+from typing import List, Optional
 
 # Where a function's uploaded user files are mounted inside the runtime container.
 FUNCTION_USER_DATA = "/function_user_data"
@@ -41,6 +45,18 @@ ENV_WHEELHOUSE = "QISKIT_FUNCTIONS_WHEELHOUSE"
 
 # Where installed wheels are placed and added to the import path.
 DEFAULT_TARGET = "/tmp/site"
+
+# Wheel chunking (shared between the client's add_wheels() and this runtime helper).
+# A wheel too large to upload in one request is split into parts named
+# ``<wheel>.whl.part-0001-of-0004``. The ``.part-`` infix is the detection substring, and a part
+# name never ends in ``.whl``, so the whole-wheel scan below skips parts automatically. The parts
+# and a manifest recording their order and the original wheel's sha256 live in the wheels dir.
+CHUNK_PART_INFIX = ".part-"
+CHUNK_MANIFEST_NAME = ".wheel-chunks-manifest.json"
+CHUNK_MANIFEST_SCHEMA = 1
+
+# Block size for streaming reassembly and hashing (1 MiB).
+_CHUNK_IO_BLOCK = 1024 * 1024
 
 
 def install_uploaded_wheels(
@@ -62,6 +78,12 @@ def install_uploaded_wheels(
     the wheelhouse and fail. Build your wheels with everything they need, or rely on what the image
     already ships (see ``client.dependencies_versions()``).
 
+    Large wheels that ``add_wheels()`` had to split for upload are transparently reassembled
+    from their parts here and verified against a sha256 manifest before installation; a missing
+    part or a checksum mismatch raises rather than installing a corrupt wheel. Reassembly happens
+    in a temporary directory (the uploaded wheels directory is read-only at runtime) that is
+    removed after the install.
+
     Note: wheels are installed on every execution. If no wheels are present this is a no-op.
 
     Args:
@@ -74,35 +96,113 @@ def install_uploaded_wheels(
     """
     wheelhouse = wheelhouse or os.environ.get(ENV_WHEELHOUSE) or DEFAULT_WHEELHOUSE
 
-    wheels = []
-    if os.path.isdir(wheelhouse):
-        wheels = [name for name in os.listdir(wheelhouse) if name.endswith(".whl")]
+    names = os.listdir(wheelhouse) if os.path.isdir(wheelhouse) else []
+    # Whole wheels: uploaded in one piece. Parts never end in ".whl", so they are excluded here;
+    # the explicit CHUNK_PART_INFIX check documents that intent.
+    whole_wheels = [n for n in names if n.endswith(".whl") and CHUNK_PART_INFIX not in n]
+    manifest_path = os.path.join(wheelhouse, CHUNK_MANIFEST_NAME)
+    has_manifest = os.path.isfile(manifest_path)
 
-    if not wheels:
+    if not whole_wheels and not has_manifest:
         # Nothing to install; still ensure target is importable if it already exists.
         _prepend_to_path(target)
         return target
 
-    os.makedirs(target, exist_ok=True)
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--no-index",
-            "--no-deps",
-            "--find-links",
-            wheelhouse,
-            "--target",
-            target,
-            *[os.path.join(wheelhouse, name) for name in wheels],
-        ],
-        check=True,
-    )
+    workdir: Optional[str] = None
+    try:
+        install_paths: List[str] = [os.path.join(wheelhouse, name) for name in whole_wheels]
+
+        if has_manifest:
+            workdir = tempfile.mkdtemp(prefix="qs-wheels-")
+            install_paths.extend(_reassemble_chunked_wheels(wheelhouse, manifest_path, workdir))
+
+        if not install_paths:
+            _prepend_to_path(target)
+            return target
+
+        os.makedirs(target, exist_ok=True)
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--no-index",
+                "--no-deps",
+                "--find-links",
+                wheelhouse,
+                "--target",
+                target,
+                *install_paths,
+            ],
+            check=True,
+        )
+    finally:
+        if workdir is not None:
+            # The reassembled wheels are only needed for the duration of the pip install; pip has
+            # copied the installed package into ``target``. Reclaim the /tmp space.
+            shutil.rmtree(workdir, ignore_errors=True)
 
     _prepend_to_path(target)
     return target
+
+
+def _reassemble_chunked_wheels(wheelhouse: str, manifest_path: str, workdir: str) -> List[str]:
+    """Rebuild each chunked wheel from its parts into ``workdir`` and verify it.
+
+    Reads the chunk manifest, concatenates each wheel's parts in the recorded order, and checks
+    the reassembled file against the manifest's sha256 before it is handed to pip. Raises loudly
+    (so the failure surfaces in the entrypoint) if the manifest schema is unknown, a part is
+    missing, or a checksum does not match.
+
+    Returns the list of reassembled wheel paths (under ``workdir``).
+    """
+    with open(manifest_path, "r", encoding="utf-8") as handle:
+        manifest = json.load(handle)
+
+    schema = manifest.get("schema")
+    if schema != CHUNK_MANIFEST_SCHEMA:
+        raise RuntimeError(
+            f"Unsupported wheel-chunk manifest schema {schema!r} (this runtime understands "
+            f"{CHUNK_MANIFEST_SCHEMA}). Upgrade qiskit-serverless in the function image."
+        )
+
+    return [_reassemble_one(wheelhouse, workdir, entry) for entry in manifest.get("chunked_wheels", [])]
+
+
+def _reassemble_one(wheelhouse: str, workdir: str, entry: dict) -> str:
+    """Rebuild and verify a single chunked wheel from its manifest entry; return its path."""
+    wheel_name = entry["wheel"]
+    parts = entry["parts"]
+
+    missing = [p for p in parts if not os.path.isfile(os.path.join(wheelhouse, p))]
+    if missing:
+        raise RuntimeError(
+            f"Cannot reassemble wheel '{wheel_name}': missing part(s) {missing}. "
+            "Re-upload the wheel with client.add_wheels()."
+        )
+
+    out_path = os.path.join(workdir, wheel_name)
+    digest = hashlib.sha256()
+    with open(out_path, "wb") as out:
+        for part in parts:
+            with open(os.path.join(wheelhouse, part), "rb") as src:
+                while True:
+                    block = src.read(_CHUNK_IO_BLOCK)
+                    if not block:
+                        break
+                    out.write(block)
+                    digest.update(block)
+
+    actual = digest.hexdigest()
+    if entry.get("sha256") != actual:
+        os.remove(out_path)
+        raise RuntimeError(
+            f"Checksum mismatch for reassembled wheel '{wheel_name}': expected {entry.get('sha256')}, "
+            f"got {actual}. The uploaded parts are corrupt or incomplete; re-upload the wheel."
+        )
+
+    return out_path
 
 
 def _prepend_to_path(target: str) -> None:

@@ -19,6 +19,7 @@ from api.use_cases.files.download import FilesDownloadUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+from core.utils import sanitize_sub_path
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.files.download")
@@ -34,6 +35,7 @@ class InputSerializer(serializers.Serializer):
     function = serializers.CharField(required=True)
     provider = serializers.CharField(required=False, default=None)
     file = serializers.CharField(required=True)
+    sub_path = serializers.CharField(required=False, default="")
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -58,6 +60,12 @@ class InputSerializer(serializers.Serializer):
         """
         return sanitize_file_name(value)
 
+    def validate_sub_path(self, value: str):
+        """
+        Sanitize the optional sub-directory into a safe relative path.
+        """
+        return sanitize_sub_path(value)
+
 
 @swagger_auto_schema(
     method="get",
@@ -81,6 +89,13 @@ class InputSerializer(serializers.Serializer):
             "provider",
             openapi.IN_QUERY,
             description="Provider name",
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+        openapi.Parameter(
+            "sub_path",
+            openapi.IN_QUERY,
+            description="Optional sub-directory the file lives in",
             type=openapi.TYPE_STRING,
             required=False,
         ),
@@ -112,6 +127,7 @@ def files_download(request: Request) -> StreamingHttpResponse:
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
     file = serializer.validated_data.get("file")
+    sub_path = serializer.validated_data.get("sub_path", "")
 
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
@@ -125,7 +141,7 @@ def files_download(request: Request) -> StreamingHttpResponse:
     )
 
     result: Tuple[Iterator[bytes], str, int] = FilesDownloadUseCase().execute(
-        user, provider, function, file, accessible_functions=accessible_functions
+        user, provider, function, file, sub_path=sub_path, accessible_functions=accessible_functions
     )
     logger.info(
         "[files-download] user_id=%s function=%s provider=%s file=%s | File downloaded ok",

@@ -168,7 +168,7 @@ class FileStorageRay(FileStorage):
         return file_wrapper, file_type, file_size
 
     def get_public_file_stream(
-        self, file_name: str, chunk_size: int = 65536
+        self, file_name: str, chunk_size: int = 65536, sub_path: str = ""
     ) -> Optional[Tuple[Iterator[bytes], str, int]]:
         """
         This method returns a streaming generator for a file that we can use for large files
@@ -176,6 +176,8 @@ class FileStorageRay(FileStorage):
         Args:
             file_name (str): the name of the file to download
             chunk_size (int): bytes per chunk (default 64 KB)
+            sub_path (str): optional, already-sanitized relative directory under the public
+                folder the file lives in (e.g. ``"wheels"``). Empty means the folder root.
 
         Returns:
             Iterator[bytes]: generator that yields file chunks
@@ -183,7 +185,7 @@ class FileStorageRay(FileStorage):
             int: with the size of the file
         """
 
-        return self._get_file_stream_in_folder(self.public_path, file_name, chunk_size)
+        return self._get_file_stream_in_folder(self.public_path, file_name, chunk_size, sub_path)
 
     def get_private_file_stream(
         self, file_name: str, chunk_size: int = 65536
@@ -204,7 +206,7 @@ class FileStorageRay(FileStorage):
         return self._get_file_stream_in_folder(self.private_path, file_name, chunk_size)
 
     def _get_file_stream_in_folder(
-        self, folder_path: str, file_name: str, chunk_size: int = 65536
+        self, folder_path: str, file_name: str, chunk_size: int = 65536, sub_path: str = ""
     ) -> Optional[Tuple[Iterator[bytes], str, int]]:
         """
         This method returns a streaming generator for a file that we can use for large files
@@ -212,6 +214,7 @@ class FileStorageRay(FileStorage):
         Args:
             file_name (str): the name of the file to download
             chunk_size (int): bytes per chunk (default 64 KB)
+            sub_path (str): optional, already-sanitized relative directory under ``folder_path``.
 
         Returns:
             Iterator[bytes]: generator that yields file chunks
@@ -220,7 +223,9 @@ class FileStorageRay(FileStorage):
         """
 
         file_name_path = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(os.path.join(folder_path, file_name_path))
+        safe_sub_path = sanitize_sub_path(sub_path)
+        folder = os.path.join(folder_path, safe_sub_path) if safe_sub_path else folder_path
+        path_to_file = sanitize_file_path(os.path.join(folder, file_name_path))
 
         if not os.path.exists(path_to_file):
             logger.warning("[get_file_stream] File not found: %s", path_to_file)
