@@ -3,7 +3,6 @@
 import json
 import logging
 import math
-from datetime import datetime, timezone
 
 from django.conf import settings
 
@@ -115,7 +114,6 @@ class ScheduleFleetsJobs(SchedulerTask):
             submitted += 1
             if project:
                 free_fleets[project.id] -= 1
-            self.add_queue_wait_time_metric(job)
 
         self.metrics.increment_task_items(self.name, submitted)
         if submitted:
@@ -142,15 +140,3 @@ class ScheduleFleetsJobs(SchedulerTask):
         quota = Config.get_int(ConfigKey.FLEETS_QUOTA_PER_PROJECT, default=DEFAULT_QUOTA_PER_PROJECT)
         logger.info("project=%s holds %s of %s fleets", project.project_name, count, quota)
         return max(0, quota - count)
-
-    def add_queue_wait_time_metric(self, job: Job):
-        """Add queue wait time metric."""
-        if job.filler:
-            # Filler jobs skip the queue by design; one that reaches here was
-            # rescued from QUEUED by fair-share, and its wait says nothing about
-            # how long real work waits.
-            return
-        now = datetime.now(timezone.utc)
-        wait_seconds = (now - job.created).total_seconds()
-        job_compute_type = "gpu" if job.gpu else "cpu"
-        self.metrics.observe_queue_wait_time(wait_seconds, job_compute_type)

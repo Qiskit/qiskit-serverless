@@ -1,10 +1,12 @@
 """Update job status counts metric task."""
 
 import logging
+from datetime import datetime, timezone
 
-from django.db.models import Count
+from django.db.models import Count, Min
 
-from core.models import Job
+from core.model_managers.job_events import JobEventType
+from core.models import Job, JobEvent, Program
 from scheduler.kill_signal import KillSignal
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from .task import SchedulerTask
@@ -41,3 +43,14 @@ class UpdateJobStatusCounts(SchedulerTask):
         self.metrics.clear_filler_jobs_counts()
         for row in filler_rows:
             self.metrics.set_filler_jobs_count(row["count"], row["status"])
+
+        oldest = JobEvent.objects.filter(
+            event_type=JobEventType.STATUS_CHANGE,
+            data__status=Job.STOPPING,
+            job__status=Job.STOPPING,
+            job__runner=Program.FLEETS,
+            job__filler=False,
+        ).aggregate(oldest=Min("created"))["oldest"]
+        self.metrics.set_oldest_stopping_age_seconds(
+            (datetime.now(timezone.utc) - oldest).total_seconds() if oldest else 0
+        )
