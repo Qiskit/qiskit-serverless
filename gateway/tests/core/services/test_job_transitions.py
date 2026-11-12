@@ -13,7 +13,7 @@ from prometheus_client import CollectorRegistry
 
 from core import external_call_metrics
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
     ComputeProfile,
     FunctionSize,
@@ -50,6 +50,10 @@ def _licensed_fleets_job(user, status, fleet_id="fleet-abc"):
         status=status,
         fleet_id=fleet_id,
     )
+
+
+def _license_usage_events(job):
+    return JobEvent.objects.filter(job=job, event_type=JobEventType.REPORT_LICENSE_USAGE)
 
 
 @pytest.fixture
@@ -183,7 +187,6 @@ class TestBillingOutbox:
     def test_failed_after_running_enqueues_both_messages(self, service, user):
         job = _licensed_fleets_job(user, Job.PENDING)
         service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-        Outbox.objects.filter(job=job).delete()  # RUNNING must not have enqueued anything; clear defensively
 
         service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -199,12 +202,69 @@ class TestBillingOutbox:
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
-    def test_running_transition_enqueues_nothing(self, service, user):
+    def test_running_transition_enqueues_only_the_license_fee(self, service, user):
+        """The fee is owed as soon as the job runs, so it leaves early enough to count against limits."""
         job = _licensed_fleets_job(user, Job.PENDING)
+
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
+        assert fee.payload["data"]["job_started_at"] == event.created.isoformat()
+        assert fee.region == "us-east"
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).exists()
+        reported = _license_usage_events(job).get()
+        assert (reported.origin, reported.context) == (JobEventOrigin.SCHEDULER, JobEventContext.UPDATE_JOB_STATUS)
+
+    def test_running_transition_of_a_function_without_provider_enqueues_nothing(self, service, user):
+        program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS)
+        job = Job.objects.create(
+            author=user, program=program, runner=Program.FLEETS, instance_crn=CRN, status=Job.PENDING
+        )
 
         service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert Outbox.objects.filter(job=job).count() == 0
+
+    @pytest.mark.parametrize("terminal", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
+    def test_a_fee_enqueued_at_running_is_not_enqueued_again_at_terminal(self, service, user, terminal):
+        """Exactly one fee per job, even after the RUNNING row was already sent and deleted by the drain."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).delete()  # the drain sent it
+
+        service.to_terminal(job, terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
+        assert _license_usage_events(job).count() == 1
+
+    @pytest.mark.parametrize("terminal", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
+    def test_a_running_event_from_an_older_pod_falls_back_to_the_terminal_fee(self, service, user, terminal):
+        """Rolling deploy: the job went RUNNING on a pod that did not enqueue the fee (no REPORT_LICENSE_USAGE)."""
+        job = _licensed_fleets_job(user, Job.RUNNING)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+
+        service.to_terminal(job, terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+        assert _license_usage_events(job).count() == 1
+
+    def test_a_failing_fee_write_at_running_rolls_back_the_status(self, service, user, monkeypatch):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        monkeypatch.setattr(Outbox.objects, "create", MagicMock(side_effect=OperationalError("db down")))
+
+        with pytest.raises(OperationalError):
+            service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Job.objects.get(pk=job.pk).status == Job.PENDING
+        assert not JobEvent.objects.filter(job=job, data__status=Job.RUNNING).exists()
 
     def test_filler_job_enqueues_nothing_even_terminal(self, service, user):
         job = Job.objects.create(
@@ -256,19 +316,17 @@ class TestBillingOutbox:
         assert billing_event.payload["data"]["metric_type"].startswith("classical")
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
-    def test_missing_size_snapshot_despite_a_provider_waives_the_fee_and_logs(self, service, user, caplog):
+    def test_missing_size_snapshot_despite_a_provider_waives_the_fee(self, service, user):
         """The guard in _enqueue_license_fee: a provider job with neither a snapshot nor a size row gets no license
-        fee message, and an ERROR log line. It is an anomaly, not the normal no-provider case, so it must be
-        visible."""
+        fee message, and no REPORT_LICENSE_USAGE event."""
         job = _licensed_fleets_job(user, Job.PENDING)
         Job.objects.filter(pk=job.pk).update(function_size_name=None, function_size=None)
         job.refresh_from_db()
 
-        with caplog.at_level(logging.ERROR):
-            service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
-        assert "waiving the fee" in caplog.text
+        assert not _license_usage_events(job).exists()
 
     def test_missing_size_snapshot_bills_the_size_row_label(self, service, user):
         """A job created by a pod that predates the snapshot (a rollout) has a size row but no snapshot. Its license
