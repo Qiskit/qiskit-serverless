@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    Each Fleets job now saves where its files live in COS when it is created:
+    the Code Engine project whose credentials sign the COS requests, the
+    region, the bucket and data store names, and the object keys. Its
+    container is mounted from those paths, and its results, logs, arguments
+    and backoffice file list are read from them alone, so a later change to
+    the storage layout, the bucket names or the Code Engine project, or the
+    deletion of the function or its project, only affects new jobs. The
+    backoffice Job page shows the saved paths, read-only.
+upgrade:
+  - |
+    A data migration saves the paths of the Fleets jobs created before this
+    release. A Fleets job created without them, for example by an older
+    gateway pod during the rollout, gets them saved with today's layout the
+    first time its files are read, and keeps them from then on.

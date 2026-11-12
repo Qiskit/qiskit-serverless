@@ -13,7 +13,7 @@ import pytest
 from prometheus_client import CollectorRegistry
 
 from core.config_key import ConfigKey
-from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, Program
+from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, JobStoragePaths, Program
 from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError, RunnerRetryableError
 from scheduler.main import Main
@@ -50,7 +50,10 @@ def filler_program():
         provider=_PROVIDER,
         runner=Program.FLEETS,
         code_engine_project=TestUtils.get_or_create_ce_project(
-            project_name="ce-filler", project_id="ce-id", cos_bucket_user_data_name="filler-bucket"
+            project_name="ce-filler",
+            project_id="ce-id",
+            cos_bucket_user_data_name="filler-bucket",
+            cos_bucket_provider_data_name="filler-provider-bucket",
         ),
     )
     profile = ComputeProfile.objects.create(compute_profile_id=_PROFILE, cpu="160", memory="1792", gpu="8h100")
@@ -92,6 +95,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
 
     fillers = Job.objects.filter(filler=True)
     assert fillers.count() == 4
+    assert JobStoragePaths.objects.filter(job__in=fillers).count() == 4
     assert submit.call_count == 4
     assert arguments.call_count == 4
     assert {job.compute_profile_fk for job in fillers} == {filler_program.default_size.compute_profile}

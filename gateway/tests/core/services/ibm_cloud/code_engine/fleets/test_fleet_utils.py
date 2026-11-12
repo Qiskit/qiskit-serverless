@@ -155,11 +155,11 @@ def test_build_run_volume_mounts_custom_function():
     """Custom jobs get exactly 2 mounts — both on the user PDS."""
     job = _make_job(title="my-func", entrypoint="run.py", job_id="job-001")
     paths = build_job_paths(job)
-    project = MagicMock()
-    project.pds_name_users = "user-pds"
-    project.pds_name_providers = "provider-pds"
+    saved = MagicMock()
+    saved.user_pds = "user-pds"
+    saved.provider_pds = "provider-pds"
 
-    mounts = build_run_volume_mounts_for_job(paths, project)
+    mounts = build_run_volume_mounts_for_job(paths, saved)
 
     assert len(mounts) == 2
     by_path = {m["mount_path"]: m for m in mounts}
@@ -178,11 +178,11 @@ def test_build_run_volume_mounts_provider_function():
     provider.name = "acme"
     job = _make_job(title="sampler", entrypoint="main.py", job_id="job-002", provider=provider)
     paths = build_job_paths(job)
-    project = MagicMock()
-    project.pds_name_users = "user-pds"
-    project.pds_name_providers = "provider-pds"
+    saved = MagicMock()
+    saved.user_pds = "user-pds"
+    saved.provider_pds = "provider-pds"
 
-    mounts = build_run_volume_mounts_for_job(paths, project)
+    mounts = build_run_volume_mounts_for_job(paths, saved)
 
     assert len(mounts) == 4
     by_path = {m["mount_path"]: m for m in mounts}

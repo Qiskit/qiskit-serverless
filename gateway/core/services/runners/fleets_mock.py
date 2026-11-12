@@ -135,23 +135,24 @@ class _FakeTokenProvider:
         """No-op: the mock token never expires."""
 
 
-def _mock_get_cos_client(project):  # pylint: disable=unused-argument
+def _mock_get_cos_client(project_id, region):  # pylint: disable=unused-argument
     """Return a JobCOS wired directly to MinIO, bypassing CE secret retrieval.
 
     Args:
-        project: The CodeEngineProject instance (region is used for client init).
+        project_id: The Code Engine project id (unused).
+        region: The region, used for client init.
 
     Returns:
         A JobCOS instance backed by the local MinIO.
     """
-    client_provider = IBMCloudClientProvider(api_key=settings.IBM_CLOUD_API_KEY, region=project.region)
+    client_provider = IBMCloudClientProvider(api_key=settings.IBM_CLOUD_API_KEY, region=region)
     cos_client = COSClient(
         client_provider=client_provider,
         credentials=CosHmacCredentials(
             access_key_id=MINIO_ACCESS_KEY,
             secret_access_key=MINIO_SECRET_KEY,
         ),
-        bucket_region=project.region,
+        bucket_region=region,
         endpoint_url=MINIO_ENDPOINT,
     )
     return JobCOS(cos_client)

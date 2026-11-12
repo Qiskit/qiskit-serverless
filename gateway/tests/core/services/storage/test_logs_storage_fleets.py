@@ -10,7 +10,8 @@ from core.services.storage import get_logs_storage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from tests.utils import TestUtils
 
-_COS_MODULE = "core.services.storage.logs_storage_fleets.get_cos_client"
+# Readers sign COS requests with the project saved with the job's paths
+_COS_MODULE = "core.services.storage.job_storage_paths.get_cos_client_for"
 
 
 def _make_client_error(code: str) -> ClientError:
