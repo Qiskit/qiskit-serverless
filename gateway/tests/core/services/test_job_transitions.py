@@ -183,7 +183,6 @@ class TestBillingOutbox:
     def test_failed_after_running_enqueues_both_messages(self, service, user):
         job = _licensed_fleets_job(user, Job.PENDING)
         service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
-        Outbox.objects.filter(job=job).delete()  # RUNNING must not have enqueued anything; clear defensively
 
         service.to_failed(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
@@ -199,12 +198,65 @@ class TestBillingOutbox:
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
-    def test_running_transition_enqueues_nothing(self, service, user):
+    def test_running_transition_enqueues_only_the_license_fee(self, service, user):
+        """The fee is owed as soon as the job runs, so it leaves early enough to count against limits."""
         job = _licensed_fleets_job(user, Job.PENDING)
+
+        event = service.pending_to_running(
+            job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS
+        )
+
+        fee = Outbox.objects.get(job=job, channel=OutboxChannel.LICENSE_FEE)
+        assert fee.payload["data"]["job_started_at"] == event.created.isoformat()
+        assert fee.region == "us-east"
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).exists()
+
+    def test_running_transition_of_a_function_without_provider_enqueues_nothing(self, service, user):
+        program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS)
+        job = Job.objects.create(
+            author=user, program=program, runner=Program.FLEETS, instance_crn=CRN, status=Job.PENDING
+        )
 
         service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert Outbox.objects.filter(job=job).count() == 0
+
+    @pytest.mark.parametrize("terminal", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
+    def test_a_fee_enqueued_at_running_is_not_enqueued_again_at_terminal(self, service, user, terminal):
+        """Exactly one fee per job, even after the RUNNING row was already sent and deleted by the drain."""
+        job = _licensed_fleets_job(user, Job.PENDING)
+        service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).delete()  # the drain sent it
+
+        service.to_terminal(job, terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
+        assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
+
+    @pytest.mark.parametrize("terminal", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
+    def test_a_running_event_from_an_older_pod_falls_back_to_the_terminal_fee(self, service, user, terminal):
+        """Rolling deploy: the job went RUNNING on a pod that did not enqueue the fee (no mark on the event)."""
+        job = _licensed_fleets_job(user, Job.RUNNING)
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            status=Job.RUNNING,
+        )
+
+        service.to_terminal(job, terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_a_failing_fee_write_at_running_rolls_back_the_status(self, service, user, monkeypatch):
+        job = _licensed_fleets_job(user, Job.PENDING)
+        monkeypatch.setattr(Outbox.objects, "create", MagicMock(side_effect=OperationalError("db down")))
+
+        with pytest.raises(OperationalError):
+            service.pending_to_running(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+
+        assert Job.objects.get(pk=job.pk).status == Job.PENDING
+        assert not JobEvent.objects.filter(job=job, data__status=Job.RUNNING).exists()
 
     def test_filler_job_enqueues_nothing_even_terminal(self, service, user):
         job = Job.objects.create(

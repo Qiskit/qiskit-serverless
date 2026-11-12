@@ -39,6 +39,10 @@ logger = logging.getLogger("core.JobTransitionService")
 # The job was already moved by someone else (a user stopped it): an expected race, recorded as rejected and not error.
 _REJECTED = (InvalidJobTransitionException,)
 
+# Set in the data of the RUNNING JobEvent whose transition enqueued the license fee, so a terminal transition
+# knows not to enqueue it again. A RUNNING event without it (written before this existed) falls back to terminal.
+_FEE_ENQUEUED_MARK = "license_fee_enqueued"
+
 
 def _is_usage_billable(job: Job) -> bool:
     """Only real Fleets jobs (no filler) with an instance CRN are billed."""
@@ -116,9 +120,14 @@ class JobTransitionService:
     def pending_to_running(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
-        """The job started running: a job_started event is sent, best effort, once it is written."""
+        """The job started running: the license fee is owed from now on, so it is enqueued here, in the same
+        transaction, and the RUNNING event is marked so the terminal transition does not enqueue it again.
+        A job_started event is sent, best effort, once it is written."""
         with transaction.atomic():
             event = self._change_status(job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields)
+            if _is_fee_billable(job) and self._enqueue_license_fee(job, event.created):
+                event.data[_FEE_ENQUEUED_MARK] = True
+                event.save(update_fields=["data"])
         # A job reaches RUNNING only once, so this event is its start time
         self._send_job_in_progress(job, job_started=True, job_started_at=event.created)
         self.workload_mirror.send(job)
@@ -195,13 +204,14 @@ class JobTransitionService:
     def to_succeeded(
         self, job: Job, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None
     ) -> JobEvent:
-        """The job finished. A job cannot succeed without having run, so its license fee is always owed."""
+        """The job finished. A job cannot succeed without having run, so its license fee is always owed: enqueued
+        here unless pending_to_running already did (the job was never seen RUNNING, or it was by an older pod)."""
         with transaction.atomic():
             event = self._change_status(job, Job.SUCCEEDED, origin=origin, context=context, job_fields=job_fields)
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
                 self._enqueue_job_usage(job, job_started_at, event.created)
-                if _is_fee_billable(job):
+                if _is_fee_billable(job) and not self._fee_enqueued_at_running(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
         return event
@@ -228,8 +238,10 @@ class JobTransitionService:
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
                 self._enqueue_job_usage(job, job_started_at, event.created)
-                # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
-                if job_started_at is not None and _is_fee_billable(job):
+                # 1899 Failed or stopped job may never have executed, so it owes the fee if, and only if, it was
+                # RUNNING. pending_to_running normally enqueued it already; this is the fallback for a RUNNING
+                # event written by a pod that predates that (rolling deploy).
+                if job_started_at is not None and _is_fee_billable(job) and not self._fee_enqueued_at_running(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
         return event
@@ -273,8 +285,19 @@ class JobTransitionService:
         message = BillingEvents.build_job_completed_event(job, job_started_at, job_finished_time)
         Outbox.objects.create(job=job, channel=OutboxChannel.JOB_USAGE, region=self._region(job), payload=message)
 
-    def _enqueue_license_fee(self, job: Job, job_started_at: datetime | None) -> None:
-        """The license fee message. The caller has checked the job owes it."""
+    @staticmethod
+    def _fee_enqueued_at_running(job: Job) -> bool:
+        """Whether pending_to_running already enqueued this job's license fee (its RUNNING event is marked)."""
+        return (
+            JobEvent.objects.filter(job_id=job.id)
+            .running_status_events()
+            .filter(**{f"data__{_FEE_ENQUEUED_MARK}": True})
+            .exists()
+        )
+
+    def _enqueue_license_fee(self, job: Job, job_started_at: datetime | None) -> bool:
+        """The license fee message. The caller has checked the job owes it. Returns whether it was enqueued
+        (False only when the fee is waived for a missing size)."""
         # The size is the snapshot, so a size row renamed or deleted after creation no longer changes the fee.
         # A job created by a pod that predates the snapshot (during a rollout) has none and uses its size row.
         # Only a job with neither is waived. This goes away once function_size_name stops being nullable
@@ -288,10 +311,11 @@ class JobTransitionService:
                 job.id,
                 job.program.provider,
             )
-            return
+            return False
 
         message = BillingEvents.build_license_fee(job, job_started_at)
         Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
+        return True
 
     def _enqueue_workload(self, job: Job) -> None:
         """The final status of a mirrored job, to send it to the Runtime API. If the payload builder rejects the job
