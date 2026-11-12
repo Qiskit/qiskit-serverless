@@ -59,6 +59,8 @@ class JobEventType(StrEnum):
     ERROR = "ERROR"
     STATUS_CHANGE = "STATUS_CHANGE"
     SUB_STATUS_CHANGE = "SUB_STATUS_CHANGE"
+    # The license fee of the job was enqueued in the outbox: at most one per job
+    REPORT_LICENSE_USAGE = "REPORT_LICENSE_USAGE"
 
 
 class JobEventQuerySet(QuerySet):

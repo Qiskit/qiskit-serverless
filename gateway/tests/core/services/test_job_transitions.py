@@ -13,7 +13,7 @@ from prometheus_client import CollectorRegistry
 
 from core import external_call_metrics
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
     ComputeProfile,
     FunctionSize,
@@ -50,6 +50,10 @@ def _licensed_fleets_job(user, status, fleet_id="fleet-abc"):
         status=status,
         fleet_id=fleet_id,
     )
+
+
+def _license_usage_events(job):
+    return JobEvent.objects.filter(job=job, event_type=JobEventType.REPORT_LICENSE_USAGE)
 
 
 @pytest.fixture
@@ -210,6 +214,8 @@ class TestBillingOutbox:
         assert fee.payload["data"]["job_started_at"] == event.created.isoformat()
         assert fee.region == "us-east"
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).exists()
+        reported = _license_usage_events(job).get()
+        assert (reported.origin, reported.context) == (JobEventOrigin.SCHEDULER, JobEventContext.UPDATE_JOB_STATUS)
 
     def test_running_transition_of_a_function_without_provider_enqueues_nothing(self, service, user):
         program = Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.FLEETS)
@@ -232,10 +238,11 @@ class TestBillingOutbox:
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
+        assert _license_usage_events(job).count() == 1
 
     @pytest.mark.parametrize("terminal", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
     def test_a_running_event_from_an_older_pod_falls_back_to_the_terminal_fee(self, service, user, terminal):
-        """Rolling deploy: the job went RUNNING on a pod that did not enqueue the fee (no mark on the event)."""
+        """Rolling deploy: the job went RUNNING on a pod that did not enqueue the fee (no REPORT_LICENSE_USAGE)."""
         job = _licensed_fleets_job(user, Job.RUNNING)
         JobEvent.objects.add_status_event(
             job_id=job.id,
@@ -247,6 +254,7 @@ class TestBillingOutbox:
         service.to_terminal(job, terminal, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+        assert _license_usage_events(job).count() == 1
 
     def test_a_failing_fee_write_at_running_rolls_back_the_status(self, service, user, monkeypatch):
         job = _licensed_fleets_job(user, Job.PENDING)
@@ -308,19 +316,17 @@ class TestBillingOutbox:
         assert billing_event.payload["data"]["metric_type"].startswith("classical")
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
 
-    def test_missing_size_snapshot_despite_a_provider_waives_the_fee_and_logs(self, service, user, caplog):
+    def test_missing_size_snapshot_despite_a_provider_waives_the_fee(self, service, user):
         """The guard in _enqueue_license_fee: a provider job with neither a snapshot nor a size row gets no license
-        fee message, and an ERROR log line. It is an anomaly, not the normal no-provider case, so it must be
-        visible."""
+        fee message, and no REPORT_LICENSE_USAGE event."""
         job = _licensed_fleets_job(user, Job.PENDING)
         Job.objects.filter(pk=job.pk).update(function_size_name=None, function_size=None)
         job.refresh_from_db()
 
-        with caplog.at_level(logging.ERROR):
-            service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
+        service.to_succeeded(job, origin=JobEventOrigin.SCHEDULER, context=JobEventContext.UPDATE_JOB_STATUS)
 
         assert not Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).exists()
-        assert "waiving the fee" in caplog.text
+        assert not _license_usage_events(job).exists()
 
     def test_missing_size_snapshot_bills_the_size_row_label(self, service, user):
         """A job created by a pod that predates the snapshot (a rollout) has a size row but no snapshot. Its license
