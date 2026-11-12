@@ -112,14 +112,14 @@ class JobEventQuerySet(QuerySet):
         Returns None if it never did (still queued/pending, or terminated without running).
         """
         event = self.filter(job_id=job_id).running_status_events().first()
-        return (event.event_time or event.created) if event else None
+        return event.occurred_at() if event else None
 
     def first_terminal_at(self, job_id: uuid.UUID):
         """When this job first reached a terminal status: the time the runner gave, or else when the event was
         written. Returns None if it never did.
         """
         event = self.filter(job_id=job_id).terminal_status_events().first()
-        return (event.event_time or event.created) if event else None
+        return event.occurred_at() if event else None
 
     def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
         self,

@@ -130,7 +130,7 @@ class JobTransitionService:
             event = self._change_status(
                 job, Job.RUNNING, origin=origin, context=context, job_fields=job_fields, event_time=event_time
             )
-        self._send_job_in_progress(job, job_started=True, job_started_at=event.event_time or event.created)
+        self._send_job_in_progress(job, job_started=True, job_started_at=event.occurred_at())
         self.workload_mirror.send(job)
         return event
 
@@ -226,7 +226,7 @@ class JobTransitionService:
             )
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
-                self._enqueue_job_usage(job, job_started_at, event.event_time or event.created)
+                self._enqueue_job_usage(job, job_started_at, event.occurred_at())
                 if _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)
             self._enqueue_workload(job)
@@ -278,7 +278,7 @@ class JobTransitionService:
             )
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
-                self._enqueue_job_usage(job, job_started_at, event.event_time or event.created)
+                self._enqueue_job_usage(job, job_started_at, event.occurred_at())
                 # 1899 Failed or stopped job may never have executed, so it sends fee if, and only if, it was RUNNING
                 if job_started_at is not None and _is_fee_billable(job):
                     self._enqueue_license_fee(job, job_started_at)

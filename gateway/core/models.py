@@ -973,8 +973,7 @@ class JobEvent(models.Model):
     context = models.CharField(max_length=100, blank=False, null=False)
     created = models.DateTimeField(auto_now_add=True, null=True)
     # When the event really happened, if the runner knows (Code Engine for a Fleets job). ``created`` is when the row
-    # was written, so it follows the pace of the scheduler. Read the two through JobEventQuerySet.first_running_at()
-    # and first_terminal_at(), which fall back to created.
+    # was written, so it follows the pace of the scheduler. Read the one that applies through occurred_at().
     event_time = models.DateTimeField(null=True, blank=True)
     data = models.JSONField(default=dict, blank=False, null=False)
 
@@ -983,6 +982,10 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
         ordering = ("-created",)
+
+    def occurred_at(self):
+        """When the event really happened: the time the runner gave, or else when the row was written."""
+        return self.event_time or self.created
 
 
 class OutboxChannel(StrEnum):

@@ -65,7 +65,7 @@ class JobQuerySet(QuerySet):
 
         events = JobEvent.objects.filter(job=OuterRef("pk"))
         # Underscored: a property and an annotation cannot share a name, Django would fail to set it. The time is the
-        # same JobEventQuerySet.first_running_at() reads: the one the runner gave, or else when the event was written.
+        # same rule as JobEvent.occurred_at(), which SQL cannot call: the time the runner gave, or else the creation.
         return self.annotate(
             _first_running_at=Subquery(
                 events.running_status_events().annotate(time=Coalesce("event_time", "created")).values("time")[:1]
