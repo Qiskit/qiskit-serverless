@@ -64,9 +64,12 @@ class JobQuerySet(QuerySet):
         from core.models import JobEvent  # pylint: disable=import-outside-toplevel, cyclic-import
 
         events = JobEvent.objects.filter(job=OuterRef("pk"))
-        # Underscored: a property and an annotation cannot share a name, Django would fail to set it
+        # Underscored: a property and an annotation cannot share a name, Django would fail to set it. The time is the
+        # same rule as JobEvent.occurred_at(), which SQL cannot call: the time the runner gave, or else the creation.
         return self.annotate(
-            _first_running_at=Subquery(events.running_status_events().values("created")[:1]),
+            _first_running_at=Subquery(
+                events.running_status_events().annotate(time=Coalesce("event_time", "created")).values("time")[:1]
+            ),
         )
 
     def held_fleets(self) -> Self:

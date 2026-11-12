@@ -4,6 +4,8 @@ The outbox row that mirrors a status event is written by JobTransitionService, s
 tests live in tests/core/services/test_job_transitions.py.
 """
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from django.contrib.auth.models import User
 
@@ -23,13 +25,31 @@ def job(user):
     return Job.objects.create(author=user, runner=Program.FLEETS, status=Job.QUEUED)
 
 
-def _add_status_event(job, status):
+def _add_status_event(job, status, event_time=None):
     return JobEvent.objects.add_status_event(
         job_id=job.id,
         origin=JobEventOrigin.SCHEDULER,
         context=JobEventContext.UPDATE_JOB_STATUS,
         status=status,
+        event_time=event_time,
     )
+
+
+class TestOccurredAt:
+    """Unit tests for JobEvent.occurred_at()."""
+
+    def test_is_the_time_the_runner_gave(self, job):
+        reported = datetime.now(timezone.utc) - timedelta(seconds=30)
+        event = _add_status_event(job, Job.RUNNING, event_time=reported)
+
+        assert event.occurred_at() == reported
+        assert event.occurred_at() != event.created
+
+    def test_is_the_creation_time_without_one(self, job):
+        event = _add_status_event(job, Job.RUNNING)
+
+        assert event.event_time is None
+        assert event.occurred_at() == event.created
 
 
 class TestFirstRunningAt:
@@ -42,6 +62,12 @@ class TestFirstRunningAt:
         event = _add_status_event(job, Job.RUNNING)
 
         assert JobEvent.objects.first_running_at(job.id) == event.created
+
+    def test_returns_the_time_the_runner_gave_when_there_is_one(self, job):
+        reported = datetime.now(timezone.utc) - timedelta(seconds=30)
+        _add_status_event(job, Job.RUNNING, event_time=reported)
+
+        assert JobEvent.objects.first_running_at(job.id) == reported
 
     def test_returns_the_first_one_not_the_latest(self, job):
         first = _add_status_event(job, Job.RUNNING)
@@ -75,6 +101,13 @@ class TestFirstTerminalAt:
         event = _add_status_event(job, Job.SUCCEEDED)
 
         assert JobEvent.objects.first_terminal_at(job.id) == event.created
+
+    def test_returns_the_time_the_runner_gave_when_there_is_one(self, job):
+        reported = datetime.now(timezone.utc) - timedelta(seconds=30)
+        _add_status_event(job, Job.RUNNING)
+        _add_status_event(job, Job.SUCCEEDED, event_time=reported)
+
+        assert JobEvent.objects.first_terminal_at(job.id) == reported
 
     def test_ignores_non_terminal_status_events(self, job):
         _add_status_event(job, Job.PENDING)
