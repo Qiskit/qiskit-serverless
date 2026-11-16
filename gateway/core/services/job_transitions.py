@@ -281,13 +281,13 @@ class JobTransitionService:
 
     @staticmethod
     def _license_usage_reported(job: Job) -> bool:
-        """Whether this job's license fee was already enqueued (it has a REPORT_LICENSE_USAGE event)."""
-        return JobEvent.objects.filter(job_id=job.id, event_type=JobEventType.REPORT_LICENSE_USAGE).exists()
+        """Whether this job's license fee was already enqueued (it has a BILLING event)."""
+        return JobEvent.objects.filter(job_id=job.id, event_type=JobEventType.BILLING).exists()
 
     def _enqueue_license_fee(
         self, job: Job, job_started_at: datetime | None, *, origin: JobEventOrigin, context: JobEventContext
     ) -> None:
-        """The license fee message, and the REPORT_LICENSE_USAGE event that keeps it from being enqueued twice.
+        """The license fee message, and the BILLING event that keeps it from being enqueued twice.
         The caller has checked the job owes it."""
         # The size is the snapshot, so a size row renamed or deleted after creation no longer changes the fee.
         # A job created by a pod that predates the snapshot (during a rollout) has none and uses its size row.
@@ -306,9 +306,7 @@ class JobTransitionService:
 
         message = BillingEvents.build_license_fee(job, job_started_at)
         Outbox.objects.create(job=job, channel=OutboxChannel.LICENSE_FEE, region=self._region(job), payload=message)
-        JobEvent.objects.create(
-            job_id=job.id, origin=origin, context=context, event_type=JobEventType.REPORT_LICENSE_USAGE
-        )
+        JobEvent.objects.create(job_id=job.id, origin=origin, context=context, event_type=JobEventType.BILLING)
 
     def _enqueue_workload(self, job: Job) -> None:
         """The final status of a mirrored job, to send it to the Runtime API. If the payload builder rejects the job

@@ -53,7 +53,7 @@ def _licensed_fleets_job(user, status, fleet_id="fleet-abc"):
 
 
 def _license_usage_events(job):
-    return JobEvent.objects.filter(job=job, event_type=JobEventType.REPORT_LICENSE_USAGE)
+    return JobEvent.objects.filter(job=job, event_type=JobEventType.BILLING)
 
 
 @pytest.fixture
@@ -242,7 +242,7 @@ class TestBillingOutbox:
 
     @pytest.mark.parametrize("terminal", [Job.SUCCEEDED, Job.FAILED, Job.STOPPED])
     def test_a_running_event_from_an_older_pod_falls_back_to_the_terminal_fee(self, service, user, terminal):
-        """Rolling deploy: the job went RUNNING on a pod that did not enqueue the fee (no REPORT_LICENSE_USAGE)."""
+        """Rolling deploy: the job went RUNNING on a pod that did not enqueue the fee (no BILLING)."""
         job = _licensed_fleets_job(user, Job.RUNNING)
         JobEvent.objects.add_status_event(
             job_id=job.id,
@@ -318,7 +318,7 @@ class TestBillingOutbox:
 
     def test_missing_size_snapshot_despite_a_provider_waives_the_fee(self, service, user):
         """The guard in _enqueue_license_fee: a provider job with neither a snapshot nor a size row gets no license
-        fee message, and no REPORT_LICENSE_USAGE event."""
+        fee message, and no BILLING event."""
         job = _licensed_fleets_job(user, Job.PENDING)
         Job.objects.filter(pk=job.pk).update(function_size_name=None, function_size=None)
         job.refresh_from_db()
