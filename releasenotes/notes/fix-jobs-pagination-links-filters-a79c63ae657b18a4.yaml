@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    The ``next`` and ``previous`` links returned by the ``GET /api/v1/jobs/`` and
+    ``GET /api/v1/jobs/provider/`` endpoints now keep the other query parameters of the
+    request, such as ``status``, ``function``, ``provider``, ``filter`` and ``created_after``.
+    Before, the links only had ``limit`` and ``offset``, so following them returned pages of
+    the unfiltered job list, and on ``/api/v1/jobs/provider/`` they returned a 400 error.
