@@ -140,10 +140,10 @@ def _parse_task_times(content: bytes, source: str) -> TaskTimes:
     except (yaml.YAMLError, ValueError) as exc:
         # Not the message: a YAML error quotes the line it failed on. A ValueError is a timestamp YAML cannot build,
         # like year 0000
-        logger.warning("Task file %s is not valid YAML (%s)", source, type(exc).__name__)
+        logger.error("[Taskfile Parse] Task file %s is not valid YAML (%s)", source, type(exc).__name__)
         return TaskTimes()
     if not isinstance(document, dict):
-        logger.warning("Task file %s is not a YAML mapping", source)
+        logger.error("[Taskfile Parse] Task file %s is not a YAML mapping", source)
         return TaskTimes()
 
     return TaskTimes(
