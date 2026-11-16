@@ -105,6 +105,10 @@ class JobEventQuerySet(QuerySet):
         event = self.filter(job_id=job_id).running_status_events().first()
         return event.created if event else None
 
+    def has_billing_event(self, job_id: uuid.UUID) -> bool:
+        """Whether this job's license fee was already enqueued (it has a BILLING event)."""
+        return self.filter(job_id=job_id, event_type=JobEventType.BILLING).exists()
+
     def first_terminal_at(self, job_id: uuid.UUID):
         """When this job first reached a terminal status, from its own event history.
         Returns None if it never did.

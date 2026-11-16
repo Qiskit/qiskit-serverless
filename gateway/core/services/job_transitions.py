@@ -205,7 +205,7 @@ class JobTransitionService:
             if _is_usage_billable(job):
                 job_started_at = JobEvent.objects.first_running_at(job.id)
                 self._enqueue_job_usage(job, job_started_at, event.created)
-                if _is_fee_billable(job) and not self._license_usage_reported(job):
+                if _is_fee_billable(job) and not JobEvent.objects.has_billing_event(job.id):
                     self._enqueue_license_fee(job, job_started_at, origin=origin, context=context)
             self._enqueue_workload(job)
         return event
@@ -235,7 +235,11 @@ class JobTransitionService:
                 # 1899 Failed or stopped job may never have executed, so it owes the fee if, and only if, it was
                 # RUNNING. pending_to_running normally enqueued it already; this is the fallback for a RUNNING
                 # event written by a pod that predates that (rolling deploy).
-                if job_started_at is not None and _is_fee_billable(job) and not self._license_usage_reported(job):
+                if (
+                    job_started_at is not None
+                    and _is_fee_billable(job)
+                    and not JobEvent.objects.has_billing_event(job.id)
+                ):
                     self._enqueue_license_fee(job, job_started_at, origin=origin, context=context)
             self._enqueue_workload(job)
         return event
@@ -278,11 +282,6 @@ class JobTransitionService:
         """The final usage event: always owed, whatever the job's outcome."""
         message = BillingEvents.build_job_completed_event(job, job_started_at, job_finished_time)
         Outbox.objects.create(job=job, channel=OutboxChannel.JOB_USAGE, region=self._region(job), payload=message)
-
-    @staticmethod
-    def _license_usage_reported(job: Job) -> bool:
-        """Whether this job's license fee was already enqueued (it has a BILLING event)."""
-        return JobEvent.objects.filter(job_id=job.id, event_type=JobEventType.BILLING).exists()
 
     def _enqueue_license_fee(
         self, job: Job, job_started_at: datetime | None, *, origin: JobEventOrigin, context: JobEventContext
