@@ -92,7 +92,7 @@ def make_runnable_fleets_function(user, ce_project, monkeypatch):
     profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
     function.default_size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
     function.save(update_fields=["default_size"])
-    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
     return function
 
 
@@ -107,8 +107,8 @@ class TestRunFunctionUseCase:
         assert job.program.title == "my-fn"
         assert job.program.id == function.id
         assert job.author == user
-        # Only Fleets jobs read their files from saved paths
-        assert not JobStoragePaths.objects.filter(job=job).exists()
+        # A Fleets job saves the storage paths it reads its files from
+        assert JobStoragePaths.objects.filter(job=job).exists()
 
     def test_raises_not_found_when_function_does_not_exist(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
@@ -372,6 +372,8 @@ class TestWorkloadMirror:
         put_function.assert_not_called()
         assert Job.objects.count() == 1
         assert not WorkloadMirror.objects.exists()
+        # Only Fleets jobs read their files from saved paths
+        assert not JobStoragePaths.objects.exists()
 
     def test_a_fleets_job_without_instance_is_created_but_not_sent(self, user, fleets_accessible, put_function):
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")

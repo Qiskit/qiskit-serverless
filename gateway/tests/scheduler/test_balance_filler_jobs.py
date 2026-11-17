@@ -16,6 +16,7 @@ from core.config_key import ConfigKey
 from core.models import ComputeProfile, Config, FunctionSize, Job, JobEvent, JobStoragePaths, Program
 from core.model_managers.job_events import JobEventContext
 from core.services.runners import RunnerError, RunnerRetryableError
+from core.services.storage.job_storage_paths import get_storage_paths
 from scheduler.main import Main
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs, RETRY_AFTER_LOOPS
@@ -105,6 +106,9 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert {job.size_source for job in fillers} == {Job.SIZE_SOURCE_NONE}
     assert {job.function_size_name for job in fillers} == {filler_program.default_size.function_size}
     assert submit.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
+    # The arguments are uploaded to the same paths that are saved on the row
+    last = fillers.order_by("-created").first()
+    assert arguments.call_args.args == (last, get_storage_paths(last))
 
 
 def test_the_function_can_be_named_by_id_instead_of_provider_and_title(filler_program):
