@@ -12,7 +12,8 @@
 | `.github/workflows/build-containers-test.yaml` | Builds `selector` and `selector-gpu` on every PR |
 | `.github/workflows/fleets-integration-tests.yaml` | Builds `base` and `selector` for the smoke tests |
 | `tests/fleets/fleet-worker/Dockerfile` | Mock CE worker, `FROM fleet-node:latest` (the CPU stage) |
-| `gateway/core/services/runners/fleets_runner.py` | `_get_image()` — picks the image for a job |
+| `gateway/core/services/runners/fleets_runner.py` | `_get_image()` — picks the image for a job from its compute profile |
+| `gateway/main/settings.py` | `FLEETS_DEFAULT_IMAGE` (CPU) and `FLEETS_DEFAULT_GPU_IMAGE`, fed from `ce.fleetsDefaultImage` / `ce.fleetsDefaultGpuImage` |
 
 ---
 
@@ -49,18 +50,39 @@ repo therefore passes `--target` explicitly.
 | `fleet-selector` | `selector` | Workload stack, no CUDA |
 | `fleet-selector-gpu` | `selector-gpu` | Workload stack + CUDA |
 
-`fleet-node` carrying CUDA is deliberate and is the reason the split changes no
-job's behaviour. It is the name `FLEETS_DEFAULT_IMAGE` (`gateway/main/settings.py`)
-and the chart's `ce.fleetsDefaultImage` resolve to, so it is what the gateway
-deploys for every imageless Fleets job — including one on a GPU compute profile.
-`_get_image()` has no CPU/GPU notion yet, so taking CUDA out of that image would
-break GPU jobs, and silently: `import gpu4pyscf` fails, the chemistry function
-falls back to CPU, and the job still succeeds. Nothing downstream flags it.
+`fleet-node` still carries CUDA so that any deployment left pointing at it keeps
+working. It is no longer what the gateway deploys, though: `FLEETS_DEFAULT_IMAGE`
+(`gateway/main/settings.py`) and the chart's `ce.fleetsDefaultImage` now resolve
+to `fleet-selector`, the CPU runtime, and the new `FLEETS_DEFAULT_GPU_IMAGE` /
+`ce.fleetsDefaultGpuImage` resolve to `fleet-selector-gpu`. `_get_image()` picks
+between the two per job, so a CPU job no longer pulls the CUDA half.
 
-So `fleet-selector` and `fleet-selector-gpu` are published *alongside* the
-unchanged default, ready for the gateway to choose between them per compute
-profile. When that lands, `fleet-node` becomes the CPU stage and
-`FLEETS_DEFAULT_IMAGE` moves with it.
+### 2a. How a job gets its image
+
+`_get_image(wants_gpu)` (`gateway/core/services/runners/fleets_runner.py`):
+
+| Job | Image |
+|-----|-------|
+| Provider image set, no artifact | `program.image`, whatever the profile |
+| Everything else, GPU profile | `FLEETS_DEFAULT_GPU_IMAGE` |
+| Everything else, CPU profile | `FLEETS_DEFAULT_IMAGE` |
+
+`wants_gpu` is `bool(scale_gpu)` from the `_parse_compute_profile()` call that
+`_create_fleet()` already makes — the same parse that builds the fleet's GPU
+request. One parse feeds both, so the image and the GPU allocation cannot
+disagree: a job on the GPU image is always a job that asked Code Engine for a
+GPU. Re-matching the profile string in `_get_image()` would reintroduce exactly
+that drift.
+
+A provider image is the provider's choice and is never substituted — the gateway
+does not know which accelerators a provider's container carries.
+
+**An unset `FLEETS_DEFAULT_GPU_IMAGE` fails the submit** rather than falling back
+to the CPU image. The fallback is the failure mode the split had to avoid in the
+first place: the job lands on a GPU worker, `import gpu4pyscf` fails, the
+chemistry function finishes on CPU, and the job still reports success. Nothing
+downstream flags it, so a loud `RunnerError` at submit is the only place the
+misconfiguration is visible. CPU jobs are unaffected when it is unset.
 
 ### 3. Why the CUDA pins are a separate file
 
@@ -187,9 +209,15 @@ aarch64 wheel and so cannot be built on Apple Silicon at all.
 
 ## Known gaps
 
-- **`_get_image()` does not choose per compute profile.** A job on a GPU profile
-  gets `FLEETS_DEFAULT_IMAGE` like any other, which is why that image must keep
-  its CUDA wheels.
+- **Nothing asserts the GPU image actually runs a GPU job.** The image choice is
+  unit-tested, but `import cupy` / `import gpu4pyscf` still needs a GPU compute
+  profile to exercise, and no CI runner has one. Until that is done, a broken
+  `fleet-selector-gpu` looks identical to a working one from CI's point of view.
+- **The two default settings must be configured as a pair.** A deployment that
+  overrides `ce.fleetsDefaultImage` and forgets `ce.fleetsDefaultGpuImage` fails
+  every GPU-profile submit. The failure is loud and names the setting, but it is
+  a submit-time failure rather than a deploy-time one — nothing validates the
+  pair at startup.
 - **The release pipeline is not in this repo.** `ci/scripts/build-artifact.sh`
   needs `build_image` / `install_test_image` / `push_image` / `save_image`
   entries for the new target in both the staging and production branches, and the
