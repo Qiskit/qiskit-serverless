@@ -16,13 +16,11 @@ upgrade:
     workload stack plus the CUDA wheels. The image builds assert this in both
     directions, so neither half can drift back into the other unnoticed.
 
-    No job changes the image it runs on. ``fleet-node``, which
-    ``FLEETS_DEFAULT_IMAGE`` and the chart's ``ce.fleetsDefaultImage`` resolve
-    to, is still built with the CUDA wheels, exactly as it was before the
-    split: the gateway cannot yet choose an image per compute profile, so a
-    job on a GPU profile has to keep getting a CUDA-capable default. The two
-    new images are published alongside it, ready for that choice to land.
-    Provider images (``program.image``) are unaffected.
+    Which of the two a job runs on is chosen from its compute profile — see the
+    separate note on that change for the settings it adds. ``fleet-node`` is
+    still built with the CUDA wheels, exactly as it was before the split, so a
+    deployment still pinned to it keeps serving GPU jobs correctly. Provider
+    images (``program.image``) are unaffected.
 
     Builds of ``docker-images/fleet-node/Dockerfile`` that relied on the
     default stage still resolve to a CUDA image, since ``selector-gpu`` is now

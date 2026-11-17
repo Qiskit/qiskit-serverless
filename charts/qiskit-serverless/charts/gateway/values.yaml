@@ -131,7 +131,11 @@ ce:
   fleetsGatewayHost: "http://127.0.0.1:8000"
   defaultProjectName: ""
   defaultComputeProfile: "16x128"
-  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.38.0"
+  # The CPU runtime and the CUDA runtime. The gateway picks between them per job
+  # from the compute profile, and they are not interchangeable — the CPU image
+  # has no CUDA stack. See specs/FLEETS_IMAGES.md.
+  fleetsDefaultImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-selector:0.38.0"
+  fleetsDefaultGpuImage: "private.icr.io/quantum-public/qiskit-serverless/fleet-selector-gpu:0.38.0"
   fleetsDefaultMaxInstances: 1
   fleetsRuntimeIamUrl: ""
   fleetsRuntimeGlobalSearchUrl: ""
