@@ -14,6 +14,8 @@ from rest_framework.test import APIClient
 from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
+from core.ibm_cloud.code_engine.fleets.utils import build_fleets_storage_paths
+from core.services.storage.job_storage_paths import save_storage_paths
 from core.models import Job, JobConfig, JobEvent, Program, Provider, ComputeResource, CodeEngineProject
 from core.model_managers.job_events import JobEventOrigin, JobEventContext, JobEventType
 
@@ -497,6 +499,7 @@ class TestUtils:
         program: Union[Program, str],
         status: JobStatusType = Job.QUEUED,
         config: Union[JobConfig, dict[str, str]] = None,
+        with_storage_paths: bool = False,
         **kwargs,
     ) -> Job:
         """Create a Job with full dependency chain.
@@ -512,6 +515,9 @@ class TestUtils:
             config: Optional JobConfig instance or dict of config parameters.
                 If dict with 'id' key: fetches existing JobConfig.
                 If dict without 'id': creates new JobConfig.
+            with_storage_paths: Save the job's storage paths in its function's Code Engine project, as the run use
+                case does for a Fleets job. Default is False: the job has no saved paths, like one an old gateway
+                pod created, and its first read saves them.
             **kwargs: Additional fields to set on the Job model (e.g., result, logs).
 
         Returns:
@@ -531,6 +537,9 @@ class TestUtils:
         # Like the run use case, the job keeps the runner its function had when it was created
         kwargs.setdefault("runner", program.runner)
         job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
+
+        if with_storage_paths:
+            save_storage_paths(job, build_fleets_storage_paths(job, program.code_engine_project))
 
         # Creating associate JobEvent for creation of job (status will be QUEUED)
         TestUtils.create_job_event(job)
