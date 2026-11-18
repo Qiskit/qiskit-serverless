@@ -21,10 +21,10 @@ class JobsListUseCase:
         """
         # ensure function exists if filtered
         if filters.function:
-            function = Function.objects.get_function(
-                function_title=filters.function,
-                provider_name=filters.provider,
-            )
+            if filters.provider:
+                function = Function.objects.get_function(filters.function, filters.provider)
+            else:
+                function = Function.objects.get_user_function(user, filters.function)
 
             if not function:
                 raise FunctionNotFoundException(function=filters.function)
