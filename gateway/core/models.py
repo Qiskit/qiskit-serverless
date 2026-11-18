@@ -1086,9 +1086,9 @@ class JobStoragePaths(models.Model):
     transaction that creates the job, after its arguments are uploaded, and the container's mounts and every reader
     take the bucket, the key and the COS credentials from it, so a later change to the layout, the bucket names or
     the Code Engine project only affects new jobs. The names are copies, not foreign keys: the files stay where they
-    are when the function or the project is changed or deleted, so the row must not depend on either. Jobs created
-    before this table get their row from a data migration. A job without one (created by an old pod during a
-    rollout) gets it on its first read, built with today's layout, and keeps it."""
+    are when the function or the project is changed or deleted, so the row must not depend on either. A job without
+    one (created before this table, or by an old pod during a rollout) gets it on its first read, built with today's
+    layout, and keeps it."""
 
     job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True, related_name="storage_paths")
     created = models.DateTimeField(auto_now_add=True)

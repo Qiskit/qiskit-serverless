@@ -139,7 +139,7 @@ class TestJobStoragePaths:
         _assert_the_job_reads_what_its_container_wrote(Job.objects.get(pk=job.pk), files)
 
     def test_a_job_without_a_row_saves_one_on_its_first_read_and_keeps_it(self, program, ce_project):
-        """A job from an old pod has no row: the first read saves today's paths, and a later layout change or
+        """A job created without a row: the first read saves today's paths, and a later layout change or
         bucket rename doesn't move it."""
         job = TestUtils.create_job(author="alice", program=program)
         job = Job.objects.get(pk=job.pk)

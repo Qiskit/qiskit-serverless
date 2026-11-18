@@ -31,9 +31,8 @@ _FIELDS = [field.name for field in fields(StoragePaths)]
 def get_storage_paths(job: Job) -> StoragePaths:
     """The paths saved for the job. Reading them needs only the saved row, not the job's function or project.
 
-    A job without a row was created by an old gateway pod during a rollout, after the data migration ran. Its paths
-    are built once with today's layout, which is what that pod used minutes before, saved, and read from the row from
-    then on.
+    A job without a row was created before the rows were saved, or by an old gateway pod during a rollout. Its paths
+    are built once with today's layout, which is where it wrote its files, saved, and read from the row from then on.
 
     Raises:
         ValueError: If the job has no saved paths and they can't be built (see
