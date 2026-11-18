@@ -141,9 +141,18 @@ class TestJobApi:
         """Tests job list filtered by function."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(reverse("v1:jobs-list"), {"function": "Docker-Image-Program"}, format="json")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-list"), {"function": "Docker-Image-Program", "provider": "default"}, format="json"
+        )
         assert jobs_response.status_code == status.HTTP_200_OK
         assert jobs_response.data.get("count") == 1
+
+    def test_job_list_filter_function_without_provider_is_a_custom_function(self):
+        """Without provider the function is one of the caller's own, so a provider function is not found."""
+        self._authorize("test_user")
+
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"function": "Docker-Image-Program"}, format="json")
+        assert jobs_response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_job_list_filter_pagination(self):
         """Tests job list pagination."""
