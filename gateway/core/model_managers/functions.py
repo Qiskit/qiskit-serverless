@@ -104,25 +104,18 @@ class FunctionsQuerySet(QuerySet):
         queryset = self.user_functions(author).filter(title=function_title)
         return queryset.select_related("provider", "default_size").first()
 
-    def get_function(
-        self,
-        function_title: str,
-        provider_name: Optional[str] = None,
-    ) -> Optional[Function]:
+    def get_function(self, function_title: str, provider_name: str) -> Optional[Function]:
         """
-        This method returns the specified function unconditionally.
+        This method returns the specified provider function unconditionally.
+        Functions without a provider are looked up with get_user_function.
 
         Args:
             function_title (str): title of the function
-            provider_name (str | None): name of the provider owner of the function
+            provider_name (str): name of the provider owner of the function
 
         Returns:
             Program | None: returns the function if it exists
         """
 
-        queryset = self.filter(title=function_title)
-
-        if provider_name:
-            queryset = queryset.provider_functions(provider_name)
-
+        queryset = self.filter(title=function_title, provider__name=provider_name)
         return queryset.select_related("provider", "default_size").first()
