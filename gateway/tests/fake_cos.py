@@ -49,7 +49,9 @@ class _FakeCOSClient:
         except KeyError:
             raise ClientError({"Error": {"Code": "NoSuchKey", "Message": ""}}, "GetObject") from None
 
-    def upload_fileobj(self, *, fileobj, bucket: str, key: str, callback=None) -> None:  # pylint: disable=unused-argument
+    def upload_fileobj(
+        self, *, fileobj, bucket: str, key: str, callback=None
+    ) -> None:  # pylint: disable=unused-argument
         self._files[(bucket, key)] = fileobj.read()
 
     def delete_object(self, *, bucket: str, key: str, **_wait) -> None:

@@ -91,9 +91,7 @@ class TestJobStoragePaths:
             function.save(update_fields=["default_size"])
         return function
 
-    def test_a_run_job_keeps_its_files_after_its_function_and_project_are_deleted(
-        self, function, ce_project, fake_cos
-    ):
+    def test_a_run_job_keeps_its_files_after_its_function_and_project_are_deleted(self, function, ce_project, fake_cos):
         """Run a job, then delete its function and its Code Engine project: its arguments, results, logs and data
         files are still found where the run put them, with that project's credentials. A provider function uses the
         user and provider buckets, a custom one only the user bucket."""
