@@ -20,6 +20,7 @@ from rest_framework.serializers import ValidationError
 from api.domain.arguments_schema import MAX_SCHEMA_LENGTH, UnsupportedSchemaError, check_uploaded_schema_in_isolation
 from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSizesError
 from api.domain.function_sizes import normalize_function_size, parse_function_sizes
+from api.use_cases.programs.presigned_upload import FinishUploadUseCase, StartUploadUseCase
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
 from api.utils import sanitize_name
@@ -296,4 +297,133 @@ def upload_program(request: Request) -> Response:
 
     function = UploadFunctionUseCase().execute(user, accessible_functions, data)
     logger.info("[programs-upload] user_id=%s program=%s | Function uploaded ok", user.id, function.title)
+    return Response(ProgramSerializer(function).data)
+
+
+class UploadFileSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+    """One file of /programs/upload/start: its path under the function folder and its size in bytes."""
+
+    path = serializers.CharField(max_length=1024)
+    size = serializers.IntegerField(min_value=0)
+
+    class Meta:
+        ref_name = "ProgramsUploadFile"
+
+
+class StartUploadInputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+    """Request body of /programs/upload/start: the custom function and the files to upload."""
+
+    title = serializers.CharField(max_length=255)
+    entrypoint = serializers.CharField()
+    files = UploadFileSerializer(many=True)
+
+    class Meta:
+        ref_name = "ProgramsUploadStartInput"
+
+    def validate_title(self, value):
+        """Sanitize the title, and refuse a provider one."""
+        return _custom_title(value)
+
+    def validate_files(self, value):
+        """The files as ``{path: size}``."""
+        return {file["path"]: file["size"] for file in value}
+
+    validate_entrypoint = ProgramSerializer.validate_entrypoint
+
+
+class StartUploadOutputSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+    """Response of /programs/upload/start: the URL to PUT each file to, by its path."""
+
+    urls = serializers.DictField(child=serializers.CharField())
+
+    class Meta:
+        ref_name = "ProgramsUploadStartOutput"
+
+
+class FinishUploadSerializer(ProgramSerializer):
+    """Request body of /programs/upload/finish: the /programs/upload fields without the file, and the start files."""
+
+    entrypoint = serializers.CharField()
+    files = serializers.JSONField(write_only=True)
+
+    class Meta(ProgramSerializer.Meta):
+        fields = [f for f in ProgramSerializer.Meta.fields if f not in ("artifact", "image", "provider", "runner")]
+        fields += ["files"]
+        ref_name = "ProgramsUploadFinish"
+
+    def validate_files(self, value):
+        """The files as a list of ``{path, size}``, the same shape as in start."""
+        files = UploadFileSerializer(data=value, many=True)
+        files.is_valid(raise_exception=True)
+        return {file["path"]: file["size"] for file in files.validated_data}
+
+    def validate_title(self, value):
+        """Sanitize the title, and refuse a provider one."""
+        return _custom_title(value)
+
+
+def _custom_title(title: str) -> str:
+    if "/" in title:
+        raise ValidationError("Only custom functions upload this way, a provider function ships its code in its image.")
+    return sanitize_name(title)
+
+
+@swagger_auto_schema(
+    method="post",
+    operation_description="Start uploading a custom Fleets function: a URL to PUT each file to, straight to COS",
+    request_body=StartUploadInputSerializer,
+    responses={status.HTTP_200_OK: StartUploadOutputSerializer},
+)
+@endpoint("programs/upload/start", method="POST", name="programs-upload-start")
+@permission_classes([permissions.IsAuthenticated])
+@endpoint_handle_exceptions
+def start_upload(request: Request) -> Response:
+    """Give the client a presigned PUT URL for each file of the function."""
+    user = cast(AbstractUser, request.user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+
+    serializer = StartUploadInputSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    title = serializer.validated_data["title"]
+    logger.info(
+        "[programs-upload-start] user_id=%s title=%s accessible_functions=%s", user.id, title, accessible_functions
+    )
+
+    urls = StartUploadUseCase().execute(
+        user,
+        accessible_functions,
+        title=title,
+        entrypoint=serializer.validated_data["entrypoint"],
+        files=serializer.validated_data["files"],
+    )
+    logger.info("[programs-upload-start] user_id=%s title=%s | Upload started ok", user.id, title)
+    return Response({"urls": urls})
+
+
+@swagger_auto_schema(
+    method="post",
+    operation_description="Finish uploading a custom Fleets function, after its files were PUT to the URLs of start",
+    request_body=FinishUploadSerializer,
+    responses={status.HTTP_200_OK: ProgramSerializer},
+)
+@endpoint("programs/upload/finish", method="POST", name="programs-upload-finish")
+@permission_classes([permissions.IsAuthenticated])
+@endpoint_handle_exceptions
+def finish_upload(request: Request) -> Response:
+    """Save the function whose files the client PUT to COS."""
+    user = cast(AbstractUser, request.user)
+    accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
+
+    serializer = FinishUploadSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = UploadFunctionInput.from_validated_data(serializer.validated_data)
+    logger.info(
+        "[programs-upload-finish] user_id=%s title=%s accessible_functions=%s",
+        user.id,
+        data.title,
+        accessible_functions,
+    )
+
+    function = FinishUploadUseCase().execute(user, accessible_functions, data, serializer.validated_data["files"])
+    logger.info("[programs-upload-finish] user_id=%s program=%s | Function uploaded ok", user.id, function.title)
     return Response(ProgramSerializer(function).data)
