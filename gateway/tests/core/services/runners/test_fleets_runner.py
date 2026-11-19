@@ -30,7 +30,12 @@ from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_pat
 from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
-from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
+from core.services.runners.abstract_runner import (
+    CosRetryableError,
+    RunnerError,
+    RunnerRetryableError,
+    UnrecognizedFleetTaskStateError,
+)
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner, count_fleets
 from tests.utils import TestUtils
@@ -183,18 +188,6 @@ def test_status_raises_runner_error_when_no_fleet_id():
         runner.status()
 
 
-@pytest.fixture(autouse=True)
-def _clear_unresolved_warned():
-    """Keep tests independent of the runner's per-fleet warning throttle.
-
-    The throttle is module state so the scheduler warns once per fleet rather than
-    once per poll, which would otherwise make these tests order dependent.
-    """
-    fleets_runner_module._UNRESOLVED_WARNED.clear()
-    yield
-    fleets_runner_module._UNRESOLVED_WARNED.clear()
-
-
 def _cos_by_version(keys_by_version):
     """Build a ``list_keys`` stub that answers per task-store schema version.
 
@@ -322,14 +315,24 @@ class TestCosStatusDetection:
 
         assert runner.status() is None
 
-    def test_unknown_state_returns_none_without_raising(self):
-        """An unrecognised state is reported as no status, never as a failure.
+    def test_an_unknown_state_raises_a_error_that_names_it(self):
+        """A state nobody recognises is its own error, so the caller can say why the status is unknown.
 
-        Raising here would make the scheduler mark the job FAILED, so a single
-        Code Engine rename would fail every in-flight job at once.
+        The scheduler reads it as an unknown status and does not fail the job, so a single Code Engine rename does
+        not fail every job in flight at once.
         """
         runner, _ = _make_runner(fleet_id="fleet-123")
-        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [f"{_V3}unknown-state/x"]})
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [f"{_V3}paused/x"]})
+
+        with pytest.raises(UnrecognizedFleetTaskStateError) as raised:
+            runner.status()
+
+        assert raised.value.states == ["paused"]
+
+    def test_a_listing_without_a_state_is_not_an_unknown_state(self):
+        """No keys, or only the directory marker, is a fleet that has not written anything yet."""
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        runner._cos.list_keys.side_effect = _cos_by_version({"v3": [_V3]})
 
         assert runner.status() is None
 

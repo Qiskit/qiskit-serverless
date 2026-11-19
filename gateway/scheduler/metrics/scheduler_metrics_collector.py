@@ -27,7 +27,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
 
         self.loop_duration = Histogram(
             "scheduler_loop_duration_seconds",
-            "Duration of one scheduler loop iteration.",
+            "Duration of one iteration of a scheduler loop (each loop runs in its own thread).",
+            labelnames=("loop",),
             registry=self.registry,
             buckets=TICK_BUCKETS,
         )
@@ -73,7 +74,8 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
 
         self.last_tick = Gauge(
             "scheduler_last_tick_timestamp_seconds",
-            "Unix timestamp of latest completed scheduler loop iteration.",
+            "Unix timestamp of the latest completed iteration of a scheduler loop.",
+            labelnames=("loop",),
             registry=self.registry,
         )
         self.job_status_count = Gauge(
@@ -248,11 +250,11 @@ class SchedulerMetrics:  # pylint: disable=too-many-instance-attributes,too-many
         self.task_duration.labels(task_name=task_name).observe(elapsed_seconds)
         self.duration_max.record(task_name, elapsed_seconds)
 
-    def observe_scheduler_iteration(self, elapsed_seconds: float) -> None:
-        """Register scheduler loop metrics for one full iteration."""
-        self.loop_duration.observe(elapsed_seconds)
-        self.duration_max.record(None, elapsed_seconds)
-        self.last_tick.set_to_current_time()
+    def observe_scheduler_iteration(self, loop: str, elapsed_seconds: float) -> None:
+        """Register the metrics of one full iteration of a loop."""
+        self.loop_duration.labels(loop=loop).observe(elapsed_seconds)
+        self.duration_max.record_loop(loop, elapsed_seconds)
+        self.last_tick.labels(loop=loop).set_to_current_time()
 
     def observe_queue_wait_time(self, wait_seconds: float, compute_type: str) -> None:
         """Record queue wait time for a scheduled job."""

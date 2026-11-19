@@ -1,18 +1,18 @@
 """Scheduler loop service."""
 
 import logging
-import time
 
 from django.conf import settings
-from django.db import close_old_connections, connection
+from django.db import connections
 
 from core.models import Config
 from core.services.background_executor import get_background_executor
 from core.services.job_transitions import JobTransitionService
 from core.services.workload_best_effort_mirror import WorkloadBackgroundMirror
 from scheduler.schedule import FleetsBreakers, FleetsJobCanceller, FleetsJobSubmitter
-from scheduler.health import DB_EXCEPTIONS, SchedulerHealth
+from scheduler.health import SchedulerHealth
 from scheduler.http_server import SchedulerHttpServer
+from scheduler.loop import SchedulerLoop
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.kill_signal import KillSignal
 from scheduler.tasks.balance_filler_jobs import BalanceFillerJobs
@@ -24,6 +24,7 @@ from scheduler.tasks.outbox import OutboxTask
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 from scheduler.tasks.schedule_ray_jobs import ScheduleRayJobs
 from scheduler.tasks.stop_blocked_fleets_jobs import StopBlockedFleetsJobs
+from scheduler.tasks.task import SchedulerTask
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from scheduler.tasks.update_ray_jobs_statuses import UpdateRayJobsStatuses
@@ -32,9 +33,14 @@ logger = logging.getLogger("scheduler.main")
 
 
 class Main:
-    """Main scheduler loop that runs all scheduler tasks."""
+    """Starts the scheduler loops, each one in a thread of its own, and waits for the kill signal.
+
+    A slow task only delays the tasks of its own loop. The Ray tasks, the Fleets submits, the Fleets status updates and
+    the housekeeping tasks do not wait for each other.
+    """
 
     def __init__(self, metrics: SchedulerMetrics):
+        self.loops = []
         self.kill_signal = KillSignal()
         self.kill_signal.register()  # start listening to SIGTERM and SIGINT signals
 
@@ -45,6 +51,8 @@ class Main:
 
         # Write new defaults that this version might have (this is also done in the Gateway, first come, first write)
         Config.add_defaults()
+        # This connection belongs to the main thread, which only waits from now on and would never close it
+        connections.close_all()
 
         # One service for every task that changes a job status, so the Kafka producers are created once, and only the
         # scheduler sends the intermediate workload statuses.
@@ -54,24 +62,43 @@ class Main:
         submitter = FleetsJobSubmitter(transitions, breakers)
         canceller = FleetsJobCanceller(transitions, breakers)
 
-        self.tasks = [
-            UpdateJobStatusCounts(self.kill_signal, self.metrics),
-            ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
+        # Inside a loop the tasks run in order. Across loops there is no order, so a task that wants fresh data
+        # reads what the database holds, which is at most one iteration of the other loop old.
+        self.add_loop(
+            "ray",
             # submit jobs, status change from QUEUED to PENDING/FAILED
             ScheduleRayJobs(self.kill_signal, self.metrics),
-            ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
             UpdateRayJobsStatuses(self.kill_signal, self.metrics),
-            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions, canceller),
-            StopBlockedFleetsJobs(self.kill_signal, canceller),
-            # after the status updates, so it sees this tick's freshest terminal jobs
-            OutboxTask(self.kill_signal, self.metrics),
-            # after the status updates, so it counts the freshest real jobs
-            BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter, canceller),
             FreeRayResources(self.kill_signal, self.metrics),
+        )
+        self.add_loop(
+            "fleets-schedule",
+            ScheduleFleetsJobs(self.kill_signal, self.metrics, submitter),
+            StopBlockedFleetsJobs(self.kill_signal, canceller),
+            # keeps a scarce compute profile busy with filler jobs, which the other tasks leave alone
+            BalanceFillerJobs(self.kill_signal, self.metrics, transitions, submitter, canceller),
+        )
+
+        # alone, so a slow submit can never make it miss the PENDING and RUNNING states of a short job
+        self.add_loop(
+            "fleets-update",
+            UpdateFleetsJobsStatuses(self.kill_signal, self.metrics, transitions, canceller),
+        )
+
+        self.add_loop(
+            "maintenance",
+            UpdateJobStatusCounts(self.kill_signal, self.metrics),
+            ConsumeBlockedAccountEvents(self.kill_signal, self.metrics),
+            OutboxTask(self.kill_signal, self.metrics),
             FreeFleetsResources(self.kill_signal, self.metrics, breakers),
-            # last, so it sees the breakers every Fleets task touched in this tick
+            # last, so the gauge shows the cleanup breaker as this iteration left it. The submit and cancel
+            # breakers are fed by other loops, so the gauge can be one iteration of those loops behind
             ExportFleetsBreakers(self.metrics, breakers),
-        ]
+        )
+
+    def add_loop(self, name: str, *tasks: SchedulerTask) -> None:
+        """Add a loop that runs these tasks in order, with what every loop shares."""
+        self.loops.append(SchedulerLoop(name, list(tasks), self.kill_signal, self.metrics, self.health))
 
     def start_http_server(self):
         """Start the internal HTTP server for probes and metrics."""
@@ -85,63 +112,67 @@ class Main:
 
     def close_tasks(self):
         """Close every task, each on its own, so one that fails to close does not keep the others open."""
-        for task in self.tasks:
+        for task in (task for loop in self.loops for task in loop.tasks):
             try:
                 task.close()
             except Exception as ex:  # pylint: disable=broad-exception-caught
                 logger.exception("Error closing %s: %s", task.name, ex)
 
     def run(self):
-        """Run the scheduler loop until kill signal is received."""
-        logger.info("Scheduler loop started")
-        # The scheduler is single-threaded: this pool lets it hand slow calls to background threads
+        """Run the loops, each in its own thread, until the kill signal is received or a loop dies."""
+        logger.info("Scheduler started with the loops: %s", ", ".join(loop.name for loop in self.loops))
+        # The scheduler's threads share this pool to hand slow calls to background threads
         get_background_executor().init()
         try:
-            while not self.kill_signal.received:
-                start_time = time.monotonic()
-                # the scheduler serves no request, so it runs Django's per-request connection check itself
-                close_old_connections()
+            for loop in self.loops:
+                loop.start()
+            self.wait_for_the_end()
+        finally:
+            dead_loops = self.end_process()
 
-                for task in self.tasks:
-                    if self.kill_signal.received:
-                        break
-                    task_start = time.monotonic()
-                    try:
-                        task.run()
-                        self.health.clear_db_error()
-                    except DB_EXCEPTIONS as ex:
-                        first_error = self.health.set_db_error()
-                        self.metrics.increase_task_error(task.name, ex)
+        if dead_loops:
+            # raised after the cleanup, not inside it, so it cannot hide an error that was already on its way out.
+            # A non-zero exit makes docker or Kubernetes restart the process
+            raise RuntimeError(f"Scheduler loops died: {', '.join(dead_loops)}")
+        logger.info("Scheduler finished")
 
-                        # Force-close the connection so the next task in this iteration
-                        # gets a fresh one rather than retrying on the same broken connection.
-                        connection.close()
-                        if first_error:
-                            logger.exception("Error in %s: %s", task.name, ex)
-                        else:
-                            logger.error("DB still unavailable in %s: %s", task.name, ex)
-                    except Exception as ex:  # pylint: disable=broad-exception-caught
-                        self.metrics.increase_task_error(task.name, ex)
-                        logger.exception("Error in %s: %s", task.name, ex)
-                    finally:
-                        self.metrics.observe_task_duration(task.name, time.monotonic() - task_start)
+    def wait_for_the_end(self) -> None:
+        """Wait on the main thread, which is the one Python delivers the signals to, until a stop is requested or a
+        loop dies: a dead loop is not coming back, and the others would run on without it."""
+        while not self.kill_signal.wait(1):
+            if self.dead_loops():
+                return
 
-                elapsed = time.monotonic() - start_time
+    def dead_loops(self) -> list[str]:
+        """The names of the loops whose thread ended without a stop being requested."""
+        if self.kill_signal.received:
+            return []
+        return [loop.name for loop in self.loops if not loop.is_alive()]
 
-                # Store the elapsed time and the last time check
-                self.metrics.observe_scheduler_iteration(elapsed)
-
-                # don't delay more than 1s if the loop was busy
-                if not self.kill_signal.received and elapsed < 1:
-                    time.sleep(1 - elapsed)
+    def end_process(self) -> list[str]:
+        """Stop and release everything, in order. Returns the names of the loops that died before the stop."""
+        dead_loops = self.dead_loops()
+        if dead_loops:
+            logger.error("Scheduler loops %s are not running, stopping the scheduler", dead_loops)
+        self.kill_signal.received = True
+        self.join_loops()
+        try:
+            # after the loops, so running background tasks finish while the clients they use are still open
+            get_background_executor().shutdown()
         finally:
             try:
-                # first, so running background tasks finish while the clients they use are still open
-                get_background_executor().shutdown()
+                self.close_tasks()
             finally:
                 try:
-                    self.close_tasks()
-                finally:
                     self.stop_http_server()
+                finally:
+                    connections.close_all()
+        return dead_loops
 
-        logger.info("Scheduler loop finished")
+    def join_loops(self):
+        """Wait for every loop thread to finish its iteration, each on its own."""
+        for loop in self.loops:
+            try:
+                loop.join()
+            except Exception as ex:  # pylint: disable=broad-exception-caught
+                logger.exception("Error waiting for loop %s: %s", loop.name, ex)

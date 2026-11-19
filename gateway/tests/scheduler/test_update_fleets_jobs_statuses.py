@@ -5,14 +5,14 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from django.contrib.auth.models import User
 from django.db.utils import OperationalError
 
 from core.models import ComputeProfile, Job, JobEvent, Program
 from core.services.job_transitions import JobTransitionService
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.services.runners import RunnerError, RunnerRetryableError
+from core.services.runners import RunnerError, RunnerRetryableError, UnrecognizedFleetTaskStateError
 from scheduler.tasks.update_fleets_jobs_statuses import UpdateFleetsJobsStatuses, _STOPPING_DEADLINE_SECONDS
 from tests.utils import TestUtils
 
@@ -975,8 +975,8 @@ class TestStoppingJobs:
         assert job.status == Job.STOPPED
 
     def test_a_filler_stopped_on_request_is_counted_as_stopped_not_as_ended(self):
-        """STOPPING means something asked for the stop, so it is counted here and not by the balancer,
-        which cannot know whether the cancel it sent ever landed."""
+        """A filler is meant to run for ever, so one that ends STOPPED was stopped. It is counted here and not by the
+        balancer, which cannot know whether the cancel it sent ever landed."""
         task = _make_task()
         job = _make_fleets_job(status=Job.STOPPING)
         job.filler = True
@@ -987,6 +987,21 @@ class TestStoppingJobs:
             task.update_job_status(job)
 
         assert job.status == Job.STOPPED
+        task.metrics.increment_filler_jobs_stopped.assert_called_once()
+        task.metrics.increment_filler_jobs_ended.assert_not_called()
+
+    def test_a_filler_that_is_stopped_while_still_running_in_memory_is_counted_as_stopped(self):
+        """Another loop may have cancelled it after this pass loaded it, so the job still reads RUNNING here. The final
+        status is enough to tell: a filler never ends by itself."""
+        task = _make_task()
+        job = _make_fleets_job(status=Job.RUNNING)
+        job.filler = True
+        runner = MagicMock()
+        runner.status.return_value = Job.STOPPED
+
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            task.update_job_status(job)
+
         task.metrics.increment_filler_jobs_stopped.assert_called_once()
         task.metrics.increment_filler_jobs_ended.assert_not_called()
 
@@ -1178,3 +1193,41 @@ class TestEventTimesLoadedWithTheJobs:
 
         job.refresh_from_db()
         assert job.status == Job.RUNNING
+
+
+@pytest.mark.django_db
+class TestUnrecognizedTaskState:
+    """Code Engine may rename a task state. The job is not failed for it: it waits, and its timeline says why."""
+
+    @staticmethod
+    def _poll(job, times=1):
+        # loaded the way the task loads the jobs of a pass
+        job = Job.objects.with_event_times().get(pk=job.pk)
+        task = _make_task()
+        runner = MagicMock()
+        runner.status.side_effect = UnrecognizedFleetTaskStateError("none known", ["paused"])
+        with patch(f"{_MOD}.get_runner", return_value=runner):
+            for _ in range(times):
+                task.update_job_status(job)
+
+    @staticmethod
+    def _events(job):
+        return JobEvent.objects.filter(job=job, event_type=JobEventType.ERROR, data__code="FLEET_STATE_UNRECOGNIZED")
+
+    def test_the_first_time_it_leaves_an_error_event_on_the_job_and_does_not_fail_it(self):
+        job = _real_fleets_job("unrecognized-state")
+
+        self._poll(job)
+
+        job.refresh_from_db()
+        assert job.status == Job.RUNNING
+        event = self._events(job).get()
+        assert event.data["args"] == ["paused"]
+
+    def test_polling_again_does_not_repeat_the_event(self):
+        """The task reads every running job about once a second, so the event is written only once."""
+        job = _real_fleets_job("unrecognized-state-again")
+
+        self._poll(job, times=3)
+
+        assert self._events(job).count() == 1
