@@ -6,6 +6,7 @@
 import json
 import logging
 import uuid
+from dataclasses import fields as dataclass_fields
 
 from django import forms
 from django.contrib import admin, messages
@@ -43,6 +44,7 @@ from core.models import (
     ProgramHistory,
     ComputeResource,
     Job,
+    JobStoragePaths,
     RuntimeJob,
 )
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
@@ -51,8 +53,11 @@ from core.services.job_transitions import JobTransitionService
 from core.services.workload_best_effort_mirror import WorkloadInlineMirror
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.services.storage.job_file_explorer import JobFileExplorer
+from core.domain.storage_paths import StoragePaths
 
 logger = logging.getLogger("gateway.admin")
+
+STORAGE_PATH_FIELDS = [field.name for field in dataclass_fields(StoragePaths)]
 
 # How many jobs the "Timeline" admin action can carry in the redirect query string
 MAX_TIMELINE_JOBS = 200
@@ -651,7 +656,15 @@ class JobAdmin(admin.ModelAdmin):
     inlines = []
     autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
-    readonly_fields = ["runner", "status_badge", "sub_status", "job_actions", "function_size_name", "fleet_deleted_at"]
+    readonly_fields = [
+        "runner",
+        "status_badge",
+        "sub_status",
+        "job_actions",
+        "function_size_name",
+        "fleet_deleted_at",
+        "storage_paths_table",
+    ]
     fieldsets = [
         (
             "Info",
@@ -685,6 +698,7 @@ class JobAdmin(admin.ModelAdmin):
                     "ce_project_name",
                     "ce_region",
                     "code_engine_project",
+                    "storage_paths_table",
                 ]
             },
         ),
@@ -971,6 +985,23 @@ class JobAdmin(admin.ModelAdmin):
         stop_url = reverse("admin:job_stop_job_view", args=[obj.pk])
         button = f'<button type="button" class="button qs-stop-job-btn" data-stop-url="{stop_url}">Stop job</button>'
         return mark_safe(button)
+
+    @admin.display(description="Storage paths")
+    def storage_paths_table(self, obj):
+        """Where the job's files live in COS. Read-only: the job wrote its files there, so changing the row would
+        only make the gateway look somewhere else. Viewing the page never saves a row: a job without one gets it on
+        the first read of its files."""
+        if obj._state.adding or obj.runner != Program.FLEETS:  # pylint: disable=protected-access
+            return "-"
+        row = JobStoragePaths.objects.filter(job=obj).first()
+        if row is None:
+            return "Not saved yet: they are saved, with today's layout, the first time the job's files are read."
+        rows = format_html_join(
+            "",
+            "<tr><th>{}</th><td><code>{}</code></td></tr>",
+            ((name, getattr(row, name)) for name in STORAGE_PATH_FIELDS if getattr(row, name) is not None),
+        )
+        return format_html("<table>{}</table>", rows)
 
     def has_delete_permission(self, request, obj=None):
         """Disabled: a Job with a pending outbox row must not be deleted casually from the admin."""

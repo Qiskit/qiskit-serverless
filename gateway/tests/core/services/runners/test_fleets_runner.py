@@ -30,12 +30,44 @@ from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_pat
 from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
+from core.domain.storage_paths import StoragePaths
 from core.services.runners.abstract_runner import CosRetryableError, RunnerError, RunnerRetryableError
 from core.services.runners import fleets_runner as fleets_runner_module
 from core.services.runners.fleets_runner import FleetsRunner, count_fleets
 from tests.utils import TestUtils
 
 _RUNNER_MOD = "core.services.runners.fleets_runner"
+
+
+def _saved_paths_from_the_project(job):
+    """The row a job would have saved: today's layout in the buckets of its mock project. These tests have no
+    database, so the row is built from the mock instead of read."""
+    project = job.program.code_engine_project
+    paths = build_job_paths(job)
+    return StoragePaths(
+        ce_project_id="test-project-id",
+        ce_project_name="test-project",
+        cos_region="us-east",
+        user_bucket=project.cos_bucket_user_data_name,
+        provider_bucket=project.cos_bucket_provider_data_name if paths.cos_provider_job_prefix else None,
+        user_pds=project.pds_name_users,
+        provider_pds=project.pds_name_providers if paths.cos_provider_job_prefix else None,
+        user_function_prefix=paths.cos_user_function_prefix,
+        user_job_prefix=paths.cos_user_job_prefix,
+        provider_function_prefix=paths.cos_provider_function_prefix,
+        provider_job_prefix=paths.cos_provider_job_prefix,
+        arguments_key=f"{paths.cos_user_job_prefix}/arguments.json",
+        results_key=paths.cos_results_key,
+        user_log_key=paths.cos_user_log_key,
+        provider_log_key=paths.cos_provider_log_key,
+    )
+
+
+@pytest.fixture(autouse=True)
+def saved_paths():
+    """Every job here has a saved row, built from its mock project when it is first read."""
+    with patch(f"{_RUNNER_MOD}.get_storage_paths", side_effect=_saved_paths_from_the_project) as get_paths:
+        yield get_paths
 
 
 @pytest.fixture(autouse=True)
@@ -78,6 +110,7 @@ def _make_runner(fleet_id: str | None = None) -> tuple[FleetsRunner, MagicMock]:
     runner._handler = mock_handler  # pylint: disable=protected-access
     runner._project = mock_project  # pylint: disable=protected-access
     runner._cos = mock_cos  # pylint: disable=protected-access
+    runner._storage_cos = mock_cos  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
     return runner, mock_handler
 
@@ -152,6 +185,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_project.cos_key_name = "cos-key"
     mock_project.pds_name_users = "user-pds"
     mock_project.pds_name_providers = "provider-pds"
+    mock_job.program.code_engine_project = mock_project
     runner._project = mock_project  # pylint: disable=protected-access
     runner._connected = True  # pylint: disable=protected-access
 
@@ -159,6 +193,7 @@ def _make_submit_runner() -> tuple[FleetsRunner, MagicMock]:
     mock_fleet.to_dict.return_value = {"id": "fleet-abc"}
     mock_handler.submit_job.return_value = mock_fleet
     runner._cos = MagicMock()  # pylint: disable=protected-access
+    runner._storage_cos = runner._cos  # pylint: disable=protected-access
 
     return runner, mock_handler
 
@@ -941,12 +976,12 @@ def test_submit_uses_default_max_instances_when_no_config():
     assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 1
 
 
-def test_get_result_from_cos_returns_none_when_cos_not_configured():
-    """get_result_from_cos() returns None when COS is not configured."""
+def test_get_result_from_cos_returns_none_when_the_paths_cant_be_read(saved_paths):
+    """get_result_from_cos() returns None when the job has no saved paths and they can't be built."""
     runner, _ = _make_runner(fleet_id="fleet-123")
+    saved_paths.side_effect = ValueError("no project")
 
-    with patch.object(runner, "_is_cos_configured", return_value=False):
-        result = runner.get_result_from_cos()
+    result = runner.get_result_from_cos()
 
     assert result is None
 
@@ -1141,6 +1176,42 @@ def test_submit_includes_gateway_env_vars():
     assert by_name["PUBLIC_LOG_PATH"] == "/job_user_data/logs.log"
 
 
+def test_submit_mounts_and_writes_to_the_saved_paths():
+    """With a saved row, submit mounts its prefixes from its data stores and points the env vars at its keys."""
+    runner, mock_handler = _make_submit_runner()
+    saved = StoragePaths(
+        ce_project_id="old-project-id",
+        ce_project_name="old-project",
+        cos_region="us-east",
+        user_bucket="old-user-bucket",
+        provider_bucket=None,
+        user_pds="old-user-pds",
+        provider_pds=None,
+        user_function_prefix="old/fn/data",
+        user_job_prefix="old/fn/jobs/job-uuid",
+        provider_function_prefix=None,
+        provider_job_prefix=None,
+        arguments_key="old/fn/jobs/job-uuid/args.json",
+        results_key="old/fn/jobs/job-uuid/out/results.json",
+        user_log_key="old/fn/jobs/job-uuid/logs.log",
+        provider_log_key=None,
+    )
+
+    with _patch_settings(), patch(f"{_RUNNER_MOD}.get_storage_paths", return_value=saved):
+        runner.submit()
+
+    extra = mock_handler.submit_job.call_args.kwargs["extra_fields"]
+    mounts = {m["mount_path"]: (m["reference"], m["sub_path"]) for m in extra["run_volume_mounts"]}
+    assert mounts == {
+        "/function_user_data": ("old-user-pds", "old/fn/data"),
+        "/job_user_data": ("old-user-pds", "old/fn/jobs/job-uuid"),
+    }
+    env = {e["name"]: e["value"] for e in extra["run_env_variables"]}
+    assert env["ARGUMENTS_PATH"] == "/job_user_data/args.json"
+    assert env["RESULTS_PATH"] == "/job_user_data/out/results.json"
+    assert extra["run_commands"] == ["python", "/function_user_data/fleet_custom_job_wrapper.py"]
+
+
 def test_submit_arguments_path_set_exactly_once():
     """submit() sets ARGUMENTS_PATH exactly once even when it appears in job env vars."""
     runner, mock_handler = _make_submit_runner()
@@ -1191,7 +1262,9 @@ def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
         _patch_settings(),
         patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
     ):
-        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+        runner._upload_provider_image_entrypoint(
+            paths, _saved_paths_from_the_project(runner.job)
+        )  # pylint: disable=protected-access
 
     call = runner._cos.upload_fileobj.call_args  # pylint: disable=protected-access
     assert call.kwargs["bucket_name"] == "provider-bucket"
@@ -1212,7 +1285,9 @@ def test_upload_provider_image_entrypoint_raises_for_non_provider_job():
     paths = build_job_paths(runner.job)
 
     with pytest.raises(RunnerError, match="non-provider job"):
-        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+        runner._upload_provider_image_entrypoint(
+            paths, _saved_paths_from_the_project(runner.job)
+        )  # pylint: disable=protected-access
 
 
 def test_upload_provider_image_entrypoint_error_propagates():
@@ -1239,7 +1314,9 @@ def test_upload_provider_image_entrypoint_error_propagates():
         patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
         pytest.raises(RuntimeError, match="COS error"),
     ):
-        runner._upload_provider_image_entrypoint(paths)  # pylint: disable=protected-access
+        runner._upload_provider_image_entrypoint(
+            paths, _saved_paths_from_the_project(runner.job)
+        )  # pylint: disable=protected-access
 
 
 def test_submit_uses_provider_image_entrypoint_upload_when_image_set():
@@ -1349,7 +1426,9 @@ def test_upload_custom_image_entrypoint_skips_traversal_member():
         patch(f"{_RUNNER_MOD}.tarfile.open", return_value=tar),
         patch(f"{_RUNNER_MOD}.logger") as mock_logger,
     ):
-        runner._upload_custom_image_entrypoint(paths)  # pylint: disable=protected-access
+        runner._upload_custom_image_entrypoint(
+            paths, _saved_paths_from_the_project(runner.job)
+        )  # pylint: disable=protected-access
 
     uploaded_keys = [
         call.kwargs["key"] for call in runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access
@@ -1377,7 +1456,9 @@ def test_upload_custom_image_entrypoint_skips_absolute_member():
         patch(f"{_RUNNER_MOD}.tarfile.open", return_value=tar),
         patch(f"{_RUNNER_MOD}.logger") as mock_logger,
     ):
-        runner._upload_custom_image_entrypoint(paths)  # pylint: disable=protected-access
+        runner._upload_custom_image_entrypoint(
+            paths, _saved_paths_from_the_project(runner.job)
+        )  # pylint: disable=protected-access
 
     uploaded_keys = [
         call.kwargs["key"] for call in runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access
@@ -1401,7 +1482,9 @@ def test_upload_custom_image_entrypoint_keeps_dotdot_prefixed_name():
         patch(f"{_RUNNER_MOD}.tarfile.open", return_value=tar),
         patch(f"{_RUNNER_MOD}.logger") as mock_logger,
     ):
-        runner._upload_custom_image_entrypoint(paths)  # pylint: disable=protected-access
+        runner._upload_custom_image_entrypoint(
+            paths, _saved_paths_from_the_project(runner.job)
+        )  # pylint: disable=protected-access
 
     uploaded_keys = [
         call.kwargs["key"] for call in runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access

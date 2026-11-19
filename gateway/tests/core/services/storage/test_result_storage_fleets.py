@@ -11,7 +11,8 @@ from core.services.storage import get_result_storage
 from core.services.storage.result_storage_fleets import FleetsResultStorage
 from tests.utils import TestUtils
 
-_COS_MODULE = "core.services.storage.result_storage_fleets.get_cos_client"
+# Readers sign COS requests with the project saved with the job's paths
+_COS_MODULE = "core.services.storage.job_storage_paths.get_cos_client_for"
 
 
 def _make_client_error(code: str) -> ClientError:
@@ -87,7 +88,7 @@ class TestFleetsResultStorage:
             result = storage.get()
 
         assert result == '{"result": 42}'
-        mock_get_cos.assert_called_once_with(job.program.code_engine_project)
+        mock_get_cos.assert_called_once_with("test-ce-project-id", "us-east")
         mock_cos.get_object_bytes.assert_called_once_with(
             bucket_name="user-bucket",
             key=storage._results_key,  # pylint: disable=protected-access
