@@ -22,10 +22,10 @@ push-all: push-ray-node push-fleet-node push-fleet-selector push-fleet-selector-
 build-ray-node:
 	docker build -t $(rayNodeImageName):$(version) -f ./docker-images/ray-node/Dockerfile .
 
-# selector-gpu, NOT selector: fleet-node is what FLEETS_DEFAULT_IMAGE resolves to,
-# so it serves every imageless job including those on a GPU compute profile, and
-# the gateway cannot choose per profile yet. Building the CPU stage here would
-# strip CUDA from GPU jobs silently. specs/FLEETS_IMAGES.md §2.
+# selector-gpu, NOT selector: the gateway now picks per compute profile and points
+# at fleet-selector / fleet-selector-gpu, but fleet-node keeps the CUDA wheels so a
+# deployment still pinned to it serves GPU jobs correctly. Building the CPU stage
+# here would strip CUDA from those jobs silently. specs/FLEETS_IMAGES.md §2.
 #
 # No fleet-node:latest tag: that is the fleets-test base, which wants the CPU
 # stage. Use build-fleet-node-local.

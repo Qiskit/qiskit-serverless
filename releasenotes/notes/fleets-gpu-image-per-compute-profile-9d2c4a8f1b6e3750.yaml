@@ -1,0 +1,30 @@
+---
+features:
+  - |
+    The Fleets runner now picks the runtime image from the job's compute profile.
+    A job on a GPU profile (one whose resource part carries a GPU count and
+    model, e.g. ``24x120x1a100p``) is submitted with the new
+    ``FLEETS_DEFAULT_GPU_IMAGE``; every other job is submitted with
+    ``FLEETS_DEFAULT_IMAGE``, which is now the CPU-only runtime. The choice is
+    derived from the same parse that builds the fleet's ``scale_gpu`` request, so
+    the image and the GPU allocation cannot disagree — a job on the GPU image is
+    always a job that asked Code Engine for a GPU.
+
+    This is what the CPU/GPU image split was for: a CPU job no longer pulls the
+    CUDA wheels, which is 6.5 GB less to pull, on every CPU job. Provider images
+    (``program.image``) are unaffected — a provider image stays the provider's
+    choice whatever the compute profile.
+upgrade:
+  - |
+    ``ce.fleetsDefaultImage`` now defaults to
+    ``fleet-selector``, the CPU-only runtime, and the new
+    ``ce.fleetsDefaultGpuImage`` defaults to ``fleet-selector-gpu``. Deployments
+    that set ``ce.fleetsDefaultImage`` explicitly must now also set
+    ``ce.fleetsDefaultGpuImage`` (env var ``FLEETS_DEFAULT_GPU_IMAGE``), and the
+    image they point ``ce.fleetsDefaultImage`` at should be a CPU runtime.
+
+    A job on a GPU compute profile is refused at submit with a
+    ``RunnerError`` when ``FLEETS_DEFAULT_GPU_IMAGE`` is unset, rather than
+    falling back to the CPU image. The fallback would be silent: the job lands on
+    a GPU worker, ``import gpu4pyscf`` fails, and the function finishes on CPU
+    still reporting success. CPU jobs are unaffected by the setting being unset.

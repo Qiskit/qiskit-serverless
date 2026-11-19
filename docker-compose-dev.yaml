@@ -76,7 +76,10 @@ services:
       - CE_DEFAULT_PROJECT_NAME=${CE_DEFAULT_PROJECT_NAME:-}
       - CE_PROJECTS=${CE_PROJECTS:-[]}
       - CE_COS_USE_PUBLIC_ENDPOINT=${CE_COS_USE_PUBLIC_ENDPOINT:-false}
-      - FLEETS_DEFAULT_IMAGE=${FLEETS_DEFAULT_IMAGE:-}
+      # Passed through only when set on the host, so an unset variable leaves the
+      # settings.py default in place instead of overriding it with an empty string.
+      - FLEETS_DEFAULT_IMAGE
+      - FLEETS_DEFAULT_GPU_IMAGE
       - FLEETS_GATEWAY_HOST=http://gateway:8000
       - W3ID_SSO_CLIENT_ID=${W3ID_SSO_CLIENT_ID:-}
       - W3ID_SSO_CLIENT_SECRET=${W3ID_SSO_CLIENT_SECRET:-}
@@ -119,7 +122,10 @@ services:
       - CE_DEFAULT_PROJECT_NAME=${CE_DEFAULT_PROJECT_NAME:-}
       - CE_PROJECTS=${CE_PROJECTS:-[]}
       - CE_COS_USE_PUBLIC_ENDPOINT=${CE_COS_USE_PUBLIC_ENDPOINT:-false}
-      - FLEETS_DEFAULT_IMAGE=${FLEETS_DEFAULT_IMAGE:-}
+      # Passed through only when set on the host, so an unset variable leaves the
+      # settings.py default in place instead of overriding it with an empty string.
+      - FLEETS_DEFAULT_IMAGE
+      - FLEETS_DEFAULT_GPU_IMAGE
       - FLEETS_GATEWAY_HOST=http://gateway:8000
     networks:
       - safe-tier

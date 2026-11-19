@@ -321,6 +321,8 @@ spec:
               value: {{ .Values.ce.hmacSecretName | quote }}
             - name: FLEETS_DEFAULT_IMAGE
               value: {{ .Values.ce.fleetsDefaultImage | quote }}
+            - name: FLEETS_DEFAULT_GPU_IMAGE
+              value: {{ .Values.ce.fleetsDefaultGpuImage | quote }}
             - name: CE_ICR_PULL_SECRET
               value: {{ .Values.ce.icrPullSecret | quote }}
 
@@ -557,6 +559,8 @@ spec:
               value: {{ .Values.ce.hmacSecretName | quote }}
             - name: FLEETS_DEFAULT_IMAGE
               value: {{ .Values.ce.fleetsDefaultImage | quote }}
+            - name: FLEETS_DEFAULT_GPU_IMAGE
+              value: {{ .Values.ce.fleetsDefaultGpuImage | quote }}
             - name: CE_ICR_PULL_SECRET
               value: {{ .Values.ce.icrPullSecret | quote }}
 
