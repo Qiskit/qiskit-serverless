@@ -31,7 +31,7 @@ def _make_transitions():
     def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
         job.update_fields({"status": status, **(job_fields or {})})
 
-    def _try_stop(job, *, origin, context):  # pylint: disable=unused-argument
+    def _try_stop(job, *, origin, context, extra_event=None):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.STOPPING})
         return True
 
@@ -45,8 +45,8 @@ def _make_canceller(transitions):
     """A canceller with a closed breaker that calls straight through to try_stop."""
     canceller = MagicMock()
     canceller.paused.return_value = False
-    canceller.cancel.side_effect = lambda job, *, context: transitions.try_stop(
-        job, origin=JobEventOrigin.SCHEDULER, context=context
+    canceller.cancel.side_effect = lambda job, *, context, extra_event=None: transitions.try_stop(
+        job, origin=JobEventOrigin.SCHEDULER, context=context, extra_event=extra_event
     )
     return canceller
 
@@ -409,7 +409,9 @@ class TestStopJobIfTimeout:
         assert job.status == Job.STOPPING
 
     def test_a_timed_out_job_gets_a_program_timeout_error_event(self):
-        """The client reads this event to raise on result(), since the job ends as STOPPED."""
+        """The client reads this event to raise on result(), since the job ends as STOPPED. It rides in
+        the same transaction as the status change (extra_event), tagged with PROGRAM_TIMEOUT_STOP so the
+        status change itself can be told apart from a plain poller STOPPED."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=100)
@@ -417,13 +419,15 @@ class TestStopJobIfTimeout:
         with (
             patch(f"{_SCHEDULE}.program_timeout_hours", return_value=1),
             patch(f"{_MOD}.program_timeout_hours", return_value=1),
-            patch(f"{_MOD}.JobEvent") as mock_event,
+            patch(f"{_MOD}.JobEvent"),
         ):
             task.stop_job_if_timeout(job)
 
-        data = mock_event.objects.create.call_args.kwargs["data"]
-        assert data["code"] == "PROGRAM_TIMEOUT"
-        assert "1 hours" in data["message"]
+        call = task.canceller.cancel.call_args
+        assert call.kwargs["context"] == JobEventContext.PROGRAM_TIMEOUT_STOP
+        extra_event = call.kwargs["extra_event"]
+        assert extra_event["data"]["code"] == "PROGRAM_TIMEOUT"
+        assert "1 hours" in extra_event["data"]["message"]
 
     def test_no_error_event_when_the_cancel_does_not_land(self):
         task = _make_task()

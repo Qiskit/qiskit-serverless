@@ -200,7 +200,13 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             program_timeout_hours(),
         )
         try:
-            cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
+            # PROGRAM_TIMEOUT_STOP tags the STOPPING/STOPPED event so it can be told apart from a plain
+            # poller STOPPED. extra_event rides in the same transaction as that status change, so either
+            # both the status change and the ERROR event land, or neither does and the next tick's
+            # _timed_out() check retries both.
+            cancelled = self.canceller.cancel(
+                job, context=JobEventContext.PROGRAM_TIMEOUT_STOP, extra_event=self._timeout_error_event()
+            )
         except RunnerRetryableError as ex:
             # Nothing is written: STOPPED here would claim a stop that never happened.
             logger.warning("job_id=%s fleet_id=%s cancel not delivered on timeout: %s", job.id, job.fleet_id, str(ex))
@@ -218,22 +224,18 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             logger.info("job_id=%s transition rejected, skipping STOPPING: %s", job.id, str(ex))
             return False
 
-        self._record_timeout_error(job)
         if not cancelled:
             # stop() wrote STOPPED itself, so only the counter is left
             self._increment_terminal_counter(job)
         return True
 
     @staticmethod
-    def _record_timeout_error(job: Job) -> None:
-        """Write the ERROR event the client reads to explain why a stopped job has no result."""
+    def _timeout_error_event() -> dict:
+        """The ERROR event fields the client reads to explain why a stopped job has no result."""
         hours = program_timeout_hours()
-        JobEvent.objects.create(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            event_type=JobEventType.ERROR,
-            data={
+        return {
+            "event_type": JobEventType.ERROR,
+            "data": {
                 "code": PROGRAM_TIMEOUT_ERROR_CODE,
                 "message": (
                     f"This job was stopped because it ran for longer than the program timeout of {hours} hours, "
@@ -242,7 +244,7 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
                 "exception": "ProgramTimeout",
                 "args": {"timeout_hours": hours},
             },
-        )
+        }
 
     @staticmethod
     def _timed_out(job: Job) -> bool:

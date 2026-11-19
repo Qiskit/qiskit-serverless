@@ -137,12 +137,17 @@ class JobTransitionService:
         origin: JobEventOrigin,
         context: JobEventContext,
         runner: AbstractRunner | None = None,
+        extra_event: dict | None = None,
     ) -> str:
         """Stop a Fleets job and return the status written. The cancel runs before the transaction.
 
         Args:
             runner: Reuse this runner instead of building one, so a retrying caller fetches the IAM
                 token once.
+            extra_event: Fields (``event_type``, ``data``) for one more JobEvent, written in the same
+                transaction as the status change, so a caller that owes an explanatory event (like an
+                ERROR event for why the job has no result) gets it atomically with the stop, instead of
+                risking a status that landed with no event to explain it.
 
         Returns:
             ``Job.STOPPING`` when a cancel is in flight, ``Job.STOPPED`` when there was nothing to
@@ -163,6 +168,7 @@ class JobTransitionService:
         if job.fleet_id and (runner or get_runner(job)).stop():
             with transaction.atomic():
                 self._change_status(job, Job.STOPPING, origin=origin, context=context, job_fields=None)
+                self._add_extra_event(job, origin=origin, context=context, extra_event=extra_event)
             self.workload_mirror.send(job)
             return Job.STOPPING
 
@@ -175,8 +181,18 @@ class JobTransitionService:
                 job.fleet_id = current_fleet_id
                 raise FleetAppearedError(f"Job {job.id}: a fleet appeared while stopping")
             self._change_status(job, Job.STOPPED, origin=origin, context=context, job_fields=None)
+            self._add_extra_event(job, origin=origin, context=context, extra_event=extra_event)
             self._enqueue_workload(job)
         return Job.STOPPED
+
+    @staticmethod
+    def _add_extra_event(
+        job: Job, *, origin: JobEventOrigin, context: JobEventContext, extra_event: dict | None
+    ) -> None:
+        """Write the caller's extra event, if any, in the same transaction as the status change."""
+        if extra_event is None:
+            return
+        JobEvent.objects.create(job_id=job.id, origin=origin, context=context, **extra_event)
 
     def to_terminal(
         self, job: Job, status: str, *, origin: JobEventOrigin, context: JobEventContext, job_fields: dict | None = None

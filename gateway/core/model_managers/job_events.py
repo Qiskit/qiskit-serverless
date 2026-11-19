@@ -52,6 +52,9 @@ class JobEventContext(StrEnum):
     # Scheduler: a PENDING or RUNNING job of a blocked resource was stopped (status STOPPING or STOPPED)
     BLOCKED_RESOURCE_STOP = "BLOCKED_RESOURCE_STOP"
 
+    # Scheduler: a RUNNING job was stopped for outliving PROGRAM_TIMEOUT (status STOPPING or STOPPED)
+    PROGRAM_TIMEOUT_STOP = "PROGRAM_TIMEOUT_STOP"
+
 
 class JobEventType(StrEnum):
     """Job events type enum."""
