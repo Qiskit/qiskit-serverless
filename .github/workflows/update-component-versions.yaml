@@ -39,7 +39,8 @@ jobs:
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/charts/gateway/Chart.yaml
           sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/qiskit-serverless/charts/gateway/Chart.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
-          sed -i "s/fleet-node:${OLDNUM}/fleet-node:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
+          sed -i "s/fleet-selector:${OLDNUM}/fleet-selector:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
+          sed -i "s/fleet-selector-gpu:${OLDNUM}/fleet-selector-gpu:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
           sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/qiskit-serverless/values.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/values.yaml
@@ -50,7 +51,8 @@ jobs:
         shell: bash
         run: |
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" gateway/main/settings.py
-          sed -i "s/qiskit-serverless\/fleet-node:${OLDNUM}/qiskit-serverless\/fleet-node:${NEWNUM}/" gateway/main/settings.py
+          sed -i "s/qiskit-serverless\/fleet-selector:${OLDNUM}/qiskit-serverless\/fleet-selector:${NEWNUM}/" gateway/main/settings.py
+          sed -i "s/qiskit-serverless\/fleet-selector-gpu:${OLDNUM}/qiskit-serverless\/fleet-selector-gpu:${NEWNUM}/" gateway/main/settings.py
       - name: Update client version
         shell: bash
         run: |

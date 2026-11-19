@@ -11,6 +11,7 @@
 | `Makefile` | `build-fleet-node`, `build-fleet-node-local`, `build-fleet-selector`, `build-fleet-selector-gpu` |
 | `.github/workflows/build-containers-test.yaml` | Builds `selector` and `selector-gpu` on every PR |
 | `.github/workflows/fleets-integration-tests.yaml` | Builds `base` and `selector` for the smoke tests |
+| `.github/workflows/update-component-versions.yaml` | Bumps the `fleet-selector` / `fleet-selector-gpu` tags in `values.yaml` and `settings.py` on release |
 | `tests/fleets/fleet-worker/Dockerfile` | Mock CE worker, `FROM fleet-node:latest` (the CPU stage) |
 | `gateway/core/services/runners/fleets_runner.py` | `_get_image()` — picks the image for a job from its compute profile |
 | `gateway/main/settings.py` | `FLEETS_DEFAULT_IMAGE` (CPU) and `FLEETS_DEFAULT_GPU_IMAGE`, fed from `ce.fleetsDefaultImage` / `ce.fleetsDefaultGpuImage` |
