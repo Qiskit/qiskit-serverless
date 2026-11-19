@@ -1,0 +1,22 @@
+---
+fixes:
+  - |
+    The Fleets selector image now installs ``openblas-serial`` rather than
+    ``openblas``, so the ``sbd-eigensolver`` compiled extension loads. The base
+    ``openblas`` package in the UBI9 appstream ships documentation and licences
+    only, with no shared objects, so ``import sbd._core_cpu`` failed with
+    ``libopenblas.so.0: cannot open shared object file`` and any function calling
+    SBD failed at import. The library's soname lives in the threading-variant
+    subpackages, and only the serial one spells it ``libopenblas.so.0`` --
+    ``openblas-openmp`` provides ``libopenblaso.so.0`` and ``openblas-threads``
+    ``libopenblasp.so.0``, neither of which satisfies the extension's recorded
+    dependency. Serial is also the correct variant regardless: the extension
+    already gets its parallelism from OpenMP, and a threaded BLAS underneath a
+    threaded caller oversubscribes a CPU-limited worker.
+
+    The build stage was unaffected, which is why this went unnoticed: it installs
+    ``openblas-devel``, which requires every variant and so pulled
+    ``openblas-serial`` in transitively. The extension linked and imported there,
+    and only the shipped image lacked the library. ``import sbd`` alone did not
+    reveal it either -- that package loads its backends through a helper that
+    swallows ``ImportError``, so it succeeded with no backend registered at all.
