@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
+from api.access_policies.programs import ProgramAccessPolicies
 from api.domain.arguments_schema import (
     MAX_DOCUMENT_DEPTH,
     MAX_SCHEMA_LENGTH,
@@ -21,11 +22,7 @@ from api.domain.exceptions.custom_function_not_entitled_exception import CustomF
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.domain.exceptions.invalid_arguments_exception import InvalidArgumentsException
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import (
-    PLATFORM_PERMISSION_RUN,
-    RUN_PROGRAM_PERMISSION,
-    Program as Function,
-)
+from core.models import Program as Function
 
 # Longest validator message the API will hand back. jsonschema builds its messages with
 # repr(instance), so without a limit a rejected 200 KB payload came back in full in the 400.
@@ -125,16 +122,10 @@ class ValidateArgumentsUseCase:
         Raises FunctionNotFoundException when the function doesn't exist or isn't accessible.
         Raises InvalidArgumentsException when the arguments are invalid JSON or don't match the schema.
         """
-        function = None
         if provider_name:
-            function = Function.objects.get_function_by_permission(
-                user=user,
-                function_title=title,
-                provider_name=provider_name,
-                accessible_functions=accessible_functions,
-                permission=PLATFORM_PERMISSION_RUN,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
-            )
+            function = Function.objects.get_function(title, provider_name)
+            if function is not None and not ProgramAccessPolicies.can_run(user, function, accessible_functions):
+                function = None
         else:
             # See run.py: separate the entitlement gate from the existence lookup so an
             # unentitled user gets a 403 naming the custom-run entitlement rather than a
