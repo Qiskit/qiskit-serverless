@@ -16,10 +16,11 @@ from core.clients.iam_token_provider import _DEFAULT_TIMEOUT
 from core.ibm_cloud.code_engine.fleets.handler import _CANCEL_TIMEOUT_SECONDS
 from core.services.runners import RunnerError, RunnerRetryableError
 from core.model_managers.job_events import JobEventOrigin
-from core.models import Job, JobEvent, Program
+from core.models import Job, JobEvent, Program, WorkloadMirror
 
 # the use case builds the runner and hands it to try_stop, so one runner serves both attempts
 _RUNNER = "api.use_cases.jobs.stop.get_runner"
+_MIRROR_CLIENT = "core.services.workload_best_effort_mirror.get_functions_operator_client"
 
 pytestmark = pytest.mark.django_db
 
@@ -97,6 +98,33 @@ class TestStopFleetsJob:
         mock_get_runner.assert_called_once_with(job)
         # Once, not twice: the Ray cleanup must not send a second cancel for a Fleets job.
         runner.stop.assert_called_once_with()
+
+    def test_an_accepted_cancel_sends_stopping_and_a_failure_does_not_fail_the_stop(self, author):
+        job = Job.objects.create(
+            author=author,
+            program=Program.objects.create(title="mine", author=author),
+            runner=Program.FLEETS,
+            status=Job.RUNNING,
+            fleet_id="fleet-abc",
+            instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
+        )
+        WorkloadMirror.objects.create(job=job)
+        runner = Mock()
+        runner.stop.return_value = True
+
+        with patch(_RUNNER, return_value=runner), patch(_MIRROR_CLIENT) as get_client:
+            put = get_client.return_value.put_function
+            StopJobUseCase().execute(job.id, None, author)
+            kwargs = put.call_args.kwargs
+            assert (kwargs["function_id"], kwargs["body"]["status"], kwargs["timeout"]) == (str(job.id), "Stopping", 2)
+
+            put.side_effect = RuntimeError("boom")
+            job.refresh_from_db()
+            job.update_fields({"status": Job.RUNNING})
+            message = StopJobUseCase().execute(job.id, None, author)
+
+        assert "Job is stopping." in message
+        assert Job.objects.get(pk=job.pk).status == Job.STOPPING
 
     def test_a_fleet_that_is_gone_goes_straight_to_stopped(self, author):
         """Nothing will ever confirm a stop once Code Engine says the fleet is gone, so do not wait."""

@@ -120,8 +120,80 @@ class TestFileStorageFleets:
         assert result == ["file1.txt", "file2.txt"]
         mock_cos.list_keys.assert_called_once_with(
             bucket_name="user-bucket",
-            prefix="users/alice/custom_functions/my-program/data",
+            prefix="users/alice/custom_functions/my-program/data/",
         )
+
+    def test_get_public_files_with_sub_path_lists_that_directory(self, function):
+        """get_public_files(sub_path="wheels") lists only the wheels/ sub-directory."""
+        storage = FileStorageFleets("alice", function)
+        mock_cos = MagicMock()
+        mock_cos.list_keys.return_value = [
+            "users/alice/custom_functions/my-program/data/wheels/mypkg-1.0-py3-none-any.whl",
+        ]
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_files(sub_path="wheels")
+
+        assert result == ["mypkg-1.0-py3-none-any.whl"]
+        mock_cos.list_keys.assert_called_once_with(
+            bucket_name="user-bucket",
+            prefix="users/alice/custom_functions/my-program/data/wheels/",
+        )
+
+    def test_get_public_files_with_sub_path_excludes_prefix_siblings(self, function):
+        """A sub_path listing must not leak a sibling root file whose name starts with it.
+
+        Regression: listing "wheels" once matched a root file like "wheels_notes.txt"
+        (COS does a bare string-prefix match), which was then returned with its leading
+        "wheels" sliced off as "_notes.txt". The directory-boundary trailing slash fixes it.
+        """
+        storage = FileStorageFleets("alice", function)
+        base = "users/alice/custom_functions/my-program/data"
+        mock_cos = MagicMock()
+        # COS returns only keys under the "wheels/" prefix we asked for; the sibling
+        # "data/wheels_notes.txt" does not start with "data/wheels/" and is never returned.
+        mock_cos.list_keys.return_value = [f"{base}/wheels/mypkg-1.0-py3-none-any.whl"]
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_files(sub_path="wheels")
+
+        assert result == ["mypkg-1.0-py3-none-any.whl"]
+        assert "_notes.txt" not in result
+        mock_cos.list_keys.assert_called_once_with(bucket_name="user-bucket", prefix=f"{base}/wheels/")
+
+    def test_get_public_files_root_excludes_subdirectory_contents(self, function):
+        """The root listing is non-recursive: files inside wheels/ are not returned at the root."""
+        storage = FileStorageFleets("alice", function)
+        base = "users/alice/custom_functions/my-program/data"
+        mock_cos = MagicMock()
+        mock_cos.list_keys.return_value = [
+            f"{base}/file1.txt",
+            f"{base}/wheels/mypkg-1.0-py3-none-any.whl",
+        ]
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_files()
+
+        assert result == ["file1.txt"]
+
+    def test_get_public_files_hides_injected_wrapper(self, function):
+        """The gateway-injected wrapper script is not shown in the file listing."""
+        storage = FileStorageFleets("alice", function)
+        base = "users/alice/custom_functions/my-program/data"
+        mock_cos = MagicMock()
+        mock_cos.list_keys.return_value = [
+            f"{base}/main.py",
+            f"{base}/fleet_custom_job_wrapper.py",
+            f"{base}/fleet_provider_job_wrapper.py",
+            f"{base}/helper.py",
+        ]
+
+        with patch(_COS_MODULE, return_value=mock_cos):
+            result = storage.get_public_files()
+
+        assert result == ["main.py", "helper.py"]
+        assert "fleet_custom_job_wrapper.py" not in result
+        assert "fleet_provider_job_wrapper.py" not in result
 
     def test_get_public_files_returns_empty_on_not_found(self, function):
         """get_public_files() returns empty list when no files found."""

@@ -15,7 +15,7 @@ from .cleanup import FleetDeleter, cleanup
 from .config import load_config, load_metrics
 from .run_dir import ROOT, RUNS, RunDir
 
-# LIMITS_ACTIVE_JOBS_PER_USER and LIMITS_JOBS_PER_USER_FLEETS default to 50
+# the gateway.limits.active_jobs_per_user Config defaults to 50
 SHARED_USER_LIMIT = 50
 
 
@@ -57,8 +57,9 @@ def _check(config, scenario) -> None:
     # no user waits for the others' jobs, so with long jobs every job of the run can exist at once
     if scenario.users > SHARED_USER_LIMIT:
         log(
-            f"  up to {scenario.users} jobs of one gateway user at once, so raise the per-user job limits above "
-            f"{scenario.users} first. Otherwise submits over the limit fail and the rest stay QUEUED."
+            f"  up to {scenario.users} jobs of one gateway user at once, so raise the Config "
+            f"gateway.limits.active_jobs_per_user above {scenario.users} first. Otherwise submits over the limit "
+            "fail and the rest stay QUEUED."
         )
     if scenario.users > limits.max_jobs or scenario.users > limits.max_users:
         raise SystemExit(
@@ -101,6 +102,10 @@ def _cool_down(config, scenario, first: bool) -> bool:
             log(f"cooldown {config.defaults.cooldown_seconds:.0f} s before {scenario.name}")
             time.sleep(config.defaults.cooldown_seconds)
         fleets = FleetDeleter(config.defaults.code_engine, log)
+        if not scenario.wait_for_room:
+            if (count := fleets.count()) is not None:
+                log(f"the project holds {count} of {FLEET_CAP} fleets, and {scenario.name} does not wait for room")
+            return True
         deadline = time.monotonic() + ROOM_WAIT_SECONDS
         while (count := fleets.count()) is not None and count + scenario.users + FLEET_MARGIN > FLEET_CAP:
             if time.monotonic() > deadline:

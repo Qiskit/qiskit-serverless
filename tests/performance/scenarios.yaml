@@ -67,6 +67,13 @@ scenarios:
     burst: 50
     function_size: S
     arguments: *sqd_arguments
+  - name: burst_50_backoff  # the same burst, polling with the backoff of the SDK's wait_for_final_state()
+    users: 50
+    qps: 50
+    burst: 50
+    poll: backoff
+    function_size: S
+    arguments: *sqd_arguments
   # - name: users_200  # after the per-user limits are raised
   #   users: 200
   #   qps: 2

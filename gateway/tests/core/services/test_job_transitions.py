@@ -64,7 +64,7 @@ def sender():
 
 @pytest.fixture
 def service(sender):
-    return JobTransitionService(sender=sender)
+    return JobTransitionService(billing_sender=sender)
 
 
 class TestTransition:
@@ -406,10 +406,10 @@ class TestSender:
     def test_builds_the_default_sender_only_when_none_is_given(self):
         with patch("core.services.job_transitions.build_kafka_sender") as build_sender:
             given = MagicMock()
-            assert JobTransitionService(sender=given).sender is given
+            assert JobTransitionService(billing_sender=given).billing_sender is given
             build_sender.assert_not_called()
 
-            assert JobTransitionService().sender is build_sender.return_value
+            assert JobTransitionService().billing_sender is build_sender.return_value
             build_sender.assert_called_once_with()
 
 
@@ -717,7 +717,7 @@ class TestStatusMirror:
 
     @pytest.fixture
     def mirrored_service(self, sender, mirror):
-        return JobTransitionService(sender=sender, workload_mirror=mirror)
+        return JobTransitionService(billing_sender=sender, workload_mirror=mirror)
 
     def test_queued_to_pending_sends_once_after_the_transaction(self, mirrored_service, mirror, user):
         job = _licensed_fleets_job(user, Job.QUEUED)

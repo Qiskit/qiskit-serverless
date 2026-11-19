@@ -21,6 +21,7 @@ COS sub-manager tests live in test_job_cos_unit.py.
 
 import json
 import logging
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,6 +32,7 @@ from core.ibm_cloud.code_engine.fleets.handler import (
     _CANCEL_PROCESSING_TASKS_KEY,
     _CANCEL_TIMEOUT_SECONDS,
     _DELETE_TIMEOUT_SECONDS,
+    _LIST_TIMEOUT_SECONDS,
     _MODEL_VALIDATION_ERROR,
     FleetHandler,
 )
@@ -168,6 +170,59 @@ def _fleets_page(fleets, next_start=None):
 
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_resolve_fleet_id_finds_a_name_on_any_page(mock_fleets_api_cls, project_id):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.list_fleets.side_effect = [
+        _fleets_page([{"id": "other", "name": "other"}], next_start="101"),
+        _fleets_page([{"id": "wanted", "name": "my-fleet"}]),
+    ]
+
+    assert handler._resolve_fleet_id("my-fleet") == "wanted"
+    fleet_uuid = "4db7db50-1b3f-4b53-98f0-f7ad0ee96280"
+    assert handler._resolve_fleet_id(fleet_uuid) == fleet_uuid
+    assert mock_fleets_api.list_fleets.call_count == 2
+
+    mock_fleets_api.list_fleets.side_effect = [_fleets_page([])]
+    with pytest.raises(ValueError):
+        handler._resolve_fleet_id("missing")
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_count_fleets_adds_up_every_page(mock_fleets_api_cls, project_id):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.list_fleets.side_effect = [
+        _fleets_page([{"id": "a"}, {"id": "b"}], next_start="101"),
+        _fleets_page([{"id": "c"}]),
+    ]
+
+    assert handler.count_fleets(time.monotonic() + 60) == 3
+    assert mock_fleets_api.list_fleets.call_args.kwargs["start"] == "101"
+    assert mock_fleets_api.list_fleets.call_args.kwargs["_request_timeout"] == _LIST_TIMEOUT_SECONDS
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_count_fleets_stops_when_the_list_goes_back_to_the_first_page(mock_fleets_api_cls, project_id):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+    mock_fleets_api.list_fleets.side_effect = [
+        _fleets_page([{"id": "a"}], next_start="101"),
+        _fleets_page([{"id": "b"}], next_start="201"),
+        _fleets_page([{"id": "a"}], next_start="101"),
+    ]
+
+    with pytest.raises(RuntimeError, match="went back to start 101"):
+        handler.count_fleets(time.monotonic() + 60)
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
+def test_count_fleets_stops_past_the_deadline(mock_fleets_api_cls, project_id):
+    handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
+
+    with pytest.raises(TimeoutError):
+        handler.count_fleets(time.monotonic() - 1)
+    mock_fleets_api.list_fleets.assert_not_called()
+
+
+@patch(f"{_HANDLER_MOD}.FleetsApi")
 def test_submit_job_returns_the_existing_fleet_on_a_name_conflict(mock_fleets_api_cls, project_id, base_payload):
     handler, mock_fleets_api = _make_handler(project_id, mock_fleets_api_cls)
     mock_fleets_api.create_fleet.side_effect = _name_conflict()
@@ -178,6 +233,7 @@ def test_submit_job_returns_the_existing_fleet_on_a_name_conflict(mock_fleets_ap
 
     assert handler.submit_job(**base_payload) == {"id": "existing"}
     assert mock_fleets_api.list_fleets.call_args.kwargs["start"] == "page-2"
+    assert "_request_timeout" not in mock_fleets_api.list_fleets.call_args.kwargs
 
 
 @patch(f"{_HANDLER_MOD}.FleetsApi")

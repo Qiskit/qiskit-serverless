@@ -32,10 +32,13 @@ def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
         TestUtils.add_user_to_group(provider_admin, provider_admin)
         provider = TestUtils.get_or_create_provider(provider_admin, provider_admin)
 
+    # This whole module exercises the Ray logs path (RayLogsStorage, a compute_resource
+    # cluster, ray_job_id), so its jobs are Ray jobs.
     program = TestUtils.create_program(
         program_title=f"{author_user.username}-{provider_admin or 'custom'}",
         author=author_user,
         provider=provider,
+        runner=Program.RAY,
     )
 
     compute_resource = ComputeResource.objects.create(title="test-cluster-storage-provider-logs", active=True)

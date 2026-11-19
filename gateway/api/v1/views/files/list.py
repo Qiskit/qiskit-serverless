@@ -19,6 +19,7 @@ from api.use_cases.files.list import FilesListUseCase
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+from core.utils import sanitize_sub_path
 from core.domain.authorization.function_access_result import FunctionAccessResult
 
 logger = logging.getLogger("api.api.v1.views.files.list")
@@ -33,6 +34,7 @@ class InputSerializer(serializers.Serializer):
 
     function = serializers.CharField(required=True)
     provider = serializers.CharField(required=False, default=None)
+    sub_path = serializers.CharField(required=False, default="")
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -50,6 +52,12 @@ class InputSerializer(serializers.Serializer):
         Validates the proivider name
         """
         return sanitize_name(value)
+
+    def validate_sub_path(self, value: str):
+        """
+        Sanitize the optional sub-directory into a safe relative path.
+        """
+        return sanitize_sub_path(value)
 
 
 @swagger_auto_schema(
@@ -69,6 +77,13 @@ class InputSerializer(serializers.Serializer):
             description="the function title",
             type=openapi.TYPE_STRING,
             required=True,
+        ),
+        openapi.Parameter(
+            "sub_path",
+            openapi.IN_QUERY,
+            description="Optional sub-directory to list files from",
+            type=openapi.TYPE_STRING,
+            required=False,
         ),
     ],
     responses={
@@ -98,6 +113,7 @@ def files_list(request: Request) -> Response:
 
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
+    sub_path = serializer.validated_data.get("sub_path", "")
 
     user = cast(AbstractUser, request.user)
     accessible_functions = cast(FunctionAccessResult, request.auth.accessible_functions)
@@ -109,6 +125,8 @@ def files_list(request: Request) -> Response:
         accessible_functions,
     )
 
-    files = FilesListUseCase().execute(user, provider, function, accessible_functions=accessible_functions)
+    files = FilesListUseCase().execute(
+        user, provider, function, sub_path=sub_path, accessible_functions=accessible_functions
+    )
     logger.info("[files-list] user_id=%s function=%s provider=%s | Files listed ok", user.id, function, provider)
     return Response({"results": files})

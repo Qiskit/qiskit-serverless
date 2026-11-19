@@ -1,0 +1,17 @@
+---
+deprecations:
+  - |
+    The ``dependencies=`` argument to :class:`~qiskit_serverless.QiskitFunction`
+    is deprecated and no longer installs anything. Declared dependencies never
+    reached the runner, so an accepted dependency installed nothing. The field is
+    now accepted but ignored for backward compatibility and will be removed in a
+    future major release. Passing a non-empty ``dependencies`` now emits a
+    ``DeprecationWarning``.
+
+    Use :meth:`~qiskit_serverless.ServerlessClient.dependencies_versions` to see
+    what the runtime image already ships.
+upgrade:
+  - |
+    :meth:`~qiskit_serverless.ServerlessClient.dependencies_versions` is read-only
+    discovery of the dependencies baked into the runtime image ("what the image
+    ships"). Its behaviour and return shape are unchanged.

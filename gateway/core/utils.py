@@ -56,6 +56,35 @@ def sanitize_file_path(path: str):
     return re.sub(pattern, "_", path)
 
 
+def sanitize_sub_path(sub_path: Optional[str]) -> str:
+    """Sanitize a user-supplied upload sub-directory into a safe relative path.
+
+    The result is always a relative path *under* the file-storage folder: it can never be
+    absolute and can never escape upward. This is applied server-side regardless of client
+    input, so it is the actual safety boundary (the client-side equivalent is convenience only).
+
+    Sanitization:
+        - ``None`` or empty -> ``""`` (upload to the folder root; unchanged behavior).
+        - ``..`` is replaced with ``_`` (no upward traversal).
+        - characters other than ``0-9a-zA-Z-_.`` and ``/`` are replaced with ``_``.
+        - leading/trailing ``/`` are stripped and repeated ``/`` collapsed, so the result is a
+          clean relative path (e.g. ``"/wheels/"`` -> ``"wheels"``, ``"../../x"`` -> ``"_/_/x"``).
+
+    Args:
+        sub_path: the requested sub-directory, or ``None``.
+
+    Returns:
+        A sanitized relative sub-path, possibly empty.
+    """
+    if not sub_path:
+        return ""
+    sub_path = sub_path.replace("..", "_")
+    sub_path = re.sub(r"[^0-9a-zA-Z\-_./]+", "_", sub_path)
+    # Collapse repeated separators and strip leading/trailing ones to keep it relative.
+    parts = [part for part in sub_path.split("/") if part]
+    return "/".join(parts)
+
+
 logger = logging.getLogger("core.utils")
 
 

@@ -12,6 +12,7 @@
 
 """The one place that reads the fields of an instance CRN (Cloud Resource Name)."""
 
+import re
 from dataclasses import dataclass
 from urllib.parse import urlparse, urlunparse
 
@@ -43,6 +44,14 @@ class Crn:
             return None
         account = parts[_ACCOUNT_INDEX].removeprefix(ACCOUNT_PREFIX) or None
         return cls(region=parts[_REGION_INDEX], account=account)
+
+
+def region_crn_regex(region: str) -> str:
+    """A regex matching the instance CRNs whose region is ``region``, as ``Crn.parse`` reads it.
+
+    For filtering on a CRN column in the database. The region is escaped, so any value is matched literally.
+    """
+    return rf"^([^:]*:){{{_REGION_INDEX}}}{re.escape(region)}:"
 
 
 def regional_base_url(base_url: str, instance_crn: str | None, default_region: str) -> str:

@@ -1,0 +1,12 @@
+---
+deprecations:
+  - |
+    :meth:`~qiskit_serverless.ServerlessClient.upload` and
+    :meth:`~qiskit_serverless.RunnableQiskitFunction.run` now emit a ``DeprecationWarning``
+    when the function uses the Ray runner (``runner="ray"``). The Ray runner is being
+    deprecated in favor of Fleets, and Fleets-only features such as GPU compute
+    profiles (``function_size``) and uploaded-wheel installs are unavailable on Ray,
+    so a job landing on Ray can fail in confusing ways. The warning is raised from the
+    local runner check, so it appears at upload and at run time even against a
+    gateway that does not return a deprecation message. Set ``runner="fleets"`` (the
+    default in recent releases) to silence it.

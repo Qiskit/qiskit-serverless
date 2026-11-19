@@ -1,0 +1,7 @@
+---
+security:
+  - |
+    The gateway, ray-node and fleet-node selector images no longer ship ``ray/jars/ray_dist.jar``,
+    the Java API bundled in the Ray wheel. It carried outdated Jackson, Guava and log4j jars
+    flagged by image scanners (for example CVE-2026-68497, CVE-2026-89407 and CVE-2026-102554),
+    and Ray is only used from Python here.

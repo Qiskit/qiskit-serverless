@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Before it submits a Fleets job, the scheduler now counts the fleets the
+    job's Code Engine project holds, from the Code Engine fleet list. When the
+    project holds ``scheduler.fleets.quota_per_project`` fleets, the job stays
+    ``QUEUED`` until the cleanup frees one. Each project is counted at most
+    once per scheduler tick. When the count fails, the job is submitted the
+    same as before. The count time is recorded as the new ``fleet_count``
+    operation of ``scheduler_operation_duration_seconds``.

@@ -22,7 +22,7 @@ from api.domain.exceptions.invalid_function_sizes_error import InvalidFunctionSi
 from api.domain.function_sizes import normalize_function_size, parse_function_sizes
 from api.use_cases.programs.upload import UploadFunctionUseCase
 from api.use_cases.programs.upload_input import UploadFunctionInput
-from api.utils import check_whitelisted, sanitize_name
+from api.utils import sanitize_name
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from core.domain.authorization.function_access_result import FunctionAccessResult
@@ -200,6 +200,11 @@ class ProgramSerializer(serializers.ModelSerializer):
         return requirement
 
     def _validate_deps(self, deps):
+        # NOTE: `dependencies=` is deprecated and no longer installs anything; declared
+        # dependencies never reach the runner, so the field is accepted-but-ignored for
+        # backward compatibility. We still validate the field's *shape* here so a malformed
+        # value fails clearly rather than silently, but no longer check each dependency
+        # against the runtime image's baked set.
         if not isinstance(deps, list):
             raise ValidationError("'dependencies' should be an array.")
 
@@ -207,14 +212,9 @@ class ProgramSerializer(serializers.ModelSerializer):
             return
 
         try:
-            required_deps = [self._parse_dependency(dep) for dep in deps]
+            [self._parse_dependency(dep) for dep in deps]
         except InvalidRequirement as invalid_requirement:
             raise ValidationError("Error while parsing dependencies.") from invalid_requirement
-
-        try:
-            check_whitelisted(required_deps)
-        except ValueError as value_error:
-            raise ValidationError(value_error.args[0]) from value_error
 
     def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""

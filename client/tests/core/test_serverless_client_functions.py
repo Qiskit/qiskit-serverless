@@ -15,6 +15,7 @@
 import json
 import os
 import tempfile
+import warnings
 from unittest.mock import MagicMock, patch, Mock
 
 import pytest
@@ -102,6 +103,64 @@ class TestUploadMethod:
         assert call_kwargs["token"] == "test-token"
         assert call_kwargs["client"] == mock_client
         assert result == mock_function
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_warns_when_dependencies_set(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() emits a DeprecationWarning when the deprecated `dependencies=` is used."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(
+            title="test-function",
+            image="test-image:latest",
+            dependencies=["numpy", "scipy"],
+        )
+
+        with pytest.warns(DeprecationWarning, match="no longer installs anything"):
+            mock_client.upload(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_does_not_warn_without_dependencies(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() does not emit a DeprecationWarning when `dependencies=` is unset."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            mock_client.upload(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_warns_when_runner_is_ray(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() emits a DeprecationWarning when the function's runner is 'ray'."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest", runner="ray")
+
+        with pytest.warns(DeprecationWarning, match="Ray runner is deprecated"):
+            mock_client.upload(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client._upload_with_docker_image")
+    @patch("qiskit_serverless.core.clients.serverless_client.trace")
+    def test_upload_does_not_warn_for_fleets_runner(self, mock_trace, mock_upload_docker, mock_client):
+        """upload() does not emit the Ray DeprecationWarning for a Fleets function."""
+        mock_span = MagicMock()
+        mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_upload_docker.return_value = MagicMock(spec=RunnableQiskitFunction)
+
+        program = QiskitFunction(title="test-function", image="test-image:latest", runner="fleets")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            mock_client.upload(program)
 
     @patch("qiskit_serverless.core.clients.serverless_client.trace")
     def test_upload_raises_when_neither_image_nor_entrypoint(self, mock_trace, mock_client):
@@ -411,6 +470,105 @@ class TestDependenciesVersionsMethod:
         assert dependencies == []
 
 
+class TestAddWheelsMethod:
+    """Tests for ServerlessClient.add_wheels()."""
+
+    def test_add_wheels_uploads_each_matching_wheel(self, mock_client):
+        """add_wheels expands patterns and uploads each wheel via file_upload."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "file_upload") as mock_upload, patch(
+            "qiskit_serverless.core.clients.serverless_client.glob.glob"
+        ) as mock_glob:
+            mock_glob.side_effect = lambda p: {
+                "dist/a-*.whl": ["dist/a-1.0-py3-none-any.whl"],
+                "dist/b-*.whl": ["dist/b-2.0-py3-none-any.whl"],
+            }[p]
+
+            uploaded = mock_client.add_wheels(function, ["dist/a-*.whl", "dist/b-*.whl"])
+
+        assert uploaded == ["a-1.0-py3-none-any.whl", "b-2.0-py3-none-any.whl"]
+        assert mock_upload.call_count == 2
+        # wheels go into the dedicated "wheels" sub-directory
+        for call in mock_upload.call_args_list:
+            assert call.kwargs.get("sub_path") == "wheels"
+
+    def test_add_wheels_raises_when_pattern_matches_nothing(self, mock_client):
+        """add_wheels raises if a pattern matches no files."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch("qiskit_serverless.core.clients.serverless_client.glob.glob", return_value=[]):
+            with pytest.raises(QiskitServerlessException, match="No files match"):
+                mock_client.add_wheels(function, ["dist/missing-*.whl"])
+
+    def test_add_wheels_rejects_non_wheel_files(self, mock_client):
+        """add_wheels rejects a match that is not a .whl file."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch(
+            "qiskit_serverless.core.clients.serverless_client.glob.glob",
+            return_value=["dist/notawheel.tar.gz"],
+        ):
+            with pytest.raises(QiskitServerlessException, match="only accepts .whl"):
+                mock_client.add_wheels(function, ["dist/*"])
+
+    def test_list_wheels_lists_the_wheels_subdir(self, mock_client):
+        """list_wheels lists the function's wheels sub-directory."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "files", return_value=["mypkg-1.0-py3-none-any.whl"]) as mock_files:
+            result = mock_client.list_wheels(function)
+
+        mock_files.assert_called_once_with(function, sub_path="wheels")
+        assert result == ["mypkg-1.0-py3-none-any.whl"]
+
+    def test_remove_wheels_deletes_each_from_the_wheels_subdir(self, mock_client):
+        """remove_wheels deletes each named wheel from the wheels sub-directory."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "file_delete") as mock_delete:
+            mock_client.remove_wheels(function, ["a.whl", "b.whl"])
+
+        assert mock_delete.call_count == 2
+        for call in mock_delete.call_args_list:
+            assert call.kwargs.get("sub_path") == "wheels"
+
+
+class TestDependencyReportMethod:
+    """Tests for ServerlessClient.dependency_report()."""
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_dependency_report_classifies_each_requirement(self, mock_get, mock_client):
+        """dependency_report marks requirements as baked / bring / clash."""
+        baked = ["numpy==2.1.0", "qiskit-addon-aqc-tensor[quimb-jax]==0.3.1", "mergedeep==1.3.4"]
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = json.dumps(baked)
+        mock_response.json.return_value = baked
+        mock_get.return_value = mock_response
+
+        report = mock_client.dependency_report(
+            ["numpy>=2", "mypkg", "mergedeep==2.0.0", "qiskit_addon_aqc_tensor==0.3.1"]
+        )
+
+        by_req = {e.requirement: e.status for e in report}
+        assert by_req["numpy>=2"] == "baked"
+        assert by_req["mypkg"] == "bring"
+        assert by_req["mergedeep==2.0.0"] == "clash"
+        # name normalization: underscores/extras still match the baked entry
+        assert by_req["qiskit_addon_aqc_tensor==0.3.1"] == "baked"
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.get")
+    def test_dependency_report_prints_as_table(self, mock_get, mock_client):
+        """The report renders as an aligned table with a header row."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.text = "[]"
+        mock_response.json.return_value = []
+        mock_get.return_value = mock_response
+
+        report = mock_client.dependency_report(["mypkg"])
+        text = str(report)
+
+        assert "requirement" in text and "status" in text and "note" in text
+        assert "mypkg" in text
+
+
 class TestUploadWithDockerImage:
     """Tests for _upload_with_docker_image helper function."""
 
@@ -451,7 +609,7 @@ class TestUploadWithDockerImage:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["image"] == "my-image:1.0"
-        assert data["runner"] == "ray"
+        assert data["runner"] == "fleets"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -537,7 +695,7 @@ class TestUploadWithArtifact:
         assert data["title"] == "my-function"
         assert data["provider"] == "my-provider"
         assert data["entrypoint"] == entrypoint
-        assert data["runner"] == "ray"
+        assert data["runner"] == "fleets"
         assert data["arguments"] == json.dumps({})
         assert data["dependencies"] == json.dumps(["numpy", "scipy"])
         assert data["env_vars"] == json.dumps({"KEY": "VALUE"})
@@ -644,15 +802,15 @@ class TestUploadWithArtifact:
 class TestQiskitFunctionDefaults:
     """Tests for QiskitFunction default field values."""
 
-    def test_default_runner_is_ray(self):
-        """QiskitFunction.runner defaults to 'ray' when not specified."""
+    def test_default_runner_is_fleets(self):
+        """QiskitFunction.runner defaults to 'fleets' when not specified."""
         program = QiskitFunction(title="my-function", image="img:latest")
-        assert program.runner == "ray"
+        assert program.runner == "fleets"
 
     def test_runner_can_be_overridden(self):
         """QiskitFunction.runner accepts a custom value."""
-        program = QiskitFunction(title="my-function", image="img:latest", runner="fleets")
-        assert program.runner == "fleets"
+        program = QiskitFunction(title="my-function", image="img:latest", runner="ray")
+        assert program.runner == "ray"
 
 
 class TestValidateArgumentsMethod:
@@ -917,3 +1075,43 @@ class TestUploadHelpersSendSizes:
         data = mock_post.call_args[1]["data"]
         assert data["sizes"] == json.dumps({"s": "24x120", "m": "16x128"})
         assert data["default_size"] == "m"
+
+
+class TestRunSurfacesGatewayWarning:
+    """How ServerlessClient.run() surfaces the gateway's response ``warning`` field.
+
+    The gateway returns the warning text (Ray deprecation, blocked resource, or both) for every
+    client version. A recent client raises the category to ``DeprecationWarning`` when it can see
+    locally that the function ran on the deprecated Ray runner.
+    """
+
+    _RAY_WARNING = (
+        'This function runs on Ray, a deprecated platform. Please migrate to the Fleets runner (runner="fleets").'
+    )
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_ray_function_warns_as_a_deprecation(self, mock_post, mock_client):
+        mock_post.return_value = _ok_response({"id": "job-1", "warning": self._RAY_WARNING})
+        program = QiskitFunction(title="my-func", image="img:latest", runner="ray")
+
+        with pytest.warns(DeprecationWarning, match="deprecated platform"):
+            mock_client.run(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_fleets_function_with_no_warning_does_not_warn(self, mock_post, mock_client):
+        mock_post.return_value = _ok_response({"id": "job-1"})
+        program = QiskitFunction(title="my-func", image="img:latest", runner="fleets")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any warning would raise
+            mock_client.run(program)
+
+    @patch("qiskit_serverless.core.clients.serverless_client.requests.post")
+    def test_a_bare_title_falls_back_to_a_plain_warning(self, mock_post, mock_client):
+        # Running by title gives the client no runner to inspect, so it cannot know this ran on
+        # Ray; it still surfaces the gateway text, just not as a DeprecationWarning.
+        mock_post.return_value = _ok_response({"id": "job-1", "warning": self._RAY_WARNING})
+
+        with pytest.warns(UserWarning, match="deprecated platform") as caught:
+            mock_client.run("my-func")
+        assert not any(issubclass(w.category, DeprecationWarning) for w in caught)

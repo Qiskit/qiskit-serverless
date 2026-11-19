@@ -2,7 +2,8 @@
 
 The terminal status does not go through here: it goes through the WORKLOAD outbox channel, which guarantees delivery
 and repairs any intermediate status lost here. ``send`` runs on the scheduler thread, and only the network call runs on
-the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for the Runtime API.
+the ``BackgroundPool.RUNTIME_API`` pool, so the scheduler loop never waits for the Runtime API. The gateway has no
+background executor, so it uses ``WorkloadInlineMirror``, which makes the call on the thread of the request.
 """
 
 import logging
@@ -25,9 +26,10 @@ from core.services.background_executor import (
     get_background_executor,
 )
 
-logger = logging.getLogger("core.WorkloadBestEffortMirror")
+logger = logging.getLogger("core.WorkloadBackgroundMirror")
 
 _PUT_TIMEOUT = 3  # seconds
+_INLINE_PUT_TIMEOUT = 2  # seconds, shorter because a request of the gateway waits for it (gunicorn gives it 25)
 _STATUSES = ("Pending", "Running", "Stopping")
 _OUTCOMES = ("sent", "failed", "dropped")
 # The same two classes as DB_EXCEPTIONS in scheduler/health.py, which core may not import. They are re-raised so the
@@ -80,7 +82,7 @@ class NoOpWorkloadMirror(WorkloadMirrorSender):
         """Does nothing: no Config, no database and no executor."""
 
 
-class WorkloadBestEffortMirror(WorkloadMirrorSender):
+class WorkloadBackgroundMirror(WorkloadMirrorSender):
     """Sends the current status of a mirrored job. Building it does no work."""
 
     def send(self, job: Job) -> None:
@@ -123,3 +125,17 @@ class WorkloadBestEffortMirror(WorkloadMirrorSender):
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("job_id=%s workload status not sent: %s", job.id, type(ex).__name__)
             _count(status, "failed")
+
+
+class WorkloadInlineMirror(WorkloadMirrorSender):
+    """Mirror a job on the calling thread, for the gateway, which has no background executor."""
+
+    def send(self, job: Job) -> None:
+        """Send the status of ``job``, which the caller has already committed. It never raises."""
+        if not should_be_mirrored(job):
+            return
+        try:
+            if is_mirrored(job):
+                get_functions_operator_client().put_function(**build_workload_payload(job), timeout=_INLINE_PUT_TIMEOUT)
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            logger.warning("job_id=%s workload status %s not sent: %s", job.id, job.status, type(ex).__name__)

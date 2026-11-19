@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import tarfile
+import time
 from io import BytesIO
 
 from django.conf import settings
@@ -48,6 +49,8 @@ from core.ibm_cloud.code_engine.fleets.cos import (
     task_state_from_key,
 )
 from core.ibm_cloud.code_engine.fleets.utils import (
+    CUSTOM_JOB_WRAPPER_NAME,
+    PROVIDER_JOB_WRAPPER_NAME,
     FleetJobPaths,
     build_job_paths,
     build_run_env_variables,
@@ -67,6 +70,18 @@ _WARNED_FLEETS_LIMIT = 10_000
 # characters and refused 70 as TOOLONG. Two segments of twelve, the 36 character job id and two hyphens
 # make at most 62.
 _FLEET_NAME_SEGMENT_MAX = 12
+
+
+def count_fleets(project: CodeEngineProject, deadline_seconds: float) -> int:
+    """How many fleets the project holds, read with no urllib3 read retry. RunnerError on any failure."""
+    if not settings.IBM_CLOUD_API_KEY:
+        raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
+    try:
+        api_client = get_ce_auth(settings.IBM_CLOUD_API_KEY, project.region, retry_reads=False).api_client
+        handler = FleetHandler(ce_api_client=api_client, project_id=project.project_id)
+        return handler.count_fleets(time.monotonic() + deadline_seconds)
+    except Exception as ex:
+        raise RunnerError(f"Unable to count the fleets of project {project.project_name}", ex) from ex
 
 
 def _fleet_name_segment(value: str) -> str:
@@ -690,7 +705,7 @@ class FleetsRunner(AbstractRunner):
         user_bucket = self._project.cos_bucket_user_data_name
 
         # upload template
-        template_name = "fleet_custom_job_wrapper.py"
+        template_name = CUSTOM_JOB_WRAPPER_NAME
         script = get_template(template_name).render(
             {
                 "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
@@ -764,7 +779,7 @@ class FleetsRunner(AbstractRunner):
         provider_bucket = self._project.cos_bucket_provider_data_name
 
         # upload wrapper script
-        wrapper_script = get_template("fleet_provider_job_wrapper.py").render(
+        wrapper_script = get_template(PROVIDER_JOB_WRAPPER_NAME).render(
             {
                 "app_cmd": json.dumps(["python", paths.container_function_entrypoint]),
                 # JSON-encoded: a valid Python str literal the wrapper writes to settings.conf.

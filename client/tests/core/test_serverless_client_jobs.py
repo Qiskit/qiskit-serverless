@@ -423,6 +423,30 @@ class TestRunMethod:
                 warnings.simplefilter("error")
                 mock_client.run(program=mock_function)
 
+    def test_function_run_warns_when_runner_is_ray(self, mock_client):
+        """RunnableQiskitFunction.run() warns when the function's runner is 'ray', with no gateway
+        warning in the response (older gateways do not return one)."""
+        function = RunnableQiskitFunction(mock_client, title="test-function", runner="ray")
+
+        with requests_mock.Mocker() as mocker:
+            mocker.post("https://test-host.com/api/v1/programs/run/", json={"id": "new-job-id"})
+
+            with pytest.warns(DeprecationWarning, match="Ray runner is deprecated"):
+                job = function.run()
+
+        assert job.job_id == "new-job-id"
+
+    def test_function_run_does_not_warn_for_fleets_runner(self, mock_client):
+        """RunnableQiskitFunction.run() does not emit the Ray warning for a Fleets function."""
+        function = RunnableQiskitFunction(mock_client, title="test-function", runner="fleets")
+
+        with requests_mock.Mocker() as mocker:
+            mocker.post("https://test-host.com/api/v1/programs/run/", json={"id": "new-job-id"})
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                function.run()
+
     def test_run_without_configuration_uses_default(self, mock_client, mock_function):
         """Test run() uses default Configuration when none provided."""
         mock_response = {"id": "new-job-id"}

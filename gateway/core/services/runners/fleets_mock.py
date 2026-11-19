@@ -37,7 +37,7 @@ from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix, task_state_from_key
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
-from core.models import CodeEngineProject
+from core.models import CodeEngineProject, Job
 
 logger = logging.getLogger("FleetsMock")
 
@@ -312,6 +312,12 @@ def _mock_delete_job(self, identifier):  # pylint: disable=unused-argument
     return True
 
 
+def _mock_count_fleets(self, deadline):  # pylint: disable=unused-argument
+    """Count the project's held fleets from the DB, so a mocked stack never lists Code Engine."""
+    names = CodeEngineProject.objects.filter(project_id=self.project_id).values_list("project_name", flat=True)
+    return Job.objects.held_fleets().filter(ce_project_name__in=names).count()
+
+
 def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argument
     """Write a canceled queue key to simulate CE cancellation.
 
@@ -377,6 +383,10 @@ def install_mocks():
         patch(
             "core.ibm_cloud.code_engine.fleets.handler.FleetHandler.delete_job",
             _mock_delete_job,
+        ),
+        patch(
+            "core.ibm_cloud.code_engine.fleets.handler.FleetHandler.count_fleets",
+            _mock_count_fleets,
         ),
     ]
 

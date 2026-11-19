@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    Added ``qiskit-mitigation==0.1.1`` and ``qiskit-addon-slc==0.2.0`` to the
+    dynamic dependencies allowlist bundled in the custom functions image. Qiskit
+    Functions that declare these packages as dependencies can now use them:
+    ``qiskit-mitigation`` for client-side mitigation methods via the Executor
+    primitive, and ``qiskit-addon-slc`` for the shaded-light-cones enhancement
+    for PEC mitigation.

@@ -251,7 +251,7 @@ class UploadFunctionUseCase:
             title=data.title,
             author=user,
             provider=provider,
-            runner=data.runner or Function.RAY,
+            runner=data.runner or Function.FLEETS,
             entrypoint=data.entrypoint or DEFAULT_PROGRAM_ENTRYPOINT,
             artifact=data.artifact,
             image=data.image,

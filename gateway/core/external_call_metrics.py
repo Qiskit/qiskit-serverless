@@ -22,6 +22,7 @@ from prometheus_client import REGISTRY, CollectorRegistry, Histogram
 FLEET_STATUS_READ = "fleet_status_read"
 FLEET_SUBMIT_UPLOAD = "fleet_submit_upload"
 FLEET_SUBMIT = "fleet_submit"
+FLEET_COUNT = "fleet_count"
 RUNTIME_API_PUT = "runtime_api_put"
 IAM_TOKEN = "iam_token"
 JOB_TRANSITION_QUEUED_TO_PENDING = "job_transition_queued_to_pending"

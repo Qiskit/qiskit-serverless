@@ -25,10 +25,15 @@ class FilesListUseCase:
         user: AbstractUser,
         provider_name: str,
         function_title: str,
+        *,
+        sub_path: str = "",
         accessible_functions: FunctionAccessResult,
     ):
         """
         List all files on user storage.
+
+        ``sub_path`` is an optional, already-sanitized relative directory under the user's
+        public file folder (e.g. ``"wheels"``).
         """
         function = Function.objects.get_function_by_permission(
             user=user,
@@ -47,4 +52,4 @@ class FilesListUseCase:
             function=function,
         )
 
-        return file_storage.get_public_files()
+        return file_storage.get_public_files(sub_path=sub_path)

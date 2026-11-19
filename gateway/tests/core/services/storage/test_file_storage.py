@@ -64,6 +64,41 @@ def test_public_storage_without_provider(tmp_path, settings, function_without_pr
     assert storage.get_public_files() == []
 
 
+def test_public_storage_sub_path_round_trip(tmp_path, settings, function_without_provider):
+    """Uploading with a sub_path stores under that sub-directory; list/remove honor it."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    storage: FileStorageRay = get_file_storage(username="user1", function=function_without_provider)
+
+    uploaded_file = SimpleUploadedFile("mypkg-1.0-py3-none-any.whl", b"wheel bytes")
+    path = storage.upload_public_file(uploaded_file, sub_path="wheels")
+
+    # Stored inside the wheels/ sub-directory.
+    assert os.path.exists(path)
+    assert path == f"{tmp_path}/user1/wheels/mypkg-1.0-py3-none-any.whl"
+
+    # Listing the sub-directory shows the wheel; the root listing does not (non-recursive).
+    assert storage.get_public_files(sub_path="wheels") == ["mypkg-1.0-py3-none-any.whl"]
+    assert storage.get_public_files() == []
+
+    # Remove from the sub-directory.
+    assert storage.remove_public_file("mypkg-1.0-py3-none-any.whl", sub_path="wheels")
+    assert not os.path.exists(path)
+    assert storage.get_public_files(sub_path="wheels") == []
+
+
+def test_public_storage_sub_path_cannot_escape(tmp_path, settings, function_without_provider):
+    """A traversal sub_path is neutralized and stays under the user's folder."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    storage: FileStorageRay = get_file_storage(username="user1", function=function_without_provider)
+
+    uploaded_file = SimpleUploadedFile("x.whl", b"data")
+    path = storage.upload_public_file(uploaded_file, sub_path="../../etc")
+
+    # Never escapes the user's public folder.
+    assert os.path.realpath(path).startswith(os.path.realpath(f"{tmp_path}/user1"))
+    assert ".." not in path
+
+
 def test_public_storage_with_provider(tmp_path, settings, function_with_provider):
     """User public storage with provider: path is {username}/{provider}/{function}/"""
     settings.MEDIA_ROOT = str(tmp_path)

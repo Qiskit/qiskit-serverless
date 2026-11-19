@@ -13,12 +13,14 @@ from api.utils import (
     jittered_cache_ttl,
     parse_title_and_provider,
     remove_duplicates_from_list,
+    sanitize_file_name,
 )
 from core.utils import (
     encrypt_string,
     decrypt_string,
     encrypt_env_vars,
     decrypt_env_vars,
+    sanitize_file_path,
 )
 
 
@@ -412,3 +414,47 @@ class TestJitteredCacheTtl:
     def test_never_returns_0_for_a_positive_ttl(self):
         with patch("api.utils.random.random", return_value=1.0):
             assert jittered_cache_ttl(1) == 1
+
+
+class TestSanitizeFileName:
+    """Unit tests for api.utils.sanitize_file_name."""
+
+    def test_empty_and_none_pass_through(self):
+        assert sanitize_file_name(None) is None
+        assert sanitize_file_name("") == ""
+
+    def test_plain_name_is_unchanged(self):
+        assert sanitize_file_name("mypkg-1.0-py3-none-any.whl") == "mypkg-1.0-py3-none-any.whl"
+
+    def test_disallowed_characters_are_replaced_not_removed(self):
+        # The old behavior removed them; now they become "_" so lengths/positions are preserved.
+        assert sanitize_file_name("foo+bar.whl") == "foo_bar.whl"
+        assert sanitize_file_name("torch-2.1+cu121-cp311.whl") == "torch-2.1_cu121-cp311.whl"
+        assert sanitize_file_name("a b.whl") == "a_b.whl"
+
+    def test_runs_of_disallowed_characters_collapse_to_one_underscore(self):
+        # A run of disallowed characters collapses to a single "_" (the "+" in the regex),
+        # matching sanitize_file_path. Without it "a++b.whl" became "a__b.whl" here but
+        # "a_b.whl" on upload, so the keys never matched.
+        assert sanitize_file_name("a++b.whl") == "a_b.whl"
+        assert sanitize_file_name("report (1).txt") == "report_1_.txt"
+        assert sanitize_file_name("foo bar.whl") == "foo_bar.whl"
+
+    def test_agrees_with_sanitize_file_path_so_upload_and_delete_use_the_same_key(self):
+        # Upload stores a file under the sanitize_file_path form of its name; delete/download
+        # look it up by the sanitize_file_name form. The two must produce the same basename,
+        # or a "+"-named file (e.g. a CUDA torch wheel) uploads but can never be deleted.
+        # Includes the runs ("a++b", spaces, parens) and ".." cases the single-char agreement
+        # check missed.
+        names = (
+            "torch-2.1+cu121-cp311.whl",
+            "foo+bar.whl",
+            "weird@v!.whl",
+            "normal-1.0.whl",
+            "a++b.whl",
+            "report (1).txt",
+            "foo bar.whl",
+            "a..b.whl",
+        )
+        for name in names:
+            assert sanitize_file_name(name) == sanitize_file_path(name)

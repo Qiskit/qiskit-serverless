@@ -1,6 +1,7 @@
 """One simulated user: the tutorial notebook flow, from signing in to getting the result."""
 
 import os
+import random
 import threading
 import time
 from dataclasses import dataclass, field
@@ -8,11 +9,19 @@ from typing import Callable
 
 from qiskit_serverless import QiskitFunction, ServerlessClient
 
+# the waits of Job.wait_for_final_state(), so a backoff scenario polls like a real SDK user
+from qiskit_serverless.core.job import _next_wait, _resets_backoff  # pylint: disable=protected-access
+from qiskit_serverless.utils.errors import is_transient_error
+
 from .config import Function
 from .rate_limit import RateLimiter
 from .tracer import set_context
 
 TERMINAL = {"DONE", "ERROR", "CANCELED"}
+# Every simulated user signs in with the same account, so a burst of sign-ins spends one account's IBM Cloud
+# rate limit, and some get a 503. Real users each have their own account, so the driver retries a few times.
+SIGN_IN_TRIES = 4
+SIGN_IN_WAIT_SECONDS = 2.0
 
 
 def make_client(gateway: str) -> ServerlessClient:
@@ -21,6 +30,21 @@ def make_client(gateway: str) -> ServerlessClient:
     return ServerlessClient(
         host=gateway, token=os.environ["GATEWAY_TOKEN"], instance=os.environ["GATEWAY_INSTANCE"], **kwargs
     )
+
+
+def sign_in(gateway: str, stop: threading.Event, retries: list) -> ServerlessClient:
+    """make_client, tried again on a 429 or 5xx with a random wait, each retry recorded in retries."""
+    for attempt in range(1, SIGN_IN_TRIES):
+        try:
+            return make_client(gateway)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # the client wraps the sign-in error and drops its code, so the code is on the cause
+            if not is_transient_error(exc.__cause__) or stop.is_set():
+                raise
+            retries.append((time.time(), _short(exc)[:200]))
+            # random over the whole range, so users who failed together do not retry together
+            stop.wait(random.uniform(0, SIGN_IN_WAIT_SECONDS * 2**attempt))
+    return make_client(gateway)
 
 
 def function_for_upload(function: Function, working_dir: str, title: str) -> QiskitFunction:
@@ -50,6 +74,7 @@ class UserResult:  # pylint: disable=too-many-instance-attributes
     error: str | None = None
     statuses: list = field(default_factory=list)
     poll_errors: list = field(default_factory=list)
+    sign_in_retries: list = field(default_factory=list)
 
 
 def _short(exc: Exception) -> str:
@@ -65,6 +90,7 @@ class User:  # pylint: disable=too-many-instance-attributes
     upload: QiskitFunction
     arguments: dict
     poll_seconds: float
+    backoff: bool
     timeout_seconds: float
     ready: threading.Barrier
     limiter: RateLimiter
@@ -76,7 +102,7 @@ class User:  # pylint: disable=too-many-instance-attributes
         """Sign in, upload its own copy, wait until every user has, take a token, run, poll, then get the result."""
         set_context(user=self.user)
         try:
-            client = make_client(self.gateway)
+            client = sign_in(self.gateway, self.stop, result.sign_in_retries)
             function = client.upload(self.upload)
             if function is None:
                 raise RuntimeError(f"upload of {self.upload.title} returned nothing")
@@ -106,24 +132,30 @@ class User:  # pylint: disable=too-many-instance-attributes
             result.fleet_deleted = self.delete_fleet(result.fleet_id)
 
     def _poll(self, job, result: UserResult) -> bool:
-        """Check the status every poll_seconds. True when the job ended."""
+        """Check the status every poll_seconds, or with the SDK backoff. True when the job ended.
+
+        Not wait_for_final_state() itself: it retries a 503 out of sight of the tracer, and ignores the stop event.
+        """
         last = None
+        step = 0
         deadline = time.time() + self.timeout_seconds
         while not self.stop.is_set() and time.time() < deadline:
             try:
                 status = job.status()
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 result.poll_errors.append((time.time(), _short(exc)[:200]))
-                self.stop.wait(self.poll_seconds)
-                continue
-            if status != last:
+                status = None
+            if status is not None and status != last:
                 result.statuses.append((time.time(), status))
+                if last is not None and _resets_backoff(last, status):
+                    step = 0
                 last = status
             if status in TERMINAL:
                 result.final_status = status
                 result.ended_at = time.time()
                 return True
-            self.stop.wait(self.poll_seconds)
+            self.stop.wait(_next_wait(step, None) if self.backoff else self.poll_seconds)
+            step += 1
         return False
 
     def _get_result(self, job, result: UserResult) -> None:

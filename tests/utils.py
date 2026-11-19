@@ -27,16 +27,8 @@ def wait_for_logs(job: Job, contain: str, timeout: int = 60 * 5):
 
 def wait_for_terminal_state(job: Job, timeout: int = 60 * 5):
     """Wait for a job to reach a terminal state."""
-    start = time.monotonic()
-    deadline = start + timeout
-
-    while True:
-        elapsed = time.monotonic() - start
-        if time.monotonic() > deadline:
-            print("Logs:\n" + job.logs())
-            raise TimeoutError(f"Timeout waiting for terminated state after {elapsed:.2f}s")
-
-        if job.in_terminal_state():
-            break
-
-        time.sleep(0.5)
+    try:
+        job.wait_for_final_state(timeout=timeout, poll_interval=1)
+    except TimeoutError:
+        print("Logs:\n" + job.logs())
+        raise

@@ -1,0 +1,22 @@
+---
+prelude: >
+    ``qiskit_serverless v0.38.0`` makes Fleets the default execution backend for a
+    function. A function has a ``runner``, either ``"ray"`` or ``"fleets"``, and a
+    function uploaded without an explicit ``runner`` now runs on Fleets instead of
+    Ray; functions already stored keep the runner they were created with, and an
+    upload that names ``runner`` still gets what it asks for. A Fleets function runs
+    on an IBM Cloud Code Engine project rather than a Ray cluster, so a deployment
+    that lets users upload without naming a runner must have a default Code Engine
+    project configured before upgrading. A handful of interface items apply only to
+    Fleets functions and are the ones to watch when moving a function over: a
+    function declares a ``sizes_map`` of named resource tiers with a ``default_size``,
+    and picks one per run with ``function.run(function_size="s")``;
+    ``client.compute_profiles()`` and ``client.compute_profile(...)`` discover the
+    compute profiles a ``sizes_map`` can name; and a Fleets job exposes its Code
+    Engine fleet through ``Job.fleet_id``, while the in-function helpers
+    ``get_function_size()`` and ``get_compute_profile()`` report the size a running
+    Fleets job was given. This release also adds the "bring your own wheels" workflow
+    (``add_wheels()``, ``dependency_report()`` and ``install_uploaded_wheels()``,
+    which work on either runner), deprecates the ``dependencies=`` upload argument,
+    which is now ignored, measures a job's timeout from execution start, and raises
+    the required ``qiskit-ibm-runtime`` version to ``0.51``.

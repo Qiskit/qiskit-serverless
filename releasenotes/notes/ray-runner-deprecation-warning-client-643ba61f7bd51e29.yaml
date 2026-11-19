@@ -1,0 +1,9 @@
+---
+deprecations:
+  - |
+    Running a function on the Ray runner now emits a ``DeprecationWarning``. Ray is a
+    deprecated execution platform; migrate custom functions to the Fleets runner with
+    ``QiskitFunction(..., runner="fleets")``, and ask the maintainer to migrate a provider
+    function. The deprecation text comes from the gateway, so it is surfaced on any client
+    version; when the client can see the function ran on Ray it raises the category from a
+    plain warning to ``DeprecationWarning`` so it can be filtered as one.

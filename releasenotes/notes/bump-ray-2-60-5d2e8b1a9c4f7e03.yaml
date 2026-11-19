@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The optional ``ray`` extra (``pip install qiskit-serverless[ray]``) now requires
+    ``ray>=2.60``, raised from ``2.59``. The gateway and the fleet-node selector image
+    use the same minimum.

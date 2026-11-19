@@ -1,7 +1,8 @@
 # Sysdig PromQL queries, run over the run window. Placeholders: {cluster} and {namespace}.
 # A counter has `read: last`: the driver reads it at the start and the end of the window, and keeps the end minus the start.
 # Everything else reads its peak, `read: max`.
-# Every entry was checked in staging on 2026-10-20, with release 0.37.0-351c6a2, and the db_* ones on 2026-10-22.
+# Every entry was checked in staging on 2026-10-20, with release 0.37.0-351c6a2, the db_* ones on 2026-10-22, and the
+# loop and task max and fleet_deletes on 2026-10-29, with release 0.37.0-cc7f2a8.
 namespace: qiskit-serverless
 step_seconds: 15
 metrics:
@@ -22,6 +23,13 @@ metrics:
     query: sum by (task_name) (rate(scheduler_task_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum by (task_name) (rate(scheduler_task_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
   - name: loop_duration_seconds_mean
     query: sum(rate(scheduler_loop_duration_seconds_sum{kube_cluster_name="{cluster}"}[1m])) / sum(rate(scheduler_loop_duration_seconds_count{kube_cluster_name="{cluster}"}[1m]))
+  - name: loop_duration_max  # the slowest tick of the last 120 s, which the 1 minute mean hides
+    query: max(scheduler_loop_duration_max_seconds{kube_cluster_name="{cluster}"})
+  - name: task_duration_max  # the slowest run of each task in the last 120 s
+    query: max by (task_name) (scheduler_task_duration_max_seconds{kube_cluster_name="{cluster}"})
+  - name: fleet_deletes
+    query: sum by (project, outcome) (scheduler_fleet_deletes_total{kube_cluster_name="{cluster}"})
+    read: last
   - name: queue_wait_seconds_mean
     query: sum(rate(scheduler_queue_wait_seconds_sum{kube_cluster_name="{cluster}"}[5m])) / sum(rate(scheduler_queue_wait_seconds_count{kube_cluster_name="{cluster}"}[5m]))
   - name: jobs_terminal  # only the jobs the status update ended, so a failed submit is not in FAILED

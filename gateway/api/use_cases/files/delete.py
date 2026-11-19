@@ -28,10 +28,14 @@ class FilesDeleteUseCase:
         function_title: str,
         file_name: str,
         *,
+        sub_path: str = "",
         accessible_functions: FunctionAccessResult,
     ):
         """
         Delete file from user storage.
+
+        ``sub_path`` is an optional, already-sanitized relative directory under the user's
+        public file folder (e.g. ``"wheels"``).
         """
         function = Function.objects.get_function_by_permission(
             user=user,
@@ -49,7 +53,7 @@ class FilesDeleteUseCase:
             username=user.username,
             function=function,
         )
-        result = file_storage.remove_public_file(file_name=file_name)
+        result = file_storage.remove_public_file(file_name=file_name, sub_path=sub_path)
 
         if not result:
             raise FileNotFoundException()
