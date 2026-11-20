@@ -567,6 +567,18 @@ def _job_cos_with_task_file(content: bytes | None = None, keys: list[str] | None
     return job_cos, mock_cos
 
 
+_TASKS_V2 = "ce/proj/fleet/v2/tasks/"
+_TASK_FILE_V2 = f"{_TASKS_V2}00000000-0000-0000-0000-000000000001"
+
+
+def _job_cos_with_versioned_task_files(files: dict[str, bytes]) -> tuple[JobCOS, MagicMock]:
+    """A JobCOS whose bucket holds exactly ``files`` (key -> content), listed by prefix like COS does."""
+    job_cos, mock_cos = _make_job_cos()
+    mock_cos.list_keys.side_effect = lambda bucket, prefix: [key for key in files if key.startswith(prefix)]
+    mock_cos.get_object_bytes.side_effect = lambda bucket, key: files[key]
+    return job_cos, mock_cos
+
+
 class TestGetTaskTimes:
     """JobCOS.get_task_times() reads the task file of a fleet."""
 
@@ -601,6 +613,52 @@ class TestGetTaskTimes:
 
         assert self._times(job_cos) == TaskTimes()
         mock_cos.get_object_bytes.assert_not_called()
+
+    def test_a_fleet_created_under_v2_is_read_from_v2(self):
+        """Code Engine still creates v2 fleets by default, so the task file is not under v3."""
+        job_cos, mock_cos = _job_cos_with_versioned_task_files({_TASK_FILE_V2: _task_file()})
+
+        assert self._times(job_cos) == TaskTimes(
+            datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc)
+        )
+        assert [call.kwargs["prefix"] for call in mock_cos.list_keys.call_args_list] == [_TASKS, _TASKS_V2]
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE_V2)
+
+    def test_a_fleet_created_under_v3_does_not_probe_v2(self):
+        job_cos, mock_cos = _job_cos_with_versioned_task_files({_TASK_FILE: _task_file()})
+
+        assert self._times(job_cos).started_at is not None
+        mock_cos.list_keys.assert_called_once_with(bucket="bucket", prefix=_TASKS)
+
+    def test_v3_wins_when_both_versions_hold_a_task_file(self):
+        v3_file = _task_file(started_at="2026-03-01T00:00:00Z")
+        v2_file = _task_file(started_at="2026-02-01T00:00:00Z")
+        job_cos, mock_cos = _job_cos_with_versioned_task_files({_TASK_FILE: v3_file, _TASK_FILE_V2: v2_file})
+
+        assert self._times(job_cos).started_at == datetime(2026, 3, 1, tzinfo=timezone.utc)
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE)
+
+    def test_a_directory_marker_under_v3_does_not_hide_the_v2_file(self):
+        job_cos, mock_cos = _job_cos_with_versioned_task_files({_TASKS: b"", _TASK_FILE_V2: _task_file()})
+
+        assert self._times(job_cos).started_at is not None
+        mock_cos.get_object_bytes.assert_called_once_with(bucket="bucket", key=_TASK_FILE_V2)
+
+    def test_no_task_file_under_any_version_gives_no_times_and_reads_nothing(self):
+        job_cos, mock_cos = _job_cos_with_versioned_task_files({})
+
+        assert self._times(job_cos) == TaskTimes()
+        assert mock_cos.list_keys.call_count == len(TASK_STORE_VERSIONS)
+        mock_cos.get_object_bytes.assert_not_called()
+
+    def test_a_failing_listing_is_not_retried_under_the_next_version(self):
+        job_cos, mock_cos = _job_cos_with_versioned_task_files({})
+        mock_cos.list_keys.side_effect = RuntimeError("COS down")
+
+        with pytest.raises(RuntimeError, match="COS down"):
+            self._times(job_cos)
+
+        mock_cos.list_keys.assert_called_once()
 
     def test_the_times_of_the_worker_are_not_read(self):
         job_cos, _ = _job_cos_with_task_file(_task_file(started_at="null", finished_at="null"))

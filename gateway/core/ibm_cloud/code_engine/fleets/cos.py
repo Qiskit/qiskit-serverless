@@ -36,7 +36,8 @@ _UNSET_TIME = datetime.fromtimestamp(0, timezone.utc)
 # reader pays one empty v3 listing per poll before v2 answers. That doubles the listing
 # cost per running job for the transition, and it disappears on its own once Code Engine
 # switches to v3, because the first probe then answers. Memoizing the version per fleet
-# would remove it sooner at the price of process-wide mutable state.
+# would remove it sooner at the price of process-wide mutable state. The task file
+# (``get_task_times``) is looked up the same way, but only when a job changes status.
 TASK_STORE_VERSIONS = ("v3", "v2")
 
 
@@ -252,23 +253,27 @@ class JobCOS:
         """When Code Engine says the task of a fleet started and finished, from its task file, which unlike the keys
         under ``queue/`` stays after the task ends. A job runs a single task, so there is a single task file.
 
+        The file is looked up under each of ``TASK_STORE_VERSIONS``, newest first, because a fleet writes it under the
+        version it was created with. The first version that holds a task file answers.
+
         Args:
             bucket_name: COS bucket of the task store.
             project_id: The CE project UUID.
             fleet_id: The fleet UUID.
 
         Returns:
-            The times found, each ``None`` while unknown. ``TaskTimes()`` when there is no task file yet.
+            The times found, each ``None`` while unknown. ``TaskTimes()`` when no version has a task file yet.
 
         Raises:
             ValueError: If project_id or fleet_id is missing.
         """
-        keys = self.list_keys(bucket_name=bucket_name, prefix=tasks_prefix(project_id, fleet_id))
-        # A key ending in "/" is a directory marker, not a task file
-        key = next((key for key in keys if not key.endswith("/")), None)
-        if key is None:
-            return TaskTimes()
-        return _parse_task_times(self.get_object_bytes(bucket_name=bucket_name, key=key), key)
+        for version in TASK_STORE_VERSIONS:
+            keys = self.list_keys(bucket_name=bucket_name, prefix=tasks_prefix(project_id, fleet_id, version))
+            # A key ending in "/" is a directory marker, not a task file
+            key = next((key for key in keys if not key.endswith("/")), None)
+            if key is not None:
+                return _parse_task_times(self.get_object_bytes(bucket_name=bucket_name, key=key), key)
+        return TaskTimes()
 
     def get_object_bytes(self, *, bucket_name: str, key: str) -> bytes:
         """Retrieve an object fully into memory.
