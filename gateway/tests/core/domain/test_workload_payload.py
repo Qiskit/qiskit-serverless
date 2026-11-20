@@ -1,5 +1,6 @@
 """Tests for the workload payload builder. It reads the job's events, so it needs the database."""
 
+from datetime import datetime, timedelta, timezone
 import json
 import pytest
 from django.contrib.auth.models import User
@@ -217,3 +218,28 @@ def test_a_job_without_program_is_not_mirrored_by_a_list():
     Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "qctrl,custom")
 
     assert mirror_enabled_for(Job()) is False
+
+
+def test_running_at_and_ended_at_are_the_event_times_when_the_events_have_them():
+    job = _simple_job(Job.SUCCEEDED)
+    started = datetime.now(timezone.utc) - timedelta(minutes=5)
+    ended = started + timedelta(minutes=1)
+    JobEvent.objects.add_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=JobEventContext.UPDATE_JOB_STATUS,
+        status=Job.RUNNING,
+        event_time=started,
+    )
+    JobEvent.objects.add_status_event(
+        job_id=job.id,
+        origin=JobEventOrigin.SCHEDULER,
+        context=JobEventContext.UPDATE_JOB_STATUS,
+        status=Job.SUCCEEDED,
+        event_time=ended,
+    )
+
+    body = build_workload_payload(job)["body"]
+
+    assert body["running_at"] == started.isoformat()
+    assert body["ended_at"] == ended.isoformat()

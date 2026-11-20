@@ -15,6 +15,7 @@
 import io
 import tarfile
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,6 +28,7 @@ from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
 from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
+from core.ibm_cloud.code_engine.fleets.cos import TaskTimes
 from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
@@ -1409,6 +1411,51 @@ def test_upload_custom_image_entrypoint_keeps_dotdot_prefixed_name():
     assert f"{paths.cos_user_function_prefix}/..config" in uploaded_keys
     assert f"{paths.cos_user_function_prefix}/main.py" in uploaded_keys
     mock_logger.warning.assert_not_called()
+
+
+class TestTaskTimes:
+    """get_task_times() asks the COS of the job for the times of its task, and never raises. How the task file is read
+    is tested in test_job_cos_unit.py."""
+
+    _TIMES = TaskTimes(
+        datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc), datetime(2026, 1, 2, 3, 6, 7, tzinfo=timezone.utc)
+    )
+
+    @staticmethod
+    def _runner():
+        runner, _ = _make_runner(fleet_id="fleet-123")
+        return runner
+
+    def test_it_asks_for_the_task_of_the_fleet_in_the_task_store_bucket(self):
+        runner = self._runner()
+        runner._cos.get_task_times.return_value = self._TIMES  # pylint: disable=protected-access
+
+        assert runner.get_task_times() == self._TIMES
+        runner._cos.get_task_times.assert_called_once_with(  # pylint: disable=protected-access
+            bucket_name="task-store-bucket", project_id="test-project-id", fleet_id="fleet-123"
+        )
+
+    def test_an_error_gives_no_times_instead_of_raising(self, caplog):
+        runner = self._runner()
+        runner._cos.get_task_times.side_effect = RuntimeError("boom")  # pylint: disable=protected-access
+
+        assert runner.get_task_times() == TaskTimes()
+        assert "Could not read the task times" in caplog.text
+
+    def test_a_cos_error_gives_no_times_instead_of_raising(self):
+        runner = self._runner()
+        runner._cos.get_task_times.side_effect = ClientError(  # pylint: disable=protected-access
+            {"Error": {"Code": "AccessDenied"}}, "ListObjectsV2"
+        )
+
+        assert runner.get_task_times() == TaskTimes()
+
+    def test_a_missing_fleet_gives_no_times(self):
+        """JobCOS refuses to look without it, and that is not an error for the caller."""
+        runner = self._runner()
+        runner._cos.get_task_times.side_effect = ValueError("fleet_id is required.")  # pylint: disable=protected-access
+
+        assert runner.get_task_times() == TaskTimes()
 
 
 @pytest.mark.django_db

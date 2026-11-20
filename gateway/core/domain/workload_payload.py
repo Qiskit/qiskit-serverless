@@ -63,11 +63,11 @@ def is_mirrored(job: Job) -> bool:
 
 def build_workload_payload(job: Job) -> dict:
     """Build the envelope for ``job`` from its current state and its event history. ``running_at`` and ``ended_at``
-    are the times of the first RUNNING and the first terminal status events; ``ended_at`` is only looked up while the
-    job is terminal, and stays None if a terminal job has no terminal event. Raises ValueError if the job has no
-    ``instance_crn``, because the Runtime API needs it to choose the region and to know whose job it is, or if it has
-    no program (``Job.program`` is ``SET_NULL``, so deleting the program leaves the job without one). A status without
-    a mapping raises KeyError."""
+    are the time of the first RUNNING and terminal status events (``event_time``, or else when they were written);
+    ``ended_at`` is only looked up while the job is terminal, and stays None if a terminal job has no terminal event.
+    Raises ValueError if the job has no ``instance_crn``, because the Runtime API needs it to choose the
+    region and to know whose job it is, or if it has no program (``Job.program`` is ``SET_NULL``, so deleting the
+    program leaves the job without one). A status without a mapping raises KeyError."""
     if not job.instance_crn:
         raise ValueError(f"Job {job.id} has no instance_crn")
     if job.program is None:

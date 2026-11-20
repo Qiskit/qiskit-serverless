@@ -1,0 +1,18 @@
+---
+fixes:
+  - |
+    The start and the end of a Fleets job on IBM Cloud Code Engine now come from the task file that Code Engine keeps
+    in the task store bucket (``startedAt`` and ``finishedAt``, under ``v3`` or ``v2``), and no longer from the moment
+    the scheduler noticed them. They are stored in the new ``JobEvent.event_time`` of the ``RUNNING`` and of the
+    terminal status events, which billing, the Runtime API, the job execution duration metric and the job execution
+    timeout read. ``JobEvent.created`` is unchanged, so the job timeline does not change.
+    When Code Engine has no time for an event, or the task file cannot be read, the event counts at the time it was
+    written, as before. That is also the case for a job that the scheduler ends itself, such as a timeout or a stop
+    that was not confirmed, so its duration can then mix both clocks.
+    A job that goes from pending to finished between two scans of the scheduler is still not seen as ``RUNNING``: it
+    gets the end time from Code Engine but no start, and is billed as before.
+upgrade:
+  - |
+    This adds a database migration that only adds the nullable column ``event_time`` to ``JobEvent`` and needs no
+    downtime. Existing events have no ``event_time`` and keep counting at their ``created`` time.
+    The gateway now declares ``PyYAML`` as a requirement, which it uses to read the task file.
