@@ -156,6 +156,27 @@ class TestJobApi:
         assert re.search(r"/api/v1/jobs/\?limit=2&offset=2$", jobs_response.data.get("next"))
         assert jobs_response.data.get("previous") is None
 
+    def test_job_list_pagination_links_keep_filters(self):
+        """Tests the next and previous links of a filtered job list return the same filtered list."""
+        self._authorize("test_user")
+
+        first_page = self.client.get(reverse("v1:jobs-list"), {"filter": "serverless", "limit": 1}, format="json")
+        assert first_page.status_code == status.HTTP_200_OK
+        assert first_page.data.get("count") == 3
+
+        second_page = self.client.get(first_page.data.get("next"), format="json")
+        assert second_page.status_code == status.HTTP_200_OK
+        assert second_page.data.get("count") == 3
+
+        expected = self.client.get(
+            reverse("v1:jobs-list"), {"filter": "serverless", "limit": 1, "offset": 1}, format="json"
+        )
+        assert second_page.data.get("results") == expected.data.get("results")
+
+        back_page = self.client.get(second_page.data.get("previous"), format="json")
+        assert back_page.status_code == status.HTTP_200_OK
+        assert back_page.data.get("results") == first_page.data.get("results")
+
     def test_job_provider_list_wrong_params(self):
         """Tests job provider list wrong params."""
         self._authorize("test_user")
@@ -278,8 +299,14 @@ class TestJobApi:
         assert jobs_response.status_code == status.HTTP_200_OK
         assert len(jobs_response.data.get("results")) == 1
         assert jobs_response.data.get("next") is None
+
+        previous_page = self.client.get(jobs_response.data.get("previous"), format="json")
+        assert previous_page.status_code == status.HTTP_200_OK
+        assert previous_page.data.get("count") == 2
+        assert len(previous_page.data.get("results")) == 1
+
         assert re.search(
-            r"/api/v1/jobs/provider/\?limit=1&offset=0$",
+            r"/api/v1/jobs/provider/\?function=Docker-Image-Program&limit=1&offset=0&provider=default$",
             jobs_response.data.get("previous"),
         )
 

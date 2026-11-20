@@ -2,12 +2,12 @@
 utilities for API.
 """
 
-from urllib.parse import urlencode
 from typing import List, Optional, Any, TypedDict
 
 import magic
 
 from rest_framework.exceptions import ValidationError
+from rest_framework.utils.urls import replace_query_param
 from django.core.files import File
 
 from core.config_key import ConfigKey
@@ -62,17 +62,17 @@ def create_paginated_response(
         return response_data
 
     offset = offset or 0
-    base_url = request.build_absolute_uri(request.path)
+    # Keep the other query parameters (filters such as status, function or provider) so the
+    # links return the next and previous pages of the same list.
+    url = replace_query_param(request.build_absolute_uri(), "limit", limit)
 
     # Calculate next URL
     if offset + limit < total_count:
-        next_params = {"limit": limit, "offset": offset + limit}
-        response_data["next"] = f"{base_url}?{urlencode(next_params)}"
+        response_data["next"] = replace_query_param(url, "offset", offset + limit)
 
     # Calculate previous URL
     if offset > 0:
-        prev_params = {"limit": limit, "offset": max(0, offset - limit)}
-        response_data["previous"] = f"{base_url}?{urlencode(prev_params)}"
+        response_data["previous"] = replace_query_param(url, "offset", max(0, offset - limit))
 
     return response_data
 
