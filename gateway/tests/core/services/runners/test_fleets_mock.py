@@ -19,9 +19,9 @@ under a patched environment rather than at module scope.
 
 import importlib
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
-from core.ibm_cloud.code_engine.fleets.cos import queue_prefix
+from core.ibm_cloud.code_engine.fleets.cos import TASK_STORE_VERSIONS, queue_prefix
 
 _MOCK_ENV = {
     "MINIO_ENDPOINT": "http://minio:9000",
@@ -62,10 +62,35 @@ def test_mock_cancel_job_reports_the_cancel_as_delivered():
         result = fleets_mock._mock_cancel_job(handler, "fleet-123")  # pylint: disable=protected-access
 
     assert result is True
-    # It still has to write the key the worker and status() read, or the stack stops converging.
-    prefix = queue_prefix("test-project-id", "fleet-123")
-    s3.put_object.assert_called_once_with(
-        Bucket="task-store-bucket",
-        Key=f"{prefix}canceled/0/fleet-123-0/canceled",
-        Body=b"",
-    )
+    # It still has to write the key the worker and status() read, or the stack stops converging. The worker watches
+    # the one version it is configured with, which the mock does not know, so the key goes under each version.
+    assert s3.put_object.call_args_list == [
+        call(
+            Bucket="task-store-bucket",
+            Key=f"{queue_prefix('test-project-id', 'fleet-123', version)}canceled/0/fleet-123-0/canceled",
+            Body=b"",
+        )
+        for version in TASK_STORE_VERSIONS
+    ]
+
+
+def test_mock_get_job_status_reads_a_fleet_whose_worker_writes_under_v2():
+    """The worker can be set to write under v2, as Code Engine still does by default. The status must follow it,
+    or a job of such a fleet would look pending forever on the local stack."""
+    fleets_mock = _load_fleets_mock()
+
+    handler = MagicMock()
+    handler.project_id = "test-project-id"
+    v2_prefix = queue_prefix("test-project-id", "fleet-123", "v2")
+    s3 = MagicMock()
+    s3.list_objects_v2.side_effect = lambda Bucket, Prefix: {
+        "Contents": [{"Key": f"{v2_prefix}succeeded/0/fleet-123-0/succeeded"}] if Prefix == v2_prefix else []
+    }
+
+    with (
+        patch.object(fleets_mock, "_get_mock_s3", return_value=s3),
+        patch.object(fleets_mock, "_task_store_bucket", return_value="task-store-bucket"),
+    ):
+        fleet = fleets_mock._mock_get_job_status(handler, "fleet-123")  # pylint: disable=protected-access
+
+    assert fleet["status"] == "successful"

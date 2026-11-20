@@ -35,6 +35,10 @@ logger = logging.getLogger(__name__)
 FLEET_STATE_BUCKET = os.environ["FLEET_STATE_BUCKET"]
 # Must match CE_PROJECTS.cos_bucket_task_store_name in docker-compose-fleets-test.yaml
 TASK_STORE_BUCKET = os.environ["TASK_STORE_BUCKET"]
+# Task-store schema version this worker writes under, "v3" or "v2". Code Engine still creates v2 fleets by default, so
+# set it to "v2" to exercise a gateway reading a fleet created that way. Must be one of the gateway's
+# TASK_STORE_VERSIONS (fleets/cos.py).
+TASK_STORE_VERSION = os.environ.get("TASK_STORE_VERSION", "v3")
 
 
 class FleetWorker:  # pylint: disable=too-few-public-methods
@@ -331,10 +335,11 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
     def _queue_prefix(project_id: str, fleet_id: str) -> str:
         """Build the COS task-state queue key prefix for a fleet.
 
-        Single source for the ``ce/{project}/{fleet}/v3/queue/`` layout so the
+        Single source for the ``ce/{project}/{fleet}/{version}/queue/`` layout so the
         cancel reader and the status writer cannot drift apart. Must stay in
-        sync with the gateway's TASK_STORE_VERSIONS[0] (fleets/cos.py); the
-        gateway reads v2 as well, but the harness only ever writes the newest.
+        sync with the gateway's ``queue_prefix`` (fleets/cos.py). It writes
+        under ``TASK_STORE_VERSION``, v3 unless set otherwise, and the gateway
+        reads both versions.
 
         Args:
             project_id: The CE project UUID.
@@ -343,7 +348,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         Returns:
             The queue key prefix, ending in a trailing slash.
         """
-        return f"ce/{project_id}/{fleet_id}/v3/queue/"
+        return f"ce/{project_id}/{fleet_id}/{TASK_STORE_VERSION}/queue/"
 
     @staticmethod
     def _tasks_prefix(project_id: str, fleet_id: str) -> str:
@@ -358,7 +363,7 @@ class FleetWorker:  # pylint: disable=too-few-public-methods
         Returns:
             The tasks key prefix, ending in a trailing slash.
         """
-        return f"ce/{project_id}/{fleet_id}/v3/tasks/"
+        return f"ce/{project_id}/{fleet_id}/{TASK_STORE_VERSION}/tasks/"
 
     @staticmethod
     def _now() -> str:

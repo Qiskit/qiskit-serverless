@@ -168,6 +168,9 @@ services:
       - USER_DATA_BUCKET=user-data-bucket
       - PROVIDER_DATA_BUCKET=provider-data-bucket
       - FLEET_WORKER_STARTUP_DELAY_SEC=2
+      # Schema version the worker writes the task state under. Code Engine still creates v2 fleets by default;
+      # run with TASK_STORE_VERSION=v2 to test a gateway reading one.
+      - TASK_STORE_VERSION=${TASK_STORE_VERSION:-v3}
     networks:
       - safe-tier
     depends_on:

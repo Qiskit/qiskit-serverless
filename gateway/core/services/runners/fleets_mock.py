@@ -35,7 +35,7 @@ from ibm_botocore.exceptions import BotoCoreError, ClientError as BotoClientErro
 
 from core.ibm_cloud.clients import IBMCloudClientProvider
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.cos import JobCOS, queue_prefix, task_state_from_key
+from core.ibm_cloud.code_engine.fleets.cos import TASK_STORE_VERSIONS, JobCOS, queue_prefix, task_state_from_key
 from core.ibm_cloud.cos.cos_client import COSClient, CosHmacCredentials
 from core.models import CodeEngineProject, Job
 
@@ -260,7 +260,6 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
         raise ApiException(status=502, reason=f"COS connectivity error checking fleet existence: {exc}") from exc
 
     bucket = _task_store_bucket(self.project_id)
-    prefix = queue_prefix(self.project_id, fleet_id)
 
     # Task states the worker writes, mapped to the CE API status strings this
     # endpoint reports (the API says "successful" where the queue says
@@ -277,11 +276,14 @@ def _mock_get_job_status(self, identifier):  # pylint: disable=unused-argument
     }
     status = "pending"
     try:
-        resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        states = {task_state_from_key(prefix, obj["Key"]) for obj in resp.get("Contents", [])}
-        for state, mapped in state_to_api_status.items():
-            if state in states:
-                status = mapped
+        # The worker writes under the version it is configured with (TASK_STORE_VERSION), so look under each one
+        for version in TASK_STORE_VERSIONS:
+            prefix = queue_prefix(self.project_id, fleet_id, version)
+            resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+            states = {task_state_from_key(prefix, obj["Key"]) for obj in resp.get("Contents", [])}
+            found = next((mapped for state, mapped in state_to_api_status.items() if state in states), None)
+            if found:
+                status = found
                 break
     except BotoClientError:
         pass
@@ -335,8 +337,11 @@ def _mock_cancel_job(self, identifier, **kwargs):  # pylint: disable=unused-argu
     # Resolve the job's own project bucket (like _mock_get_job_status), not the
     # first active project, so cancel writes where status() reads.
     bucket = _task_store_bucket(self.project_id)
-    cancel_key = f"{queue_prefix(self.project_id, identifier)}canceled/0/{identifier}-0/canceled"
-    s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
+    # The worker only watches the version it writes under (TASK_STORE_VERSION), which the mock does not know, so the
+    # cancel key goes under each version
+    for version in TASK_STORE_VERSIONS:
+        cancel_key = f"{queue_prefix(self.project_id, identifier, version)}canceled/0/{identifier}-0/canceled"
+        s3.put_object(Bucket=bucket, Key=cancel_key, Body=b"")
     return True
 
 
