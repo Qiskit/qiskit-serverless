@@ -253,15 +253,15 @@ class FleetsJobCanceller:
         """Whether Code Engine in this region is paused."""
         return self.breakers.code_engine.paused(region)
 
-    def cancel(self, job: Job, *, context: JobEventContext, extra_event: dict | None = None) -> bool:
+    def cancel(self, job: Job, *, context: JobEventContext, status_data: dict | None = None) -> bool:
         """Cancel a job's fleet and record STOPPING. ``False`` when there is nothing to cancel.
 
         One try per tick: a cancel that did not land writes nothing, and a later tick asks again.
         The breaker only learns from a call that reached Code Engine.
 
         Args:
-            extra_event: Forwarded to ``JobTransitionService.stop``, written in the same transaction
-                as the status change.
+            status_data: Forwarded to ``JobTransitionService.stop``, merged into the status event's
+                ``data`` in the same transaction as the status change.
 
         Raises:
             RunnerRetryableError: While the region's breaker is open, or when the cancel did not land.
@@ -279,7 +279,7 @@ class FleetsJobCanceller:
             raise RunnerRetryableError(f"Fleets cancels in region {job.ce_region} are paused by the circuit breaker")
         try:
             written = self.transitions.stop(
-                job, origin=JobEventOrigin.SCHEDULER, context=context, extra_event=extra_event
+                job, origin=JobEventOrigin.SCHEDULER, context=context, status_data=status_data
             )
         except FleetAppearedError:
             # Code Engine answered, the row changed under us. Not a region failure.

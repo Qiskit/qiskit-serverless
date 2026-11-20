@@ -34,7 +34,7 @@ from qiskit_serverless.core.constants import (
 )
 from qiskit_serverless.core.job import (
     BLOCKED_RESOURCE_ERROR_CODE,
-    PROGRAM_TIMEOUT_ERROR_CODE,
+    PROGRAM_TIMEOUT_STOP_CONTEXT,
     Job,
     is_running_in_serverless,
     save_result,
@@ -410,20 +410,36 @@ class TestJobResult:
         assert expected_error_msg == job.error_message()
 
     @staticmethod
-    def _cancelled_job(*error_codes):
+    def _cancelled_job(*error_codes, timeout_stop=False):
         mock_service = Mock()
         mock_service.status.return_value = "CANCELED"
         mock_service.result.return_value = '{"partial": 1}'
-        mock_service.events.return_value = [
-            JobEvent(
-                event_type="ERROR",
-                origin="SCHEDULER",
-                context="Mock",
-                created="",
-                data={"message": f"message for {code}", "exception": "Error", "code": code},
-            )
-            for code in error_codes
-        ]
+
+        def _events(_job_id, **kwargs):
+            if kwargs.get("type") == "STATUS_CHANGE":
+                if timeout_stop and kwargs.get("context") == PROGRAM_TIMEOUT_STOP_CONTEXT:
+                    return [
+                        JobEvent(
+                            event_type="STATUS_CHANGE",
+                            origin="SCHEDULER",
+                            context=PROGRAM_TIMEOUT_STOP_CONTEXT,
+                            created="",
+                            data={"status": "STOPPED", "timeout_hours": 24},
+                        )
+                    ]
+                return []
+            return [
+                JobEvent(
+                    event_type="ERROR",
+                    origin="SCHEDULER",
+                    context="Mock",
+                    created="",
+                    data={"message": f"message for {code}", "exception": "Error", "code": code},
+                )
+                for code in error_codes
+            ]
+
+        mock_service.events.side_effect = _events
         return Job(job_id="test-job", job_service=mock_service), mock_service
 
     def test_the_blocked_resource_code_is_the_one_the_gateway_writes(self):
@@ -435,18 +451,16 @@ class TestJobResult:
         with pytest.raises(QiskitServerlessException, match=f"message for {BLOCKED_RESOURCE_ERROR_CODE}"):
             job.result(wait=False)
 
-        mock_service.events.assert_called_once_with("test-job", type="ERROR")
+        mock_service.events.assert_any_call("test-job", type="ERROR")
         mock_service.result.assert_not_called()
 
-    def test_the_program_timeout_code_is_the_one_the_gateway_writes(self):
-        assert PROGRAM_TIMEOUT_ERROR_CODE == "PROGRAM_TIMEOUT"
-
     def test_result_raises_for_a_job_stopped_by_the_program_timeout(self):
-        job, mock_service = self._cancelled_job(PROGRAM_TIMEOUT_ERROR_CODE)
+        job, mock_service = self._cancelled_job(timeout_stop=True)
 
-        with pytest.raises(QiskitServerlessException, match=f"message for {PROGRAM_TIMEOUT_ERROR_CODE}"):
+        with pytest.raises(QiskitServerlessException, match="program timeout"):
             job.result(wait=False)
 
+        mock_service.events.assert_any_call("test-job", type="STATUS_CHANGE", context=PROGRAM_TIMEOUT_STOP_CONTEXT)
         mock_service.result.assert_not_called()
 
     @pytest.mark.parametrize("error_codes", [(), ("FLEET_LEFT_RUNNING",)])

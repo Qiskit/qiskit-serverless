@@ -85,6 +85,24 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
     return result
 
 
+def format_timeout_event(event: JobEvent) -> str:
+    """Formats the STATUS_CHANGE event a job stopped by the program timeout carries.
+
+    Args:
+        event: the STATUS_CHANGE event tagged with the PROGRAM_TIMEOUT_STOP context
+
+    Returns:
+        formatted string
+    """
+    hours = event.data.get("timeout_hours")
+    result = "\n| Message: This job was stopped because it ran for longer than the program timeout"
+    if hours is not None:
+        result += f" of {hours} hours"
+    result += ", so its result may be missing or incomplete."
+    result += "\n| Code: PROGRAM_TIMEOUT"
+    return result
+
+
 def format_err_event(error_event: JobEvent) -> str:
     """Formats error event.
 

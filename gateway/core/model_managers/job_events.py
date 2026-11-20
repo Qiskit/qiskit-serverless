@@ -73,8 +73,14 @@ class JobEventQuerySet(QuerySet):
         origin: JobEventOrigin,
         context: JobEventContext,
         status: str,
+        extra_data: dict | None = None,
     ):
-        """Status change event for jobs."""
+        """Status change event for jobs.
+
+        Args:
+            extra_data: Merged into the event's ``data`` alongside ``status``, for a context that
+                needs to carry more than the status itself (like the hours of a PROGRAM_TIMEOUT_STOP).
+        """
 
         logger.info(
             "[add_status_event] job_id=%s | Set status to %s | %s %s %s",
@@ -90,7 +96,7 @@ class JobEventQuerySet(QuerySet):
             origin=origin,
             context=context,
             event_type=JobEventType.STATUS_CHANGE,
-            data={"status": status},
+            data={"status": status, **(extra_data or {})},
         )
 
     def running_status_events(self) -> Self:
@@ -179,6 +185,7 @@ class JobEventQuerySet(QuerySet):
         self,
         job_id: uuid.UUID,
         event_type: str | None,
+        context: str | None = None,
     ):
         """
         Get all events of the type `event_type` for jobs.
@@ -186,6 +193,7 @@ class JobEventQuerySet(QuerySet):
         Args:
             job_id (str): Unique identifier of the job.
             event_type (str): The event type to filter.
+            context (str): The event context to filter.
         """
 
         events = self.filter(
@@ -193,5 +201,7 @@ class JobEventQuerySet(QuerySet):
         )
         if event_type:
             events = events.filter(event_type=event_type)
+        if context:
+            events = events.filter(context=context)
 
         return events

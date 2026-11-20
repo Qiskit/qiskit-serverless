@@ -31,7 +31,7 @@ def _make_transitions():
     def _to_terminal(job, status, *, origin, context, job_fields=None):  # pylint: disable=unused-argument
         job.update_fields({"status": status, **(job_fields or {})})
 
-    def _try_stop(job, *, origin, context, extra_event=None):  # pylint: disable=unused-argument
+    def _try_stop(job, *, origin, context, status_data=None):  # pylint: disable=unused-argument
         job.update_fields({"status": Job.STOPPING})
         return True
 
@@ -45,8 +45,8 @@ def _make_canceller(transitions):
     """A canceller with a closed breaker that calls straight through to try_stop."""
     canceller = MagicMock()
     canceller.paused.return_value = False
-    canceller.cancel.side_effect = lambda job, *, context, extra_event=None: transitions.try_stop(
-        job, origin=JobEventOrigin.SCHEDULER, context=context, extra_event=extra_event
+    canceller.cancel.side_effect = lambda job, *, context, status_data=None: transitions.try_stop(
+        job, origin=JobEventOrigin.SCHEDULER, context=context, status_data=status_data
     )
     return canceller
 
@@ -408,10 +408,10 @@ class TestStopJobIfTimeout:
         task.transitions.try_stop.assert_called_once()
         assert job.status == Job.STOPPING
 
-    def test_a_timed_out_job_gets_a_program_timeout_error_event(self):
-        """The client reads this event to raise on result(), since the job ends as STOPPED. It rides in
-        the same transaction as the status change (extra_event), tagged with PROGRAM_TIMEOUT_STOP so the
-        status change itself can be told apart from a plain poller STOPPED."""
+    def test_a_timed_out_job_tags_its_status_event_with_the_timeout_hours(self):
+        """The client reads this STATUS_CHANGE event's context and data to raise on result(), since the
+        job ends as STOPPED. PROGRAM_TIMEOUT_STOP tells the status change apart from a plain poller
+        STOPPED, and timeout_hours rides on that same event instead of a separate one."""
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=100)
@@ -425,11 +425,9 @@ class TestStopJobIfTimeout:
 
         call = task.canceller.cancel.call_args
         assert call.kwargs["context"] == JobEventContext.PROGRAM_TIMEOUT_STOP
-        extra_event = call.kwargs["extra_event"]
-        assert extra_event["data"]["code"] == "PROGRAM_TIMEOUT"
-        assert "1 hours" in extra_event["data"]["message"]
+        assert call.kwargs["status_data"] == {"timeout_hours": 1}
 
-    def test_no_error_event_when_the_cancel_does_not_land(self):
+    def test_no_status_change_when_the_cancel_does_not_land(self):
         task = _make_task()
         job = _make_fleets_job(status=Job.RUNNING)
         job.first_running_at = datetime.now(timezone.utc) - timedelta(hours=100)

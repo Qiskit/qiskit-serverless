@@ -59,7 +59,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
-from qiskit_serverless.utils.errors import JobEvent, format_err_event, is_transient_error
+from qiskit_serverless.utils.errors import JobEvent, format_err_event, format_timeout_event, is_transient_error
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 from qiskit_serverless.utils import ServerlessRuntimeService
@@ -69,9 +69,9 @@ logger = logging.getLogger(__name__)
 _FINAL_STATUSES = ("CANCELED", "DONE", "ERROR")
 # The code the gateway writes on a job it cancelled because its account, plan or subscription is blocked
 BLOCKED_RESOURCE_ERROR_CODE = "BLOCKED_RESOURCE"
-# The code the gateway writes on a job it stopped because it ran longer than the program timeout
-PROGRAM_TIMEOUT_ERROR_CODE = "PROGRAM_TIMEOUT"
-_STOP_ERROR_CODES = (BLOCKED_RESOURCE_ERROR_CODE, PROGRAM_TIMEOUT_ERROR_CODE)
+# The context the gateway tags the STATUS_CHANGE event with on a job it stopped for outliving the
+# program timeout. The timeout hours are in that event's data, under "timeout_hours".
+PROGRAM_TIMEOUT_STOP_CONTEXT = "PROGRAM_TIMEOUT_STOP"
 _BACKOFF_SECONDS = (1, 2, 4, 8, 16, 32, 60)
 _BACKOFF_JITTER = 0.1
 _RETRY_SECONDS = 300
@@ -308,8 +308,11 @@ class Job:
 
         if self.status() == "CANCELED":
             for event in self.events(type="ERROR"):
-                if event.data.get("code") in _STOP_ERROR_CODES:
+                if event.data.get("code") == BLOCKED_RESOURCE_ERROR_CODE:
                     raise QiskitServerlessException(format_err_event(event))
+
+            for event in self.events(type="STATUS_CHANGE", context=PROGRAM_TIMEOUT_STOP_CONTEXT):
+                raise QiskitServerlessException(format_timeout_event(event))
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._job_service.result(self.job_id)

@@ -700,23 +700,23 @@ class TestStop:
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
 
-    def test_extra_event_is_written_alongside_stopping(self, get_runner, service, user):
-        """A caller that owes an explanatory event, like the PROGRAM_TIMEOUT error, gets it with the
-        cancel in flight, tagged with the same context as the status change."""
+    def test_status_data_is_merged_into_the_stopping_event(self, get_runner, service, user):
+        """A caller that owes an explanation, like the timeout hours, gets it on the same STATUS_CHANGE
+        event as the cancel in flight, instead of a second event."""
         job = _licensed_fleets_job(user, Job.RUNNING)
 
         service.stop(
             job,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.PROGRAM_TIMEOUT_STOP,
-            extra_event={"event_type": JobEventType.ERROR, "data": {"code": "PROGRAM_TIMEOUT"}},
+            status_data={"timeout_hours": 24},
         )
 
-        error_event = JobEvent.objects.get(job=job, event_type=JobEventType.ERROR)
-        assert error_event.context == JobEventContext.PROGRAM_TIMEOUT_STOP
-        assert error_event.data["code"] == "PROGRAM_TIMEOUT"
+        event = JobEvent.objects.get(job=job, event_type=JobEventType.STATUS_CHANGE)
+        assert event.context == JobEventContext.PROGRAM_TIMEOUT_STOP
+        assert event.data == {"status": Job.STOPPING, "timeout_hours": 24}
 
-    def test_extra_event_is_written_alongside_stopped_outright(self, get_runner, service, user):
+    def test_status_data_is_merged_into_the_stopped_event_outright(self, get_runner, service, user):
         """Same as above, for the no-fleet-to-cancel branch that writes STOPPED directly."""
         job = _licensed_fleets_job(user, Job.QUEUED, fleet_id=None)
 
@@ -724,34 +724,11 @@ class TestStop:
             job,
             origin=JobEventOrigin.SCHEDULER,
             context=JobEventContext.PROGRAM_TIMEOUT_STOP,
-            extra_event={"event_type": JobEventType.ERROR, "data": {"code": "PROGRAM_TIMEOUT"}},
+            status_data={"timeout_hours": 24},
         )
 
-        assert JobEvent.objects.filter(job=job, event_type=JobEventType.ERROR).count() == 1
-
-    def test_extra_event_failure_rolls_back_the_status_change(self, get_runner, service, user, monkeypatch):
-        """The status change and its explanatory event are one transaction: a failure writing the
-        second must not leave the job STOPPING with no event to explain why, since the next poll
-        would then see it already left RUNNING and never retry either write."""
-        job = _licensed_fleets_job(user, Job.RUNNING)
-
-        def _boom(self, **kwargs):  # pylint: disable=unused-argument
-            raise RuntimeError("boom")
-
-        # _add_extra_event's direct JobEvent.objects.create is the second write of the transition;
-        # add_status_event (first) goes through the queryset, unaffected by this patch.
-        monkeypatch.setattr(JobEvent.objects, "create", _boom.__get__(JobEvent.objects))
-
-        with pytest.raises(RuntimeError, match="boom"):
-            service.stop(
-                job,
-                origin=JobEventOrigin.SCHEDULER,
-                context=JobEventContext.PROGRAM_TIMEOUT_STOP,
-                extra_event={"event_type": JobEventType.ERROR, "data": {"code": "PROGRAM_TIMEOUT"}},
-            )
-
-        assert Job.objects.get(pk=job.pk).status == Job.RUNNING
-        assert JobEvent.objects.filter(job=job).count() == 0
+        event = JobEvent.objects.get(job=job, event_type=JobEventType.STATUS_CHANGE)
+        assert event.data == {"status": Job.STOPPED, "timeout_hours": 24}
 
 
 def _outside_tx(job):

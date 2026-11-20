@@ -11,7 +11,7 @@ from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTr
 from core.external_call_metrics import FLEET_STATUS_READ, observe_operation
 from core.services.job_transitions import JobTransitionService
 from core.services.runners import get_runner, RunnerError, RunnerRetryableError, FleetsRunner
-from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 from scheduler.health import DB_EXCEPTIONS
 from scheduler.kill_signal import KillSignal
@@ -24,9 +24,6 @@ logger = logging.getLogger("scheduler.UpdateFleetsJobsStatuses")
 # Measured on staging: a cancel reaches the task store in 26 to 31s while the task runs, and in
 # 217 to 296s if it had not started. 600 keeps the deadline warning meaningful.
 _STOPPING_DEADLINE_SECONDS = 600
-
-# The client reads this code to explain why a cancelled job has no result, so it must not change
-PROGRAM_TIMEOUT_ERROR_CODE = "PROGRAM_TIMEOUT"
 
 
 class UpdateFleetsJobsStatuses(SchedulerTask):
@@ -201,11 +198,12 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
         )
         try:
             # PROGRAM_TIMEOUT_STOP tags the STOPPING/STOPPED event so it can be told apart from a plain
-            # poller STOPPED. extra_event rides in the same transaction as that status change, so either
-            # both the status change and the ERROR event land, or neither does and the next tick's
-            # _timed_out() check retries both.
+            # poller STOPPED, and status_data carries the timeout hours on that same event: the client
+            # reads the event's context and data to explain why a stopped job has no result.
             cancelled = self.canceller.cancel(
-                job, context=JobEventContext.PROGRAM_TIMEOUT_STOP, extra_event=self._timeout_error_event()
+                job,
+                context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+                status_data={"timeout_hours": program_timeout_hours()},
             )
         except RunnerRetryableError as ex:
             # Nothing is written: STOPPED here would claim a stop that never happened.
@@ -228,23 +226,6 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             # stop() wrote STOPPED itself, so only the counter is left
             self._increment_terminal_counter(job)
         return True
-
-    @staticmethod
-    def _timeout_error_event() -> dict:
-        """The ERROR event fields the client reads to explain why a stopped job has no result."""
-        hours = program_timeout_hours()
-        return {
-            "event_type": JobEventType.ERROR,
-            "data": {
-                "code": PROGRAM_TIMEOUT_ERROR_CODE,
-                "message": (
-                    f"This job was stopped because it ran for longer than the program timeout of {hours} hours, "
-                    "so its result may be missing or incomplete."
-                ),
-                "exception": "ProgramTimeout",
-                "args": {"timeout_hours": hours},
-            },
-        }
 
     @staticmethod
     def _timed_out(job: Job) -> bool:
