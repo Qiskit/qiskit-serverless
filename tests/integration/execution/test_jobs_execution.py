@@ -235,7 +235,7 @@ ERROR: Provider log
         with raises(QiskitServerlessException) as exc_info:
             job.events(type="NotValidJobEventType")
 
-        assert "Type is not valid. Valid types: ['ERROR']" in str(exc_info.value)
+        assert "Type is not valid. Valid types: ['ERROR', 'STATUS_CHANGE']" in str(exc_info.value)
 
     def test_serverless_error_raise(self, serverless_client: ServerlessClient):
         """Integration test for submitting an error event within the function and retrieving it client-side."""

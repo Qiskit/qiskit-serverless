@@ -13,7 +13,7 @@ from prometheus_client import CollectorRegistry
 
 from core import external_call_metrics
 from core.domain.exceptions.invalid_job_transition_exception import InvalidJobTransitionException
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import (
     ComputeProfile,
     FunctionSize,
@@ -699,6 +699,36 @@ class TestStop:
 
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.JOB_USAGE).count() == 1
         assert Outbox.objects.filter(job=job, channel=OutboxChannel.LICENSE_FEE).count() == 1
+
+    def test_status_data_is_merged_into_the_stopping_event(self, get_runner, service, user):
+        """A caller that owes an explanation, like the timeout hours, gets it on the same STATUS_CHANGE
+        event as the cancel in flight, instead of a second event."""
+        job = _licensed_fleets_job(user, Job.RUNNING)
+
+        service.stop(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+            status_data={"timeout_hours": 24},
+        )
+
+        event = JobEvent.objects.get(job=job, event_type=JobEventType.STATUS_CHANGE)
+        assert event.context == JobEventContext.PROGRAM_TIMEOUT_STOP
+        assert event.data == {"status": Job.STOPPING, "timeout_hours": 24}
+
+    def test_status_data_is_merged_into_the_stopped_event_outright(self, get_runner, service, user):
+        """Same as above, for the no-fleet-to-cancel branch that writes STOPPED directly."""
+        job = _licensed_fleets_job(user, Job.QUEUED, fleet_id=None)
+
+        service.stop(
+            job,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+            status_data={"timeout_hours": 24},
+        )
+
+        event = JobEvent.objects.get(job=job, event_type=JobEventType.STATUS_CHANGE)
+        assert event.data == {"status": Job.STOPPED, "timeout_hours": 24}
 
 
 def _outside_tx(job):

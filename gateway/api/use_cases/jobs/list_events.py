@@ -15,7 +15,7 @@ from core.models import Job, JobEvent
 class ListJobEventsUseCase:
     """Use case for retrieving user jobs events."""
 
-    def execute(self, job_id: UUID, user: AbstractUser, event_type: str) -> List[JobEvent]:
+    def execute(self, job_id: UUID, user: AbstractUser, event_type: str, context: str | None = None) -> List[JobEvent]:
         """
         Retrieve user jobs events
 
@@ -23,6 +23,7 @@ class ListJobEventsUseCase:
             job_id (str): Unique identifier of the job.
             user (AbstractUser): The user attempting to retrieve the event.
             event_type (str): The event type to filter.
+            context (str): The event context to filter.
 
         Returns:
             list[Job]: (jobs, total_count)
@@ -34,6 +35,6 @@ class ListJobEventsUseCase:
         if not JobAccessPolicies.can_read_events(user, job):
             raise JobNotFoundException(str(job_id))
 
-        queryset = JobEvent.objects.get_job_events(job_id, event_type)
+        queryset = JobEvent.objects.get_job_events(job_id, event_type, context)
 
         return list(queryset)
