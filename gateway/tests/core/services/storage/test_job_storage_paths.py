@@ -12,7 +12,12 @@ from api.use_cases.programs.run import RunFunctionUseCase
 from api.use_cases.programs.run_input import RunFunctionInput
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.ibm_cloud.code_engine.fleets import utils as fleet_utils
-from core.ibm_cloud.code_engine.fleets.utils import build_fleets_storage_paths, build_job_paths
+from core.ibm_cloud.code_engine.fleets.utils import (
+    PROVIDER_JOB_WRAPPER_NAME,
+    build_fleets_storage_paths,
+    build_job_paths,
+    job_paths_from_saved,
+)
 from core.models import PLATFORM_PERMISSION_RUN, ComputeProfile, FunctionSize, Job, JobStoragePaths, Program
 from core.services.storage import get_arguments_storage, get_logs_storage, get_result_storage
 from core.services.storage.job_file_explorer import JobFileExplorer
@@ -160,19 +165,37 @@ class TestJobStoragePaths:
         with pytest.raises(ValueError, match="no cos_bucket_provider_data_name"):
             build_fleets_storage_paths(job, ce_project)
 
-    def test_the_container_gets_the_saved_keys_after_a_file_rename_in_the_code(self, job):
-        """A file renamed in the code while the job is queued: the container still writes to the saved key."""
+    def test_a_job_is_submitted_with_its_saved_paths_without_the_layout_code(self, job):
+        """A layout change while the job is queued can't move it: its submit paths never call the layout builders.
+        The entrypoint and the wrapper are the saved function prefix plus their file name, and every container path
+        is its mount plus the end of the saved key."""
         saved = get_storage_paths(job)
+        layout_called = AssertionError("the layout code was called for a job with saved paths")
 
-        with patch.object(fleet_utils, "build_provider_job_paths", _moved_provider_paths):
-            paths = build_job_paths(job, saved)
+        with (
+            patch.object(fleet_utils, "build_provider_job_paths", side_effect=layout_called),
+            patch.object(fleet_utils, "build_custom_job_paths", side_effect=layout_called),
+        ):
+            paths = job_paths_from_saved(job, saved)
 
-        assert paths.cos_results_key == saved.results_key
+        entrypoint = job.program.entrypoint
+        assert paths.cos_function_entrypoint == f"{saved.provider_function_prefix}/{entrypoint}"
+        assert paths.cos_docker_entrypoint == f"{saved.provider_function_prefix}/{PROVIDER_JOB_WRAPPER_NAME}"
+        assert paths.container_function_entrypoint == f"/function_provider_data/{entrypoint}"
+        assert paths.container_docker_entrypoint == f"/function_provider_data/{PROVIDER_JOB_WRAPPER_NAME}"
+        assert (paths.cos_user_job_prefix, paths.cos_results_key) == (saved.user_job_prefix, saved.results_key)
         assert paths.container_result_path == "/job_user_data/results.json"
         assert paths.container_arguments_path == "/job_user_data/arguments.json"
         assert paths.container_public_log_path == "/job_user_data/logs.log"
         assert paths.container_private_log_path == "/job_provider_data/logs.log"
-        assert paths.cos_user_job_prefix == saved.user_job_prefix
+
+    def test_a_new_job_is_submitted_with_the_paths_of_todays_layout(self, function):
+        """For a job saved with today's layout, the paths from its row are exactly the ones the layout gives, for a
+        custom and a provider function."""
+        job = TestUtils.create_job(author="alice", program=function, with_storage_paths=True)
+        job = Job.objects.get(pk=job.pk)
+
+        assert job_paths_from_saved(job, get_storage_paths(job)) == build_job_paths(job)
 
     def test_a_key_outside_its_job_prefix_is_refused(self, job):
         """A key the container can't reach through its mounts is never saved."""
@@ -260,11 +283,3 @@ def _assert_the_job_reads_what_its_container_wrote(job, files):
         with pytest.raises(RuntimeError, match="only available for provider jobs"):
             logs.get_private_logs()
         assert not {"Provider Data", "Provider Job Files"} & listed.keys()
-
-
-_original_provider_paths = fleet_utils.build_provider_job_paths
-
-
-def _moved_provider_paths(job):
-    """A later layout: results.json is renamed and moved out of the job folder."""
-    return replace(_original_provider_paths(job), cos_results_key="moved/results.json")

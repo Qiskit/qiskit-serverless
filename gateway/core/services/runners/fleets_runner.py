@@ -52,9 +52,9 @@ from core.ibm_cloud.code_engine.fleets.utils import (
     CUSTOM_JOB_WRAPPER_NAME,
     PROVIDER_JOB_WRAPPER_NAME,
     FleetJobPaths,
-    build_job_paths,
     build_run_env_variables,
     build_run_volume_mounts_for_job,
+    job_paths_from_saved,
 )
 from core.domain.storage_paths import StoragePaths
 from core.services.storage.job_storage_paths import get_storage_cos_client, get_storage_paths
@@ -177,7 +177,7 @@ class FleetsRunner(AbstractRunner):
             if not self._is_cos_configured():
                 raise RunnerError(f"COS is not configured for job_id=[{self.job.id}] — cannot submit Fleets job")
             saved = get_storage_paths(self.job)
-            paths = build_job_paths(self.job, saved)
+            paths = job_paths_from_saved(self.job, saved)
             with observe_operation(FLEET_SUBMIT_UPLOAD):
                 self._upload_program_to_cos(paths, saved)
             logger.info(
@@ -662,7 +662,7 @@ class FleetsRunner(AbstractRunner):
         - image set (no artifact) → :meth:`_upload_provider_image_entrypoint`
 
         Args:
-            paths: Pre-computed paths from :func:`build_job_paths`.
+            paths: Pre-computed paths from :func:`job_paths_from_saved`.
             saved: The job's storage paths, whose buckets the files go to.
         """
         if self.job.program.artifact:
@@ -677,7 +677,7 @@ class FleetsRunner(AbstractRunner):
         Provider functions skip this — their files are pre-uploaded by the provider admin.
 
         Args:
-            paths: Pre-computed paths from :func:`build_job_paths`.
+            paths: Pre-computed paths from :func:`job_paths_from_saved`.
         """
         program = self.job.program
         if not program.artifact:
@@ -750,7 +750,7 @@ class FleetsRunner(AbstractRunner):
         provider bucket at function scope; arguments → user bucket at job scope.
 
         Args:
-            paths: Pre-computed paths from :func:`build_job_paths`.
+            paths: Pre-computed paths from :func:`job_paths_from_saved`.
         """
         program = self.job.program
         if not program.image:

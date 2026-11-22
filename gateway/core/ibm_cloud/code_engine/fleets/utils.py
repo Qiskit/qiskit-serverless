@@ -34,7 +34,7 @@ Example::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Optional
 
 from django.conf import settings
@@ -114,7 +114,7 @@ def build_run_volume_mounts_for_job(paths: FleetJobPaths, saved: StoragePaths) -
     Provider jobs get 4 mounts (user + provider buckets).
 
     Args:
-        paths: Pre-computed paths for the job (from :func:`build_job_paths`).
+        paths: Pre-computed paths for the job (from :func:`job_paths_from_saved`).
         saved: The job's saved storage paths. The data stores come from them, so the job writes to the bucket the
             gateway reads.
 
@@ -189,7 +189,7 @@ def build_run_env_variables(
     creation time flow through automatically.
 
     Args:
-        paths: Pre-computed paths for the job (from :func:`build_job_paths`).
+        paths: Pre-computed paths for the job (from :func:`job_paths_from_saved`).
         stored_env_vars: Decrypted env vars dict from ``job.env_vars``.
         job_id: Id of the Functions job (omitted when None), exposed as ``QISKIT_FUNCTIONS_IDENTIFIER``.
 
@@ -331,33 +331,47 @@ def build_provider_job_paths(job: Job) -> FleetJobPaths:
     )
 
 
-def build_job_paths(job: Job, saved: StoragePaths | None = None) -> FleetJobPaths:
-    """Dispatcher: returns custom or provider COS paths depending on job type.
+def build_job_paths(job: Job) -> FleetJobPaths:
+    """Today's layout for the job: custom or provider COS paths depending on job type.
+
+    Only used to build the paths saved when the job is created (see :func:`build_fleets_storage_paths`). A job is
+    submitted with :func:`job_paths_from_saved` instead, so a later change here doesn't affect it.
+    """
+    return build_provider_job_paths(job) if job.program.provider else build_custom_job_paths(job)
+
+
+def job_paths_from_saved(job: Job, saved: StoragePaths) -> FleetJobPaths:
+    """The paths a job is submitted with, built from the paths saved when it was created, never from the layout.
+
+    The prefixes and keys are the saved ones. The entrypoint and the wrapper are not saved, because they are
+    uploaded at submit: each is the saved function prefix plus its file name in COS, and the function mount plus the
+    same file name in the container. The other container file paths are their mount point plus the end of the saved
+    key, so the job writes exactly the key the gateway reads, even if a file name changed in the code while the job
+    was queued.
 
     Args:
-        job: The job to build the paths for.
-        saved: The paths saved when the job was created. When given, the prefixes and keys come from them, and so
-            do the container file paths: each is its mount point plus the end of the saved key, so the job writes
-            exactly the key the gateway reads, even if a file name changed in the code while the job was queued.
+        job: The job, with its function still assigned: its entrypoint is the file uploaded at submit.
+        saved: The paths saved when the job was created.
     """
-    paths = build_provider_job_paths(job) if job.program.provider else build_custom_job_paths(job)
-    if saved is None:
-        return paths
-
-    # The entrypoint and the wrapper are not saved, they are uploaded at submit under the function prefix
-    if paths.cos_provider_function_prefix:
-        old_function_prefix, new_function_prefix = paths.cos_provider_function_prefix, saved.provider_function_prefix
+    if saved.is_provider_job:
+        function_prefix, function_mount, wrapper = (
+            saved.provider_function_prefix,
+            FUNCTION_PROVIDER_DATA_PATH,
+            PROVIDER_JOB_WRAPPER_NAME,
+        )
     else:
-        old_function_prefix, new_function_prefix = paths.cos_user_function_prefix, saved.user_function_prefix
-
-    def in_saved_function_prefix(key: str) -> str:
-        return f"{new_function_prefix}{key[len(old_function_prefix):]}"
+        function_prefix, function_mount, wrapper = (
+            saved.user_function_prefix,
+            FUNCTION_USER_DATA_PATH,
+            CUSTOM_JOB_WRAPPER_NAME,
+        )
+    entrypoint = job.program.entrypoint
 
     def in_mount(mount_path: str, key: str, prefix: str) -> str:
+        # Safe: every saved key is under its job prefix (StoragePaths.problems() is checked when the row is saved)
         return f"{mount_path}{key[len(prefix):]}"
 
-    return replace(
-        paths,
+    return FleetJobPaths(
         cos_user_function_prefix=saved.user_function_prefix,
         cos_user_job_prefix=saved.user_job_prefix,
         cos_provider_function_prefix=saved.provider_function_prefix,
@@ -365,8 +379,10 @@ def build_job_paths(job: Job, saved: StoragePaths | None = None) -> FleetJobPath
         cos_user_log_key=saved.user_log_key,
         cos_results_key=saved.results_key,
         cos_provider_log_key=saved.provider_log_key,
-        cos_function_entrypoint=in_saved_function_prefix(paths.cos_function_entrypoint),
-        cos_docker_entrypoint=in_saved_function_prefix(paths.cos_docker_entrypoint),
+        cos_function_entrypoint=f"{function_prefix}/{entrypoint}",
+        cos_docker_entrypoint=f"{function_prefix}/{wrapper}",
+        container_function_entrypoint=f"{function_mount}/{entrypoint}",
+        container_docker_entrypoint=f"{function_mount}/{wrapper}",
         container_public_log_path=in_mount(JOB_USER_DATA_PATH, saved.user_log_key, saved.user_job_prefix),
         container_arguments_path=in_mount(JOB_USER_DATA_PATH, saved.arguments_key, saved.user_job_prefix),
         container_result_path=in_mount(JOB_USER_DATA_PATH, saved.results_key, saved.user_job_prefix),

@@ -243,6 +243,7 @@ class RunFunctionUseCase:
 
         # A Fleets job's paths are built once, here: the arguments go to that key, the row saved with the job keeps
         # it, and the container reads it at submit, however long the job waits in the queue.
+        storage_paths = None
         if job.runner == Function.FLEETS:
             try:
                 storage_paths = build_fleets_storage_paths(job, function.code_engine_project)
