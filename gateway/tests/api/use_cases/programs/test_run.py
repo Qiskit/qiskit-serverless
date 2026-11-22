@@ -19,6 +19,7 @@ from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.config_key import ConfigKey
 from core.models import (
+    PLATFORM_PERMISSION_RUN,
     JobStoragePaths,
     CodeEngineProject,
     Config,
@@ -30,6 +31,8 @@ from core.models import (
     Program,
     WorkloadMirror,
 )
+
+from tests.utils import TestUtils, create_function_access_result
 
 pytestmark = pytest.mark.django_db
 
@@ -187,6 +190,45 @@ class TestRunFunctionUseCase:
             RunFunctionUseCase().execute(user, accessible, make_input())
 
         assert not Job.objects.exists()
+
+    @pytest.mark.parametrize(
+        "provider,missing",
+        [
+            (None, "cos_bucket_user_data_name"),
+            ("acme", "cos_bucket_provider_data_name"),
+            ("acme", "pds_name_providers"),
+        ],
+        ids=["custom_without_user_bucket", "provider_without_provider_bucket", "provider_without_provider_pds"],
+    )
+    def test_fleets_job_rejected_when_its_project_lacks_what_its_files_need(
+        self, user, ce_project, monkeypatch, provider, missing
+    ):
+        """A project without a bucket or a data store the job's files need is a 400 with the missing setting, before
+        any upload: no arguments in COS, no Job, no saved paths."""
+        ce_project.cos_bucket_provider_data_name = "provider-data-bucket"
+        setattr(ce_project, missing, "")
+        ce_project.save()
+        function = TestUtils.create_program(
+            program_title="my-fn", author=user, provider=provider, runner=Program.FLEETS, code_engine_project=ce_project
+        )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", arguments_storage)
+        if provider:
+            accessible = create_function_access_result(provider, "my-fn", {PLATFORM_PERMISSION_RUN})
+        else:
+            accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException, match=f"no {missing} configured. Contact administrator."):
+            RunFunctionUseCase().execute(user, accessible, make_input(provider_name=provider))
+
+        arguments_storage.assert_not_called()
+        assert not Job.objects.exists()
+        assert not JobStoragePaths.objects.exists()
 
     def test_ray_job_leaves_compute_profile_fk_null(self, user):
         """The Ray path has no profile; the FK stays null and no registration is required."""

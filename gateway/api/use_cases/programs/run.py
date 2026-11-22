@@ -243,9 +243,13 @@ class RunFunctionUseCase:
 
         # A Fleets job's paths are built once, here: the arguments go to that key, the row saved with the job keeps
         # it, and the container reads it at submit, however long the job waits in the queue.
-        storage_paths = (
-            build_fleets_storage_paths(job, function.code_engine_project) if job.runner == Function.FLEETS else None
-        )
+        if job.runner == Function.FLEETS:
+            try:
+                storage_paths = build_fleets_storage_paths(job, function.code_engine_project)
+            except ValueError as error:
+                # The project lacks a bucket or a data store this job needs: nothing is uploaded or saved yet
+                logger.warning("user_id=%s program=%s | %s", user.id, function.title, error)
+                raise FunctionConfigurationException(f"{error}. Contact administrator.") from error
         arguments_storage = get_arguments_storage(job, storage_paths)
         arguments_storage.save(data.arguments)
 
