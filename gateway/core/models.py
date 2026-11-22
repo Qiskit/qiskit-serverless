@@ -1082,7 +1082,8 @@ class WorkloadMirror(models.Model):
 
 
 class JobStoragePaths(models.Model):
-    """Where the files of a Fleets job live in COS (see core/domain/storage_paths.py). The row is written in the
+    """Where the files of a Fleets job live in COS (see core/domain/storage_paths.py). Fleets jobs only: a Ray job
+    never has a row, and its files are found as before, from its runner's own layout. The row is written in the
     transaction that creates the job, after its arguments are uploaded, and the container's mounts and every reader
     take the bucket, the key and the COS credentials from it, so a later change to the layout, the bucket names or
     the Code Engine project only affects new jobs. The names are copies, not foreign keys: the files stay where they
@@ -1093,8 +1094,8 @@ class JobStoragePaths(models.Model):
     job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True, related_name="storage_paths")
     created = models.DateTimeField(auto_now_add=True)
 
-    ce_project_id = models.CharField(max_length=255, null=True, blank=True)
-    ce_project_name = models.CharField(max_length=255, null=True, blank=True)
+    ce_project_id = models.CharField(max_length=255)
+    ce_project_name = models.CharField(max_length=255)
     cos_region = models.CharField(max_length=255)
     user_bucket = models.CharField(max_length=255)
     provider_bucket = models.CharField(max_length=255, null=True, blank=True)

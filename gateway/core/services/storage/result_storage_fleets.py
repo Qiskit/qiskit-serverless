@@ -49,7 +49,7 @@ class FleetsResultStorage(ResultStorage):
         self._user_bucket = self._paths.user_bucket
 
     def _cos(self):
-        return get_storage_cos_client(self._job, self._paths)
+        return get_storage_cos_client(self._paths)
 
     def get(self) -> str | None:
         """Retrieve the result for this job from COS.

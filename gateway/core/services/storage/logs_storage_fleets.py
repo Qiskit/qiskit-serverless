@@ -55,7 +55,7 @@ class FleetsLogsStorage(LogsStorage):
         return paths.provider_bucket
 
     def _cos(self):
-        return get_storage_cos_client(self._job, self._paths)
+        return get_storage_cos_client(self._paths)
 
     def get_public_logs(self) -> Optional[str]:
         try:

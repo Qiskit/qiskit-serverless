@@ -679,7 +679,7 @@ class FleetsRunner(AbstractRunner):
     def _get_storage_cos(self, saved: StoragePaths) -> JobCOS:
         """Return the :class:`JobCOS` for the job's own files, signed with the project saved with its paths."""
         if self._storage_cos is None:
-            self._storage_cos = get_storage_cos_client(self.job, saved)
+            self._storage_cos = get_storage_cos_client(saved)
         return self._storage_cos
 
     def _upload_program_to_cos(self, paths: FleetJobPaths, saved: StoragePaths) -> None:

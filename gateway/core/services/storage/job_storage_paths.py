@@ -16,7 +16,7 @@ import logging
 from dataclasses import asdict, fields
 
 from core.domain.storage_paths import StoragePaths
-from core.ibm_cloud import get_cos_client, get_cos_client_for
+from core.ibm_cloud import get_cos_client_for
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
 from core.ibm_cloud.code_engine.fleets.utils import build_fleets_storage_paths
 from core.models import CodeEngineProject, Job, JobStoragePaths
@@ -63,21 +63,9 @@ def save_storage_paths(job: Job, paths: StoragePaths) -> JobStoragePaths:
     return row
 
 
-def get_storage_cos_client(job: Job, paths: StoragePaths) -> JobCOS:
-    """The COS client for the job's files, signed with the HMAC secret of the project saved with its paths.
-
-    A row saved without a project id (its project could not be found when it was saved) falls back to the function's
-    current project, as before the paths were saved.
-
-    Raises:
-        ValueError: If there is no saved project id and the function, or its project, is gone.
-    """
-    if paths.ce_project_id:
-        return get_cos_client_for(paths.ce_project_id, paths.cos_region)
-    project = job.program.code_engine_project if job.program_id else None
-    if not project:
-        raise ValueError(f"Job '{job.id}' has no saved Code Engine project and its function has none")
-    return get_cos_client(project)
+def get_storage_cos_client(paths: StoragePaths) -> JobCOS:
+    """The COS client for the job's files, signed with the HMAC secret of the project saved with its paths."""
+    return get_cos_client_for(paths.ce_project_id, paths.cos_region)
 
 
 def _from_row(row: JobStoragePaths) -> StoragePaths:

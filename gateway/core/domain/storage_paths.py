@@ -32,11 +32,9 @@ class StoragePaths:  # pylint: disable=too-many-instance-attributes
     project is changed or deleted. Keys are bucket-relative. The provider fields are ``None`` for a custom function.
     """
 
-    # The project whose HMAC secret signs the COS requests, and the region of the project and its buckets. The
-    # project fields are None for a row whose project could not be found when it was saved; the COS client then
-    # comes from the function's current project.
-    ce_project_id: Optional[str]
-    ce_project_name: Optional[str]
+    # The project whose HMAC secret signs the COS requests, and the region of the project and its buckets
+    ce_project_id: str
+    ce_project_name: str
     cos_region: str
 
     user_bucket: str

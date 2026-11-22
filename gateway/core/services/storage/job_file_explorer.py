@@ -100,7 +100,7 @@ class JobFileExplorer:
 
     def _explore_fleets(self, job: Job) -> list[FileGroup]:
         paths = get_storage_paths(job)
-        cos = get_storage_cos_client(job, paths)
+        cos = get_storage_cos_client(paths)
         groups: list[FileGroup] = []
 
         listings = [

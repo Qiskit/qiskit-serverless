@@ -3,7 +3,7 @@
 import logging
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -19,8 +19,6 @@ from core.services.storage.job_file_explorer import JobFileExplorer
 from core.services.storage.job_storage_paths import get_storage_paths, save_storage_paths
 from tests.utils import TestUtils, create_function_access_result
 
-_COS_FOR = "core.services.storage.job_storage_paths.get_cos_client_for"
-_COS_FROM_PROJECT = "core.services.storage.job_storage_paths.get_cos_client"
 # The project of the ce_project fixture, whose HMAC secret signs its COS requests
 _PROJECT = ("test-ce-project-id", "us-east")
 
@@ -153,19 +151,6 @@ class TestJobStoragePaths:
         with pytest.raises(ValueError, match="function was deleted"):
             get_storage_paths(Job.objects.get(pk=job.pk))
         assert not JobStoragePaths.objects.filter(job=job).exists()
-
-    def test_a_row_without_a_project_id_falls_back_to_the_functions_project(self, job, ce_project):
-        """A row saved when its project could not be found reads COS with the function's current project."""
-        JobStoragePaths.objects.filter(job=job).update(ce_project_id=None, ce_project_name=None)
-        job = Job.objects.get(pk=job.pk)
-        cos = MagicMock()
-        cos.get_object_bytes.return_value = b"content"
-
-        with patch(_COS_FROM_PROJECT, return_value=cos) as from_project, patch(_COS_FOR) as cos_for:
-            get_result_storage(job).get()
-
-        from_project.assert_called_once_with(ce_project)
-        cos_for.assert_not_called()
 
     def test_a_provider_job_needs_the_provider_bucket_and_data_store(self, program, ce_project):
         """A provider job is never saved without a provider bucket, so its submit can't fail later on a None."""
