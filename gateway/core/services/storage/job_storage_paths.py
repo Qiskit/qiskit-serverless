@@ -15,8 +15,6 @@
 import logging
 from dataclasses import asdict, fields
 
-from django.db import IntegrityError, transaction
-
 from core.domain.storage_paths import StoragePaths
 from core.ibm_cloud import get_cos_client, get_cos_client_for
 from core.ibm_cloud.code_engine.fleets.cos import JobCOS
@@ -31,8 +29,9 @@ _FIELDS = [field.name for field in fields(StoragePaths)]
 def get_storage_paths(job: Job) -> StoragePaths:
     """The paths saved for the job. Reading them needs only the saved row, not the job's function or project.
 
-    A job without a row was created before the rows were saved, or by an old gateway pod during a rollout. Its paths
-    are built once with today's layout, which is where it wrote its files, saved, and read from the row from then on.
+    The fallback, for a job without a row (created before the rows were saved, or by an old gateway pod during a
+    rollout): its paths are built from today's layout, which is where it wrote its files, and nothing is saved. A data
+    migration fills those rows later, and then this fallback can be removed.
 
     Raises:
         ValueError: If the job has no saved paths and they can't be built (see
@@ -45,19 +44,12 @@ def get_storage_paths(job: Job) -> StoragePaths:
 
     if not job.program_id:
         raise ValueError(f"Job '{job.id}' has no saved storage paths and its function was deleted")
-    paths = build_fleets_storage_paths(job, _project_of(job))
-    logger.warning("job_id=%s had no saved storage paths, saving the ones today's layout gives it", job.id)
-    try:
-        with transaction.atomic():
-            save_storage_paths(job, paths)
-    except IntegrityError:
-        # Saved by another reader in the meantime: theirs is the row every later read uses
-        return _from_row(JobStoragePaths.objects.get(job_id=job.id))
-    return paths
+    logger.info("job_id=%s has no saved storage paths, reading it from today's layout", job.id)
+    return build_fleets_storage_paths(job, _project_of(job))
 
 
 def save_storage_paths(job: Job, paths: StoragePaths) -> JobStoragePaths:
-    """Save the paths of a job that has none. Call it in the transaction that saves the job.
+    """Save the paths of a new job. Call it in the transaction that saves the job.
 
     Raises:
         ValueError: If a key is not under its job prefix.

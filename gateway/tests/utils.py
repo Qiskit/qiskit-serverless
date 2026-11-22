@@ -517,7 +517,7 @@ class TestUtils:
                 If dict without 'id': creates new JobConfig.
             with_storage_paths: Save the job's storage paths in its function's Code Engine project, as the run use
                 case does for a Fleets job. Default is False: the job has no saved paths, like one an old gateway
-                pod created, and its first read saves them.
+                pod created, and is read from today's layout.
             **kwargs: Additional fields to set on the Job model (e.g., result, logs).
 
         Returns:

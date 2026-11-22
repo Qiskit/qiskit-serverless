@@ -989,13 +989,12 @@ class JobAdmin(admin.ModelAdmin):
     @admin.display(description="Storage paths")
     def storage_paths_table(self, obj):
         """Where the job's files live in COS. Read-only: the job wrote its files there, so changing the row would
-        only make the gateway look somewhere else. Viewing the page never saves a row: a job without one gets it on
-        the first read of its files."""
+        only make the gateway look somewhere else. Viewing the page never saves a row."""
         if obj._state.adding or obj.runner != Program.FLEETS:  # pylint: disable=protected-access
             return "-"
         row = JobStoragePaths.objects.filter(job=obj).first()
         if row is None:
-            return "Not saved yet: they are saved, with today's layout, the first time the job's files are read."
+            return "Not saved: the job's files are read from today's layout until its row is filled."
         rows = format_html_join(
             "",
             "<tr><th>{}</th><td><code>{}</code></td></tr>",

@@ -65,7 +65,7 @@ def _saved_paths_from_the_project(job):
 
 @pytest.fixture(autouse=True)
 def saved_paths():
-    """Every job here has a saved row, built from its mock project when it is first read."""
+    """Every job here has saved paths, built from its mock project."""
     with patch(f"{_RUNNER_MOD}.get_storage_paths", side_effect=_saved_paths_from_the_project) as get_paths:
         yield get_paths
 

@@ -116,46 +116,24 @@ class TestJobStoragePaths:
         get_arguments_storage(job).delete()
         assert fake_cos.read(*_PROJECT, "user-bucket", files.arguments) is None
 
-    def test_a_job_without_saved_paths_finds_its_files_and_keeps_them_after_deletion(
-        self, function, ce_project, fake_cos, caplog
-    ):
-        """The fallback, for a job an old gateway pod created without saved paths: its first read finds its files in
-        today's layout and saves those paths, with one warning, and the job stays readable from them after its
-        function and project are deleted."""
+    def test_a_job_without_saved_paths_is_read_from_todays_layout_without_saving_them(self, function, fake_cos, caplog):
+        """The fallback, for a job created without saved paths: its files are found in today's layout, with one log
+        line per read, and no row is saved."""
         job = TestUtils.create_job(author="alice", program=function)
         files = _todays_layout(job, function.provider)
         _write_as_the_container(fake_cos, files)
 
-        with caplog.at_level(logging.WARNING, logger="core.JobStoragePaths"):
-            _assert_the_job_reads_what_its_container_wrote(job, files)
+        with caplog.at_level(logging.INFO, logger="core.JobStoragePaths"):
+            assert get_result_storage(job).get() == '{"counts": 1}'
 
         assert [r.message for r in caplog.records if r.name == "core.JobStoragePaths"] == [
-            f"job_id={job.id} had no saved storage paths, saving the ones today's layout gives it"
+            f"job_id={job.id} has no saved storage paths, reading it from today's layout"
         ]
-        assert JobStoragePaths.objects.filter(job=job).count() == 1
-
-        function.delete()
-        ce_project.delete()
-        _assert_the_job_reads_what_its_container_wrote(Job.objects.get(pk=job.pk), files)
-
-    def test_a_job_without_a_row_saves_one_on_its_first_read_and_keeps_it(self, program, ce_project):
-        """A job created without a row: the first read saves today's paths, and a later layout change or
-        bucket rename doesn't move it."""
-        job = TestUtils.create_job(author="alice", program=program)
-        job = Job.objects.get(pk=job.pk)
-
-        first = get_storage_paths(job)
-        ce_project.cos_bucket_user_data_name = "renamed-user-bucket"
-        ce_project.save()
-        with patch.object(fleet_utils, "build_provider_job_paths", _moved_provider_paths):
-            later = get_storage_paths(Job.objects.get(pk=job.pk))
-
-        assert JobStoragePaths.objects.filter(job=job).count() == 1
-        assert later == first
-        assert (later.user_bucket, later.ce_project_id) == ("user-bucket", "test-ce-project-id")
+        _assert_the_job_reads_what_its_container_wrote(job, files)
+        assert not JobStoragePaths.objects.filter(job=job).exists()
 
     def test_a_job_without_a_row_takes_the_project_it_was_created_in(self, program, ce_project):
-        """The paths saved on first read come from the project named on the job, not the function's current one."""
+        """The fallback paths come from the project named on the job, not the function's current one."""
         job = TestUtils.create_job(author="alice", program=program)
         Job.objects.filter(pk=job.pk).update(ce_project_name=ce_project.project_name, ce_region=ce_project.region)
         program.code_engine_project = TestUtils.get_or_create_ce_project(

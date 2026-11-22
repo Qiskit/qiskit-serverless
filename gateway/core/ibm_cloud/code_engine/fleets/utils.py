@@ -381,8 +381,8 @@ def build_job_paths(job: Job, saved: StoragePaths | None = None) -> FleetJobPath
 def build_fleets_storage_paths(job: Job, project: CodeEngineProject | None) -> StoragePaths:
     """Where the job's files go with today's layout, in the given Code Engine project's buckets.
 
-    Called once per job: when it is created, or, for a job created without saved paths, on its first read. The
-    result is saved, and every later read uses the saved row instead of this function.
+    Called when the job is created, and the result is saved: every later read uses the saved row. A job created
+    without saved paths is read from this function until a data migration fills its row.
 
     Args:
         job: The job, with its function still assigned.

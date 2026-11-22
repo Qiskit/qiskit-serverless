@@ -127,7 +127,7 @@ class TestJobAdmin(APITestCase):
         assert JobStoragePaths.objects.get(job=job).results_key == saved.results_key
 
     def test_viewing_a_job_without_saved_storage_paths_does_not_save_them(self):
-        """A Fleets job without a row shows "Not saved yet", and opening its page writes nothing."""
+        """A Fleets job without a row shows "Not saved", and opening its page writes nothing."""
 
         user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
         self.client.login(username="admin", password="pass")
@@ -139,7 +139,7 @@ class TestJobAdmin(APITestCase):
 
         content = self.client.get(reverse("admin:api_job_change", args=[job.pk])).content.decode()
 
-        assert "Not saved yet" in content
+        assert "Not saved" in content
         assert not JobStoragePaths.objects.filter(job=job).exists()
 
     def test_stop_job_button_stops_ray_job(self):
