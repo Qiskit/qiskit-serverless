@@ -976,67 +976,6 @@ def test_submit_uses_default_max_instances_when_no_config():
     assert mock_handler.submit_job.call_args.kwargs["scale_max_instances"] == 1
 
 
-def test_get_result_from_cos_returns_none_when_the_paths_cant_be_read(saved_paths):
-    """get_result_from_cos() returns None when the job has no saved paths and they can't be built."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    saved_paths.side_effect = ValueError("no project")
-
-    result = runner.get_result_from_cos()
-
-    assert result is None
-
-
-def test_get_result_from_cos_returns_json_string():
-    """get_result_from_cos() returns decoded results.json from COS."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-
-    runner._cos.get_object_bytes.return_value = b'{"status": "ok"}'  # pylint: disable=protected-access
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-
-    with (
-        patch.object(runner, "_is_cos_configured", return_value=True),
-        patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-        patch(
-            f"{_RUNNER_MOD}.build_job_paths",
-            return_value=FleetJobPaths(
-                cos_user_function_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/data",
-                cos_user_job_prefix="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
-                cos_user_log_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
-                cos_results_key="users/IBMid-50FJDA/provider_functions/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/results.json",  # fmt: skip
-                cos_provider_function_prefix="providers/Q-CTRL/sampler-v2/data",
-                cos_provider_job_prefix="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca",
-                cos_provider_log_key="providers/Q-CTRL/sampler-v2/jobs/8be4df61-93ca/logs.log",
-                cos_function_entrypoint="providers/Q-CTRL/sampler-v2/data/main.py",
-                cos_docker_entrypoint="providers/Q-CTRL/sampler-v2/data/fleet_provider_job_wrapper.py",
-                container_function_entrypoint="/function_provider_data/main.py",
-                container_docker_entrypoint="/function_provider_data/fleet_provider_job_wrapper.py",
-                container_public_log_path="/job_user_data/logs.log",
-                container_private_log_path="/job_provider_data/logs.log",
-                container_arguments_path="/job_user_data/arguments.json",
-                container_result_path="/job_user_data/results.json",
-            ),
-        ),
-    ):
-        result = runner.get_result_from_cos()
-
-    assert result == '{"status": "ok"}'
-
-
-def test_get_result_from_cos_returns_none_on_exception():
-    """get_result_from_cos() returns None when COS retrieval fails."""
-    runner, _ = _make_runner(fleet_id="fleet-123")
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-    runner._cos.get_object_bytes.side_effect = RuntimeError("COS error")  # pylint: disable=protected-access
-
-    with (
-        patch.object(runner, "_is_cos_configured", return_value=True),
-        patch.object(runner, "_get_fleet_name", return_value="fleet-name"),
-    ):
-        result = runner.get_result_from_cos()
-
-    assert result is None
-
-
 @pytest.mark.parametrize("active,raises", [(True, False), (False, True)])
 def test_get_project_existing(active, raises):
     """_get_project() returns an active project; raises if inactive."""

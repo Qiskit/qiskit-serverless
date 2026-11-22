@@ -443,34 +443,6 @@ class FleetsRunner(AbstractRunner):
             logger.warning("COS list_keys failed for fleet [%s]: %s; will retry on next cycle", self.job.fleet_id, exc)
             return None
 
-    def get_result_from_cos(self) -> str | None:
-        """Retrieve job results from COS.
-
-        Results are written by the container at
-        ``{user_job_prefix}/results.json``.
-
-        Returns:
-            JSON string or ``None`` if the paths can't be read or the file is absent.
-        """
-        try:
-            saved = get_storage_paths(self.job)
-            user_bucket = saved.user_bucket
-            results_key = saved.results_key
-
-            logger.debug("Retrieving results for job_id=[%s] from %s/%s", self.job.id, user_bucket, results_key)
-
-            results_bytes = self._get_storage_cos(saved).get_object_bytes(bucket_name=user_bucket, key=results_key)
-            if results_bytes:
-                logger.info("Retrieved results for job_id=[%s] (%d bytes)", self.job.id, len(results_bytes))
-                return results_bytes.decode("utf-8")
-
-            logger.warning("No results found in COS for job_id=[%s]", self.job.id)
-            return None
-
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to retrieve results for job_id=[%s]: %s", self.job.id, ex)
-            return None
-
     def stop(self) -> bool:
         """Ask Code Engine to cancel the fleet.
 
