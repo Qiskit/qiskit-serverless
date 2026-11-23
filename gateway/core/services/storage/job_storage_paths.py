@@ -32,10 +32,17 @@ def get_storage_paths(job: Job) -> StoragePaths:
     The fallback, for a job without a row (created before the rows were saved, or by an old gateway pod during a
     rollout): its paths are built from today's layout, which is where it wrote its files, and nothing is saved. A data
     migration fills those rows later, and then this fallback can be removed.
+
+    Raises:
+        ValueError: If the job has no saved paths and they can't be built (see
+            :func:`build_fleets_storage_paths`), for example because its function was deleted.
     """
     try:
         return _from_row(job.storage_paths)
     except JobStoragePaths.DoesNotExist:
+        if not job.program_id:
+            raise ValueError(f"Job '{job.id}' has no saved storage paths and its function was deleted") from None
+        logger.info("job_id=%s has no saved storage paths, reading it from today's layout", job.id)
         return build_fleets_storage_paths(job, _project_of(job))
 
 
