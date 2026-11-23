@@ -116,7 +116,7 @@ class JobConfigSerializer(serializers.ModelSerializer):
 class OutputSerializer(serializers.ModelSerializer):
     """Response serializer for a queued job."""
 
-    compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    compute_profile = ComputeProfileSerializer(read_only=True)
     # Documents the field run_program adds for a Ray deprecation notice, a blocked resource, or both
     warning = serializers.CharField(read_only=True, required=False)
 
@@ -129,7 +129,7 @@ class OutputSerializer(serializers.ModelSerializer):
             "program",
             "created",
             "arguments",
-            "compute_profile_fk",
+            "compute_profile",
             "size_source",
             "warning",
         ]

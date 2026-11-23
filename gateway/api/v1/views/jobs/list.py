@@ -82,11 +82,11 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSummarySerializer(many=False)
-    compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    compute_profile = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "compute_profile_fk"]
+        fields = ["id", "status", "program", "created", "sub_status", "compute_profile"]
         ref_name = "JobsListWithoutResultInputSerializer"
 
 

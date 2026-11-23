@@ -165,7 +165,7 @@ def test_compute_profile_column_searches_by_the_profile_and_shows_only_the_profi
         author=user,
         runner=Program.FLEETS,
         status=Job.RUNNING,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         function_size=size,
         function_size_name=size.function_size,
     )
@@ -189,7 +189,7 @@ def test_function_size_column_shows_the_size_name_of_a_fleets_job():
         author=user,
         runner=Program.FLEETS,
         status=Job.RUNNING,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         function_size=size,
         function_size_name=size.function_size,
     )
@@ -219,7 +219,7 @@ def test_function_size_column_shows_the_size_snapshot_not_the_renamed_or_deleted
         author=user,
         runner=Program.FLEETS,
         status=Job.RUNNING,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         function_size=size,
         function_size_name=size.function_size,
     )
@@ -261,7 +261,7 @@ def test_every_click_to_search_link_actually_narrows_the_changelist_to_that_job(
         program=program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         instance_crn="crn:v1:bluemix:public:my-service",
     )
 

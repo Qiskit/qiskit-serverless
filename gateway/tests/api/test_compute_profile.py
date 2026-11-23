@@ -123,7 +123,7 @@ def test_run_with_function_size_happy_path(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile_fk"]["compute_profile_id"] == "4x16"
+    assert response.data["compute_profile"]["compute_profile_id"] == "4x16"
     assert response.data["size_source"] == Job.SIZE_SOURCE_REQUESTED
 
     job = Job.objects.get(id=response.data["id"])
@@ -147,7 +147,7 @@ def test_run_with_function_size_is_normalized(api_client, program):
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile_fk"]["compute_profile_id"] == "4x16"
+    assert response.data["compute_profile"]["compute_profile_id"] == "4x16"
 
 
 def test_run_with_unknown_function_size_returns_400(api_client, program):
@@ -218,7 +218,7 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     job = TestUtils.create_job(
         author=user,
         program=program,
-        compute_profile_fk=profile,
+        compute_profile=profile,
     )
 
     url = reverse("v1:jobs-list")
@@ -231,7 +231,7 @@ def test_job_list_includes_compute_profile(api_client, user, program):
     # Response data is paginated with results field containing list of job dicts
     job_data = next((j for j in response.data["results"] if j.get("id") == str(job.id)), None)
     assert job_data is not None
-    assert job_data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+    assert job_data["compute_profile"]["compute_profile_id"] == "24x120x1a100p"
 
 
 def test_job_detail_includes_compute_profile(api_client, user, program):
@@ -240,14 +240,14 @@ def test_job_detail_includes_compute_profile(api_client, user, program):
     job = TestUtils.create_job(
         author=user,
         program=program,
-        compute_profile_fk=profile,
+        compute_profile=profile,
     )
 
     url = reverse("v1:retrieve", kwargs={"job_id": job.id})
     response = api_client.get(url, format="json")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+    assert response.data["compute_profile"]["compute_profile_id"] == "24x120x1a100p"
 
 
 @pytest.mark.parametrize(
@@ -258,13 +258,13 @@ def test_job_detail_includes_compute_profile(api_client, user, program):
     ],
 )
 def test_listing_jobs_does_not_query_each_compute_profile(api_client, user, program, url_name, url_kwargs_from_program):
-    """Both job listings nest compute_profile_fk, so the FK must be fetched in the page
+    """Both job listings nest compute_profile, so the FK must be fetched in the page
     query rather than once per row. Counting ComputeProfile queries (rather than asserting
     a total) keeps this test insensitive to the unrelated per-row `program` query.
     """
     profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
     for _ in range(3):
-        TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+        TestUtils.create_job(author=user, program=program, compute_profile=profile)
 
     url = reverse(url_name, kwargs=url_kwargs_from_program(program) if url_kwargs_from_program else None)
     with CaptureQueriesContext(connection) as captured:
@@ -277,15 +277,17 @@ def test_listing_jobs_does_not_query_each_compute_profile(api_client, user, prog
     assert per_row_fetches == [], f"profile should be joined into the page query, got {len(per_row_fetches)} fetches"
 
 
-def test_job_compute_profile_string_is_gone_from_model_and_responses(api_client, user, program):
-    """Guards the removal on a real `Job`, not a mock: the model has no `compute_profile`
-    attribute any more, and neither listing/detail response exposes the key -- only the
-    FK-backed `compute_profile_fk` survives.
+def test_job_compute_profile_fk_is_renamed_in_model_and_responses(api_client, user, program):
+    """Guards the `compute_profile_fk` -> `compute_profile` rename on a real `Job`, not a mock:
+    the FK reads back from the unrenamed column, its raw id is the bare profile string, and the
+    listing/detail responses carry the profile under `compute_profile` only.
     """
     profile = ComputeProfile.objects.get(compute_profile_id="24x120x1a100p")
-    job = TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+    job = TestUtils.create_job(author=user, program=program, compute_profile=profile)
 
-    assert not hasattr(job, "compute_profile")
+    job = Job.objects.get(id=job.id)
+    assert job.compute_profile == profile
+    assert job.compute_profile_id == "24x120x1a100p"
 
     list_response = api_client.get(reverse("v1:jobs-list"), format="json")
     detail_response = api_client.get(reverse("v1:retrieve", kwargs={"job_id": job.id}), format="json")
@@ -293,7 +295,6 @@ def test_job_compute_profile_string_is_gone_from_model_and_responses(api_client,
     assert list_response.status_code == status.HTTP_200_OK
     assert detail_response.status_code == status.HTTP_200_OK
     job_data = next(j for j in list_response.data["results"] if j.get("id") == str(job.id))
-    assert "compute_profile" not in job_data
-    assert "compute_profile" not in detail_response.data
-    assert job_data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
-    assert detail_response.data["compute_profile_fk"]["compute_profile_id"] == "24x120x1a100p"
+    for data in (job_data, detail_response.data):
+        assert data["compute_profile"]["compute_profile_id"] == "24x120x1a100p"
+        assert "compute_profile_fk" not in data

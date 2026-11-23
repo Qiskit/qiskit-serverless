@@ -58,10 +58,10 @@ def _get_runner_config(
 ) -> RunnerConfig:
     """Resolve the compute profile and sizing provenance for a run.
 
-    ``compute_profile_fk`` is the source of truth for the resolved profile. A
+    ``compute_profile`` is the source of truth for the resolved profile. A
     Fleets job always resolves to a profile; if no ``ComputeProfile`` row is
     registered for it, that is a deployment misconfiguration and we reject the
-    job rather than store a null FK. Ray leaves ``compute_profile_fk`` None
+    job rather than store a null FK. Ray leaves ``compute_profile`` None
     (profiles are a Fleets concept).
 
     Because the size determines the compute profile (and not the reverse -- two
@@ -86,7 +86,7 @@ def _get_runner_config(
         gpu = bool(function.provider and function.gpu)
         return RunnerConfig(
             gpu=gpu,
-            compute_profile_fk=None,
+            compute_profile=None,
             size_source=Job.SIZE_SOURCE_NONE,
             function_size=None,
         )
@@ -107,7 +107,7 @@ def _get_runner_config(
         profile = function_size.compute_profile
         return RunnerConfig(
             gpu=False,
-            compute_profile_fk=profile,
+            compute_profile=profile,
             size_source=Job.SIZE_SOURCE_REQUESTED,
             function_size=function_size,
         )
@@ -123,7 +123,7 @@ def _get_runner_config(
     profile = function_size.compute_profile
     return RunnerConfig(
         gpu=False,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         size_source=Job.SIZE_SOURCE_DEFAULT_SIZE,
         function_size=function_size,
     )
@@ -210,7 +210,7 @@ class RunFunctionUseCase:
             author=user,
             gpu=runner_config.gpu,
             runner=function.runner,
-            compute_profile_fk=runner_config.compute_profile_fk,
+            compute_profile=runner_config.compute_profile,
             size_source=runner_config.size_source,
             function_size=runner_config.function_size,
             function_size_name=runner_config.function_size.function_size if runner_config.function_size else None,

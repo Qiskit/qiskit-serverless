@@ -31,5 +31,5 @@ class JobsListUseCase:
 
         queryset, total = Job.objects.user_jobs_page(user=user, filters=filters)
 
-        # The serializer reads program and compute_profile_fk on each row.
-        return list(queryset.select_related("program", "compute_profile_fk")), total
+        # The serializer reads program and compute_profile on each row.
+        return list(queryset.select_related("program", "compute_profile")), total

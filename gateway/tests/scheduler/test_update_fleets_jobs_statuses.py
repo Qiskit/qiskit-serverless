@@ -774,7 +774,7 @@ def test_a_running_job_checks_the_timeout_even_when_the_in_progress_send_fails()
         runner=Program.FLEETS,
         fleet_id="fleet-123",
         instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
-        compute_profile_fk=profile,
+        compute_profile=profile,
         status=Job.RUNNING,
     )
     JobEvent.objects.add_status_event(
