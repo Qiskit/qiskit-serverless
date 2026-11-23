@@ -15,14 +15,19 @@
 import json
 import time
 import warnings
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, create_autospec, patch
 
 import pytest
 import requests_mock
 
-from qiskit_serverless import ServerlessClient
+from qiskit_serverless import IBMServerlessClient, ServerlessClient
 from qiskit_serverless.core.job import Job, Configuration
-from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.function import (
+    _CLIENT_RUN_FLAGS,
+    _keyword_only_params,
+    QiskitFunction,
+    RunnableQiskitFunction,
+)
 from qiskit_serverless.exception import QiskitServerlessException
 
 
@@ -1146,6 +1151,89 @@ class TestFilteredLogsMethod:
             filtered = mock_client.filtered_logs("test-job", include="ERROR")
 
             assert filtered == "ERROR: something failed\n"
+
+
+class TestFunctionRunClientFlags:
+    """RunnableQiskitFunction.run() splits client flags out of the function arguments."""
+
+    def test_flag_list_matches_ibm_client_run(self):
+        """Every keyword-only option IBMServerlessClient.run adds beyond the RunService contract is in
+        _CLIENT_RUN_FLAGS, so a new client flag cannot silently end up in the function arguments."""
+        assert _keyword_only_params(IBMServerlessClient.run) - {"function_size"} == set(_CLIENT_RUN_FLAGS)
+
+    def test_flags_are_forwarded_to_a_client_that_accepts_them(self):
+        """With an IBMServerlessClient, the usage flags reach the client and are not function arguments."""
+        client = create_autospec(IBMServerlessClient, instance=True)
+        function = RunnableQiskitFunction(client, title="test-function")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            function.run(x=1, bypass_usage_check=False, suppress_usage_warning=True, function_size="m")
+
+        client.run.assert_called_once_with(
+            program=function,
+            arguments={"x": 1},
+            config=None,
+            function_size="m",
+            bypass_usage_check=False,
+            suppress_usage_warning=True,
+        )
+
+    def test_unset_flags_are_not_forwarded(self):
+        """Flags the caller does not pass are left to the client's own defaults."""
+        client = create_autospec(IBMServerlessClient, instance=True)
+        function = RunnableQiskitFunction(client, title="test-function")
+
+        function.run(x=1)
+
+        client.run.assert_called_once_with(program=function, arguments={"x": 1}, config=None, function_size=None)
+
+    def test_flags_are_dropped_with_a_warning_for_a_client_that_does_not_accept_them(self, mock_client):
+        """A plain ServerlessClient takes no usage flags: they are dropped with a warning, and neither
+        raise nor reach the function as arguments."""
+        function = RunnableQiskitFunction(mock_client, title="test-function")
+
+        with requests_mock.Mocker() as mocker:
+            mock_request = mocker.post("https://test-host.com/api/v1/programs/run/", json={"id": "new-job-id"})
+
+            with pytest.warns(UserWarning, match=r"\['bypass_usage_check'\] have no effect with ServerlessClient"):
+                job = function.run(x=1, bypass_usage_check=True)
+
+        assert job.job_id == "new-job-id"
+        assert json.loads(mock_request.last_request.json()["arguments"]) == {"x": 1}
+
+    def test_show_kwargs_split_warns_with_the_split(self):
+        """show_kwargs_split=True reports how the kwargs were split, by argument name only, and is itself
+        not a function argument."""
+        client = create_autospec(IBMServerlessClient, instance=True)
+        function = RunnableQiskitFunction(client, title="test-function")
+
+        with pytest.warns(UserWarning) as record:
+            function.run(x=1, secret="do-not-print", bypass_usage_check=False, show_kwargs_split=True)
+
+        message = str(record[0].message)
+        assert "function arguments=['secret', 'x']" in message
+        assert "forwarded client options={'bypass_usage_check': False}" in message
+        assert "ignored client options={}" in message
+        assert "do-not-print" not in message
+        assert client.run.call_args.kwargs["arguments"] == {"x": 1, "secret": "do-not-print"}
+
+    def test_show_kwargs_split_is_off_by_default(self):
+        """Without show_kwargs_split, a run with only function arguments emits no warning."""
+        client = create_autospec(IBMServerlessClient, instance=True)
+        function = RunnableQiskitFunction(client, title="test-function")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            function.run(x=1)
+
+    def test_keyword_only_params_ignores_var_keyword(self):
+        """A **kwargs catch-all does not count as accepting a flag."""
+
+        def run(program, arguments=None, *, function_size=None, **kwargs):  # pylint: disable=unused-argument
+            return None
+
+        assert _keyword_only_params(run) == {"function_size"}
 
 
 class TestComputeProfile:
