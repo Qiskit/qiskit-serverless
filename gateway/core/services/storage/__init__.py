@@ -8,7 +8,6 @@ from core.services.storage.arguments_storage_ray import RayArgumentsStorage
 from core.services.storage.file_storage import FileStorage
 from core.services.storage.file_storage_fleets import FileStorageFleets
 from core.services.storage.file_storage_ray import FileStorageRay
-from core.services.storage.job_storage_paths import get_storage_paths
 from core.services.storage.logs_storage import LogsStorage
 from core.services.storage.logs_storage_fleets import FleetsLogsStorage
 from core.services.storage.logs_storage_ray import RayLogsStorage
@@ -17,24 +16,26 @@ from core.services.storage.result_storage_fleets import FleetsResultStorage
 from core.services.storage.result_storage_ray import RayResultStorage
 
 
-def get_arguments_storage(job: Job, paths: StoragePaths | None = None) -> ArgumentsStorage:
+def get_arguments_storage(job: Job, paths: StoragePaths | None) -> ArgumentsStorage:
     """Factory: return the appropriate ArgumentsStorage for the job's runner that ran it.
 
     Args:
         job: The Job instance whose runner that ran it determines the implementation.
-        paths: Fleets only: the job's storage paths, when they are built but not saved yet (at creation).
-            Otherwise the saved ones are read.
+        paths: The paths of a Fleets job: the ones built at creation, before they are saved, or the saved ones
+            (:func:`get_storage_paths`). None for a Ray job, which has none.
 
     Returns:
         An ArgumentsStorage instance appropriate for the runner type.
 
     Raises:
-        ValueError: If the runner type is unknown.
+        ValueError: If the runner type is unknown, or a Fleets job is given no paths.
     """
     if job.runner == Program.RAY:
         return RayArgumentsStorage(job)
     if job.runner == Program.FLEETS:
-        return FleetsArgumentsStorage(job, paths or get_storage_paths(job))
+        if paths is None:
+            raise ValueError(f"Fleets job '{job.id}' needs its storage paths to read or write its arguments")
+        return FleetsArgumentsStorage(job, paths)
     raise ValueError(f"Unknown runner type: {job.runner}")
 
 

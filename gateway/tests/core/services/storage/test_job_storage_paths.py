@@ -116,7 +116,7 @@ class TestJobStoragePaths:
             "pds-users",
             "pds-providers" if files.provider_log else None,
         )
-        get_arguments_storage(job).delete()
+        get_arguments_storage(job, saved).delete()
         assert fake_cos.read(*_PROJECT, "user-bucket", files.arguments) is None
 
     def test_a_job_without_saved_paths_is_read_from_todays_layout_without_saving_them(self, function, fake_cos, caplog):

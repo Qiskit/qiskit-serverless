@@ -445,7 +445,7 @@ class TestProgramApi(APITestCase):
             assert job.config.workers is None
             assert job.config.auto_scaling is True
 
-            arguments_storage = get_arguments_storage(job)
+            arguments_storage = get_arguments_storage(job, None)
             stored_arguments = arguments_storage.get()
 
             assert stored_arguments == arguments
@@ -512,7 +512,7 @@ class TestProgramApi(APITestCase):
             assert job.config.workers is None
             assert job.config.auto_scaling is True
 
-            arguments_storage = get_arguments_storage(job)
+            arguments_storage = get_arguments_storage(job, None)
             stored_arguments = arguments_storage.get()
 
             assert stored_arguments == arguments
@@ -1177,7 +1177,7 @@ class TestProgramApi(APITestCase):
             assert job.program.provider is None
 
             # Verify arguments are stored in the correct path (user storage, not provider)
-            arguments_storage = get_arguments_storage(job)
+            arguments_storage = get_arguments_storage(job, None)
             stored_arguments = arguments_storage.get()
             assert stored_arguments == arguments
 

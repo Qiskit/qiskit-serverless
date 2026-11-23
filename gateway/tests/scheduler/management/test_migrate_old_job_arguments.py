@@ -83,7 +83,7 @@ def test_migrate_jobs_arguments_to_storage_active():
     for job in [job_succeeded_active, job_failed_active, job_stopped_active, job_queued_active, job_running_active]:
         job.refresh_from_db()
         assert job.arguments == test_arguments
-        assert get_arguments_storage(job).get() is None
+        assert get_arguments_storage(job, None).get() is None
 
 
 @pytest.mark.django_db
@@ -110,7 +110,7 @@ def test_migrate_jobs_arguments_to_storage_not_active(settings):
     ]:
         job.refresh_from_db()
         assert job.arguments == expected_arguments
-        assert get_arguments_storage(job).get() == expected_storage
+        assert get_arguments_storage(job, None).get() == expected_storage
 
 
 @pytest.mark.django_db

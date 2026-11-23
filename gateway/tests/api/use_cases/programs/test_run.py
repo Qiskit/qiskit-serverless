@@ -95,7 +95,7 @@ def make_runnable_fleets_function(user, ce_project, monkeypatch):
     profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
     function.default_size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
     function.save(update_fields=["default_size"])
-    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
+    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
     return function
 
 
@@ -249,7 +249,7 @@ class TestRunFunctionUseCase:
         profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
@@ -281,7 +281,7 @@ class TestRunFunctionUseCase:
         function.default_size = size
         function.save(update_fields=["default_size"])
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
@@ -302,7 +302,7 @@ class TestRunFunctionUseCase:
         )
         function.save(update_fields=["default_size"])
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
         crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(instance=crn))
@@ -329,7 +329,7 @@ class TestRunFunctionUseCase:
         profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         size = FunctionSize.objects.create(function=function, function_size="M", compute_profile=profile)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
         size.function_size = "L"
@@ -358,7 +358,7 @@ class TestWorkloadMirror:
             function=function, function_size="m", compute_profile=profile
         )
         function.save(update_fields=["default_size"])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
         return FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
     def test_a_fleets_job_is_sent_to_the_runtime_api_when_it_is_created(self, user, fleets_accessible, put_function):
@@ -431,9 +431,7 @@ class TestWorkloadMirror:
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
         put_function.side_effect = RetryableError("down")
         arguments_storage = mock.Mock()
-        monkeypatch.setattr(
-            "api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: arguments_storage
-        )
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: arguments_storage)
 
         with pytest.raises(EngineUnavailableException):
             RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
@@ -461,9 +459,7 @@ class TestWorkloadMirror:
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
         put_function.side_effect = ValueError("not an error of the Runtime API")
         arguments_storage = mock.Mock()
-        monkeypatch.setattr(
-            "api.use_cases.programs.run.get_arguments_storage", lambda job, paths=None: arguments_storage
-        )
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: arguments_storage)
 
         with pytest.raises(ValueError):
             RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
