@@ -7,9 +7,9 @@ upgrade:
     previously emitted when the check was bypassed has been removed, so ``suppress_usage_warning``
     now only silences the low-quota warning of the client-side check.
   - |
-    :meth:`.RunnableQiskitFunction.run` no longer sends ``bypass_usage_check``,
-    ``suppress_usage_warning`` or ``show_kwargs_split`` to the function as arguments. A function
-    that reads an argument with one of these names no longer receives it.
+    :meth:`.RunnableQiskitFunction.run` no longer sends ``bypass_usage_check`` or
+    ``suppress_usage_warning`` to the function as arguments. A function that reads an argument
+    with one of these names no longer receives it.
 fixes:
   - |
     :meth:`.RunnableQiskitFunction.run` now forwards ``bypass_usage_check`` and
@@ -17,8 +17,3 @@ fixes:
     sent the flag to the function as an argument and the usage check still ran. With a client whose
     ``run`` does not accept a flag, such as a plain :class:`.ServerlessClient`, the flag is dropped
     with a warning.
-features:
-  - |
-    :meth:`.RunnableQiskitFunction.run` accepts ``show_kwargs_split=True``, which emits a warning
-    showing how the keyword arguments were split into function arguments (by name only),
-    forwarded client options and ignored client options.

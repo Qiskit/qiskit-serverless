@@ -285,13 +285,10 @@ class RunnableQiskitFunction(QiskitFunction):
         client = data["client"]
         return RunnableQiskitFunction(client, **_decode_fields(data, field_names))
 
-    def run(self, *, show_kwargs_split: bool = False, **kwargs):
+    def run(self, **kwargs):
         """Run function
 
         Args:
-            show_kwargs_split: if ``True``, warn with how the keyword arguments were split into
-                function arguments (by name only), forwarded client options and ignored client
-                options. Never sent to the function.
             **kwargs: function arguments, except for these names, which this method consumes and
                 never sends to the function:
 
@@ -324,23 +321,12 @@ class RunnableQiskitFunction(QiskitFunction):
         flags = {name: kwargs.pop(name) for name in _CLIENT_RUN_FLAGS if name in kwargs}
         accepted = _keyword_only_params(self._run_service.run)
         forwarded = {name: value for name, value in flags.items() if name in accepted}
-        ignored = {name: value for name, value in flags.items() if name not in accepted}
-        client_name = type(self._run_service).__name__
+        ignored = sorted(set(flags) - accepted)
 
         if ignored:
             warnings.warn(
-                f"{sorted(ignored)} have no effect with {client_name} and were ignored; "
+                f"{ignored} have no effect with {type(self._run_service).__name__} and were ignored; "
                 "they are not sent to the function as arguments.",
-                stacklevel=2,
-            )
-        if show_kwargs_split:
-            # Argument names only: values can be large (circuits) or sensitive.
-            warnings.warn(
-                f"{self} run keyword arguments split for {client_name}: "
-                f"function arguments={sorted(kwargs)}, "
-                f"forwarded client options={forwarded}, "
-                f"ignored client options={ignored}, "
-                f"config={'set' if config is not None else None}, function_size={function_size!r}",
                 stacklevel=2,
             )
 

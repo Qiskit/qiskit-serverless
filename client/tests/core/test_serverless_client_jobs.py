@@ -1180,8 +1180,8 @@ class TestFunctionRunClientFlags:
         )
 
     def test_unset_flags_are_not_forwarded_and_nothing_warns(self):
-        """Flags the caller does not pass are left to the client's own defaults, and with show_kwargs_split off
-        by default a run with only function arguments emits no warning."""
+        """Flags the caller does not pass are left to the client's own defaults, and a run with only function
+        arguments emits no warning."""
         client = create_autospec(IBMServerlessClient, instance=True)
         function = RunnableQiskitFunction(client, title="test-function")
 
@@ -1204,22 +1204,6 @@ class TestFunctionRunClientFlags:
 
         assert job.job_id == "new-job-id"
         assert json.loads(mock_request.last_request.json()["arguments"]) == {"x": 1}
-
-    def test_show_kwargs_split_warns_with_the_split(self):
-        """show_kwargs_split=True reports how the kwargs were split, by argument name only, and is itself
-        not a function argument."""
-        client = create_autospec(IBMServerlessClient, instance=True)
-        function = RunnableQiskitFunction(client, title="test-function")
-
-        with pytest.warns(UserWarning) as record:
-            function.run(x=1, secret="do-not-print", bypass_usage_check=False, show_kwargs_split=True)
-
-        message = str(record[0].message)
-        assert "function arguments=['secret', 'x']" in message
-        assert "forwarded client options={'bypass_usage_check': False}" in message
-        assert "ignored client options={}" in message
-        assert "do-not-print" not in message
-        assert client.run.call_args.kwargs["arguments"] == {"x": 1, "secret": "do-not-print"}
 
     def test_keyword_only_params_ignores_var_keyword(self):
         """A **kwargs catch-all does not count as accepting a flag."""
