@@ -542,16 +542,15 @@ class TestIBMServerlessClientCheckUsage:
         with pytest.warns(UserWarning, match="low remaining runtime quota"):
             client._check_usage()
 
-    @pytest.mark.parametrize("bypass_usage_check", [False, True], ids=["low_quota", "bypass_usage_check"])
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
     @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient.run")
     def test_check_usage_suppresses_low_warning_when_requested(
-        self, mock_super_run, mock_file_path, mock_verify, mock_list_instances, bypass_usage_check
+        self, mock_super_run, mock_file_path, mock_verify, mock_list_instances
     ):
-        """run(suppress_usage_warning=True) emits no warning, both for low remaining quota when the check runs
-        and when bypass_usage_check=True skips it."""
+        """With the check enabled (bypass_usage_check=False), run(suppress_usage_warning=True) emits no warning
+        for low remaining quota."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         # if epsilon< low_threshold, their avg is greater than epsilon and smaller than low_threshold
         remaining_usage_seconds = (float(USAGE_LOW_THRESHOLD_SECONDS + USAGE_ZERO_EPSILON_SECONDS)) / 2
@@ -565,9 +564,10 @@ class TestIBMServerlessClientCheckUsage:
                 "fn",
                 arguments={"backend_name": "ibm_torino"},
                 suppress_usage_warning=True,
-                bypass_usage_check=bypass_usage_check,
+                bypass_usage_check=False,
             )
 
+        client._service.usage.assert_called_once()
         mock_super_run.assert_called_once()
 
     @patch(_LIST_INSTANCES)
