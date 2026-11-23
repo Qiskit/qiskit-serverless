@@ -29,6 +29,7 @@ Qiskit Serverless function
 
 from abc import ABC, abstractmethod
 import dataclasses
+import inspect
 import json
 import warnings
 from dataclasses import dataclass
@@ -48,6 +49,25 @@ RAY_RUNNER_DEPRECATION = (
     "your QiskitFunction (the default in recent releases). Ray-only jobs do not get Fleets features "
     "such as GPU compute profiles (function_size) or uploaded-wheel installs."
 )
+
+# Options a client's run() may take beyond the RunService contract (IBMServerlessClient.run takes
+# these). RunnableQiskitFunction.run never sends them as function arguments, whichever client is
+# behind the function; it forwards each one only if that client's run() accepts it. Keep this in
+# sync with IBMServerlessClient.run (a unit test checks it).
+_CLIENT_RUN_FLAGS = ("suppress_usage_warning", "bypass_usage_check")
+
+
+def _keyword_only_params(func: Any) -> set:
+    """Names of the keyword-only parameters ``func`` declares (those after ``*`` in its signature).
+
+    A ``**kwargs`` catch-all is not counted, so a client whose run() takes one accepts no flags.
+    """
+    try:
+        params = inspect.signature(func).parameters.values()
+    except (TypeError, ValueError):  # callables with no introspectable signature
+        return set()
+    return {p.name for p in params if p.kind is inspect.Parameter.KEYWORD_ONLY}
+
 
 GenericType = Literal["GENERIC"]
 ApplicationType = Literal["APPLICATION"]
@@ -265,8 +285,21 @@ class RunnableQiskitFunction(QiskitFunction):
         client = data["client"]
         return RunnableQiskitFunction(client, **_decode_fields(data, field_names))
 
-    def run(self, **kwargs):
+    def run(self, *, show_kwargs_split: bool = False, **kwargs):
         """Run function
+
+        Args:
+            show_kwargs_split: if ``True``, warn with how the keyword arguments were split into
+                function arguments (by name only), forwarded client options and ignored client
+                options. Never sent to the function.
+            **kwargs: function arguments, except for these names, which this method consumes and
+                never sends to the function:
+
+                * ``config``: the job :class:`~qiskit_serverless.core.job.Configuration`.
+                * ``function_size``: the size label to run at.
+                * ``suppress_usage_warning`` and ``bypass_usage_check``: client options, forwarded
+                  to the client's ``run`` when it accepts them (as :meth:`.IBMServerlessClient.run`
+                  does). With a client that does not accept one, it is dropped with a warning.
 
         Raises:
             QiskitServerlessException: validation exception
@@ -287,11 +320,36 @@ class RunnableQiskitFunction(QiskitFunction):
             raise QiskitServerlessException(
                 "'compute_profile' is no longer supported; use function_size='<label>' instead."
             )
+
+        flags = {name: kwargs.pop(name) for name in _CLIENT_RUN_FLAGS if name in kwargs}
+        accepted = _keyword_only_params(self._run_service.run)
+        forwarded = {name: value for name, value in flags.items() if name in accepted}
+        ignored = {name: value for name, value in flags.items() if name not in accepted}
+        client_name = type(self._run_service).__name__
+
+        if ignored:
+            warnings.warn(
+                f"{sorted(ignored)} have no effect with {client_name} and were ignored; "
+                "they are not sent to the function as arguments.",
+                stacklevel=2,
+            )
+        if show_kwargs_split:
+            # Argument names only: values can be large (circuits) or sensitive.
+            warnings.warn(
+                f"{self} run keyword arguments split for {client_name}: "
+                f"function arguments={sorted(kwargs)}, "
+                f"forwarded client options={forwarded}, "
+                f"ignored client options={ignored}, "
+                f"config={'set' if config is not None else None}, function_size={function_size!r}",
+                stacklevel=2,
+            )
+
         return self._run_service.run(
             program=self,
             arguments=kwargs,
             config=config,
             function_size=function_size,
+            **forwarded,
         )
 
     def get_jobs(self):
