@@ -1179,12 +1179,15 @@ class TestFunctionRunClientFlags:
             suppress_usage_warning=True,
         )
 
-    def test_unset_flags_are_not_forwarded(self):
-        """Flags the caller does not pass are left to the client's own defaults."""
+    def test_unset_flags_are_not_forwarded_and_nothing_warns(self):
+        """Flags the caller does not pass are left to the client's own defaults, and with show_kwargs_split off
+        by default a run with only function arguments emits no warning."""
         client = create_autospec(IBMServerlessClient, instance=True)
         function = RunnableQiskitFunction(client, title="test-function")
 
-        function.run(x=1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            function.run(x=1)
 
         client.run.assert_called_once_with(program=function, arguments={"x": 1}, config=None, function_size=None)
 
@@ -1217,15 +1220,6 @@ class TestFunctionRunClientFlags:
         assert "ignored client options={}" in message
         assert "do-not-print" not in message
         assert client.run.call_args.kwargs["arguments"] == {"x": 1, "secret": "do-not-print"}
-
-    def test_show_kwargs_split_is_off_by_default(self):
-        """Without show_kwargs_split, a run with only function arguments emits no warning."""
-        client = create_autospec(IBMServerlessClient, instance=True)
-        function = RunnableQiskitFunction(client, title="test-function")
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            function.run(x=1)
 
     def test_keyword_only_params_ignores_var_keyword(self):
         """A **kwargs catch-all does not count as accepting a flag."""
