@@ -1382,8 +1382,11 @@ class IBMServerlessClient(ServerlessClient):
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
-        Checks are performed before delegating to ``ServerlessClient.run``. Checks include instance has no
-        remaining runtime; warns when low and check accessibility to the backed
+        Checks are performed before delegating to ``ServerlessClient.run``: the requested backend is accessible
+        (or, with no ``backend_name``, the instance has at least one backend), and, only when
+        ``bypass_usage_check=False``, the instance has remaining runtime quota (raising when it is exhausted and
+        warning when it is low).
+
         Args:
             program: ``QiskitFunction`` object or function title string.
             arguments: Runtime arguments. The optional ``backend_name`` key is inspected for
