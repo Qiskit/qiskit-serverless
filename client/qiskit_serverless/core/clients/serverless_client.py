@@ -1339,7 +1339,8 @@ class IBMServerlessClient(ServerlessClient):
         except Exception as exc:  # pylint: disable=broad-except
             warnings.warn(
                 f"Could not retrieve usage information for instance '{self.instance}': {exc}. "
-                "Proceeding with job submission; verify your instance quota manually."
+                "Proceeding with job submission; verify your instance quota manually. "
+                "Pass bypass_usage_check=True to run() to skip this client-side quota check."
             )
             return
 
@@ -1358,7 +1359,9 @@ class IBMServerlessClient(ServerlessClient):
                 f"Instance '{self.instance}' has no remaining runtime quota "
                 f"(remaining: {remaining:.2f}s). "
                 "The job would wait indefinitely for runtime resources. "
-                "Check your instance quota at https://quantum.cloud.ibm.com/instances."
+                "Check your instance quota at https://quantum.cloud.ibm.com/instances. "
+                "To submit anyway, pass bypass_usage_check=True to run() to skip this client-side quota check; "
+                "the gateway still enforces its own quota checks."
             )
 
         if not suppress_low_usage_warning and remaining is not None and remaining <= USAGE_LOW_THRESHOLD_SECONDS:
@@ -1366,7 +1369,9 @@ class IBMServerlessClient(ServerlessClient):
                 f"Instance '{self.instance}' has low remaining runtime quota "
                 f"({remaining:.0f}s remaining, threshold: {USAGE_LOW_THRESHOLD_SECONDS:.0f}s). "
                 "Consider checking your quota before submitting long-running jobs. "
-                "Check https://quantum.cloud.ibm.com/instances for details."
+                "Check https://quantum.cloud.ibm.com/instances for details. "
+                "Pass suppress_usage_warning=True to run() to silence this warning, or bypass_usage_check=True "
+                "to skip this client-side quota check."
             )
 
     def run(  # pylint: disable=too-many-positional-arguments
@@ -1382,8 +1387,11 @@ class IBMServerlessClient(ServerlessClient):
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
-        Checks are performed before delegating to ``ServerlessClient.run``. Checks include instance has no
-        remaining runtime; warns when low and check accessibility to the backed
+        Checks are performed before delegating to ``ServerlessClient.run``: the instance has remaining runtime
+        quota (raising when it is exhausted and warning when it is low; skipped with ``bypass_usage_check=True``),
+        and the requested backend is accessible (or, with no ``backend_name``, the instance has at least one
+        backend).
+
         Args:
             program: ``QiskitFunction`` object or function title string.
             arguments: Runtime arguments. The optional ``backend_name`` key is inspected for
