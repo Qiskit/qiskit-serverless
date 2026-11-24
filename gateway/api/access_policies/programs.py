@@ -24,7 +24,9 @@ logger = logging.getLogger("api.ProgramAccessPolicies")
 
 def _check(user, function: Function, accessible_functions, permission: str, legacy_permission_name: str) -> bool:
     """Check a loaded provider function. Instances: the function's own entry must carry `permission`
-    and authorship grants nothing. Legacy: the author, or a group of the function with the Django permission."""
+    and authorship grants nothing. Legacy: the author, or a group of the function with the Django permission.
+
+    Only provider functions: a custom function has no provider, so the instances path would fail on it."""
     if accessible_functions is None or accessible_functions.use_legacy_authorization:
         has_access = (
             function.author_id == user.id
@@ -40,7 +42,10 @@ def _check(user, function: Function, accessible_functions, permission: str, lega
 
 
 class ProgramAccessPolicies:
-    """Access policies for Qiskit Functions."""
+    """Access policies for Qiskit Functions.
+
+    Every check except `can_create` takes a provider function. A custom function is looked up by author and
+    never reaches them."""
 
     @staticmethod
     def can_read(user, function: Function, accessible_functions: Optional[FunctionAccessResult]) -> bool:

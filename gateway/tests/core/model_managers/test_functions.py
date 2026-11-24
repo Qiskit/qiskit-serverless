@@ -7,7 +7,6 @@ from core.domain.authorization.function_access_entry import FunctionAccessEntry
 from core.domain.authorization.function_access_result import FunctionAccessResult
 from core.domain.business_models import BusinessModel
 from core.models import Program, Provider, PLATFORM_PERMISSION_READ
-from tests.utils import TestUtils
 
 pytestmark = pytest.mark.django_db
 
