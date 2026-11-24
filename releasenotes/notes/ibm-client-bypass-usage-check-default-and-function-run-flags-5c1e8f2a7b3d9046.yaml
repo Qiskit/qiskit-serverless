@@ -6,10 +6,6 @@ upgrade:
     Pass ``bypass_usage_check=False`` to run the client-side check before submitting. The warning
     previously emitted when the check was bypassed has been removed, so ``suppress_usage_warning``
     now only silences the low-quota warning of the client-side check.
-  - |
-    :meth:`.RunnableQiskitFunction.run` no longer sends ``bypass_usage_check`` or
-    ``suppress_usage_warning`` to the function as arguments. A function that reads an argument
-    with one of these names no longer receives it.
 fixes:
   - |
     :meth:`.RunnableQiskitFunction.run` now forwards ``bypass_usage_check`` and
