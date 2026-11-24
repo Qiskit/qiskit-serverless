@@ -19,10 +19,10 @@ from api.use_cases.jobs.list_events import ListJobEventsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
-from core.model_managers.job_events import JobEventType
+from core.model_managers.job_events import JobEventContext, JobEventType
 from core.models import JobEvent
 
-VALID_TYPES = [JobEventType.ERROR]
+VALID_TYPES = [JobEventType.ERROR, JobEventType.STATUS_CHANGE]
 
 
 class InputSerializer(serializers.Serializer):
@@ -31,6 +31,7 @@ class InputSerializer(serializers.Serializer):
     """
 
     type = serializers.CharField(required=False)
+    context = serializers.CharField(required=False)
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -45,6 +46,16 @@ class InputSerializer(serializers.Serializer):
         if value_upper not in VALID_TYPES:
             valid_types_str = [t.value for t in VALID_TYPES]
             raise ValidationError(f"Type is not valid. Valid types: {valid_types_str}")
+
+        return value_upper
+
+    def validate_context(self, value: str):
+        """
+        Validates the job event context.
+        """
+        value_upper = value.upper()
+        if value_upper not in set(JobEventContext):
+            raise ValidationError(f"Context is not valid. Valid contexts: {[c.value for c in JobEventContext]}")
 
         return value_upper
 
@@ -104,7 +115,8 @@ def get_events(request: Request, job_id: UUID) -> Response:
     serializer.is_valid(raise_exception=True)
 
     event_type = serializer.validated_data.get("type")
+    context = serializer.validated_data.get("context")
 
     user = cast(AbstractUser, request.user)
-    events = ListJobEventsUseCase().execute(job_id, user, event_type)
+    events = ListJobEventsUseCase().execute(job_id, user, event_type, context)
     return Response(serialize_output(events))
