@@ -323,6 +323,12 @@ states the timeout that was reached. This applies to jobs on the Fleets runner.<
 <code class="docutils literal notranslate"><span class="pre">ray&gt;=2.60</span></code>, raised from <code class="docutils literal notranslate"><span class="pre">2.59</span></code>. The gateway and the fleet-node selector image
 use the same minimum.</p></li>
 </ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">str()</span></code> and <code class="docutils literal notranslate"><span class="pre">repr()</span></code> of a <code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitFunction</span></code> (and
+<code class="xref py py-class docutils literal notranslate"><span class="pre">RunnableQiskitFunction</span></code>) no longer print the class name. A function
+with a provider now prints as <code class="docutils literal notranslate"><span class="pre">&quot;&lt;provider&gt;/&lt;title&gt;&quot;</span></code> and one without as just <code class="docutils literal notranslate"><span class="pre">&quot;&lt;title&gt;&quot;</span></code>,
+instead of <code class="docutils literal notranslate"><span class="pre">&quot;QiskitFunction(&lt;provider&gt;/&lt;title&gt;)&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;QiskitFunction(&lt;title&gt;)&quot;</span></code>.</p></li>
+</ul>
 </section>
 <section id="security-issues">
 <span id="release-notes-upcoming-qiskit-serverless-release-security-issues"></span><h3>Security Issues<a class="headerlink" href="#security-issues" title="Link to this heading">¶</a></h3>
