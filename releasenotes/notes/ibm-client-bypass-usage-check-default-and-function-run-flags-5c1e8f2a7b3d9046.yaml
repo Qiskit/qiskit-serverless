@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    :meth:`.RunnableQiskitFunction.run` now passes ``bypass_usage_check`` and
+    ``suppress_usage_warning`` to the client instead of sending them to the function as arguments,
+    so ``my_function.run(bypass_usage_check=True)`` skips the client-side runtime quota check. The
+    error and warnings raised by that check now point to ``bypass_usage_check``.

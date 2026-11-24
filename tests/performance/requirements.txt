@@ -1,2 +1,2 @@
-pydantic>=2.14.2
+pydantic>=2.14.3
 pyyaml>=6.0.3
