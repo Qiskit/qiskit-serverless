@@ -387,6 +387,24 @@
     <span class="k">return</span> <span class="n">result</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">format_timeout_event</span><span class="p">(</span><span class="n">event</span><span class="p">:</span> <span class="n">JobEvent</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Formats the STATUS_CHANGE event a job stopped by the program timeout carries.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        event: the STATUS_CHANGE event tagged with the PROGRAM_TIMEOUT_STOP context</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        formatted string</span>
+<span class="sd">    """</span>
+    <span class="n">hours</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"timeout_hours"</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">| Message: This job was stopped because it ran for longer than the program timeout"</span>
+    <span class="k">if</span> <span class="n">hours</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">" of </span><span class="si">{</span><span class="n">hours</span><span class="si">}</span><span class="s2"> hours"</span>
+    <span class="n">result</span> <span class="o">+=</span> <span class="s2">", so its result may be missing or incomplete."</span>
+    <span class="n">result</span> <span class="o">+=</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">| Code: PROGRAM_TIMEOUT"</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">format_err_event</span><span class="p">(</span><span class="n">error_event</span><span class="p">:</span> <span class="n">JobEvent</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Formats error event.</span>
 
