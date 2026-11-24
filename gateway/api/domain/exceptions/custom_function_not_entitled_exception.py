@@ -25,9 +25,10 @@ class CustomFunctionNotEntitledException(Exception):
         self.title = title
         self.permission = permission
         message = (
-            f"Your account is not entitled to {verb} custom Qiskit Functions, so "
+            f"Your account is not entitled to {verb} managed workflows, so "
             f"'{title}' could not be {past_participle}. Contact your administrator to "
-            f"enable the '{permission}' permission for your account."
+            f"enable the '{permission}' permission (which controls managed workflow "
+            f"access) for your account."
         )
         self.message = message
         super().__init__(message)
