@@ -215,8 +215,8 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
     def __str__(self):
         if self.provider is not None:
-            return f"QiskitFunction({self.provider}/{self.title})"
-        return f"QiskitFunction({self.title})"
+            return f"{self.provider}/{self.title}"
+        return self.title
 
     def __repr__(self):
         return self.__str__()

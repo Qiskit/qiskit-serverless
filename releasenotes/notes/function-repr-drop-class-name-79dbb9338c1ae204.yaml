@@ -1,0 +1,6 @@
+upgrade:
+  - |
+    ``str()`` and ``repr()`` of a :class:`~qiskit_serverless.QiskitFunction` (and
+    :class:`~qiskit_serverless.RunnableQiskitFunction`) no longer print the class name. A function
+    with a provider now prints as ``"<provider>/<title>"`` and one without as just ``"<title>"``,
+    instead of ``"QiskitFunction(<provider>/<title>)"`` / ``"QiskitFunction(<title>)"``.
