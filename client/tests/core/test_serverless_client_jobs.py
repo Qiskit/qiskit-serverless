@@ -1162,21 +1162,22 @@ class TestFunctionRunClientFlags:
         assert _keyword_only_params(IBMServerlessClient.run) - {"function_size"} == set(_CLIENT_RUN_FLAGS)
 
     def test_flags_are_forwarded_to_a_client_that_accepts_them(self):
-        """With an IBMServerlessClient, the usage flags reach the client and are not function arguments."""
+        """With an IBMServerlessClient, the usage flags the caller passes reach the client with their values,
+        False included, and are not function arguments."""
         client = create_autospec(IBMServerlessClient, instance=True)
         function = RunnableQiskitFunction(client, title="test-function")
 
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            function.run(x=1, bypass_usage_check=False, suppress_usage_warning=True, function_size="m")
+            function.run(x=1, bypass_usage_check=True, suppress_usage_warning=False, function_size="m")
 
         client.run.assert_called_once_with(
             program=function,
             arguments={"x": 1},
             config=None,
             function_size="m",
-            bypass_usage_check=False,
-            suppress_usage_warning=True,
+            bypass_usage_check=True,
+            suppress_usage_warning=False,
         )
 
     def test_unset_flags_are_not_forwarded_and_nothing_warns(self):
@@ -1212,6 +1213,10 @@ class TestFunctionRunClientFlags:
             return None
 
         assert _keyword_only_params(run) == {"function_size"}
+
+    def test_keyword_only_params_without_a_signature_accepts_nothing(self):
+        """When inspect.signature cannot read a signature, no flag counts as accepted, so none is forwarded."""
+        assert _keyword_only_params(42) == set()
 
 
 class TestComputeProfile:
