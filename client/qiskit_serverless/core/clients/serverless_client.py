@@ -1339,7 +1339,8 @@ class IBMServerlessClient(ServerlessClient):
         except Exception as exc:  # pylint: disable=broad-except
             warnings.warn(
                 f"Could not retrieve usage information for instance '{self.instance}': {exc}. "
-                "Proceeding with job submission; verify your instance quota manually."
+                "Proceeding with job submission; verify your instance quota manually. "
+                "Pass bypass_usage_check=True to run() to skip this client-side quota check."
             )
             return
 
@@ -1358,7 +1359,9 @@ class IBMServerlessClient(ServerlessClient):
                 f"Instance '{self.instance}' has no remaining runtime quota "
                 f"(remaining: {remaining:.2f}s). "
                 "The job would wait indefinitely for runtime resources. "
-                "Check your instance quota at https://quantum.cloud.ibm.com/instances."
+                "Check your instance quota at https://quantum.cloud.ibm.com/instances. "
+                "To submit anyway, pass bypass_usage_check=True to run() to skip this client-side quota check; "
+                "the gateway still enforces its own quota checks."
             )
 
         if not suppress_low_usage_warning and remaining is not None and remaining <= USAGE_LOW_THRESHOLD_SECONDS:
@@ -1366,7 +1369,9 @@ class IBMServerlessClient(ServerlessClient):
                 f"Instance '{self.instance}' has low remaining runtime quota "
                 f"({remaining:.0f}s remaining, threshold: {USAGE_LOW_THRESHOLD_SECONDS:.0f}s). "
                 "Consider checking your quota before submitting long-running jobs. "
-                "Check https://quantum.cloud.ibm.com/instances for details."
+                "Check https://quantum.cloud.ibm.com/instances for details. "
+                "Pass suppress_usage_warning=True to run() to silence this warning, or bypass_usage_check=True "
+                "to skip this client-side quota check."
             )
 
     def run(  # pylint: disable=too-many-positional-arguments
@@ -1378,14 +1383,14 @@ class IBMServerlessClient(ServerlessClient):
         *,
         function_size: Optional[str] = None,
         suppress_usage_warning: bool = False,
-        bypass_usage_check: bool = True,
+        bypass_usage_check: bool = False,
     ) -> "Job":
         """Run a Qiskit Function with pre-flight validation before submitting to the gateway.
 
-        Checks are performed before delegating to ``ServerlessClient.run``: the requested backend is accessible
-        (or, with no ``backend_name``, the instance has at least one backend), and, only when
-        ``bypass_usage_check=False``, the instance has remaining runtime quota (raising when it is exhausted and
-        warning when it is low).
+        Checks are performed before delegating to ``ServerlessClient.run``: the instance has remaining runtime
+        quota (raising when it is exhausted and warning when it is low; skipped with ``bypass_usage_check=True``),
+        and the requested backend is accessible (or, with no ``backend_name``, the instance has at least one
+        backend).
 
         Args:
             program: ``QiskitFunction`` object or function title string.
@@ -1396,13 +1401,13 @@ class IBMServerlessClient(ServerlessClient):
             function_size: Declared size label (e.g. ``"m"``) to run at; resolves through the
                 function's size catalog on the gateway.
             suppress_usage_warning: If ``True``, suppress the warning when remaining runtime
-                quota is below ``USAGE_LOW_THRESHOLD_SECONDS``. Only applies when
-                ``bypass_usage_check`` is ``False``. The warning emitted when usage information
+                quota is below ``USAGE_LOW_THRESHOLD_SECONDS`` and the warning emitted when
+                ``bypass_usage_check`` is ``True``. The warning emitted when usage information
                 cannot be retrieved is still shown, and the exception for exhausted quota
                 (at or below ``USAGE_ZERO_EPSILON_SECONDS``) is still raised.
-            bypass_usage_check: If ``True`` (the default), skip the client-side runtime quota check, including
-                the exhausted-quota exception and the low-quota warning. The gateway still enforces its own quota
-                checks. Pass ``False`` to run the client-side check before submitting.
+            bypass_usage_check: If ``True``, skip the client-side runtime quota check entirely, including
+                the exhausted-quota exception and the low-quota warning. A warning is emitted instead,
+                unless ``suppress_usage_warning`` is ``True``. The gateway still enforces its own quota checks.
 
         Returns:
             :class:`~qiskit_serverless.core.job.Job` handle for the submitted run.
@@ -1415,6 +1420,13 @@ class IBMServerlessClient(ServerlessClient):
 
         if not bypass_usage_check:
             self._check_usage(suppress_low_usage_warning=suppress_usage_warning)
+        elif not suppress_usage_warning:
+            warnings.warn(
+                f"bypass_usage_check=True: skipping the runtime quota check for instance '{self.instance}'. "
+                "The job will be submitted even if the remaining quota is insufficient to complete it, "
+                "and usage may still be billed. "
+                "Pass suppress_usage_warning=True to silence this warning."
+            )
 
         if backend_name:
             # Single-backend lookup — fast and confirms access without a full instance listing.
