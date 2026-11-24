@@ -328,6 +328,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
@@ -347,6 +348,25 @@
     <span class="s2">"your QiskitFunction (the default in recent releases). Ray-only jobs do not get Fleets features "</span>
     <span class="s2">"such as GPU compute profiles (function_size) or uploaded-wheel installs."</span>
 <span class="p">)</span>
+
+<span class="c1"># Options a client's run() may take beyond the RunService contract (IBMServerlessClient.run takes</span>
+<span class="c1"># these). RunnableQiskitFunction.run never sends them as function arguments, whichever client is</span>
+<span class="c1"># behind the function; it forwards each one only if that client's run() accepts it. Keep this in</span>
+<span class="c1"># sync with IBMServerlessClient.run (a unit test checks it).</span>
+<span class="n">_CLIENT_RUN_FLAGS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"suppress_usage_warning"</span><span class="p">,</span> <span class="s2">"bypass_usage_check"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_keyword_only_params</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Names of the keyword-only parameters ``func`` declares (those after ``*`` in its signature).</span>
+
+<span class="sd">    A ``**kwargs`` catch-all is not counted, so a client whose run() takes one accepts no flags.</span>
+<span class="sd">    """</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>  <span class="c1"># callables with no introspectable signature</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">kind</span> <span class="ow">is</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">KEYWORD_ONLY</span><span class="p">}</span>
+
 
 <span class="n">GenericType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"GENERIC"</span><span class="p">]</span>
 <span class="n">ApplicationType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"APPLICATION"</span><span class="p">]</span>
@@ -570,6 +590,16 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Run function</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            **kwargs: function arguments, except for these names, which this method consumes and</span>
+<span class="sd">                never sends to the function:</span>
+
+<span class="sd">                * ``config``: the job :class:`~qiskit_serverless.core.job.Configuration`.</span>
+<span class="sd">                * ``function_size``: the size label to run at.</span>
+<span class="sd">                * ``suppress_usage_warning`` and ``bypass_usage_check``: client options, forwarded</span>
+<span class="sd">                  to the client's ``run`` when it accepts them (as :meth:`.IBMServerlessClient.run`</span>
+<span class="sd">                  does). With a client that does not accept one, it is dropped with a warning.</span>
+
 <span class="sd">        Raises:</span>
 <span class="sd">            QiskitServerlessException: validation exception</span>
 
@@ -589,11 +619,25 @@
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
                 <span class="s2">"'compute_profile' is no longer supported; use function_size='&lt;label&gt;' instead."</span>
             <span class="p">)</span>
+
+        <span class="n">flags</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_CLIENT_RUN_FLAGS</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">}</span>
+        <span class="n">accepted</span> <span class="o">=</span> <span class="n">_keyword_only_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_service</span><span class="o">.</span><span class="n">run</span><span class="p">)</span>
+        <span class="n">forwarded</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">flags</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">accepted</span><span class="p">}</span>
+        <span class="n">ignored</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span> <span class="o">-</span> <span class="n">accepted</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ignored</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ignored</span><span class="si">}</span><span class="s2"> have no effect with </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_service</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> and were ignored; "</span>
+                <span class="s2">"they are not sent to the function as arguments."</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_service</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="n">program</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
             <span class="n">arguments</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
             <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
             <span class="n">function_size</span><span class="o">=</span><span class="n">function_size</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">forwarded</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

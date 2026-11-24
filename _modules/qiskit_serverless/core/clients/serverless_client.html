@@ -1649,7 +1649,8 @@
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"Could not retrieve usage information for instance '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">': </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">. "</span>
-                <span class="s2">"Proceeding with job submission; verify your instance quota manually."</span>
+                <span class="s2">"Proceeding with job submission; verify your instance quota manually. "</span>
+                <span class="s2">"Pass bypass_usage_check=True to run() to skip this client-side quota check."</span>
             <span class="p">)</span>
             <span class="k">return</span>
 
@@ -1668,7 +1669,9 @@
                 <span class="sa">f</span><span class="s2">"Instance '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">' has no remaining runtime quota "</span>
                 <span class="sa">f</span><span class="s2">"(remaining: </span><span class="si">{</span><span class="n">remaining</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s). "</span>
                 <span class="s2">"The job would wait indefinitely for runtime resources. "</span>
-                <span class="s2">"Check your instance quota at https://quantum.cloud.ibm.com/instances."</span>
+                <span class="s2">"Check your instance quota at https://quantum.cloud.ibm.com/instances. "</span>
+                <span class="s2">"To submit anyway, pass bypass_usage_check=True to run() to skip this client-side quota check; "</span>
+                <span class="s2">"the gateway still enforces its own quota checks."</span>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">suppress_low_usage_warning</span> <span class="ow">and</span> <span class="n">remaining</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">remaining</span> <span class="o">&lt;=</span> <span class="n">USAGE_LOW_THRESHOLD_SECONDS</span><span class="p">:</span>
@@ -1676,7 +1679,9 @@
                 <span class="sa">f</span><span class="s2">"Instance '</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s2">' has low remaining runtime quota "</span>
                 <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">remaining</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s remaining, threshold: </span><span class="si">{</span><span class="n">USAGE_LOW_THRESHOLD_SECONDS</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s). "</span>
                 <span class="s2">"Consider checking your quota before submitting long-running jobs. "</span>
-                <span class="s2">"Check https://quantum.cloud.ibm.com/instances for details."</span>
+                <span class="s2">"Check https://quantum.cloud.ibm.com/instances for details. "</span>
+                <span class="s2">"Pass suppress_usage_warning=True to run() to silence this warning, or bypass_usage_check=True "</span>
+                <span class="s2">"to skip this client-side quota check."</span>
             <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-positional-arguments</span>
@@ -1692,8 +1697,11 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Job"</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Run a Qiskit Function with pre-flight validation before submitting to the gateway.</span>
 
-<span class="sd">        Checks are performed before delegating to ``ServerlessClient.run``. Checks include instance has no</span>
-<span class="sd">        remaining runtime; warns when low and check accessibility to the backed</span>
+<span class="sd">        Checks are performed before delegating to ``ServerlessClient.run``: the instance has remaining runtime</span>
+<span class="sd">        quota (raising when it is exhausted and warning when it is low; skipped with ``bypass_usage_check=True``),</span>
+<span class="sd">        and the requested backend is accessible (or, with no ``backend_name``, the instance has at least one</span>
+<span class="sd">        backend).</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            program: ``QiskitFunction`` object or function title string.</span>
 <span class="sd">            arguments: Runtime arguments. The optional ``backend_name`` key is inspected for</span>
