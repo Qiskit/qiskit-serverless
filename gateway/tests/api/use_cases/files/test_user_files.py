@@ -103,6 +103,11 @@ class TestFilesList:
                 result = FilesListUseCase().execute(author, None, "personal-function", accessible_functions=_legacy())
             assert result == ["file1.txt"]
 
+        def test_user_function_ignores_a_provider_function_with_the_same_title(self, other_user, function):
+            """Without provider only the caller's own function counts, never someone else's with that title."""
+            with pytest.raises(FunctionNotFoundException):
+                FilesListUseCase().execute(other_user, None, "my-function", accessible_functions=_legacy())
+
     class TestRuntimeInstances:
         def test_read_permission_grants_access(self, other_user, function):
             with patch("api.use_cases.files.list.get_file_storage") as mock_factory:
