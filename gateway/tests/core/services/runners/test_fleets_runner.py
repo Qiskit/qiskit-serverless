@@ -26,7 +26,7 @@ from urllib3.exceptions import ReadTimeoutError as HttpReadTimeoutError
 
 from core.domain.compute_profile import normalize as normalize_compute_profile
 from core.ibm_cloud.code_engine.ce_client.rest import ApiException
-from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths
+from core.ibm_cloud.code_engine.fleets.utils import FleetJobPaths, build_job_paths, job_paths_from_saved
 from core.models import CodeEngineProject, Job, Program
 from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
@@ -1173,20 +1173,30 @@ def test_submit_arguments_path_set_exactly_once():
 
 
 def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
-    """_upload_provider_image_entrypoint() uploads rendered template to provider bucket for provider jobs."""
+    """_upload_provider_image_entrypoint() uploads the wrapper and the rendered entrypoint to the saved row's provider
+    bucket and function prefix. The row differs from the project's bucket and today's layout, so an upload to either
+    of those would fail here."""
     runner, _ = _make_runner()
-    runner.job.author.username = "alice"
     runner.job.program.provider = MagicMock()
     runner.job.program.provider.name = "acme"
-    runner.job.program.title = "my-func"
     runner.job.program.entrypoint = "main.py"
-    runner.job.program.runner = Program.FLEETS
-    runner.job.id = "job-1"
-    runner.job.arguments = "{}"
-    runner._project.cos_bucket_provider_data_name = "provider-bucket"  # pylint: disable=protected-access
-    runner._project.cos_bucket_user_data_name = "user-bucket"  # pylint: disable=protected-access
-
-    paths = build_job_paths(runner.job)
+    runner.job.program.image = "provider:latest"
+    runner._project.cos_bucket_provider_data_name = "project-provider-bucket"  # pylint: disable=protected-access
+    saved = StoragePaths(
+        user_bucket="saved-user-bucket",
+        provider_bucket="saved-provider-bucket",
+        user_pds="saved-user-pds",
+        provider_pds="saved-provider-pds",
+        user_function_prefix="saved/users/fn/data",
+        user_job_prefix="saved/users/fn/jobs/job-1",
+        provider_function_prefix="saved/acme/fn/data",
+        provider_job_prefix="saved/acme/fn/jobs/job-1",
+        arguments_key="saved/users/fn/jobs/job-1/arguments.json",
+        results_key="saved/users/fn/jobs/job-1/results.json",
+        user_log_key="saved/users/fn/jobs/job-1/logs.log",
+        provider_log_key="saved/acme/fn/jobs/job-1/logs.log",
+    )
+    paths = job_paths_from_saved(runner.job, saved)
 
     mock_template = MagicMock()
     mock_template.render.return_value = "rendered content"
@@ -1195,14 +1205,14 @@ def test_upload_provider_image_entrypoint_uploads_to_provider_bucket():
         _patch_settings(),
         patch(f"{_RUNNER_MOD}.get_template", return_value=mock_template),
     ):
-        runner._upload_provider_image_entrypoint(
-            paths, _saved_paths_from_the_project(runner.job)
-        )  # pylint: disable=protected-access
+        runner._upload_provider_image_entrypoint(paths, saved)  # pylint: disable=protected-access
 
-    call = runner._cos.upload_fileobj.call_args  # pylint: disable=protected-access
-    assert call.kwargs["bucket_name"] == "provider-bucket"
-    assert call.kwargs["key"] == "providers/acme/my-func/data/main.py"
-    assert call.kwargs["fileobj"].read() == b"rendered content"
+    calls = runner._cos.upload_fileobj.call_args_list  # pylint: disable=protected-access
+    assert [(call.kwargs["bucket_name"], call.kwargs["key"]) for call in calls] == [
+        ("saved-provider-bucket", "saved/acme/fn/data/fleet_provider_job_wrapper.py"),
+        ("saved-provider-bucket", "saved/acme/fn/data/main.py"),
+    ]
+    assert calls[1].kwargs["fileobj"].read() == b"rendered content"
 
 
 def test_upload_provider_image_entrypoint_raises_for_non_provider_job():
