@@ -304,10 +304,10 @@
         <article role="main" id="furo-main-content">
           <section id="release-notes">
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Link to this heading">¶</a></h1>
-<section id="upcoming-qiskit-serverless-release">
-<span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Link to this heading">¶</a></h2>
+<section id="v0-38-1">
+<span id="release-notes-v0-38-1"></span><h2>v0.38.1<a class="headerlink" href="#v0-38-1" title="Link to this heading">¶</a></h2>
 <section id="new-features">
-<span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
+<span id="release-notes-v0-38-1-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">result()</span></code> now raises a
 <a class="reference internal" href="stubs/qiskit_serverless.QiskitServerlessException.html#qiskit_serverless.QiskitServerlessException" title="qiskit_serverless.exception.QiskitServerlessException"><code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code></a> when the job was stopped
@@ -317,7 +317,7 @@ states the timeout that was reached. This applies to jobs on the Fleets runner.<
 </ul>
 </section>
 <section id="upgrade-notes">
-<span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Link to this heading">¶</a></h3>
+<span id="release-notes-v0-38-1-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The optional <code class="docutils literal notranslate"><span class="pre">ray</span></code> extra (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">qiskit-serverless[ray]</span></code>) now requires
 <code class="docutils literal notranslate"><span class="pre">ray&gt;=2.60</span></code>, raised from <code class="docutils literal notranslate"><span class="pre">2.59</span></code>. The gateway and the fleet-node selector image
@@ -331,7 +331,7 @@ instead of <code class="docutils literal notranslate"><span class="pre">&quot;Qi
 </ul>
 </section>
 <section id="security-issues">
-<span id="release-notes-upcoming-qiskit-serverless-release-security-issues"></span><h3>Security Issues<a class="headerlink" href="#security-issues" title="Link to this heading">¶</a></h3>
+<span id="release-notes-v0-38-1-security-issues"></span><h3>Security Issues<a class="headerlink" href="#security-issues" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The gateway, ray-node and fleet-node selector images no longer ship <code class="docutils literal notranslate"><span class="pre">ray/jars/ray_dist.jar</span></code>,
 the Java API bundled in the Ray wheel. It carried outdated Jackson, Guava and log4j jars
@@ -340,7 +340,7 @@ and Ray is only used from Python here.</p></li>
 </ul>
 </section>
 <section id="bug-fixes">
-<span id="release-notes-upcoming-qiskit-serverless-release-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Link to this heading">¶</a></h3>
+<span id="release-notes-v0-38-1-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">RunnableQiskitFunction.run()</span></code> now passes <code class="docutils literal notranslate"><span class="pre">bypass_usage_check</span></code> and
 <code class="docutils literal notranslate"><span class="pre">suppress_usage_warning</span></code> to the client instead of sending them to the function as arguments,
@@ -2533,7 +2533,7 @@ specific jobs. For example:</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#upcoming-qiskit-serverless-release">Upcoming Qiskit Serverless release</a><ul>
+<li><a class="reference internal" href="#v0-38-1">v0.38.1</a><ul>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#security-issues">Security Issues</a></li>
