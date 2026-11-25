@@ -261,3 +261,15 @@ class JobCOS:
         if not key:
             raise ValueError("key is required.")
         return self._cos.generate_presigned_url(bucket=bucket_name, key=key, expiry=expiry)
+
+    def get_presigned_put_url(self, *, bucket_name: str, key: str, size: int, expiry: int) -> str:
+        """Generate a presigned PUT URL for an object of exactly ``size`` bytes.
+
+        Raises:
+            ValueError: If bucket_name or key is missing.
+        """
+        if not bucket_name:
+            raise ValueError("bucket_name is required.")
+        if not key:
+            raise ValueError("key is required.")
+        return self._cos.generate_presigned_put_url(bucket=bucket_name, key=key, size=size, expiry=expiry)

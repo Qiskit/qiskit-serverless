@@ -1335,6 +1335,18 @@ def _make_custom_artifact_runner() -> tuple[FleetsRunner, FleetJobPaths]:
     return runner, paths
 
 
+def test_upload_program_to_cos_skips_a_provider_function_without_image_or_tar():
+    runner, paths = _make_custom_artifact_runner()
+    runner.job.program.artifact = None
+    runner.job.program.image = None
+    runner.job.program.provider = MagicMock()
+
+    with _patch_settings():
+        runner._upload_program_to_cos(paths)  # pylint: disable=protected-access
+
+    runner._cos.upload_fileobj.assert_not_called()  # pylint: disable=protected-access
+
+
 def test_upload_custom_image_entrypoint_skips_traversal_member():
     """_upload_custom_image_entrypoint() skips a member that escapes via ".." and only uploads safe files."""
     runner, paths = _make_custom_artifact_runner()

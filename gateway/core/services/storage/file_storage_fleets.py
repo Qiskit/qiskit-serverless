@@ -425,6 +425,22 @@ class FileStorageFleets:
             )
             raise
 
+    def presigned_public_put_urls(self, files: dict[str, int], expiry: int) -> dict[str, str]:
+        """A PUT URL in the public folder for each relative path, signed for the size of that file."""
+        cos = get_cos_client(self._project)
+        return {
+            path: cos.get_presigned_put_url(
+                bucket_name=self._user_bucket, key=f"{self._public_folder_key}/{path}", size=size, expiry=expiry
+            )
+            for path, size in files.items()
+        }
+
+    def public_file_sizes(self) -> dict[str, int]:
+        """The size of every file in the public folder, sub-folders included, by its relative path."""
+        prefix = f"{self._public_folder_key}/"
+        objects = get_cos_client(self._project).list_with_metadata(bucket_name=self._user_bucket, prefix=prefix)
+        return {obj["key"][len(prefix) :]: obj["size"] for obj in objects}
+
     def upload_private_file(self, file: File) -> str:
         """
         This method uploads a file to the specific path:
