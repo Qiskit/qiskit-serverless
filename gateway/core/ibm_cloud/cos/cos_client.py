@@ -467,3 +467,11 @@ class COSClient:
             Params={"Bucket": bucket, "Key": key},
             ExpiresIn=expiry,
         )
+
+    def generate_presigned_put_url(self, *, bucket: str, key: str, size: int, expiry: int) -> str:
+        """Generate a presigned PUT URL for an object of exactly ``size`` bytes."""
+        return self._s3_presigned.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": bucket, "Key": key, "ContentLength": size},
+            ExpiresIn=expiry,
+        )

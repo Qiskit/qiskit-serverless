@@ -1,0 +1,11 @@
+---
+features:
+  - |
+    ``client.upload()`` now sends the files of a custom Fleets function
+    straight to COS, with a presigned URL for each file, so they do not pass
+    through the gateway. User code does not change. The SDK sends the same
+    files as before, everything under ``working_dir``, and keeps the same
+    50 MB limit. A provider function, a function with an ``image``, a Ray
+    function, and an upload to a gateway that does not have
+    ``/programs/upload/start`` still send the artifact tar to
+    ``/programs/upload/``.

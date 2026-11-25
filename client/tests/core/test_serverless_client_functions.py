@@ -19,6 +19,7 @@ import warnings
 from unittest.mock import MagicMock, patch, Mock
 
 import pytest
+import requests
 
 from qiskit_serverless.core.clients.serverless_client import (
     ServerlessClient,
@@ -92,6 +93,7 @@ class TestUploadMethod:
             title="test-function",
             entrypoint="main.py",
             working_dir="./",
+            runner="ray",
         )
 
         result = mock_client.upload(program)
@@ -177,7 +179,7 @@ class TestUploadMethod:
         "program_kwargs,expected_upload_type",
         [
             ({"image": "test:latest"}, "docker"),
-            ({"entrypoint": "main.py", "working_dir": "./"}, "artifact"),
+            ({"entrypoint": "main.py", "working_dir": "./", "runner": "ray"}, "artifact"),
         ],
     )
     @patch("qiskit_serverless.core.clients.serverless_client._upload_with_artifact")
@@ -1115,3 +1117,125 @@ class TestRunSurfacesGatewayWarning:
         with pytest.warns(UserWarning, match="deprecated platform") as caught:
             mock_client.run("my-func")
         assert not any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+
+_REQUESTS = "qiskit_serverless.core.clients.serverless_client.requests"
+
+
+def _response(status_code, payload=None):
+    response = _ok_response(payload or {})
+    response.status_code = status_code
+    response.ok = status_code < 400
+    return response
+
+
+@pytest.fixture
+def working_dir(tmp_path):
+    (tmp_path / "main.py").write_text("print(1)\n")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "util.py").write_text("x = 1\n")
+    (tmp_path / "pkg" / "__init__.py").write_text("")
+    return str(tmp_path)
+
+
+class TestUploadFilesToCos:
+    """client.upload() of a custom Fleets function sends its files straight to COS."""
+
+    def _start_urls(self):
+        return {
+            "urls": {
+                "main.py": "https://cos/main",
+                "pkg/util.py": "https://cos/util",
+                "pkg/__init__.py": "https://cos/init",
+            }
+        }
+
+    def test_sends_every_file_to_cos_then_finishes(self, mock_client, working_dir):
+        program = QiskitFunction(
+            title="my-fn",
+            entrypoint="./main.py",
+            working_dir=working_dir,
+            version="1.0.0",
+            sizes_map={"s": "24x120"},
+            default_size="s",
+        )
+        with patch(f"{_REQUESTS}.post") as post, patch(f"{_REQUESTS}.Session") as session:
+            post.side_effect = [_response(200, self._start_urls()), _response(200, {"title": "my-fn"})]
+            put = session.return_value.__enter__.return_value.put
+            put.return_value = _response(200)
+
+            function = mock_client.upload(program)
+
+        start, finish = post.call_args_list
+        assert start.kwargs["url"] == "https://test-host.com/api/v1/programs/upload/start/"
+        body = start.kwargs["json"]
+        assert (body["title"], body["entrypoint"]) == ("my-fn", "main.py")
+        assert sorted(body["files"], key=lambda f: f["path"]) == [
+            {"path": "main.py", "size": 9},
+            {"path": "pkg/__init__.py", "size": 0},
+            {"path": "pkg/util.py", "size": 6},
+        ]
+        bodies = {call.args[0]: call.kwargs["data"] for call in put.call_args_list}
+        assert sorted(bodies) == ["https://cos/init", "https://cos/main", "https://cos/util"]
+        assert bodies["https://cos/init"] == b""
+        assert finish.kwargs["url"] == "https://test-host.com/api/v1/programs/upload/finish/"
+        form = finish.kwargs["data"]
+        assert (form["entrypoint"], form["version"], form["default_size"]) == ("main.py", "1.0.0", "s")
+        assert json.loads(form["sizes"]) == {"s": "24x120"}
+        assert sorted(json.loads(form["files"]), key=lambda f: f["path"]) == sorted(
+            body["files"], key=lambda f: f["path"]
+        )
+        assert function.title == "my-fn"
+
+    def test_falls_back_to_the_tar_when_the_gateway_has_no_start(self, mock_client, working_dir):
+        program = QiskitFunction(title="my-fn", entrypoint="main.py", working_dir=working_dir)
+        with patch(f"{_REQUESTS}.post") as post, patch(f"{_REQUESTS}.Session") as session:
+            post.side_effect = [_response(404), _response(200, {"title": "my-fn"})]
+
+            mock_client.upload(program)
+
+        session.assert_not_called()
+        assert post.call_args_list[1].kwargs["url"] == "https://test-host.com/api/v1/programs/upload/"
+        assert "artifact" in post.call_args_list[1].kwargs["files"]
+
+    @pytest.mark.parametrize(
+        "outcome", [_response(403, {"message": "SignatureDoesNotMatch"}), requests.exceptions.ConnectionError()]
+    )
+    def test_raises_and_does_not_finish_when_a_put_fails(self, mock_client, working_dir, outcome):
+        program = QiskitFunction(title="my-fn", entrypoint="main.py", working_dir=working_dir)
+        with patch(f"{_REQUESTS}.post") as post, patch(f"{_REQUESTS}.Session") as session:
+            post.return_value = _response(200, self._start_urls())
+            session.return_value.__enter__.return_value.put.side_effect = [outcome]
+
+            with pytest.raises(QiskitServerlessException):
+                mock_client.upload(program)
+
+        assert post.call_count == 1
+
+    @pytest.mark.parametrize("kwargs", [{"provider": "acme"}, {"runner": "ray"}])
+    def test_keeps_the_tar_for_a_provider_or_ray_function(self, mock_client, working_dir, kwargs):
+        program = QiskitFunction(title="my-fn", entrypoint="main.py", working_dir=working_dir, **kwargs)
+        with warnings.catch_warnings(), patch(f"{_REQUESTS}.post") as post:
+            warnings.simplefilter("ignore", DeprecationWarning)
+            post.return_value = _response(200, {"title": "my-fn"})
+
+            mock_client.upload(program)
+
+        assert post.call_count == 1
+        assert post.call_args.kwargs["url"] == "https://test-host.com/api/v1/programs/upload/"
+
+    def test_refuses_files_over_the_limit_before_any_call(self, mock_client, working_dir):
+        program = QiskitFunction(title="my-fn", entrypoint="main.py", working_dir=working_dir)
+        with patch("qiskit_serverless.core.clients.serverless_client.MAX_ARTIFACT_FILE_SIZE_MB", 0):
+            with patch(f"{_REQUESTS}.post") as post, pytest.raises(QiskitServerlessException, match="greater than"):
+                mock_client.upload(program)
+
+        post.assert_not_called()
+
+    def test_refuses_a_missing_entrypoint_before_any_call(self, mock_client, working_dir):
+        program = QiskitFunction(title="my-fn", entrypoint="other.py", working_dir=working_dir)
+        with patch(f"{_REQUESTS}.post") as post:
+            with pytest.raises(QiskitServerlessException, match="does not exist"):
+                mock_client.upload(program)
+
+        post.assert_not_called()

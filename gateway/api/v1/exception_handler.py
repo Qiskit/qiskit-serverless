@@ -13,6 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.artifact_too_large_error import ArtifactTooLargeError
 from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.engine_unavailable_exception import EngineUnavailableException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
@@ -51,7 +52,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     - CustomFunctionNotEntitledException, InvalidAccessException -> 403 FORBIDDEN
     - EngineUnavailableException, RetryableError -> 503 SERVICE UNAVAILABLE
     - ValidationError, InvalidArgumentsException, FunctionConfigurationException -> 400 BAD REQUEST
-    - RequestDataTooBig -> 413 REQUEST ENTITY TOO LARGE
+    - RequestDataTooBig, ArtifactTooLargeError -> 413 REQUEST ENTITY TOO LARGE
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
 
@@ -120,6 +121,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             logger.warning("Request body over the %g MB limit", limit_mb)
             return Response(
                 {"message": f"the request body is larger than the maximum of {limit_mb:g} MB"},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        except ArtifactTooLargeError as error:
+            return Response(
+                {"message": error.message},
                 status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught
