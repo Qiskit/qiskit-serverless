@@ -191,7 +191,7 @@ class UpdateRayJobsStatuses(SchedulerTask):
             try:
                 changed = self.update_job_status(job)
             except DB_EXCEPTIONS:
-                # Never swallowed: main.py counts consecutive database failures to restart the pod
+                # Never swallowed: scheduler/loop.py counts consecutive database failures to restart the pod
                 raise
             except Exception:  # pylint: disable=broad-exception-caught
                 # One broken job must not stop the others from being updated

@@ -12,6 +12,9 @@ from core.services.runners import RunnerError
 from core.services.runners import RunnerRetryableError
 from scheduler.tasks.schedule_fleets_jobs import ScheduleFleetsJobs
 
+# the breakers read their thresholds from Config
+pytestmark = pytest.mark.django_db
+
 _MOD = "scheduler.tasks.schedule_fleets_jobs"
 
 
@@ -23,6 +26,11 @@ def _fleets_limits():
         f"{_MOD}.Config.get_int", side_effect=lambda key, **kw: config[key] if key in config else get_int(key, **kw)
     ):
         yield config
+
+
+@pytest.fixture(autouse=True)
+def _config_defaults(db):
+    Config.add_defaults()
 
 
 @pytest.fixture(autouse=True)

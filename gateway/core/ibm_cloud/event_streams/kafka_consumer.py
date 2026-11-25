@@ -13,7 +13,7 @@
 """Kafka consumer for every configured region's Event Streams bus, driven by a scheduler task
 (see scheduler/tasks/consume_blocked_account_events.py).
 
-The scheduler is single-threaded, so drain() never waits on the broker: it takes whatever each
+A scheduler loop runs its tasks one after the other, so drain() never waits on the broker: it takes whatever each
 region already has in its local queue (consume() with a zero timeout), hands each message to the
 injected handler, commits what it finished asynchronously, measures each topic's lag from the
 watermarks librdkafka has cached, and returns within the tick. librdkafka

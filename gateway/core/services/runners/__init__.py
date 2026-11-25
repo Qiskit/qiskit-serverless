@@ -5,6 +5,7 @@ from core.services.runners.abstract_runner import (
     CosRetryableError,
     RunnerError,
     RunnerRetryableError,
+    UnrecognizedFleetTaskStateError,
     AbstractRunner,
 )
 

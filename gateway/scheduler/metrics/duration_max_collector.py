@@ -1,4 +1,4 @@
-"""Prometheus collector for the exact worst duration of a scheduler loop and of each task."""
+"""Prometheus collector for the exact worst duration of each scheduler loop and of each task."""
 
 import threading
 import time
@@ -13,31 +13,50 @@ WINDOW_SECONDS = 120
 
 class DurationMaxCollector(Collector):
     """Keeps the samples of the last WINDOW_SECONDS and reports their maximum at scrape time. A histogram cannot tell
-    the slowest event. The loop thread records and the HTTP server thread reads, so the samples sit behind a lock.
-    The key is the task name, or None for the whole loop."""
+    the slowest event. The loop threads record and the HTTP server thread reads, so the samples sit behind a lock.
+    Tasks are keyed by task name and loops by loop name, in separate dicts so a loop and a task can share a name."""
 
     def __init__(self, registry: CollectorRegistry):
         self._lock = threading.Lock()
-        self._samples: dict[str | None, deque] = defaultdict(deque)
+        self._tasks: dict[str, deque] = defaultdict(deque)
+        self._loops: dict[str, deque] = defaultdict(deque)
         registry.register(self)
 
-    def record(self, name: str | None, elapsed_seconds: float) -> None:
-        """Record the duration of one task execution, or of one loop iteration when name is None."""
+    def record(self, name: str, elapsed_seconds: float) -> None:
+        """Record the duration of one task execution."""
+        self._record(self._tasks, name, elapsed_seconds)
+
+    def record_loop(self, loop: str, elapsed_seconds: float) -> None:
+        """Record the duration of one iteration of a loop."""
+        self._record(self._loops, loop, elapsed_seconds)
+
+    def _record(self, group: dict[str, deque], name: str, elapsed_seconds: float) -> None:
         with self._lock:
             now = time.monotonic()
-            self._samples[name].append((now, elapsed_seconds))
-            self._prune(name, now)
+            group[name].append((now, elapsed_seconds))
+            self._prune(group[name], now)
 
-    def _prune(self, name: str | None, now: float) -> deque:
-        samples = self._samples[name]
+    @staticmethod
+    def _prune(samples: deque, now: float) -> None:
         while samples and now - samples[0][0] > WINDOW_SECONDS:
             samples.popleft()
-        return samples
+
+    def _maximums(self, group: dict[str, deque], now: float) -> dict[str, float]:
+        """The worst duration of each name still inside the window. Call it with the lock held."""
+        maximums = {}
+        for name, samples in list(group.items()):
+            self._prune(samples, now)
+            if samples:
+                maximums[name] = max(value for _, value in samples)
+            else:
+                del group[name]
+        return maximums
 
     def collect(self):
-        loop = GaugeMetricFamily(
+        loops = GaugeMetricFamily(
             "scheduler_loop_duration_max_seconds",
-            f"Longest scheduler loop iteration among those recorded in the last {WINDOW_SECONDS} seconds.",
+            f"Longest iteration of a scheduler loop among those recorded in the last {WINDOW_SECONDS} seconds.",
+            labels=["loop"],
         )
         tasks = GaugeMetricFamily(
             "scheduler_task_duration_max_seconds",
@@ -46,13 +65,11 @@ class DurationMaxCollector(Collector):
         )
         with self._lock:
             now = time.monotonic()
-            for name in list(self._samples):
-                samples = self._prune(name, now)
-                if not samples:
-                    del self._samples[name]
-                elif name is None:
-                    loop.add_metric([], max(value for _, value in samples))
-                else:
-                    tasks.add_metric([name], max(value for _, value in samples))
-        yield loop
+            loop_maximums = self._maximums(self._loops, now)
+            task_maximums = self._maximums(self._tasks, now)
+        for loop, value in loop_maximums.items():
+            loops.add_metric([loop], value)
+        for task, value in task_maximums.items():
+            tasks.add_metric([task], value)
+        yield loops
         yield tasks

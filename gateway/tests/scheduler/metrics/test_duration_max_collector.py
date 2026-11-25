@@ -17,13 +17,16 @@ def test_the_max_of_the_window_is_reported_and_old_samples_are_dropped():
 
     with patch(MONOTONIC, return_value=1000.0):
         metrics.observe_task_duration("UpdateFleetsJobsStatuses", 7000)
-        metrics.observe_scheduler_iteration(7100)
+        metrics.observe_scheduler_iteration("fleets-update", 7100)
+        metrics.observe_scheduler_iteration("ray", 50)
     with patch(MONOTONIC, return_value=1000.0 + WINDOW_SECONDS - 1):
         metrics.observe_task_duration("UpdateFleetsJobsStatuses", 3)
         assert registry.get_sample_value("scheduler_task_duration_max_seconds", task) == 7000
-        assert registry.get_sample_value("scheduler_loop_duration_max_seconds") == 7100
+        # one maximum per loop, so a slow loop does not hide behind a fast one
+        assert registry.get_sample_value("scheduler_loop_duration_max_seconds", {"loop": "fleets-update"}) == 7100
+        assert registry.get_sample_value("scheduler_loop_duration_max_seconds", {"loop": "ray"}) == 50
     with patch(MONOTONIC, return_value=1000.0 + WINDOW_SECONDS + 1):
         assert registry.get_sample_value("scheduler_task_duration_max_seconds", task) == 3
-        assert registry.get_sample_value("scheduler_loop_duration_max_seconds") is None
+        assert registry.get_sample_value("scheduler_loop_duration_max_seconds", {"loop": "fleets-update"}) is None
     with patch(MONOTONIC, return_value=1000.0 + 3 * WINDOW_SECONDS):
         assert registry.get_sample_value("scheduler_task_duration_max_seconds", task) is None
