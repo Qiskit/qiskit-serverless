@@ -201,10 +201,11 @@ class TestRunFunctionUseCase:
         ids=["custom_without_user_bucket", "provider_without_provider_bucket", "provider_without_provider_pds"],
     )
     def test_fleets_job_rejected_when_its_project_lacks_what_its_files_need(
-        self, user, ce_project, monkeypatch, provider, missing
+        self, user, ce_project, monkeypatch, caplog, provider, missing
     ):
-        """A project without a bucket or a data store the job's files need is a 400 with the missing setting, before
-        any upload: no arguments in COS, no Job, no saved paths."""
+        """A project without a bucket or a data store the job's files need is a 400 with a generic message, and the
+        missing setting is only in the warning log. It happens before any upload: no arguments in COS, no Job, no
+        saved paths."""
         ce_project.cos_bucket_provider_data_name = "provider-data-bucket"
         setattr(ce_project, missing, "")
         ce_project.save()
@@ -223,8 +224,11 @@ class TestRunFunctionUseCase:
         else:
             accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
-        with pytest.raises(FunctionConfigurationException, match=f"no {missing} configured. Contact administrator."):
+        with pytest.raises(FunctionConfigurationException) as raised:
             RunFunctionUseCase().execute(user, accessible, make_input(provider_name=provider))
+
+        assert raised.value.message == "This function is not configured to run. Contact administrator."
+        assert f"no {missing} configured" in caplog.text
 
         arguments_storage.assert_not_called()
         assert not Job.objects.exists()

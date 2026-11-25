@@ -249,9 +249,12 @@ class RunFunctionUseCase:
             try:
                 storage_paths = build_fleets_storage_paths(job, function.code_engine_project)
             except ValueError as error:
-                # The project lacks a bucket or a data store this job needs: nothing is uploaded or saved yet
+                # The project lacks a bucket or a data store this job needs: nothing is uploaded or saved yet. The
+                # project and the missing setting are internal, so only the log names them.
                 logger.warning("user_id=%s program=%s | %s", user.id, function.title, error)
-                raise FunctionConfigurationException(f"{error}. Contact administrator.") from error
+                raise FunctionConfigurationException(
+                    "This function is not configured to run. Contact administrator."
+                ) from error
         arguments_storage = get_arguments_storage(job, storage_paths)
         arguments_storage.save(data.arguments)
 
