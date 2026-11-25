@@ -74,6 +74,19 @@ scenarios:
     poll: backoff
     function_size: S
     arguments: *sqd_arguments
+  # 100 and 200 need gateway.limits.active_jobs_per_user above the user count, it is 50 by default
+  - name: burst_100
+    users: 100
+    qps: 100
+    burst: 100
+    function_size: S
+    arguments: *sqd_arguments
+  - name: burst_200
+    users: 200
+    qps: 200
+    burst: 200
+    function_size: S
+    arguments: *sqd_arguments
   # - name: users_200  # after the per-user limits are raised
   #   users: 200
   #   qps: 2
