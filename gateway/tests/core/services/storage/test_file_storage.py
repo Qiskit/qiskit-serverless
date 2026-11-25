@@ -80,6 +80,15 @@ def test_public_storage_sub_path_round_trip(tmp_path, settings, function_without
     assert storage.get_public_files(sub_path="wheels") == ["mypkg-1.0-py3-none-any.whl"]
     assert storage.get_public_files() == []
 
+    # Downloading (streaming) from the sub-directory returns the stored bytes.
+    stream_result = storage.get_public_file_stream("mypkg-1.0-py3-none-any.whl", sub_path="wheels")
+    assert stream_result is not None
+    generator, _file_type, file_size = stream_result
+    assert b"".join(generator) == b"wheel bytes"
+    assert file_size == len(b"wheel bytes")
+    # Without the sub_path it is not found at the root.
+    assert storage.get_public_file_stream("mypkg-1.0-py3-none-any.whl") is None
+
     # Remove from the sub-directory.
     assert storage.remove_public_file("mypkg-1.0-py3-none-any.whl", sub_path="wheels")
     assert not os.path.exists(path)

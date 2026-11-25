@@ -1,0 +1,18 @@
+---
+features:
+  - |
+    :meth:`~qiskit_serverless.ServerlessClient.add_wheels` now supports wheels
+    larger than the upload size limit. A wheel bigger than the threshold
+    (``WHEEL_CHUNK_THRESHOLD_MB``, 40 MB by default, overridable with the
+    ``WHEEL_CHUNK_THRESHOLD_MB_OVERRIDE`` environment variable) is automatically
+    split into parts, each uploaded as its own request, with a checksum manifest
+    recorded alongside them. :func:`~qiskit_serverless.install_uploaded_wheels`
+    reassembles such a wheel and verifies it against that manifest before
+    installing it, raising rather than installing a corrupt or incomplete wheel.
+    This is transparent: :meth:`~qiskit_serverless.ServerlessClient.add_wheels`
+    and :meth:`~qiskit_serverless.ServerlessClient.list_wheels` work with the
+    logical wheel names, never the parts.
+  - |
+    The files download endpoint now accepts an optional ``sub_path``, so a file
+    can be downloaded from a sub-directory of a function's folder (e.g.
+    ``wheels``), matching the upload, list, and delete endpoints.

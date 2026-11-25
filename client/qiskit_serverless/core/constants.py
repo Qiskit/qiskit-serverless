@@ -51,6 +51,14 @@ ENV_ACCESS_TRIAL = "ENV_ACCESS_TRIAL"
 MAX_ARTIFACT_FILE_SIZE_MB_DEFAULT = 50
 MAX_ARTIFACT_FILE_SIZE_MB_OVERRIDE = "MAX_ARTIFACT_FILE_SIZE_MB_OVERRIDE"
 
+# wheel chunking
+# A wheel larger than this is split into parts before upload, so each upload request stays under
+# the gateway's per-request body limit (MAX_REQUEST_BODY_SIZE_MB, default 50). 40 leaves headroom
+# under 50 for the multipart form envelope. Override with WHEEL_CHUNK_THRESHOLD_MB_OVERRIDE to
+# match a deployment whose limit differs from the default.
+WHEEL_CHUNK_THRESHOLD_MB_DEFAULT = 40
+WHEEL_CHUNK_THRESHOLD_MB_OVERRIDE = "WHEEL_CHUNK_THRESHOLD_MB_OVERRIDE"
+
 # IBM urls
 IBM_SERVERLESS_HOST_URL_DEFAULT = "https://qiskit-serverless.quantum.ibm.com"
 IBM_SERVERLESS_HOST_URL_OVERRIDE = "IBM_SERVERLESS_HOST_URL_OVERRIDE"
@@ -68,6 +76,12 @@ MAX_ARTIFACT_FILE_SIZE_MB = int(
     os.getenv(
         MAX_ARTIFACT_FILE_SIZE_MB_OVERRIDE,
         default=str(MAX_ARTIFACT_FILE_SIZE_MB_DEFAULT),
+    )
+)
+WHEEL_CHUNK_THRESHOLD_MB = int(
+    os.getenv(
+        WHEEL_CHUNK_THRESHOLD_MB_OVERRIDE,
+        default=str(WHEEL_CHUNK_THRESHOLD_MB_DEFAULT),
     )
 )
 IBM_SERVERLESS_HOST_URL = os.getenv(IBM_SERVERLESS_HOST_URL_OVERRIDE, default=IBM_SERVERLESS_HOST_URL_DEFAULT)

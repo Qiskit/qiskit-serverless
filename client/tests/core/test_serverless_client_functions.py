@@ -12,6 +12,7 @@
 
 """Tests for ServerlessClient function-related operations."""
 
+import hashlib
 import json
 import os
 import tempfile
@@ -470,25 +471,30 @@ class TestDependenciesVersionsMethod:
         assert dependencies == []
 
 
+def _write_wheel(tmp_path, name, size):
+    """Write a wheel file of ``size`` bytes of deterministic content; return its path."""
+    path = tmp_path / name
+    path.write_bytes(bytes((i % 251 for i in range(size))))
+    return str(path)
+
+
 class TestAddWheelsMethod:
     """Tests for ServerlessClient.add_wheels()."""
 
-    def test_add_wheels_uploads_each_matching_wheel(self, mock_client):
-        """add_wheels expands patterns and uploads each wheel via file_upload."""
+    def test_add_wheels_uploads_each_matching_wheel(self, mock_client, tmp_path):
+        """add_wheels expands patterns and uploads each small wheel whole via file_upload."""
         function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
-        with patch.object(mock_client, "file_upload") as mock_upload, patch(
-            "qiskit_serverless.core.clients.serverless_client.glob.glob"
-        ) as mock_glob:
-            mock_glob.side_effect = lambda p: {
-                "dist/a-*.whl": ["dist/a-1.0-py3-none-any.whl"],
-                "dist/b-*.whl": ["dist/b-2.0-py3-none-any.whl"],
-            }[p]
+        a = _write_wheel(tmp_path, "a-1.0-py3-none-any.whl", 100)
+        b = _write_wheel(tmp_path, "b-2.0-py3-none-any.whl", 100)
+        with patch.object(mock_client, "file_upload") as mock_upload, patch.object(
+            mock_client, "files", return_value=[]
+        ), patch("qiskit_serverless.core.clients.serverless_client.glob.glob") as mock_glob:
+            mock_glob.side_effect = lambda p: {"dist/a-*.whl": [a], "dist/b-*.whl": [b]}[p]
 
             uploaded = mock_client.add_wheels(function, ["dist/a-*.whl", "dist/b-*.whl"])
 
         assert uploaded == ["a-1.0-py3-none-any.whl", "b-2.0-py3-none-any.whl"]
-        assert mock_upload.call_count == 2
-        # wheels go into the dedicated "wheels" sub-directory
+        assert mock_upload.call_count == 2  # no manifest written (nothing chunked)
         for call in mock_upload.call_args_list:
             assert call.kwargs.get("sub_path") == "wheels"
 
@@ -509,24 +515,191 @@ class TestAddWheelsMethod:
             with pytest.raises(QiskitServerlessException, match="only accepts .whl"):
                 mock_client.add_wheels(function, ["dist/*"])
 
-    def test_list_wheels_lists_the_wheels_subdir(self, mock_client):
-        """list_wheels lists the function's wheels sub-directory."""
+    def test_wheel_at_threshold_uploads_whole(self, mock_client, tmp_path, monkeypatch):
+        """A wheel exactly at the threshold uploads whole (no chunking, no manifest)."""
+        monkeypatch.setattr("qiskit_serverless.core.clients.serverless_client.WHEEL_CHUNK_THRESHOLD_MB", 1)
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        path = _write_wheel(tmp_path, "edge-1.0-py3-none-any.whl", 1024 * 1024)  # exactly 1 MB
+        with patch.object(mock_client, "file_upload") as mock_upload, patch.object(
+            mock_client, "files", return_value=[]
+        ), patch("qiskit_serverless.core.clients.serverless_client.glob.glob", return_value=[path]):
+            uploaded = mock_client.add_wheels(function, ["dist/edge-*.whl"])
+
+        assert uploaded == ["edge-1.0-py3-none-any.whl"]
+        assert mock_upload.call_count == 1  # whole, no parts, no manifest
+        assert mock_upload.call_args_list[0].args[0] == path
+
+    def test_large_wheel_is_split_into_parts_with_manifest(self, mock_client, tmp_path, monkeypatch):
+        """A wheel over the threshold uploads as ordered parts plus a manifest."""
+        monkeypatch.setattr("qiskit_serverless.core.clients.serverless_client.WHEEL_CHUNK_THRESHOLD_MB", 1)
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        data_size = 1024 * 1024 * 2 + 500  # 3 parts at 1 MB
+        path = _write_wheel(tmp_path, "big-1.0-py3-none-any.whl", data_size)
+        original = (tmp_path / "big-1.0-py3-none-any.whl").read_bytes()
+
+        uploads = []  # (uploaded_basename, bytes)
+
+        def _capture_upload(src, _function, sub_path=None):  # noqa: ARG001
+            with open(src, "rb") as handle:
+                uploads.append((os.path.basename(src), handle.read()))
+
+        with patch.object(mock_client, "file_upload", side_effect=_capture_upload), patch.object(
+            mock_client, "files", return_value=[]
+        ), patch("qiskit_serverless.core.clients.serverless_client.glob.glob", return_value=[path]):
+            uploaded = mock_client.add_wheels(function, ["dist/big-*.whl"])
+
+        assert uploaded == ["big-1.0-py3-none-any.whl"]  # logical name returned
+        names = [n for n, _ in uploads]
+        part_names = [
+            "big-1.0-py3-none-any.whl.part-0001-of-0003",
+            "big-1.0-py3-none-any.whl.part-0002-of-0003",
+            "big-1.0-py3-none-any.whl.part-0003-of-0003",
+        ]
+        assert part_names == [n for n in names if ".part-" in n]
+        assert ".wheel-chunks-manifest.json" in names
+
+        # Parts concatenate back to the original, and the manifest sha256 matches.
+        joined = b"".join(b for n, b in uploads for _ in [0] if n in part_names)
+        assert joined == original
+        manifest_bytes = next(b for n, b in uploads if n == ".wheel-chunks-manifest.json")
+        manifest = json.loads(manifest_bytes)
+        entry = manifest["chunked_wheels"][0]
+        assert entry["wheel"] == "big-1.0-py3-none-any.whl"
+        assert entry["sha256"] == hashlib.sha256(original).hexdigest()
+        assert entry["parts"] == part_names
+
+    def test_reupload_cleans_stale_parts(self, mock_client, tmp_path, monkeypatch):
+        """Re-adding a wheel deletes its previously-uploaded parts before uploading new ones."""
+        monkeypatch.setattr("qiskit_serverless.core.clients.serverless_client.WHEEL_CHUNK_THRESHOLD_MB", 1)
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        path = _write_wheel(tmp_path, "big-1.0-py3-none-any.whl", 1024 * 1024 + 10)  # 2 parts now
+        stale = [
+            "big-1.0-py3-none-any.whl.part-0001-of-0004",
+            "big-1.0-py3-none-any.whl.part-0002-of-0004",
+            "big-1.0-py3-none-any.whl.part-0003-of-0004",
+            "big-1.0-py3-none-any.whl.part-0004-of-0004",
+        ]
+        with patch.object(mock_client, "file_upload"), patch.object(
+            mock_client, "file_delete"
+        ) as mock_delete, patch.object(mock_client, "files", return_value=list(stale)), patch(
+            "qiskit_serverless.core.clients.serverless_client.glob.glob", return_value=[path]
+        ):
+            mock_client.add_wheels(function, ["dist/big-*.whl"])
+
+        deleted = [c.args[0] for c in mock_delete.call_args_list]
+        assert set(stale).issubset(set(deleted))  # every stale part removed first
+
+    def test_partial_failure_cleans_up_and_propagates(self, mock_client, tmp_path, monkeypatch):
+        """If a part upload fails, already-uploaded parts are removed and the error propagates."""
+        monkeypatch.setattr("qiskit_serverless.core.clients.serverless_client.WHEEL_CHUNK_THRESHOLD_MB", 1)
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        path = _write_wheel(tmp_path, "big-1.0-py3-none-any.whl", 1024 * 1024 * 2 + 1)  # 3 parts
+
+        calls = {"n": 0}
+
+        def _upload(src, _function, sub_path=None):  # noqa: ARG001
+            if ".part-" in os.path.basename(src):
+                calls["n"] += 1
+                if calls["n"] == 2:
+                    raise QiskitServerlessException("boom")
+
+        with patch.object(mock_client, "file_upload", side_effect=_upload), patch.object(
+            mock_client, "file_delete"
+        ) as mock_delete, patch.object(mock_client, "files", return_value=[]), patch(
+            "qiskit_serverless.core.clients.serverless_client.glob.glob", return_value=[path]
+        ):
+            with pytest.raises(QiskitServerlessException, match="boom"):
+                mock_client.add_wheels(function, ["dist/big-*.whl"])
+
+        # the one part that uploaded before the failure is cleaned up
+        assert any(".part-0001-of-0003" in c.args[0] for c in mock_delete.call_args_list)
+
+    def test_list_wheels_lists_whole_wheels(self, mock_client):
+        """list_wheels returns whole wheel names and hides nothing when no manifest exists."""
         function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
         with patch.object(mock_client, "files", return_value=["mypkg-1.0-py3-none-any.whl"]) as mock_files:
             result = mock_client.list_wheels(function)
 
-        mock_files.assert_called_once_with(function, sub_path="wheels")
+        assert mock_files.call_args_list[0].kwargs.get("sub_path") == "wheels"
         assert result == ["mypkg-1.0-py3-none-any.whl"]
 
-    def test_remove_wheels_deletes_each_from_the_wheels_subdir(self, mock_client):
-        """remove_wheels deletes each named wheel from the wheels sub-directory."""
+    def test_list_wheels_hides_parts_and_manifest_shows_logical(self, mock_client):
+        """list_wheels hides parts + manifest and surfaces chunked wheels by their logical name."""
         function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
-        with patch.object(mock_client, "file_delete") as mock_delete:
+        listing = [
+            "small-1.0-py3-none-any.whl",
+            "big-1.0-py3-none-any.whl.part-0001-of-0002",
+            "big-1.0-py3-none-any.whl.part-0002-of-0002",
+            ".wheel-chunks-manifest.json",
+        ]
+        manifest = {"schema": 1, "chunked_wheels": [{"wheel": "big-1.0-py3-none-any.whl", "parts": []}]}
+        with patch.object(mock_client, "files", return_value=listing), patch.object(
+            mock_client, "_download_chunk_manifest", return_value=manifest
+        ):
+            result = mock_client.list_wheels(function)
+
+        assert result == ["big-1.0-py3-none-any.whl", "small-1.0-py3-none-any.whl"]
+
+    def test_remove_wheels_deletes_whole_from_the_wheels_subdir(self, mock_client):
+        """remove_wheels deletes a whole wheel by name from the wheels sub-directory."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "file_delete") as mock_delete, patch.object(
+            mock_client, "files", return_value=["a.whl", "b.whl"]
+        ), patch.object(mock_client, "_download_chunk_manifest", return_value=None):
             mock_client.remove_wheels(function, ["a.whl", "b.whl"])
 
-        assert mock_delete.call_count == 2
+        deleted = [c.args[0] for c in mock_delete.call_args_list]
+        assert deleted == ["a.whl", "b.whl"]
         for call in mock_delete.call_args_list:
             assert call.kwargs.get("sub_path") == "wheels"
+
+    def test_remove_wheels_deletes_parts_and_prunes_manifest(self, mock_client):
+        """Removing a chunked wheel deletes its parts and rewrites/deletes the manifest."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        parts = ["big-1.0-py3-none-any.whl.part-0001-of-0002", "big-1.0-py3-none-any.whl.part-0002-of-0002"]
+        manifest = {"schema": 1, "chunked_wheels": [{"wheel": "big-1.0-py3-none-any.whl", "parts": parts}]}
+        with patch.object(mock_client, "file_delete") as mock_delete, patch.object(
+            mock_client, "files", return_value=list(parts + [".wheel-chunks-manifest.json"])
+        ), patch.object(mock_client, "_download_chunk_manifest", return_value=manifest), patch.object(
+            mock_client, "file_upload"
+        ):
+            mock_client.remove_wheels(function, ["big-1.0-py3-none-any.whl"])
+
+        deleted = [c.args[0] for c in mock_delete.call_args_list]
+        assert set(parts).issubset(set(deleted))
+        # manifest now has no chunked wheels -> the manifest file itself is deleted
+        assert ".wheel-chunks-manifest.json" in deleted
+
+    def test_download_chunk_manifest_reads_from_the_wheels_subdir(self, mock_client):
+        """_download_chunk_manifest downloads and parses the manifest from the wheels sub-dir.
+
+        Exercises the real file_download call (argument order + sub_path), which the other tests
+        stub out.
+        """
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        payload = {"schema": 1, "chunked_wheels": [{"wheel": "big-1.0-py3-none-any.whl", "parts": ["p"]}]}
+
+        def _fake_download(file, _function, target_name=None, download_location="./", sub_path=None):
+            assert file == ".wheel-chunks-manifest.json"
+            assert sub_path == "wheels"
+            with open(os.path.join(download_location, target_name), "w", encoding="utf-8") as handle:
+                json.dump(payload, handle)
+
+        with patch.object(mock_client, "files", return_value=[".wheel-chunks-manifest.json"]), patch.object(
+            mock_client, "file_download", side_effect=_fake_download
+        ):
+            result = mock_client._download_chunk_manifest(function)
+
+        assert result == payload
+
+    def test_download_chunk_manifest_returns_none_when_absent(self, mock_client):
+        """_download_chunk_manifest returns None (no download) when no manifest is present."""
+        function = QiskitFunction(title="my-fn", provider="my-provider", entrypoint="main.py")
+        with patch.object(mock_client, "files", return_value=["some.whl"]), patch.object(
+            mock_client, "file_download"
+        ) as mock_download:
+            assert mock_client._download_chunk_manifest(function) is None
+            mock_download.assert_not_called()
 
 
 class TestDependencyReportMethod:
