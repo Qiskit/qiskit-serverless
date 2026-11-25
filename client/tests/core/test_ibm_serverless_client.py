@@ -507,7 +507,8 @@ class TestIBMServerlessClientCheckUsage:
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
     def test_check_usage_raises_when_zero(self, mock_file_path, mock_verify, mock_list_instances):
-        """remaining_seconds <= USAGE_ZERO_EPSILON_SECONDS → QiskitServerlessException."""
+        """remaining_seconds <= USAGE_ZERO_EPSILON_SECONDS → QiskitServerlessException that names the
+        bypass_usage_check flag, so the user knows how to submit anyway."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         remaining_usage_seconds = float(USAGE_ZERO_EPSILON_SECONDS) / 2  # below epsilon
         client._service.usage = MagicMock(return_value={"usage_remaining_seconds": remaining_usage_seconds})
@@ -515,8 +516,10 @@ class TestIBMServerlessClientCheckUsage:
         with pytest.raises(
             QiskitServerlessException,
             match="no remaining runtime quota",
-        ):
+        ) as error:
             client._check_usage()
+
+        assert "bypass_usage_check=True" in str(error.value)
 
     @patch(_LIST_INSTANCES)
     @patch(_VERIFY_CREDS)
@@ -533,14 +536,19 @@ class TestIBMServerlessClientCheckUsage:
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
     def test_check_usage_warns_when_low(self, mock_file_path, mock_verify, mock_list_instances):
-        """remaining_seconds below USAGE_LOW_THRESHOLD_SECONDS → UserWarning."""
+        """remaining_seconds below USAGE_LOW_THRESHOLD_SECONDS → UserWarning that names the flags to silence it
+        or skip the check."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         # if epsilon< low_threshold, their avg is greater than epsilon and smaller than low_threshold
         remaining_usage_seconds = (float(USAGE_LOW_THRESHOLD_SECONDS + USAGE_ZERO_EPSILON_SECONDS)) / 2
         client._service.usage = MagicMock(return_value={"usage_remaining_seconds": remaining_usage_seconds})
 
-        with pytest.warns(UserWarning, match="low remaining runtime quota"):
+        with pytest.warns(UserWarning, match="low remaining runtime quota") as record:
             client._check_usage()
+
+        message = str(record[0].message)
+        assert "suppress_usage_warning=True" in message
+        assert "bypass_usage_check=True" in message
 
     @pytest.mark.parametrize("bypass_usage_check", [False, True], ids=["low_quota", "bypass_usage_check"])
     @patch(_LIST_INSTANCES)
@@ -598,12 +606,15 @@ class TestIBMServerlessClientCheckUsage:
     @patch(_VERIFY_CREDS)
     @patch(_CONFIG_FILE)
     def test_check_usage_service_error_warns_not_raises(self, mock_file_path, mock_verify, mock_list_instances):
-        """A transient error from service.usage() emits a warning but does NOT block the run."""
+        """A transient error from service.usage() emits a warning, naming bypass_usage_check, but does NOT block
+        the run."""
         client = _make_client(mock_file_path, mock_verify, mock_list_instances)
         client._service.usage = MagicMock(side_effect=RuntimeError("503 service unavailable"))
 
-        with pytest.warns(UserWarning, match="Could not retrieve usage information"):
+        with pytest.warns(UserWarning, match="Could not retrieve usage information") as record:
             client._check_usage()
+
+        assert "bypass_usage_check=True" in str(record[0].message)
 
 
 # ---------------------------------------------------------------------------

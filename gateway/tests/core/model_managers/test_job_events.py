@@ -62,6 +62,55 @@ class TestFirstRunningAt:
         assert JobEvent.objects.first_running_at(job.id) is None
 
 
+class TestAddStatusEvent:
+    """Unit tests for JobEventQuerySet.add_status_event()."""
+
+    def test_extra_data_is_merged_alongside_status(self, job):
+        event = JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+            status=Job.STOPPED,
+            extra_data={"timeout_hours": 24},
+        )
+
+        assert event.data == {"status": Job.STOPPED, "timeout_hours": 24}
+
+
+class TestGetJobEvents:
+    """Unit tests for JobEventQuerySet.get_job_events()."""
+
+    def test_filters_by_type_and_context(self, job):
+        _add_status_event(job, Job.RUNNING)
+        timeout_event = JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+            status=Job.STOPPED,
+            extra_data={"timeout_hours": 24},
+        )
+
+        events = JobEvent.objects.get_job_events(
+            job.id, JobEventType.STATUS_CHANGE, JobEventContext.PROGRAM_TIMEOUT_STOP
+        )
+
+        assert list(events) == [timeout_event]
+
+    def test_context_without_type_filters_across_event_types(self, job):
+        event = JobEvent.objects.create(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+            event_type=JobEventType.ERROR,
+            data={"code": "PROGRAM_TIMEOUT"},
+        )
+        _add_status_event(job, Job.RUNNING)
+
+        events = JobEvent.objects.get_job_events(job.id, None, JobEventContext.PROGRAM_TIMEOUT_STOP)
+
+        assert list(events) == [event]
+
+
 class TestFirstTerminalAt:
     """Unit tests for JobEventQuerySet.first_terminal_at()."""
 

@@ -29,6 +29,7 @@ Qiskit Serverless function
 
 from abc import ABC, abstractmethod
 import dataclasses
+import inspect
 import json
 import warnings
 from dataclasses import dataclass
@@ -48,6 +49,25 @@ RAY_RUNNER_DEPRECATION = (
     "your QiskitFunction (the default in recent releases). Ray-only jobs do not get Fleets features "
     "such as GPU compute profiles (function_size) or uploaded-wheel installs."
 )
+
+# Options a client's run() may take beyond the RunService contract (IBMServerlessClient.run takes
+# these). RunnableQiskitFunction.run never sends them as function arguments, whichever client is
+# behind the function; it forwards each one only if that client's run() accepts it. Keep this in
+# sync with IBMServerlessClient.run (a unit test checks it).
+_CLIENT_RUN_FLAGS = ("suppress_usage_warning", "bypass_usage_check")
+
+
+def _keyword_only_params(func: Any) -> set:
+    """Names of the keyword-only parameters ``func`` declares (those after ``*`` in its signature).
+
+    A ``**kwargs`` catch-all is not counted, so a client whose run() takes one accepts no flags.
+    """
+    try:
+        params = inspect.signature(func).parameters.values()
+    except (TypeError, ValueError):  # callables with no introspectable signature
+        return set()
+    return {p.name for p in params if p.kind is inspect.Parameter.KEYWORD_ONLY}
+
 
 GenericType = Literal["GENERIC"]
 ApplicationType = Literal["APPLICATION"]
@@ -195,8 +215,8 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
     def __str__(self):
         if self.provider is not None:
-            return f"QiskitFunction({self.provider}/{self.title})"
-        return f"QiskitFunction({self.title})"
+            return f"{self.provider}/{self.title}"
+        return self.title
 
     def __repr__(self):
         return self.__str__()
@@ -268,6 +288,16 @@ class RunnableQiskitFunction(QiskitFunction):
     def run(self, **kwargs):
         """Run function
 
+        Args:
+            **kwargs: function arguments, except for these names, which this method consumes and
+                never sends to the function:
+
+                * ``config``: the job :class:`~qiskit_serverless.core.job.Configuration`.
+                * ``function_size``: the size label to run at.
+                * ``suppress_usage_warning`` and ``bypass_usage_check``: client options, forwarded
+                  to the client's ``run`` when it accepts them (as :meth:`.IBMServerlessClient.run`
+                  does). With a client that does not accept one, it is dropped with a warning.
+
         Raises:
             QiskitServerlessException: validation exception
 
@@ -287,11 +317,25 @@ class RunnableQiskitFunction(QiskitFunction):
             raise QiskitServerlessException(
                 "'compute_profile' is no longer supported; use function_size='<label>' instead."
             )
+
+        flags = {name: kwargs.pop(name) for name in _CLIENT_RUN_FLAGS if name in kwargs}
+        accepted = _keyword_only_params(self._run_service.run)
+        forwarded = {name: value for name, value in flags.items() if name in accepted}
+        ignored = sorted(set(flags) - accepted)
+
+        if ignored:
+            warnings.warn(
+                f"{ignored} have no effect with {type(self._run_service).__name__} and were ignored; "
+                "they are not sent to the function as arguments.",
+                stacklevel=2,
+            )
+
         return self._run_service.run(
             program=self,
             arguments=kwargs,
             config=config,
             function_size=function_size,
+            **forwarded,
         )
 
     def get_jobs(self):

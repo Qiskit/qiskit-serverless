@@ -197,7 +197,14 @@ class UpdateFleetsJobsStatuses(SchedulerTask):
             program_timeout_hours(),
         )
         try:
-            cancelled = self.canceller.cancel(job, context=JobEventContext.UPDATE_JOB_STATUS)
+            # PROGRAM_TIMEOUT_STOP tags the STOPPING/STOPPED event so it can be told apart from a plain
+            # poller STOPPED, and status_data carries the timeout hours on that same event: the client
+            # reads the event's context and data to explain why a stopped job has no result.
+            cancelled = self.canceller.cancel(
+                job,
+                context=JobEventContext.PROGRAM_TIMEOUT_STOP,
+                status_data={"timeout_hours": program_timeout_hours()},
+            )
         except RunnerRetryableError as ex:
             # Nothing is written: STOPPED here would claim a stop that never happened.
             logger.warning("job_id=%s fleet_id=%s cancel not delivered on timeout: %s", job.id, job.fleet_id, str(ex))
