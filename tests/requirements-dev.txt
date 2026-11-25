@@ -3,16 +3,16 @@ pytest>=9.2.0
 pytest-order>=1.5.0
 pytest-randomly>=5.1.0
 pytest-timeout>=2.4.0
-boto3>=1.44.3
+boto3>=1.44.9
 psycopg2-binary>=2.9.13
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.15.0
-tox>=4.67.13
+tox>=4.67.15
 black[jupyter]~=26.10
 requests-mock>=1.12.1
 pylint>=4.1.4
 mypy>=2.4.1
 mypy-extensions>=1.2.0
 # dependency from ray and tox requires newer versions from cachetools
-cachetools~=8.0.0
+cachetools~=8.0.2
 pre-commit>=4.7.0
