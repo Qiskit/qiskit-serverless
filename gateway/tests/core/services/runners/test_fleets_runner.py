@@ -45,9 +45,6 @@ def _saved_paths_from_the_project(job):
     project = job.program.code_engine_project
     paths = build_job_paths(job)
     return StoragePaths(
-        ce_project_id="test-project-id",
-        ce_project_name="test-project",
-        cos_region="us-east",
         user_bucket=project.cos_bucket_user_data_name,
         provider_bucket=project.cos_bucket_provider_data_name if paths.cos_provider_job_prefix else None,
         user_pds=project.pds_name_users,
@@ -1119,9 +1116,6 @@ def test_submit_mounts_and_writes_to_the_saved_paths():
     """With a saved row, submit mounts its prefixes from its data stores and points the env vars at its keys."""
     runner, mock_handler = _make_submit_runner()
     saved = StoragePaths(
-        ce_project_id="old-project-id",
-        ce_project_name="old-project",
-        cos_region="us-east",
         user_bucket="old-user-bucket",
         provider_bucket=None,
         user_pds="old-user-pds",

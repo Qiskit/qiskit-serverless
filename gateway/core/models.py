@@ -811,6 +811,7 @@ class Job(models.Model):
         max_length=255, null=True, blank=True, help_text="CE project name at execution time"
     )
     ce_region = models.CharField(max_length=50, null=True, blank=True, help_text="CE region at execution time")
+    ce_project_id = models.CharField(max_length=255, null=True, blank=True, help_text="CE project id at execution time")
 
     objects: JobQuerySet = JobQuerySet.as_manager()
 
@@ -1085,18 +1086,16 @@ class JobStoragePaths(models.Model):
     """Where the files of a Fleets job live in COS (see core/domain/storage_paths.py). Fleets jobs only: a Ray job
     never has a row, and its files are found as before, from its runner's own layout. The row is written in the
     transaction that creates the job, after its arguments are uploaded, and the container's mounts and every reader
-    take the bucket, the key and the COS credentials from it, so a later change to the layout, the bucket names or
-    the Code Engine project only affects new jobs. The names are copies, not foreign keys: the files stay where they
-    are when the function or the project is changed or deleted, so the row must not depend on either. A job without
+    take the bucket and the key from it, so a later change to the layout or the bucket names only affects new jobs.
+    The COS credentials come from the project the job saved at creation (``Job.ce_project_id`` and
+    ``Job.ce_region``), not from this row. The names are copies, not foreign keys: the files stay where they are
+    when the function or the project is changed or deleted, so the row must not depend on either. A job without
     one (created before this table, or by an old pod during a rollout) is read from today's layout until a data
     migration fills its row."""
 
     job = models.OneToOneField(to=Job, on_delete=models.CASCADE, primary_key=True, related_name="storage_paths")
     created = models.DateTimeField(auto_now_add=True)
 
-    ce_project_id = models.CharField(max_length=255)
-    ce_project_name = models.CharField(max_length=255)
-    cos_region = models.CharField(max_length=255)
     user_bucket = models.CharField(max_length=255)
     provider_bucket = models.CharField(max_length=255, null=True, blank=True)
     user_pds = models.CharField(max_length=255)

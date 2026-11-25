@@ -107,7 +107,8 @@ class TestJobAdmin(APITestCase):
         assert "field-ray_job_id" not in content
 
     def test_saved_storage_paths_are_shown_and_the_form_does_not_change_them(self):
-        """The Fleets section shows the saved storage paths, and saving the Job form leaves the row as it was."""
+        """The Fleets section shows the saved storage paths and project id, and saving the Job form leaves both as
+        they were."""
 
         user = User.objects.create_superuser(username="admin", email="admin@test.com", password="pass")
         self.client.login(username="admin", password="pass")
@@ -115,16 +116,21 @@ class TestJobAdmin(APITestCase):
             project_name="p", project_id="p-id", region="us-east", cos_bucket_user_data_name="user-bucket"
         )
         program = Program.objects.create(title="my-fn", author=user, runner=Program.FLEETS, code_engine_project=project)
-        job = Job.objects.create(status=Job.QUEUED, author=user, program=program, runner=Program.FLEETS)
+        job = Job.objects.create(
+            status=Job.QUEUED, author=user, program=program, runner=Program.FLEETS, ce_project_id="p-id"
+        )
         save_storage_paths(job, build_fleets_storage_paths(job, project))
         saved = JobStoragePaths.objects.get(job=job)
 
         content = self.client.get(reverse("admin:api_job_change", args=[job.pk])).content.decode()
-        self._post_change_form(job, program, user, {"results_key": "elsewhere/results.json", "_save": "Save"})
+        self._post_change_form(
+            job, program, user, {"results_key": "elsewhere/results.json", "ce_project_id": "other-id", "_save": "Save"}
+        )
 
         assert saved.results_key in content
         assert "Not saved" not in content
         assert JobStoragePaths.objects.get(job=job).results_key == saved.results_key
+        assert Job.objects.get(pk=job.pk).ce_project_id == "p-id"
 
     def test_viewing_a_job_without_saved_storage_paths_does_not_save_them(self):
         """A Fleets job without a row shows "Not saved", and opening its page writes nothing."""

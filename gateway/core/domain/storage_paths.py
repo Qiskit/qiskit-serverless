@@ -13,7 +13,7 @@
 """Where the files of a Fleets job live in COS.
 
 Saved in ``JobStoragePaths`` when the job is created, so its files stay readable after a later change to the
-layout, the bucket names or the Code Engine project. It lives in ``domain`` because the Fleets path builder
+layout or the bucket names. It lives in ``domain`` because the Fleets path builder
 returns it and the storages read it, and the storages already import the builder.
 """
 
@@ -28,14 +28,10 @@ class StoragePaths:  # pylint: disable=too-many-instance-attributes
     """Buckets, data stores, prefixes and keys of one Fleets job.
 
     The names are copies of the strings on the function's Code Engine project when the job was created, not
-    references to it, so the job's files can be found and read from these values alone, after its function or its
-    project is changed or deleted. Keys are bucket-relative. The provider fields are ``None`` for a custom function.
+    references to it, so the job's files can be found after its function or its project is changed or deleted. The
+    project whose HMAC secret signs the COS requests is saved on the job itself (``Job.ce_project_id`` and
+    ``Job.ce_region``). Keys are bucket-relative. The provider fields are ``None`` for a custom function.
     """
-
-    # The project whose HMAC secret signs the COS requests, and the region of the project and its buckets
-    ce_project_id: str
-    ce_project_name: str
-    cos_region: str
 
     user_bucket: str
     provider_bucket: Optional[str]

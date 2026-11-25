@@ -402,7 +402,7 @@ def build_fleets_storage_paths(job: Job, project: CodeEngineProject | None) -> S
 
     Args:
         job: The job, with its function still assigned.
-        project: The Code Engine project the job runs in. Its id, name, region, buckets and data stores are copied.
+        project: The Code Engine project the job runs in. Its buckets and data stores are copied.
 
     Raises:
         ValueError: If there is no project, or it lacks a bucket or a data store this job needs.
@@ -420,9 +420,6 @@ def build_fleets_storage_paths(job: Job, project: CodeEngineProject | None) -> S
         raise ValueError(f"CodeEngineProject '{project.project_name}' has no pds_name_providers configured")
 
     return StoragePaths(
-        ce_project_id=project.project_id,
-        ce_project_name=project.project_name,
-        cos_region=project.region,
         user_bucket=project.cos_bucket_user_data_name,
         provider_bucket=project.cos_bucket_provider_data_name if is_provider_job else None,
         user_pds=project.pds_name_users,

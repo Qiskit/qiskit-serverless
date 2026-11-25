@@ -45,9 +45,6 @@ def _saved_paths(job):
     paths = build_job_paths(job)
     is_provider = paths.cos_provider_job_prefix is not None
     return StoragePaths(
-        ce_project_id="project-id",
-        ce_project_name="project",
-        cos_region="us-east",
         user_bucket="user-bucket",
         provider_bucket="provider-bucket" if is_provider else None,
         user_pds="user-pds",

@@ -59,10 +59,11 @@ class TestJobStoragePaths:
         return Job.objects.get(pk=job.pk)
 
     def test_saved_row_holds_the_project_layout_and_names_at_creation(self, job):
-        """The row copies the project's id, region, buckets and data stores, and today's keys under their prefix."""
+        """The row copies the project's buckets and data stores, and today's keys under their prefix. The project's
+        id, name and region are on the job."""
         paths = get_storage_paths(job)
 
-        assert (paths.ce_project_id, paths.ce_project_name, paths.cos_region) == (
+        assert (job.ce_project_id, job.ce_project_name, job.ce_region) == (
             "test-ce-project-id",
             "test-project",
             "us-east",
@@ -111,8 +112,8 @@ class TestJobStoragePaths:
         assert files.arguments in _explore(job)["Job Files"]
         # The data stores are mounted at submit, which a job without its function never reaches: they stay saved
         saved = get_storage_paths(job)
-        assert (saved.ce_project_name, saved.user_pds, saved.provider_pds) == (
-            "test-project",
+        assert (job.ce_project_id, saved.user_pds, saved.provider_pds) == (
+            "test-ce-project-id",
             "pds-users",
             "pds-providers" if files.provider_log else None,
         )
@@ -135,18 +136,20 @@ class TestJobStoragePaths:
         _assert_the_job_reads_what_its_container_wrote(job, files)
         assert not JobStoragePaths.objects.filter(job=job).exists()
 
-    def test_a_job_without_a_row_takes_the_project_it_was_created_in(self, program, ce_project):
-        """The fallback paths come from the project named on the job, not the function's current one."""
+    def test_a_job_without_a_row_takes_the_project_it_was_created_in(self, program, ce_project, fake_cos):
+        """A job with neither a row nor a project id is read from the bucket and with the credentials of the project
+        named on the job, not the function's current one."""
         job = TestUtils.create_job(author="alice", program=program)
         Job.objects.filter(pk=job.pk).update(ce_project_name=ce_project.project_name, ce_region=ce_project.region)
         program.code_engine_project = TestUtils.get_or_create_ce_project(
             project_name="new-project", project_id="new-id", cos_bucket_user_data_name="new-bucket"
         )
         program.save()
+        job = Job.objects.get(pk=job.pk)
+        fake_cos.put(*_PROJECT, "user-bucket", _todays_layout(job, program.provider).results, '{"counts": 1}')
 
-        paths = get_storage_paths(Job.objects.get(pk=job.pk))
-
-        assert (paths.ce_project_id, paths.user_bucket) == ("test-ce-project-id", "user-bucket")
+        assert get_storage_paths(job).user_bucket == "user-bucket"
+        assert get_result_storage(job).get() == '{"counts": 1}'
 
     def test_a_job_without_a_row_and_without_a_function_cant_be_read(self, program):
         """With no row and no function there is nothing to build the paths from, so readers get a clear error."""

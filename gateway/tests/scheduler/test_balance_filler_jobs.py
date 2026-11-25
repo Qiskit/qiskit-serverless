@@ -105,6 +105,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert {job.author for job in fillers} == {filler_program.author}
     assert {job.size_source for job in fillers} == {Job.SIZE_SOURCE_NONE}
     assert {job.function_size_name for job in fillers} == {filler_program.default_size.function_size}
+    assert {job.ce_project_id for job in fillers} == {filler_program.code_engine_project.project_id}
     assert submit.call_args.kwargs["context"] is JobEventContext.FILLER_SUBMIT
     # The arguments are uploaded to the same paths that are saved on the row
     last = fillers.order_by("-created").first()

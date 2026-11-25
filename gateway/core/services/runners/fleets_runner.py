@@ -124,7 +124,7 @@ class FleetsRunner(AbstractRunner):
         self._handler: FleetHandler | None = None
         self._project: CodeEngineProject | None = None
         self._cos: JobCOS | None = None
-        # Signed with the project saved with the job's paths, for the job's own files
+        # Signed with the project the job saved at creation, for the job's own files
         self._storage_cos: JobCOS | None = None
 
     def connect(self) -> None:
@@ -648,10 +648,10 @@ class FleetsRunner(AbstractRunner):
             self._cos = get_cos_client(self._project)
         return self._cos
 
-    def _get_storage_cos(self, saved: StoragePaths) -> JobCOS:
-        """Return the :class:`JobCOS` for the job's own files, signed with the project saved with its paths."""
+    def _get_storage_cos(self) -> JobCOS:
+        """Return the :class:`JobCOS` for the job's own files, signed with the project the job saved at creation."""
         if self._storage_cos is None:
-            self._storage_cos = get_storage_cos_client(saved)
+            self._storage_cos = get_storage_cos_client(self.job)
         return self._storage_cos
 
     def _upload_program_to_cos(self, paths: FleetJobPaths, saved: StoragePaths) -> None:
@@ -684,7 +684,7 @@ class FleetsRunner(AbstractRunner):
             return
 
         user_bucket = saved.user_bucket
-        cos = self._get_storage_cos(saved)
+        cos = self._get_storage_cos()
 
         # upload template
         template_name = CUSTOM_JOB_WRAPPER_NAME
@@ -759,7 +759,7 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError("_upload_provider_image_entrypoint called on non-provider job")
 
         provider_bucket = saved.provider_bucket
-        cos = self._get_storage_cos(saved)
+        cos = self._get_storage_cos()
 
         # upload wrapper script
         wrapper_script = get_template(PROVIDER_JOB_WRAPPER_NAME).render(

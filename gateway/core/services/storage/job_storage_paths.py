@@ -61,9 +61,21 @@ def save_storage_paths(job: Job, paths: StoragePaths) -> JobStoragePaths:
     return row
 
 
-def get_storage_cos_client(paths: StoragePaths) -> JobCOS:
-    """The COS client for the job's files, signed with the HMAC secret of the project saved with its paths."""
-    return get_cos_client_for(paths.ce_project_id, paths.cos_region)
+def get_storage_cos_client(job: Job) -> JobCOS:
+    """The COS client for the job's files, signed with the HMAC secret of the project the job saved at creation.
+
+    The fallback, for a job created without the project id (before it was saved, or by an old gateway pod during a
+    rollout): the project it was created in, see :func:`_project_of`. The same one its paths are built from.
+
+    Raises:
+        ValueError: If the job has no saved project id and its project can't be found.
+    """
+    if job.ce_project_id:
+        return get_cos_client_for(job.ce_project_id, job.ce_region)
+    project = _project_of(job) if job.program_id else None
+    if not project:
+        raise ValueError(f"Job '{job.id}' has no saved Code Engine project and none can be found")
+    return get_cos_client_for(project.project_id, project.region)
 
 
 def _from_row(row: JobStoragePaths) -> StoragePaths:

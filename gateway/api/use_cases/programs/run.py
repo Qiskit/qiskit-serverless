@@ -222,6 +222,7 @@ class RunFunctionUseCase:
             subscription_id=data.subscription_id,
             ce_project_name=function.code_engine_project.project_name if function.code_engine_project else None,
             ce_region=function.code_engine_project.region if function.code_engine_project else None,
+            ce_project_id=function.code_engine_project.project_id if function.code_engine_project else None,
         )
 
         env = encrypt_env_vars(

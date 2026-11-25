@@ -265,6 +265,7 @@ class BalanceFillerJobs(SchedulerTask):
             env_vars="{}",
             ce_project_name=project.project_name,
             ce_region=project.region,
+            ce_project_id=project.project_id,
         )
         # Two except blocks because a failure before job.save() leaves no row, and one
         # after it leaves a row nothing else can reach.

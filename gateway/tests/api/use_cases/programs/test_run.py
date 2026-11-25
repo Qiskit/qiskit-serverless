@@ -369,7 +369,7 @@ class TestWorkloadMirror:
 
         saved = JobStoragePaths.objects.get(job=job)
         assert saved.arguments_key.endswith(f"/jobs/{job.id}/arguments.json")
-        assert (saved.ce_project_id, saved.ce_project_name) == (
+        assert (job.ce_project_id, job.ce_project_name) == (
             job.program.code_engine_project.project_id,
             job.program.code_engine_project.project_name,
         )

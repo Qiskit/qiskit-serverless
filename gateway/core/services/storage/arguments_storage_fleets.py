@@ -29,7 +29,7 @@ class FleetsArgumentsStorage(ArgumentsStorage):
         self._arguments_key = paths.arguments_key
 
     def save(self, arguments: str) -> None:
-        get_storage_cos_client(self._paths).upload_fileobj(
+        get_storage_cos_client(self._job).upload_fileobj(
             fileobj=io.BytesIO(arguments.encode("utf-8")),
             bucket_name=self._bucket,
             key=self._arguments_key,
@@ -43,7 +43,7 @@ class FleetsArgumentsStorage(ArgumentsStorage):
         )
 
     def delete(self) -> None:
-        get_storage_cos_client(self._paths).delete_object(bucket_name=self._bucket, key=self._arguments_key, wait=False)
+        get_storage_cos_client(self._job).delete_object(bucket_name=self._bucket, key=self._arguments_key, wait=False)
         logger.info(
             "[delete] job_id=%s bucket=%s key=%s Arguments deleted from COS",
             self._job_id,

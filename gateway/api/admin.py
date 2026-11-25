@@ -663,6 +663,7 @@ class JobAdmin(admin.ModelAdmin):
         "job_actions",
         "function_size_name",
         "fleet_deleted_at",
+        "ce_project_id",
         "storage_paths_table",
     ]
     fieldsets = [
@@ -696,6 +697,7 @@ class JobAdmin(admin.ModelAdmin):
                     "function_size_name",
                     "function_size",
                     "ce_project_name",
+                    "ce_project_id",
                     "ce_region",
                     "code_engine_project",
                     "storage_paths_table",

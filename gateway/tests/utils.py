@@ -515,9 +515,10 @@ class TestUtils:
             config: Optional JobConfig instance or dict of config parameters.
                 If dict with 'id' key: fetches existing JobConfig.
                 If dict without 'id': creates new JobConfig.
-            with_storage_paths: Save the job's storage paths in its function's Code Engine project, as the run use
-                case does for a Fleets job. Default is False: the job has no saved paths, like one an old gateway
-                pod created, and is read from today's layout.
+            with_storage_paths: Save the job's storage paths in its function's Code Engine project, and that
+                project's name, id and region on the job, as the run use case does for a Fleets job. Default is
+                False: the job has no saved paths or project id, like one an old gateway pod created, and is read
+                from today's layout.
             **kwargs: Additional fields to set on the Job model (e.g., result, logs).
 
         Returns:
@@ -536,6 +537,12 @@ class TestUtils:
 
         # Like the run use case, the job keeps the runner its function had when it was created
         kwargs.setdefault("runner", program.runner)
+        project = program.code_engine_project
+        if with_storage_paths and project:
+            # Like the run use case, the job keeps the project it was created in
+            kwargs.setdefault("ce_project_name", project.project_name)
+            kwargs.setdefault("ce_region", project.region)
+            kwargs.setdefault("ce_project_id", project.project_id)
         job = Job.objects.create(author=author_obj, program=program, status=status, **kwargs)
 
         if with_storage_paths:
