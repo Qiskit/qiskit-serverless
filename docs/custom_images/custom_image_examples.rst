@@ -4,6 +4,11 @@
 Example entrypoint and Dockerfile
 =================================
 
+.. important::
+
+   The ``runner.py`` below is identical for Ray and Fleets — only the Dockerfile's base image
+   changes, shown for both after the entrypoint. See :ref:`concepts`.
+
 Entrypoint example (``runner.py``):
 
 .. code-block::
@@ -46,10 +51,10 @@ Entrypoint example (``runner.py``):
        def run(self, arguments: dict) -> dict:
            return custom_function(arguments)
 
-Dockerfile:
+Dockerfile (Ray):
 
 .. code-block::
-   :caption: Dockerfile
+   :caption: Dockerfile (Ray)
 
    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.38.0
 
@@ -65,4 +70,25 @@ Dockerfile:
 
    USER 1000:1000
 
-Follow the steps in the :ref:`deploy_image` section to deploy and run the function using local infrastructure.
+Dockerfile (Fleets) — only the base image differs:
+
+.. code-block::
+   :caption: Dockerfile (Fleets)
+
+   FROM private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.38.0
+
+   # install all necessary dependencies for your custom image
+
+   # copy our function implementation in `/runner/runner.py` of the docker image
+   USER 0
+   RUN  pip install qiskit_aer
+
+   WORKDIR /runner
+   COPY ./runner.py /runner
+   WORKDIR /
+
+   USER 1000:1000
+
+Follow the steps in the :ref:`deploy_image` section to deploy and run the function. The Ray path
+can be exercised fully on local infrastructure; the Fleets path needs a real registered-provider
+environment, since there's no local Fleets equivalent today — see the note there.

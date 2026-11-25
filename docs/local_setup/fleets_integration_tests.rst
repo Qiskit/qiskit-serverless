@@ -9,6 +9,11 @@ execution path end to end — entirely on your machine, with no cloud account an
 no cost. They are handy when you want to change or verify the fleets runner and
 watch the whole job lifecycle work against a realistic stand-in for Code Engine.
 
+.. note::
+
+   This page documents the test suite for contributors. For a user-facing walkthrough of the
+   same local stack (upload and run a function, no pytest involved), see :ref:`fleets_tutorials`.
+
 How it works
 ------------
 

@@ -8,6 +8,21 @@ Qiskit Serverless is a programming model for leveraging quantum and classical re
 
 It is particularly useful for performing complex, long-running tasks on a regular basis.
 
+.. important::
+
+   This site documents the ``qiskit-serverless`` **client SDK and self-hosted infrastructure**:
+   installing the client, running your own gateway/Ray/Fleets stack, the gateway REST API, and
+   contributing to the project. It is developer-facing, not the official user guide.
+
+   If you want to use IBM's hosted service to run what this SDK calls a ``QiskitFunction``
+   through ``IBMServerlessClient`` — officially branded as a **managed workflow** — the official
+   docs and terminology live at
+   `IBM Quantum: Managed workflows <https://quantum.cloud.ibm.com/docs/en/managed-workflows>`_,
+   and the supported client there is
+   `qiskit-ibm-catalog <https://quantum.cloud.ibm.com/docs/en/api/qiskit-ibm-catalog>`_, which
+   wraps this SDK's classes as ``ManagedWorkflow`` and ``ManagedWorkflowClient``. See
+   :ref:`concepts` for how the two map to each other.
+
 Here are some reasons why you might want to consider using Qiskit Serverless:
 
 `Scalability`: Qiskit Serverless allows users to easily scale their jobs by running them in
@@ -25,6 +40,7 @@ system and receive the results when they are ready.
   :maxdepth: 2
 
   About Qiskit Serverless <self>
+  Concepts: Runners & Naming <concepts/index>
   Installation <installation/index>
   Local Setup <local_setup/index>
   Function Features <function_features/index>

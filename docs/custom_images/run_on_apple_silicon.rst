@@ -14,7 +14,11 @@ arm64** ``ray-node`` image that can be used as-is or for custom image developmen
 .. note::
 
    This is a **local development** workaround for Apple Silicon only. Production and CI on
-   native ``amd64`` hosts continue to use the official ``amd64`` images unchanged.
+   native ``amd64`` hosts continue to use the official ``amd64`` images unchanged. The problem
+   this page works around is specific to Ray's startup behavior under emulation; ``fleet-node``
+   has no arm64 build because the local Fleets mock (:ref:`fleets_integration_tests`) runs a
+   plain Python loop, not a Ray cluster, and doesn't hit this failure mode. See :ref:`concepts`
+   for how the two engines relate.
 
 
 1. Build the native arm64 base image

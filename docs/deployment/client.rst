@@ -45,8 +45,8 @@ Once you have your credentials, configure the client:
     )
 
 If you are using ``IBMServerlessClient``, the ``host`` is automatically set up to connect
-to the Qiskit Functions service in IQP, and you only need to provide your IQP credentials,
-which you can find in https://quantum.cloud.ibm.com.
+to the IBM Quantum Functions service (formerly Qiskit Functions) in IQP, and you only need to
+provide your IQP credentials, which you can find in https://quantum.cloud.ibm.com.
 
 .. code-block::
 
@@ -56,3 +56,13 @@ which you can find in https://quantum.cloud.ibm.com.
         token="MY_IQP_API_KEY",
         instance="MY_IQP_CRN",
     )
+
+.. note::
+
+   ``ServerlessClient`` talks to a gateway you point it at — self-hosted (local or your own
+   deployment) or otherwise. ``IBMServerlessClient`` is preconfigured to talk to IBM's hosted
+   service specifically. See :ref:`concepts` for how this SDK's classes map to the official
+   naming used there (``ManagedWorkflow``, ``ManagedWorkflowClient``) and for the Ray/Fleets
+   distinction, and `IBM Quantum: Managed workflows
+   <https://quantum.cloud.ibm.com/docs/en/managed-workflows>`_ for the official docs on using
+   that hosted service.
