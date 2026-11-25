@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    New scheduler metric ``scheduler_job_status_duration_seconds``: how long a
+    Fleets job stayed in each status, labelled by the status it left, the status
+    it went to, and ``compute_type`` (``gpu`` or ``cpu``). Both ends come from
+    the job's status events. New gauge ``scheduler_oldest_stopping_age_seconds``:
+    the age of the oldest Fleets job still in ``STOPPING``. Filler jobs are left
+    out of both.
+upgrade:
+  - |
+    ``scheduler_queue_wait_seconds`` and ``scheduler_job_execution_duration_seconds``
+    now only record Ray jobs. Fleets jobs are in
+    ``scheduler_job_status_duration_seconds``: use ``status="QUEUED"`` for the
+    queue wait and ``status="RUNNING", final_status="SUCCEEDED"`` for the
+    execution duration. A dashboard or alert built on the old names for Fleets
+    needs to move.

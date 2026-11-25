@@ -1,11 +1,13 @@
 """Unit tests for UpdateJobStatusCounts."""
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch, call
 
 import pytest
 from prometheus_client import CollectorRegistry
 
-from core.models import Job
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import Job, JobEvent, Program
 from scheduler.metrics.scheduler_metrics_collector import SchedulerMetrics
 from scheduler.tasks.update_job_status_counts import UpdateJobStatusCounts
 from tests.utils import TestUtils
@@ -28,7 +30,7 @@ def test_job_status_counts_clears_and_sets_metrics():
         {"status": "RUNNING", "program__provider__name": None, "count": 1},
     ]
 
-    with patch(f"{_MOD}.Job") as MockJob:
+    with patch(f"{_MOD}.Job") as MockJob, patch(f"{_MOD}.JobEvent"):
         MockJob.QUEUED = "QUEUED"
         MockJob.PENDING = "PENDING"
         MockJob.RUNNING = "RUNNING"
@@ -47,7 +49,7 @@ def test_job_status_counts_exclude_filler_jobs():
     real_rows = [{"status": "RUNNING", "program__provider__name": "ibm", "count": 2}]
     filler_rows = [{"status": "RUNNING", "count": 4}]
 
-    with patch(f"{_MOD}.Job") as MockJob:
+    with patch(f"{_MOD}.Job") as MockJob, patch(f"{_MOD}.JobEvent"):
         MockJob.QUEUED = "QUEUED"
         MockJob.PENDING = "PENDING"
         MockJob.RUNNING = "RUNNING"
@@ -83,3 +85,53 @@ def test_the_gauges_split_real_and_filler_jobs_against_a_real_database():
     task.run()
 
     assert metrics.filler_jobs_count._metrics == {}
+
+
+def _stopping_job(author, program, age_seconds, filler=False):
+    job = TestUtils.create_job(
+        author=author, program=program, status=Job.STOPPING, runner=Program.FLEETS, filler=filler
+    )
+    JobEvent.objects.filter(job=job, data__status=Job.STOPPING).update(
+        created=datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
+    )
+    return job
+
+
+def _oldest_stopping_age():
+    task = _make_task()
+    task.run()
+    return task.metrics.set_oldest_stopping_age_seconds.call_args.args[0]
+
+
+@pytest.mark.django_db
+def test_the_oldest_stopping_age_reads_the_oldest_job_still_stopping():
+    program = TestUtils.create_program(program_title="stopping-function", author="stopping_user")
+    _stopping_job("stopping_user", program, 30)
+    _stopping_job("stopping_user", program, 300)
+    ended = _stopping_job("stopping_user", program, 9000)
+    Job.objects.filter(pk=ended.pk).update(status=Job.STOPPED)
+
+    assert 300 <= _oldest_stopping_age() < 320
+
+
+@pytest.mark.django_db
+def test_the_oldest_stopping_age_leaves_fillers_out():
+    program = TestUtils.create_program(program_title="stopping-filler", author="stopping_filler_user")
+    _stopping_job("stopping_filler_user", program, 300, filler=True)
+
+    assert _oldest_stopping_age() == 0
+
+
+@pytest.mark.django_db
+def test_the_oldest_stopping_age_ignores_an_event_that_is_not_a_status_change():
+    program = TestUtils.create_program(program_title="stopping-error", author="stopping_error_user")
+    job = Job.objects.create(author=program.author, program=program, status=Job.STOPPING, runner=Program.FLEETS)
+    JobEvent.objects.create(
+        job_id=job.id,
+        origin=JobEventOrigin.API,
+        context=JobEventContext.SEND_ERROR,
+        event_type=JobEventType.ERROR,
+        data={"status": Job.STOPPING},
+    )
+
+    assert _oldest_stopping_age() == 0
