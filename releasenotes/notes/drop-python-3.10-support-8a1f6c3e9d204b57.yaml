@@ -1,0 +1,3 @@
+upgrade:
+  - |
+    The minimum supported Python version is now 3.11, raised from 3.10.

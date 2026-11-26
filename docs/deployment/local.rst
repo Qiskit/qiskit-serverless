@@ -28,7 +28,7 @@ Prerequisites
 
 Before you begin, ensure you have:
 
-* **Python 3.10 or later**
+* **Python 3.11 or later**
 * **Git**
 * **Docker runtime** (required for both approaches)
 
