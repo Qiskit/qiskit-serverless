@@ -29,6 +29,7 @@ from core.models import (
     JobConfig,
     JobEvent,
     Program,
+    Provider,
     WorkloadMirror,
 )
 
@@ -131,6 +132,18 @@ class TestRunFunctionUseCase:
 
         with pytest.raises(FunctionDisabledException):
             RunFunctionUseCase().execute(user, accessible, make_input())
+
+    def test_disabled_provider_function_without_run_permission_is_not_found(self, user):
+        """The permission check comes before the disabled check: a forbidden caller must not learn it is disabled."""
+        provider = Provider.objects.create(name="my-provider")
+        Program.objects.create(
+            title="my-fn", author=user, provider=provider, entrypoint="main.py", disabled=True, disabled_message="x"
+        )
+        caller = User.objects.create_user(username="caller")
+        accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])
+
+        with pytest.raises(FunctionNotFoundException):
+            RunFunctionUseCase().execute(caller, accessible, make_input(provider_name="my-provider"))
 
     def test_raises_not_entitled_when_no_permission_for_custom_function(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=False, functions=[])

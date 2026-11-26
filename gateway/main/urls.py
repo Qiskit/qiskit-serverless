@@ -33,7 +33,7 @@ logging.getLogger("main").info("[BOOT] Reading urls.py...")
 
 schema = get_schema_view(  # pylint: disable=invalid-name
     openapi.Info(
-        title="Qiskit Serverless Gateway API",
+        title="IBM Quantum Functions Gateway API",
         default_version="v1",
         description="""
 REST API for managing quantum programs and jobs.

@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.db import transaction
 
 from api.access_policies.jobs import JobAccessPolicies
+from api.access_policies.programs import ProgramAccessPolicies
 from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.custom_function_not_entitled_exception import CustomFunctionNotEntitledException
 from api.domain.exceptions.function_configuration_exception import FunctionConfigurationException
@@ -33,7 +34,6 @@ from core.models import (
     JobEvent,
     Program as Function,
     WorkloadMirror,
-    PLATFORM_PERMISSION_RUN,
     RUN_PROGRAM_PERMISSION,
 )
 from core.ibm_cloud.code_engine.fleets.utils import build_fleets_storage_paths
@@ -144,16 +144,11 @@ class RunFunctionUseCase:
 
         Raises FunctionNotFoundException or FunctionDisabledException as appropriate.
         """
-        function = None
         if data.provider_name:
-            function = Function.objects.get_function_by_permission(
-                user=user,
-                function_title=data.title,
-                provider_name=data.provider_name,
-                accessible_functions=accessible_functions,
-                permission=PLATFORM_PERMISSION_RUN,
-                legacy_permission_name=RUN_PROGRAM_PERMISSION,
-            )
+            # Load first, then check: a missing function and a forbidden one both end in the same 404.
+            function = Function.objects.get_function(data.title, data.provider_name)
+            if function is not None and not ProgramAccessPolicies.can_run(user, function, accessible_functions):
+                function = None
         else:
             # Split the entitlement gate from the existence lookup so the two causes do
             # not collapse into one misleading "doesn't exist": a user in their own
@@ -195,7 +190,8 @@ class RunFunctionUseCase:
 
         business_model = None
         if data.provider_name and not accessible_functions.use_legacy_authorization:
-            business_model = accessible_functions.get_function(data.provider_name, data.title).business_model
+            # can_run approved this function, so its entry exists. Read it by the stored names, not the request's.
+            business_model = accessible_functions.get_function(function.provider.name, function.title).business_model
 
         if business_model is None:
             trial = _is_trial(function, user)

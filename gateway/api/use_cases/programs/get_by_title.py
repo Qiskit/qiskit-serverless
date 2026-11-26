@@ -2,13 +2,10 @@
 
 from django.contrib.auth.models import AbstractUser
 
+from api.access_policies.programs import ProgramAccessPolicies
 from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from core.domain.authorization.function_access_result import FunctionAccessResult
-from core.models import (
-    PLATFORM_PERMISSION_READ,
-    VIEW_PROGRAM_PERMISSION,
-    Program as Function,
-)
+from core.models import Program as Function
 
 
 class GetFunctionByTitleUseCase:
@@ -27,14 +24,9 @@ class GetFunctionByTitleUseCase:
         leaking information about function existence.
         """
         if provider:
-            function = Function.objects.get_function_by_permission(
-                user=user,
-                function_title=title,
-                provider_name=provider,
-                accessible_functions=accessible_functions,
-                permission=PLATFORM_PERMISSION_READ,
-                legacy_permission_name=VIEW_PROGRAM_PERMISSION,
-            )
+            function = Function.objects.get_function(title, provider)
+            if function is not None and not ProgramAccessPolicies.can_read(user, function, accessible_functions):
+                function = None
         else:
             function = Function.objects.get_user_function(user, title)
 
