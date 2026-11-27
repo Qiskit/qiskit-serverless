@@ -13,7 +13,7 @@ from tests.utils import TestUtils
 def _job(**overrides) -> Job:
     defaults = dict(
         instance_crn="crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::",
-        compute_profile_fk_id="16x128",
+        compute_profile_id="16x128",
         business_model=BusinessModel.LICENSED,
         filler=False,
     )
@@ -128,7 +128,7 @@ class TestBuildJobCompletedEvent:
         assert "type" not in message  # added later by the sender, not here
 
     def test_metric_type_includes_compute_profile_id(self):
-        job = _job(compute_profile_fk_id="16x128")
+        job = _job(compute_profile_id="16x128")
 
         message = BillingEvents.build_job_completed_event(job, None, datetime.now(timezone.utc))
 
@@ -140,7 +140,7 @@ class TestBuildJobCompletedEvent:
         profile, _ = ComputeProfile.objects.get_or_create(compute_profile_id="16x128")
         user, _ = TestUtils.get_user_and_username(author="test_billing_fk_user")
         program = TestUtils.create_program(program_title="billing-fk-func", author=user)
-        job = TestUtils.create_job(author=user, program=program, compute_profile_fk=profile)
+        job = TestUtils.create_job(author=user, program=program, compute_profile=profile)
 
         message = BillingEvents.build_job_completed_event(job, None, datetime.now(timezone.utc))
 

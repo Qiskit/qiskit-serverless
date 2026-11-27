@@ -83,7 +83,7 @@ class BalanceFillerJobs(SchedulerTask):
         profile_label = compute_profile_domain.normalize(profile_row.compute_profile_id)
         slots = Config.get_int(ConfigKey.FILLER_SLOTS)
         real_running = Job.objects.filter(
-            compute_profile_fk=profile_row,
+            compute_profile=profile_row,
             runner=Program.FLEETS,
             status__in=Job.RUNNING_STATUSES,
             filler=False,
@@ -99,12 +99,12 @@ class BalanceFillerJobs(SchedulerTask):
         self.metrics.set_filler_profile_slots(slots)
         self.metrics.set_filler_profile_jobs(real_running, "real")
 
-        # Compared on compute_profile_fk, not on the normalized string: two
+        # Compared on compute_profile, not on the normalized string: two
         # ComputeProfile rows can normalize to the same string, and jobs on a profile
         # the balancer no longer protects would then never be stopped.
         expected = (program.pk, profile_row.pk)
-        stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) != expected]
-        current = [job for job in filler_jobs if (job.program_id, job.compute_profile_fk_id) == expected]
+        stale = [job for job in filler_jobs if (job.program_id, job.compute_profile_id) != expected]
+        current = [job for job in filler_jobs if (job.program_id, job.compute_profile_id) == expected]
         self.metrics.set_filler_profile_jobs(len(current), "filler")
 
         if stale:
@@ -254,7 +254,7 @@ class BalanceFillerJobs(SchedulerTask):
             author=program.author,
             filler=True,
             runner=Program.FLEETS,
-            compute_profile_fk=program.default_size.compute_profile,
+            compute_profile=program.default_size.compute_profile,
             size_source=Job.SIZE_SOURCE_NONE,
             function_size=program.default_size,
             function_size_name=program.default_size.function_size,

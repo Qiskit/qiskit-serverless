@@ -39,14 +39,14 @@ def _job_with_events(
     program = Program.objects.create(title="t", author=user, provider=provider)
     # The timeline reads the profile through job.compute_profile_id (the FK), so the
     # value under test has to live on a ComputeProfile row, not a bare string column.
-    compute_profile_fk = None
+    profile = None
     if compute_profile is not None:
-        compute_profile_fk, _ = ComputeProfile.objects.get_or_create(compute_profile_id=compute_profile)
+        profile, _ = ComputeProfile.objects.get_or_create(compute_profile_id=compute_profile)
     job = Job.objects.create(
         author=user,
         program=program,
         status=status,
-        compute_profile_fk=compute_profile_fk,
+        compute_profile=profile,
         runner=runner,
         **extra_fields,
     )

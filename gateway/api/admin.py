@@ -622,7 +622,7 @@ class JobAdmin(admin.ModelAdmin):
         "program__title",
         "program__provider__name",
         "fleet_id",
-        "compute_profile_fk__compute_profile_id",
+        "compute_profile__compute_profile_id",
         "function_size_name",
         "status",
         "instance_crn",
@@ -644,12 +644,12 @@ class JobAdmin(admin.ModelAdmin):
         "author",
         "program",
         "program__provider",
-        "compute_profile_fk",
+        "compute_profile",
     ]
     ordering = ["-created"]
     actions = ["timeline_action"]
     inlines = []
-    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile_fk", "function_size"]
+    autocomplete_fields = ["author", "program", "compute_resource", "config", "compute_profile", "function_size"]
     change_form_template = "admin/api/job/change_form.html"
     readonly_fields = ["runner", "status_badge", "sub_status", "job_actions", "function_size_name", "fleet_deleted_at"]
     fieldsets = [
@@ -678,7 +678,7 @@ class JobAdmin(admin.ModelAdmin):
                     "filler",
                     "fleet_id",
                     "fleet_deleted_at",
-                    "compute_profile_fk",
+                    "compute_profile",
                     "size_source",
                     "function_size_name",
                     "function_size",
@@ -919,12 +919,12 @@ class JobAdmin(admin.ModelAdmin):
     @admin.display(description="Compute Profile")
     def compute_profile_column(self, obj):
         """Fleets compute profile, clicking it searches the changelist for it. Empty for Ray."""
-        if obj.runner != Program.FLEETS or obj.compute_profile_fk is None:
+        if obj.runner != Program.FLEETS or obj.compute_profile is None:
             return ""
         return format_html(
             '<a href="{}" class="qs-cell-link">{}</a>',
-            self._search_link(obj.compute_profile_fk_id),
-            obj.compute_profile_fk,
+            self._search_link(obj.compute_profile_id),
+            obj.compute_profile,
         )
 
     @admin.display(description="Running Size")

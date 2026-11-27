@@ -198,7 +198,7 @@ class TestRunFunctionUseCase:
 
         assert not Job.objects.exists()
 
-    def test_ray_job_leaves_compute_profile_fk_null(self, user):
+    def test_ray_job_leaves_compute_profile_null(self, user):
         """The Ray path has no profile; the FK stays null and no registration is required."""
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
@@ -206,7 +206,7 @@ class TestRunFunctionUseCase:
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
         assert job.compute_profile_id is None
-        assert job.compute_profile_fk is None
+        assert job.compute_profile is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
         assert job.function_size_name is None
@@ -222,7 +222,7 @@ class TestRunFunctionUseCase:
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
         assert job.compute_profile_id == "16x128"
-        assert job.compute_profile_fk == profile
+        assert job.compute_profile == profile
         # A user-requested size records REQUESTED and the exact size row (so a
         # different size mapping to the same profile stays distinguishable).
         assert job.size_source == Job.SIZE_SOURCE_REQUESTED
@@ -254,7 +254,7 @@ class TestRunFunctionUseCase:
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
         assert job.compute_profile_id == "16x128"
-        assert job.compute_profile_fk == default_profile
+        assert job.compute_profile == default_profile
         # Platform filled in the default: distinguishable from a user picking the
         # same size, which would record REQUESTED.
         assert job.size_source == Job.SIZE_SOURCE_DEFAULT_SIZE
@@ -285,7 +285,7 @@ class TestRunFunctionUseCase:
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="m"))
 
         assert job.compute_profile_id is None
-        assert job.compute_profile_fk is None
+        assert job.compute_profile is None
         assert job.size_source == Job.SIZE_SOURCE_NONE
         assert job.function_size is None
         assert job.function_size_name is None

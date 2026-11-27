@@ -72,7 +72,7 @@ class JobSerializer(serializers.ModelSerializer):
     """
 
     program = ProgramSerializer(many=False)
-    compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    compute_profile = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
@@ -84,7 +84,7 @@ class JobSerializer(serializers.ModelSerializer):
             "created",
             "sub_status",
             "fleet_id",
-            "compute_profile_fk",
+            "compute_profile",
             "business_model",
         ]
         ref_name = "JobsRetrieveJobSerializer"
@@ -103,7 +103,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSummary(read_only=True)
-    compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    compute_profile = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
@@ -114,7 +114,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
             "created",
             "sub_status",
             "fleet_id",
-            "compute_profile_fk",
+            "compute_profile",
             "business_model",
         ]
 

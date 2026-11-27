@@ -94,7 +94,7 @@ def test_creates_filler_jobs_up_to_the_configured_slots(filler_program):
     assert fillers.count() == 4
     assert submit.call_count == 4
     assert arguments.call_count == 4
-    assert {job.compute_profile_fk for job in fillers} == {filler_program.default_size.compute_profile}
+    assert {job.compute_profile for job in fillers} == {filler_program.default_size.compute_profile}
     assert {job.compute_profile_id for job in fillers} == {_PROFILE}
     assert {job.runner for job in fillers} == {Program.FLEETS}
     assert {job.author for job in fillers} == {filler_program.author}
@@ -122,7 +122,7 @@ def test_real_running_jobs_reduce_the_number_of_filler_jobs(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile_fk=filler_program.default_size.compute_profile,
+            compute_profile=filler_program.default_size.compute_profile,
         )
     task = _make_task()
 
@@ -147,7 +147,7 @@ def test_a_prefixed_profile_row_still_counts_real_jobs(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=prefixed,
+        compute_profile=prefixed,
     )
     task = _make_task()
 
@@ -164,7 +164,7 @@ def test_real_jobs_on_another_profile_do_not_count(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=other,
+        compute_profile=other,
     )
     task = _make_task()
 
@@ -181,7 +181,7 @@ def test_stops_the_oldest_filler_jobs_when_there_are_too_many(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile_fk=filler_program.default_size.compute_profile,
+            compute_profile=filler_program.default_size.compute_profile,
             filler=True,
             fleet_id=f"fleet-{index}",
         )
@@ -211,7 +211,7 @@ def test_a_draining_filler_does_not_take_the_place_of_a_shed(filler_program):
             program=filler_program,
             status=status,
             runner=Program.FLEETS,
-            compute_profile_fk=filler_program.default_size.compute_profile,
+            compute_profile=filler_program.default_size.compute_profile,
             filler=True,
             fleet_id=f"fleet-{index}",
         )
@@ -238,7 +238,7 @@ def test_does_nothing_when_the_count_already_matches(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile_fk=filler_program.default_size.compute_profile,
+            compute_profile=filler_program.default_size.compute_profile,
             filler=True,
             fleet_id=f"fleet-{index}",
         )
@@ -257,7 +257,7 @@ def test_zero_slots_stops_every_filler_job(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-0",
     )
@@ -288,7 +288,7 @@ def test_deactivated_stops_every_filler_job(filler_program, config_key, value):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-0",
     )
@@ -357,7 +357,7 @@ def test_a_filler_job_that_was_never_submitted_is_discarded(filler_program):
         program=filler_program,
         status=Job.QUEUED,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
     )
     task = _make_task()
@@ -378,7 +378,7 @@ def test_mark_failed_does_not_raise_when_the_job_already_turned_terminal(filler_
         program=filler_program,
         status=Job.SUCCEEDED,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
     )
     task = _make_task()
@@ -396,7 +396,7 @@ def test_a_job_that_already_turned_terminal_is_not_counted_as_stopped(filler_pro
         program=filler_program,
         status=Job.SUCCEEDED,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-done",
     )
@@ -419,7 +419,7 @@ def test_an_accepted_cancel_is_counted_by_the_poller_not_here(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-live",
     )
@@ -440,7 +440,7 @@ def test_nothing_left_to_cancel_is_counted_here(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-gone",
     )
@@ -468,7 +468,7 @@ def test_filler_jobs_on_another_profile_are_always_stopped(filler_program):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=old_row,
+        compute_profile=old_row,
         filler=True,
         fleet_id="fleet-stale",
     )
@@ -498,7 +498,7 @@ def test_filler_jobs_of_another_program_are_always_stopped(filler_program):
         program=old_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-old-program",
     )
@@ -531,7 +531,7 @@ def test_the_occupancy_of_the_protected_profile_is_reported(filler_program):
             program=filler_program,
             status=Job.RUNNING,
             runner=Program.FLEETS,
-            compute_profile_fk=filler_program.default_size.compute_profile,
+            compute_profile=filler_program.default_size.compute_profile,
         )
     task = _make_task()
 
@@ -561,7 +561,7 @@ def _stuck_filler_job(filler_program, *, fleet_id):
         program=filler_program,
         status=Job.RUNNING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id=fleet_id,
     )
@@ -631,7 +631,7 @@ def test_a_draining_filler_job_gets_no_second_cancel(filler_program):
         program=filler_program,
         status=Job.STOPPING,
         runner=Program.FLEETS,
-        compute_profile_fk=filler_program.default_size.compute_profile,
+        compute_profile=filler_program.default_size.compute_profile,
         filler=True,
         fleet_id="fleet-draining",
     )

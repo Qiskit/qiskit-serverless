@@ -46,7 +46,7 @@ def test_builds_the_full_envelope_for_a_finished_job():
         runner=Program.FLEETS,
         status=Job.SUCCEEDED,
         instance_crn=CRN,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         function_size=size,
         function_size_name=size.function_size,
     )
@@ -86,7 +86,7 @@ def test_size_is_the_snapshot_after_the_size_row_is_renamed_or_deleted():
         runner=Program.FLEETS,
         status=Job.RUNNING,
         instance_crn=CRN,
-        compute_profile_fk=profile,
+        compute_profile=profile,
         function_size=size,
         function_size_name=size.function_size,
     )

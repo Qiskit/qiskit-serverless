@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    The ``compute_profile_fk`` key in job and run responses has been renamed to
+    ``compute_profile``. Its value is unchanged.

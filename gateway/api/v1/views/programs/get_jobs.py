@@ -48,11 +48,11 @@ class OutputSerializer(serializers.ModelSerializer):
     """Job representation for program job list responses."""
 
     program = ProgramSerializer(many=False)
-    compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    compute_profile = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "sub_status", "fleet_id", "compute_profile_fk"]
+        fields = ["id", "result", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
         ref_name = "ProgramsGetJobsOutput"
 
 
@@ -64,11 +64,11 @@ class OutputSerializerWithoutResult(serializers.ModelSerializer):
     """
 
     program = ProgramSerializer(many=False)
-    compute_profile_fk = ComputeProfileSerializer(read_only=True)
+    compute_profile = ComputeProfileSerializer(read_only=True)
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile_fk"]
+        fields = ["id", "status", "program", "created", "sub_status", "fleet_id", "compute_profile"]
         ref_name = "ProgramsGetJobsOutputWithoutResult"
 
 

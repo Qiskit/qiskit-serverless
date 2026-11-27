@@ -455,7 +455,7 @@ class TestBestEffortEvents:
             program=program,
             runner=Program.FLEETS,
             instance_crn=CRN,
-            compute_profile_fk=profile,
+            compute_profile=profile,
             status=Job.PENDING,
         )
 

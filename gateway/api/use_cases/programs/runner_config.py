@@ -16,6 +16,6 @@ class RunnerConfig:
     """
 
     gpu: bool
-    compute_profile_fk: ComputeProfile | None
+    compute_profile: ComputeProfile | None
     size_source: str
     function_size: FunctionSize | None

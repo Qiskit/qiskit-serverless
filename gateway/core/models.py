@@ -749,12 +749,15 @@ class Job(models.Model):
         blank=True,
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
-    compute_profile_fk = models.ForeignKey(
+    # The column keeps its pre-rename name: renaming it would break the pods still running the
+    # previous release during a rolling deploy.
+    compute_profile = models.ForeignKey(
         to=ComputeProfile,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="jobs",
+        db_column="compute_profile_fk_id",
         help_text=(
             "Compute profile used by the job, captured at creation time so the "
             "historical compute profile is preserved even if the profile changes later."
@@ -845,17 +848,6 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATUSES
-
-    @property
-    def compute_profile_id(self) -> str | None:
-        """Bare compute-profile string from the FK (the source of truth).
-
-        ``ComputeProfile`` uses ``compute_profile_id`` as its ``CharField``
-        primary key, so Django stores that string directly in
-        ``compute_profile_fk_id`` on this row — no extra query needed.
-        Returns ``None`` for Ray jobs and any row with no FK set.
-        """
-        return self.compute_profile_fk_id
 
     @property
     def size_label(self) -> str | None:

@@ -1023,7 +1023,7 @@ class TestRetrieveJob:
     def test_author_retrieves_the_job_in_one_query(self, authorize):
         program = TestUtils.create_program("one-query-function", author="test_user", provider="one-query-provider")
         profile = ComputeProfile.objects.create(compute_profile_id="one-query-profile", cpu="8", memory="32")
-        job = TestUtils.create_job(author="test_user", program=program, compute_profile_fk=profile)
+        job = TestUtils.create_job(author="test_user", program=program, compute_profile=profile)
         client = authorize("test_user")
 
         with CaptureQueriesContext(connection) as captured:
@@ -1031,7 +1031,7 @@ class TestRetrieveJob:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["program"]["provider"] == "one-query-provider"
-        assert response.data["compute_profile_fk"]["compute_profile_id"] == "one-query-profile"
+        assert response.data["compute_profile"]["compute_profile_id"] == "one-query-profile"
         assert len(captured) == 1
 
     def test_old_subsidized_job_is_retrieved_as_licensed(self, authorize):
