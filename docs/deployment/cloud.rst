@@ -8,6 +8,13 @@ that you can use to connect with local and non-local resources.
 The main purpose of this guide is to explain to you, step-by-step, how to deploy these resources to be able to load and use that
 ``client`` with your desired configuration.
 
+.. important::
+
+   This guide self-hosts the Helm chart's default configuration, which brings up a **Ray**
+   cluster (the Ray dashboard mentioned below). Self-hosting Fleets instead requires configuring
+   Code Engine and Cloud Object Storage credentials; that path isn't documented here yet. See
+   :ref:`concepts` for how the two engines relate.
+
 This guide contains:
 
 * :ref:`installation_requirements`

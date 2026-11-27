@@ -4,6 +4,18 @@
 Deploy a Custom Function Image
 ===============================
 
+.. important::
+
+   This guide covers both engines. The ``Runner`` class contract (step 1) and the
+   ``QiskitFunction(image=..., provider=...)`` upload/run API (step 4) are identical for Ray and
+   Fleets — only the base image in the Dockerfile changes (``ray-node`` vs. ``fleet-node:base``).
+   Steps 2-3 (build and run locally) only have a documented path for Ray: the local Fleets mock
+   stack (:ref:`fleets_integration_tests`) runs every job's command inside one fixed
+   ``fleet-worker`` container and does not pull per-job images the way real Code Engine does, so
+   a custom Fleets provider image can't be exercised locally today. To try one, build it, push it
+   somewhere Code Engine can pull it, and upload it as a registered provider against a real
+   environment. See :ref:`concepts` for how the two engines relate.
+
 This guide explains how to build and deploy a custom Docker image as a
 ``QiskitFunction``.
 
@@ -49,13 +61,27 @@ Create ``runner.py``:
                "answer": 42
            }
 
-Next, define a Dockerfile extending the base Qiskit Serverless ray node
-image and adding your implementation:
+Next, define a Dockerfile extending the base image for the engine you're targeting and adding
+your implementation. For **Ray**:
 
 .. code-block::
-   :caption: Dockerfile for custom function image
+   :caption: Dockerfile for custom function image (Ray)
 
    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.38.0
+
+   USER 0
+   WORKDIR /runner
+   COPY ./runner.py /runner
+   WORKDIR /
+   USER 1000:1000
+
+For **Fleets**, extend ``fleet-node:base`` instead — ``runner.py`` and the ``Runner`` class are
+unchanged:
+
+.. code-block::
+   :caption: Dockerfile for custom function image (Fleets)
+
+   FROM private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.38.0
 
    USER 0
    WORKDIR /runner
@@ -110,8 +136,11 @@ If using **Kubernetes in local development**, create the cluster and load the im
    tox -e cluster-deploy
    kind load docker-image test/local-provider-function:latest
 
-For **remote environments**, you must be a registered provider and
-follow the provider upload workflow.
+For **remote environments** (Ray or Fleets), you must be a registered provider. Push the image
+somewhere the environment's runner can pull it from — the Ray cluster for a Ray provider, or Code
+Engine for a Fleets provider — and upload your function with ``image=`` pointing at it, same as
+step 4 below. There is no local Fleets equivalent to steps 2-3 above: see the note at the top of
+this page.
 
 4. Run the function
 -------------------
@@ -134,6 +163,7 @@ define a ``QiskitFunction`` that will use the custom image, upload it, and invok
        title="custom-image-function",
        image="test/local-provider-function:latest",
        provider="mockprovider",
+       runner="ray",  # defaults to "fleets"; this local stack only runs Ray
    )
 
    serverless.upload(function)

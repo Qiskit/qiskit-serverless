@@ -2,7 +2,8 @@
 Installation
 ============
 
-Install the Qiskit Serverless client library to interact with Qiskit Functions.
+Install the Qiskit Serverless client library to interact with IBM Quantum Functions (formerly
+Qiskit Functions).
 
 .. code-block::
    :caption: Install qiskit_serverless via pip.
@@ -18,3 +19,5 @@ After installation, you can:
 * **For local development and testing**: Set up a local environment using the :ref:`local_setup` guide
 * **For using remote functions**: Configure your client with the :ref:`deployment` guide
 * **To start building functions**: Follow the :ref:`function_features` tutorials
+* **New to Ray vs. Fleets, or this SDK's naming vs. IBM's "managed workflows" naming?** See
+  :ref:`concepts`

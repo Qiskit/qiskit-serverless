@@ -6,6 +6,11 @@ Local Infrastructure Setup
 
 This guide walks you through setting up Qiskit Serverless on your local machine for development and testing.
 
+.. important::
+
+   Both approaches below bring up a local **Ray** cluster; see :ref:`concepts`. For a local
+   Fleets walkthrough instead, see :ref:`fleets_tutorials` and :ref:`fleets_integration_tests`.
+
 Overview
 --------
 
@@ -231,7 +236,8 @@ Explore the :ref:`function_features` tutorials to learn how to:
 Next Steps
 ----------
 
-* :ref:`function_features` - Learn how to build and run Qiskit Functions
+* :ref:`function_features` - Learn how to build and run IBM Quantum Functions (formerly Qiskit
+  Functions)
 * :ref:`client_configuration` - Detailed client configuration options
 * :ref:`deployment` - Deploy to production environments (advanced)
 
