@@ -2,7 +2,7 @@ import os
 import tarfile
 from qiskit_serverless import save_result
 
-with tarfile.open("/data/my_file.tar", "r:gz") as tar:
+with tarfile.open("/function_user_data/my_file.tar", "r:gz") as tar:
     with tar.extractfile("./my_file.txt") as f:
         text = f.read()
 
