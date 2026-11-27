@@ -118,13 +118,29 @@ def get_cos_client(project: CodeEngineProject) -> JobCOS:
         RetryableError: If Code Engine or IAM answers 429 or 5xx, or does not answer in time.
         ApiException: If the CE secrets API call fails for any other reason.
     """
-    key = (project.project_id, project.region)
+    return get_cos_client_for(project.project_id, project.region)
+
+
+def get_cos_client_for(project_id: str, region: str) -> JobCOS:
+    """Build a :class:`JobCOS` from a Code Engine project's id and region, reused in this process for 60 seconds.
+
+    The same as :func:`get_cos_client`, for a caller that has only the two values, such as the storage paths saved
+    for a job, whose project row may have been changed or deleted since.
+
+    Args:
+        project_id: Code Engine project UUID that holds the HMAC secret.
+        region: IBM Cloud region of the project and of its buckets.
+
+    Raises:
+        Same as :func:`get_cos_client`.
+    """
+    key = (project_id, region)
     now = time.monotonic()
     with _cos_clients_lock:
         cached = _cos_clients.get(key)
     if cached and now - cached[1] < _COS_CLIENT_TTL_SECONDS:
         return cached[0]
-    client = _create_cos_client(project)
+    client = _create_cos_client(project_id, region)
     with _cos_clients_lock:
         _cos_clients[key] = (client, now)
     return client
@@ -136,11 +152,12 @@ def clear_cos_clients() -> None:
         _cos_clients.clear()
 
 
-def _create_cos_client(project: CodeEngineProject) -> JobCOS:
-    """Construct the real :class:`JobCOS` (see :func:`get_cos_client`).
+def _create_cos_client(project_id: str, region: str) -> JobCOS:
+    """Construct the real :class:`JobCOS` (see :func:`get_cos_client_for`).
 
     Args:
-        project: Active :class:`CodeEngineProject` to authenticate against.
+        project_id: Code Engine project UUID that holds the HMAC secret.
+        region: IBM Cloud region of the project and of its buckets.
 
     Returns:
         Initialized :class:`JobCOS`.
@@ -153,16 +170,16 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
     if not hmac_secret_name:
         raise ValueError("CE_HMAC_SECRET_NAME not configured")
 
-    ce_auth = get_ce_auth(api_key, project.region)
+    ce_auth = get_ce_auth(api_key, region)
 
     secrets_api = SecretsAndConfigmapsApi(ce_auth.api_client)
     try:
         secret = secrets_api.get_secret(
-            project_id=project.project_id, name=hmac_secret_name, _request_timeout=_SECRET_TIMEOUT_SECONDS
+            project_id=project_id, name=hmac_secret_name, _request_timeout=_SECRET_TIMEOUT_SECONDS
         )
     except ApiException as exc:
         if exc.status == 404:
-            raise ValueError(f"CE secret {hmac_secret_name!r} not found in project {project.project_id!r}") from exc
+            raise ValueError(f"CE secret {hmac_secret_name!r} not found in project {project_id!r}") from exc
         # status 0 is the vendored client's answer when the request never left or came back unreadable
         status = exc.status or 0
         if status in (0, 429) or status >= 500:
@@ -185,7 +202,7 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
 
     endpoint_url = None
     if settings.CE_COS_USE_PUBLIC_ENDPOINT:
-        endpoint_url = COS_PUBLIC_URL_TEMPLATE.format(region=project.region)
+        endpoint_url = COS_PUBLIC_URL_TEMPLATE.format(region=region)
 
     cos_client = COSClient(
         client_provider=ce_auth.client_provider,
@@ -193,10 +210,10 @@ def _create_cos_client(project: CodeEngineProject) -> JobCOS:
             access_key_id=access_key_id,
             secret_access_key=secret_access_key,
         ),
-        bucket_region=project.region,
+        bucket_region=region,
         endpoint_url=endpoint_url,
     )
     return JobCOS(cos_client)
 
 
-__all__ = ["CEAuth", "get_ce_auth", "get_cos_client", "JobCOS"]
+__all__ = ["CEAuth", "get_ce_auth", "get_cos_client", "get_cos_client_for", "JobCOS"]

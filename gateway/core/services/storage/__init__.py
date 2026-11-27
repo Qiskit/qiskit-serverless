@@ -1,5 +1,6 @@
 """Factory and exports for services storages."""
 
+from core.domain.storage_paths import StoragePaths
 from core.models import Job, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 from core.services.storage.arguments_storage_fleets import FleetsArgumentsStorage
@@ -15,22 +16,26 @@ from core.services.storage.result_storage_fleets import FleetsResultStorage
 from core.services.storage.result_storage_ray import RayResultStorage
 
 
-def get_arguments_storage(job: Job) -> ArgumentsStorage:
+def get_arguments_storage(job: Job, paths: StoragePaths | None) -> ArgumentsStorage:
     """Factory: return the appropriate ArgumentsStorage for the job's runner that ran it.
 
     Args:
         job: The Job instance whose runner that ran it determines the implementation.
+        paths: The paths of a Fleets job: the ones built at creation, before they are saved, or the saved ones
+            (:func:`get_storage_paths`). None for a Ray job, which has none.
 
     Returns:
         An ArgumentsStorage instance appropriate for the runner type.
 
     Raises:
-        ValueError: If the runner type is unknown.
+        ValueError: If the runner type is unknown, or a Fleets job is given no paths.
     """
     if job.runner == Program.RAY:
         return RayArgumentsStorage(job)
     if job.runner == Program.FLEETS:
-        return FleetsArgumentsStorage(job)
+        if paths is None:
+            raise ValueError(f"Fleets job '{job.id}' needs its storage paths to read or write its arguments")
+        return FleetsArgumentsStorage(job, paths)
     raise ValueError(f"Unknown runner type: {job.runner}")
 
 

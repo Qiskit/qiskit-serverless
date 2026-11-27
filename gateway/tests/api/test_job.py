@@ -332,7 +332,7 @@ class TestJobApi:
         assert user_job.program.provider is None
 
         # Save arguments for user function
-        user_args_storage = get_arguments_storage(user_job)
+        user_args_storage = get_arguments_storage(user_job, None)
         test_args = '{"param": "value"}'
         user_args_storage.save(test_args)
 
@@ -346,7 +346,7 @@ class TestJobApi:
 
         # Verify arguments are NOT in provider path (different job with provider program)
         wrong_provider_job = self._create_job(author="test_user", provider_admin="fake_provider")
-        wrong_provider_storage = get_arguments_storage(wrong_provider_job)
+        wrong_provider_storage = get_arguments_storage(wrong_provider_job, None)
         assert wrong_provider_storage.get() is None
 
     def test_job_arguments_storage_path_provider(self, settings):
@@ -365,7 +365,7 @@ class TestJobApi:
         assert provider_job.program.provider.name == "test_provider"
 
         # Save arguments for provider function
-        provider_args_storage = get_arguments_storage(provider_job)
+        provider_args_storage = get_arguments_storage(provider_job, None)
         provider_test_args = '{"provider_param": "provider_value"}'
         provider_args_storage.save(provider_test_args)
 
@@ -386,7 +386,7 @@ class TestJobApi:
 
         # Verify provider function arguments are NOT in user-only path (different job without provider)
         wrong_user_job = self._create_job(author="test_user")
-        wrong_user_storage = get_arguments_storage(wrong_user_job)
+        wrong_user_storage = get_arguments_storage(wrong_user_job, None)
         assert wrong_user_storage.get() is None
 
     def test_job_update_sub_status(self):

@@ -15,7 +15,7 @@ from tests.utils import TestUtils
 pytestmark = pytest.mark.django_db
 
 _ARGS_STORAGE_MOD = "core.services.storage.arguments_storage_fleets.FleetsArgumentsStorage.save"
-_RESULT_STORAGE_MOD = "core.services.storage.result_storage_fleets.get_cos_client"
+_RESULT_STORAGE_MOD = "core.services.storage.job_storage_paths.get_cos_client_for"
 
 # Every compute profile a Fleets job can resolve to must exist as a ComputeProfile
 # row, otherwise job creation is rejected as a misconfiguration. Rows are stored

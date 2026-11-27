@@ -4,8 +4,9 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from core.models import Job
+from core.models import Job, Program
 from core.services.storage import get_arguments_storage
+from core.services.storage.job_storage_paths import get_storage_paths
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -19,7 +20,8 @@ def save_job_arguments_to_storage(job: Job):
         job: Job that has `arguments != ""`
     """
 
-    arguments_storage = get_arguments_storage(job)
+    paths = get_storage_paths(job) if job.runner == Program.FLEETS else None
+    arguments_storage = get_arguments_storage(job, paths)
     arguments_storage.save(job.arguments)
     logger.info("Arguments data [%s]: %s", job.id, job.arguments[:100])
 

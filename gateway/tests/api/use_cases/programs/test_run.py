@@ -19,6 +19,8 @@ from core.clients.runtime_api_errors import RuntimeApiError
 from core.domain.exceptions.retryable_error import RetryableError
 from core.config_key import ConfigKey
 from core.models import (
+    PLATFORM_PERMISSION_RUN,
+    JobStoragePaths,
     CodeEngineProject,
     Config,
     ComputeProfile,
@@ -30,6 +32,8 @@ from core.models import (
     Provider,
     WorkloadMirror,
 )
+
+from tests.utils import TestUtils, create_function_access_result
 
 pytestmark = pytest.mark.django_db
 
@@ -92,7 +96,7 @@ def make_runnable_fleets_function(user, ce_project, monkeypatch):
     profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
     function.default_size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
     function.save(update_fields=["default_size"])
-    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+    monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
     return function
 
 
@@ -107,6 +111,8 @@ class TestRunFunctionUseCase:
         assert job.program.title == "my-fn"
         assert job.program.id == function.id
         assert job.author == user
+        # A Fleets job saves the storage paths it reads its files from
+        assert JobStoragePaths.objects.filter(job=job).exists()
 
     def test_raises_not_found_when_function_does_not_exist(self, user):
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
@@ -198,6 +204,49 @@ class TestRunFunctionUseCase:
 
         assert not Job.objects.exists()
 
+    @pytest.mark.parametrize(
+        "provider,missing",
+        [
+            (None, "cos_bucket_user_data_name"),
+            ("acme", "cos_bucket_provider_data_name"),
+            ("acme", "pds_name_providers"),
+        ],
+        ids=["custom_without_user_bucket", "provider_without_provider_bucket", "provider_without_provider_pds"],
+    )
+    def test_fleets_job_rejected_when_its_project_lacks_what_its_files_need(
+        self, user, ce_project, monkeypatch, caplog, provider, missing
+    ):
+        """A project without a bucket or a data store the job's files need is a 400 with a generic message, and the
+        missing setting is only in the warning log. It happens before any upload: no arguments in COS, no Job, no
+        saved paths."""
+        ce_project.cos_bucket_provider_data_name = "provider-data-bucket"
+        setattr(ce_project, missing, "")
+        ce_project.save()
+        function = TestUtils.create_program(
+            program_title="my-fn", author=user, provider=provider, runner=Program.FLEETS, code_engine_project=ce_project
+        )
+        profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
+        function.default_size = FunctionSize.objects.create(
+            function=function, function_size="m", compute_profile=profile
+        )
+        function.save(update_fields=["default_size"])
+        arguments_storage = mock.Mock()
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", arguments_storage)
+        if provider:
+            accessible = create_function_access_result(provider, "my-fn", {PLATFORM_PERMISSION_RUN})
+        else:
+            accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
+
+        with pytest.raises(FunctionConfigurationException) as raised:
+            RunFunctionUseCase().execute(user, accessible, make_input(provider_name=provider))
+
+        assert raised.value.message == "This function is not configured to run. Contact administrator."
+        assert f"no {missing} configured" in caplog.text
+
+        arguments_storage.assert_not_called()
+        assert not Job.objects.exists()
+        assert not JobStoragePaths.objects.exists()
+
     def test_ray_job_leaves_compute_profile_fk_null(self, user):
         """The Ray path has no profile; the FK stays null and no registration is required."""
         Program.objects.create(title="my-fn", author=user, entrypoint="main.py", runner=Program.RAY)
@@ -217,7 +266,7 @@ class TestRunFunctionUseCase:
         profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         size = FunctionSize.objects.create(function=function, function_size="m", compute_profile=profile)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
@@ -249,7 +298,7 @@ class TestRunFunctionUseCase:
         function.default_size = size
         function.save(update_fields=["default_size"])
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
 
         job = RunFunctionUseCase().execute(user, accessible, make_input())
 
@@ -270,7 +319,7 @@ class TestRunFunctionUseCase:
         )
         function.save(update_fields=["default_size"])
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
         crn = "crn:v1:bluemix:public:quantum-computing:us-east:a/acct:inst::"
 
         job = RunFunctionUseCase().execute(user, accessible, make_input(instance=crn))
@@ -297,7 +346,7 @@ class TestRunFunctionUseCase:
         profile = ComputeProfile.objects.create(compute_profile_id="16x128", cpu="16", memory="128")
         size = FunctionSize.objects.create(function=function, function_size="M", compute_profile=profile)
         accessible = FunctionAccessResult(use_legacy_authorization=True, functions=[])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
         job = RunFunctionUseCase().execute(user, accessible, make_input(function_size="M"))
 
         size.function_size = "L"
@@ -326,14 +375,21 @@ class TestWorkloadMirror:
             function=function, function_size="m", compute_profile=profile
         )
         function.save(update_fields=["default_size"])
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: mock.Mock())
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: mock.Mock())
         return FunctionAccessResult(use_legacy_authorization=True, functions=[])
 
     def test_a_fleets_job_is_sent_to_the_runtime_api_when_it_is_created(self, user, fleets_accessible, put_function):
+        """The job is sent to the Runtime API, and its storage paths are saved with it."""
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
 
         job = RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
+        saved = JobStoragePaths.objects.get(job=job)
+        assert saved.arguments_key.endswith(f"/jobs/{job.id}/arguments.json")
+        assert (job.ce_project_id, job.ce_project_name) == (
+            job.program.code_engine_project.project_id,
+            job.program.code_engine_project.project_name,
+        )
         put_function.assert_called_once()
         assert put_function.call_args.kwargs["function_id"] == str(job.id)
         assert put_function.call_args.kwargs["body"]["status"] == "Queued"
@@ -375,6 +431,8 @@ class TestWorkloadMirror:
         put_function.assert_not_called()
         assert Job.objects.count() == 1
         assert not WorkloadMirror.objects.exists()
+        # Only Fleets jobs read their files from saved paths
+        assert not JobStoragePaths.objects.exists()
 
     def test_a_fleets_job_without_instance_is_created_but_not_sent(self, user, fleets_accessible, put_function):
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
@@ -390,7 +448,7 @@ class TestWorkloadMirror:
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
         put_function.side_effect = RetryableError("down")
         arguments_storage = mock.Mock()
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: arguments_storage)
 
         with pytest.raises(EngineUnavailableException):
             RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
@@ -418,10 +476,11 @@ class TestWorkloadMirror:
         Config.set(ConfigKey.WORKLOADS_MIRROR_ENABLED, "true")
         put_function.side_effect = ValueError("not an error of the Runtime API")
         arguments_storage = mock.Mock()
-        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job: arguments_storage)
+        monkeypatch.setattr("api.use_cases.programs.run.get_arguments_storage", lambda job, paths: arguments_storage)
 
         with pytest.raises(ValueError):
             RunFunctionUseCase().execute(user, fleets_accessible, make_input(instance=self.CRN))
 
         assert not Job.objects.exists()
+        assert not JobStoragePaths.objects.exists()
         arguments_storage.delete.assert_called_once()

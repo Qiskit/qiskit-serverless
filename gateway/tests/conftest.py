@@ -22,6 +22,7 @@ from core.config_key import ConfigKey
 from core.models import Config
 from core.ibm_cloud import clear_cos_clients
 
+from tests.fake_cos import FakeCOS
 from tests.utils import TestUtils
 
 
@@ -118,3 +119,11 @@ def clear_iam_token_providers():
 def clear_cos_client_cache():
     """Clear the per-process COS client cache before every test."""
     clear_cos_clients()
+
+
+@pytest.fixture
+def fake_cos():
+    """An in-memory COS behind the gateway's real COS clients, one set of files per Code Engine project."""
+    cos = FakeCOS()
+    with cos.installed():
+        yield cos
