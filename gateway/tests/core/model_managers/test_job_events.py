@@ -130,3 +130,33 @@ class TestFirstTerminalAt:
         _add_status_event(job, Job.STOPPING)
 
         assert JobEvent.objects.first_terminal_at(job.id) is None
+
+
+class TestHasBillingEvent:
+    """Unit tests for JobEventQuerySet.has_billing_event()."""
+
+    def test_returns_false_when_the_job_has_no_billing_event(self, job):
+        _add_status_event(job, Job.RUNNING)
+
+        assert JobEvent.objects.has_billing_event(job.id) is False
+
+    def test_returns_true_when_the_job_has_a_billing_event(self, job):
+        JobEvent.objects.create(
+            job_id=job.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            event_type=JobEventType.BILLING,
+        )
+
+        assert JobEvent.objects.has_billing_event(job.id) is True
+
+    def test_ignores_the_billing_event_of_another_job(self, job, user):
+        other = Job.objects.create(author=user, runner=Program.FLEETS, status=Job.QUEUED)
+        JobEvent.objects.create(
+            job_id=other.id,
+            origin=JobEventOrigin.SCHEDULER,
+            context=JobEventContext.UPDATE_JOB_STATUS,
+            event_type=JobEventType.BILLING,
+        )
+
+        assert JobEvent.objects.has_billing_event(job.id) is False
