@@ -256,7 +256,7 @@ class FleetsRunner(AbstractRunner):
 
             fleet = handler.submit_job(
                 name=fleet_name,
-                image_reference=self._get_image(),
+                image_reference=self._get_image(wants_gpu=bool(scale_gpu)),
                 image_secret=settings.CE_ICR_PULL_SECRET,
                 network_placements=[{"type": "subnet_pool", "reference": self._project.subnet_pool_id}],
                 scale_cpu_limit=cpu_limit,
@@ -873,25 +873,57 @@ class FleetsRunner(AbstractRunner):
             raise RunnerError("IBM_CLOUD_API_KEY not configured in settings")
         return api_key
 
-    def _get_image(self) -> str:
+    def _get_image(self, wants_gpu: bool) -> str:
         """Return the container image for the fleet.
 
-        Custom jobs (artifact set) always run on the default fleet-node image —
+        Custom jobs (artifact set) always run on a default image —
         ``program.image`` is the provider's runtime container and must not be
         used when the gateway is supplying the entrypoint from an artifact.
-        Provider jobs (image set, no artifact) use ``program.image``.
-        Imageless jobs fall back to ``settings.FLEETS_DEFAULT_IMAGE``.
+        Provider jobs (image set, no artifact) use ``program.image``, whatever
+        the compute profile: a provider image is the provider's choice and the
+        gateway does not second-guess which accelerators it carries.
+
+        Every other job gets a default, chosen by whether the job is going to a
+        GPU worker: ``settings.FLEETS_DEFAULT_GPU_IMAGE`` when it is and
+        ``settings.FLEETS_DEFAULT_IMAGE`` when it is not. The CPU image does not
+        contain the CUDA stack (see ``specs/FLEETS_IMAGES.md``), so the two
+        cannot be swapped.
+
+        Args:
+            wants_gpu: Whether the job's compute profile allocates a GPU. Taken
+                from the ``scale_gpu`` that ``_parse_compute_profile`` already
+                produced, so the image and the fleet's GPU request come from one
+                parse and cannot disagree.
 
         Returns:
             Image reference string.
+
+        Raises:
+            RunnerError: If the job has no program, or if it needs the GPU image
+                and that setting is unset.
         """
         if not self.job.program:
             raise RunnerError("Job has no program assigned")
-        if self.job.program.artifact:
-            return settings.FLEETS_DEFAULT_IMAGE
-        if self.job.program.image:
+        if self.job.program.image and not self.job.program.artifact:
             return self.job.program.image
-        return settings.FLEETS_DEFAULT_IMAGE
+        if not wants_gpu:
+            return settings.FLEETS_DEFAULT_IMAGE
+
+        # Falling back to the CPU image here would fail silently: the job runs on
+        # a GPU worker, `import gpu4pyscf` fails, the function finishes on CPU and
+        # still reports success. Refusing the submit is the only loud failure.
+        gpu_image = settings.FLEETS_DEFAULT_GPU_IMAGE
+        if not gpu_image:
+            logger.error(
+                "job_id=[%s] needs the GPU image for profile [%s] but FLEETS_DEFAULT_GPU_IMAGE is unset",
+                self.job.id,
+                self.job.compute_profile_id or "default",
+            )
+            raise RunnerError(
+                "FLEETS_DEFAULT_GPU_IMAGE is not configured, so a job on a GPU compute profile "
+                f"[{self.job.compute_profile_id or 'default'}] cannot be submitted"
+            )
+        return gpu_image
 
     def _build_fleet_name(self) -> str:
         """Build the Code Engine fleet name for this job, as ``{vendor}-{function}-{job id}``.

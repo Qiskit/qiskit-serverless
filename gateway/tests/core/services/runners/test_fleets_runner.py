@@ -90,6 +90,7 @@ def _patch_settings(**overrides):
         "IBM_CLOUD_API_KEY": "test-api-key",
         "CE_ICR_PULL_SECRET": "test-pull-secret",
         "FLEETS_DEFAULT_IMAGE": "default-image:latest",
+        "FLEETS_DEFAULT_GPU_IMAGE": "default-gpu-image:latest",
         "DEFAULT_COMPUTE_PROFILE": "cx3d-4x16",
         "FLEETS_GATEWAY_HOST": None,
         "CUSTOM_IMAGE_PACKAGE_PATH": "/runner",
@@ -918,6 +919,92 @@ def test_submit_uses_default_image_when_artifact_set_even_if_image_also_set():
         runner.submit()
 
     assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "fleet-node:latest"
+
+
+def test_submit_uses_gpu_image_on_gpu_compute_profile():
+    """submit() uses FLEETS_DEFAULT_GPU_IMAGE when the profile allocates a GPU."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
+
+    with _patch_settings(FLEETS_DEFAULT_IMAGE="cpu-image:v1", FLEETS_DEFAULT_GPU_IMAGE="gpu-image:v1"):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    assert call_kwargs["image_reference"] == "gpu-image:v1"
+    # The image and the fleet's GPU request come from the same parse, so a job on
+    # the GPU image is always a job that actually asked Code Engine for a GPU.
+    assert call_kwargs["extra_fields"]["scale_gpu"] == {"preferences": [{"family": "a100p", "allocation": "1"}]}
+
+
+def test_submit_uses_cpu_image_on_cpu_compute_profile():
+    """submit() uses FLEETS_DEFAULT_IMAGE when the profile allocates no GPU."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile_id = "bx3d-24x120"
+
+    with _patch_settings(FLEETS_DEFAULT_IMAGE="cpu-image:v1", FLEETS_DEFAULT_GPU_IMAGE="gpu-image:v1"):
+        runner.submit()
+
+    call_kwargs = mock_handler.submit_job.call_args.kwargs
+    assert call_kwargs["image_reference"] == "cpu-image:v1"
+    assert "scale_gpu" not in (call_kwargs.get("extra_fields") or {})
+
+
+def test_submit_uses_gpu_image_for_artifact_job_on_gpu_profile():
+    """Custom jobs (artifact set) still get the GPU image when the profile has a GPU."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile_id = "24x120x2a100p"
+    runner.job.program.artifact = MagicMock()
+    runner.job.program.image = "provider-image:latest"
+
+    with (
+        _patch_settings(FLEETS_DEFAULT_IMAGE="cpu-image:v1", FLEETS_DEFAULT_GPU_IMAGE="gpu-image:v1"),
+        patch.object(runner, "_upload_program_to_cos"),
+    ):
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "gpu-image:v1"
+
+
+def test_submit_uses_program_image_on_gpu_profile():
+    """A provider image stays the provider's, GPU profile or not."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
+    runner.job.program.image = "provider-image:latest"
+
+    with (
+        _patch_settings(FLEETS_DEFAULT_GPU_IMAGE="gpu-image:v1"),
+        patch.object(runner, "_upload_program_to_cos"),
+    ):
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "provider-image:latest"
+
+
+def test_submit_raises_on_gpu_profile_when_gpu_image_unset():
+    """submit() fails loudly rather than running a GPU job on the CPU image.
+
+    Falling back would succeed and be wrong: the job lands on a GPU worker,
+    ``import gpu4pyscf`` fails, and the function finishes on CPU reporting success.
+    """
+    runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile_id = "gx3d-24x120x1a100p"
+
+    with _patch_settings(FLEETS_DEFAULT_GPU_IMAGE=None):
+        with pytest.raises(RunnerError, match="FLEETS_DEFAULT_GPU_IMAGE is not configured"):
+            runner.submit()
+
+    mock_handler.submit_job.assert_not_called()
+
+
+def test_submit_succeeds_on_cpu_profile_when_gpu_image_unset():
+    """An unset GPU image does not block CPU jobs."""
+    runner, mock_handler = _make_submit_runner()
+    runner.job.compute_profile_id = "bx3d-24x120"
+
+    with _patch_settings(FLEETS_DEFAULT_IMAGE="cpu-image:v1", FLEETS_DEFAULT_GPU_IMAGE=None):
+        runner.submit()
+
+    assert mock_handler.submit_job.call_args.kwargs["image_reference"] == "cpu-image:v1"
 
 
 def test_submit_uses_config_workers_as_max_instances():

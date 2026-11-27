@@ -19,6 +19,10 @@ x-gateway-env: &gateway-env
   CE_HMAC_SECRET_NAME: cos-hmac-secret
   LIMITS_MAX_FLEETS: "10"
   FLEETS_DEFAULT_IMAGE: python:3.12-slim
+  # Distinct from the CPU image on purpose: this suite has no GPU and submits
+  # only CPU profiles, so a job landing on this tag means the image choice went
+  # wrong rather than the test needing a GPU.
+  FLEETS_DEFAULT_GPU_IMAGE: python:3.12-slim-gpu-unused
   DEFAULT_COMPUTE_PROFILE: 16x128
   CE_DEFAULT_PROJECT_NAME: test-project
   CE_PROJECTS: '[{"project_id":"test-project-id","project_name":"test-project","region":"us-south","resource_group_id":"test-rg-id","subnet_pool_id":"test-subnet-pool-id","pds_name_state":"test-pds-state","pds_name_users":"test-pds-users","pds_name_providers":"test-pds-providers","cos_instance_name":"test-cos-instance","cos_key_name":"test-cos-key","cos_bucket_task_store_name":"task-store-bucket","cos_bucket_user_data_name":"user-data-bucket","cos_bucket_provider_data_name":"provider-data-bucket"},{"project_id":"test-provider-project-id","project_name":"test-provider-project","region":"us-south","resource_group_id":"test-rg-id","subnet_pool_id":"test-subnet-pool-id","pds_name_state":"test-pds-state","pds_name_users":"test-pds-users","pds_name_providers":"test-pds-providers","cos_instance_name":"test-cos-instance","cos_key_name":"test-cos-key","cos_bucket_task_store_name":"task-store-bucket","cos_bucket_user_data_name":"user-data-bucket","cos_bucket_provider_data_name":"provider-data-bucket"}]'

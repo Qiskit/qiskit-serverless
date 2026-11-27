@@ -724,11 +724,21 @@ DYNAMIC_CONFIG_DEFAULTS = {
 # Fleets / Code Engine credentials
 IBM_CLOUD_API_KEY = os.environ.get("IBM_CLOUD_API_KEY", None)
 CE_ICR_PULL_SECRET = os.environ.get("CE_ICR_PULL_SECRET", None)
-# Default runtime image for imageless (custom-code) Fleets jobs; real deployments
-# override it via ce.fleetsDefaultImage.
+# Default runtime images for imageless (custom-code) Fleets jobs; real deployments
+# override them via ce.fleetsDefaultImage and ce.fleetsDefaultGpuImage.
+#
+# Two images, chosen per job by FleetsRunner._get_image() from whether the job's
+# compute profile allocates a GPU. The CPU image does not carry the CUDA stack
+# (cupy, cutensor, gpu4pyscf, nvidia-*), so the two are not interchangeable: a
+# GPU job on the CPU image fails at `import gpu4pyscf` and silently finishes on
+# CPU. See specs/FLEETS_IMAGES.md.
 FLEETS_DEFAULT_IMAGE = os.environ.get(
     "FLEETS_DEFAULT_IMAGE",
-    "private.icr.io/quantum-public/qiskit-serverless/fleet-node:0.38.0",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-selector:0.38.0",
+)
+FLEETS_DEFAULT_GPU_IMAGE = os.environ.get(
+    "FLEETS_DEFAULT_GPU_IMAGE",
+    "private.icr.io/quantum-public/qiskit-serverless/fleet-selector-gpu:0.38.0",
 )
 
 
